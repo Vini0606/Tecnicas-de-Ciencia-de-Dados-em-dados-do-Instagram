@@ -1,0 +1,11 @@
+jupyterlab
+pandas
+apify-client
+scikit-learn
+transformers
+torch 
+matplotlib
+seaborn
+hyperopt
+python-dotenv
+openpyxl
