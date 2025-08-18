@@ -1,4 +1,3 @@
-jupyterlab
 pandas
 apify-client
 scikit-learn
@@ -9,3 +8,12 @@ seaborn
 hyperopt
 python-dotenv
 openpyxl
+bertopic
+nltk
+spacy
+protobuf
+tiktoken
+sentencepiece
+sentence-transformers
+google-generativeai
+emoji

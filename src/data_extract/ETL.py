@@ -124,10 +124,11 @@ class Transform():
         self.df_reels = pd.DataFrame(reels)
 
     def tranformData(self):
-        # Converter 'timestamp' p/ Data, ajustando para o fuso local e removendo a info de timezone
+        
         self.df_posts['data_hora'] = pd.to_datetime(self.df_posts['timestamp']).dt.tz_convert('America/Sao_Paulo').dt.tz_localize(None)
         self.df_reels['data_hora'] = pd.to_datetime(self.df_reels['timestamp']).dt.tz_convert('America/Sao_Paulo').dt.tz_localize(None)
-
+        self.df_reels['Width X Height'] = self.df_reels['dimensionsWidth'].astype(str) + ' X ' + self.df_reels['dimensionsHeight'].astype(str)
+        
         self.df_posts['Tipo'] = 'FEED'
         self.df_reels['Tipo'] = 'REELS'
 
@@ -141,15 +142,19 @@ class Transform():
             count=('ownerId', 'count')
         ).reset_index()
 
-        self.df_profiles_reels_posts = pd.merge(self.df_profiles, self.df_reels_posts_gruped, left_on='id', right_on='ownerId', how='left').drop(['ownerId'], axis=1) 
-        self.df_profiles_reels_posts[r'% ENGAJAMENTO'] = (self.df_profiles_reels_posts['commentsSum'] + self.df_profiles_reels_posts['likesSum']) / self.df_profiles_reels_posts['followersCount']
-        self.df_profiles_reels_posts['RECENCIA'] = 1 / ((self.df_profiles_reels_posts['maxData'].max() - self.df_profiles_reels_posts['maxData']).dt.days + 1)
-        self.df_profiles_reels_posts['FREQUENCIA'] = self.df_profiles_reels_posts['count'] / ((self.df_profiles_reels_posts['maxData'] - self.df_profiles_reels_posts['minData']).dt.days + 1)
+        self.df_profiles = pd.merge(self.df_profiles, self.df_reels_posts_gruped, left_on='id', right_on='ownerId', how='left').drop(['ownerId'], axis=1) 
+        self.df_profiles[r'% ENGAJAMENTO'] = (self.df_profiles['commentsSum'] + self.df_profiles['likesSum']) / self.df_profiles['followersCount']
+        self.df_profiles['RECENCIA'] = 1 / ((self.df_profiles['maxData'].max() - self.df_profiles['maxData']).dt.days + 1)
+        self.df_profiles['FREQUENCIA'] = self.df_profiles['count'] / ((self.df_profiles['maxData'] - self.df_profiles['minData']).dt.days + 1)
 
         df_exploded = self.df_reels.explode('latestComments').copy()
         df_normalized = pd.json_normalize(df_exploded['latestComments'])
         df_normalized.index = df_exploded.index
         self.df_latestComments = df_exploded.drop('latestComments', axis=1).join(df_normalized, lsuffix='_reel', rsuffix='_comment')
+        self.df_latestComments = self.df_latestComments.drop(['hashtags', 'mentions', 'images', 'childPosts', 'musicInfo', 'replies', 'taggedUsers', 'coauthorProducers'], axis=1)
+        self.df_latestComments['comprimento texto'] = self.df_latestComments['text'].str.len()
+        self.df_latestComments = self.df_latestComments[self.df_latestComments['comprimento texto'] < 512]
+        self.df_latestComments = self.df_latestComments.drop_duplicates()
 
 class Load():
 
@@ -164,8 +169,6 @@ class Load():
         self.df_reels = self.transformer.df_reels
         self.df_latestComments = self.transformer.df_latestComments
         self.df_reels_posts = self.transformer.df_reels_posts
-        self.df_reels_posts_gruped = self.transformer.df_reels_posts_gruped
-        self.df_profiles_reels_posts = self.transformer.df_profiles_reels_posts
     
     def loadDataframes(self):
         with pd.ExcelWriter(settings.ALL_XLSX, engine='openpyxl') as writer:
@@ -174,8 +177,6 @@ class Load():
             self.df_reels.to_excel(writer, sheet_name="reels", index=False)
             self.df_latestComments.to_excel(writer, sheet_name="reels_latestComments", index=False)
             self.df_reels_posts.to_excel(writer, sheet_name="reels_posts", index=False)
-            self.df_reels_posts_gruped.to_excel(writer, sheet_name="reels_posts_grouped", index=False)
-            self.df_profiles_reels_posts.to_excel(writer, sheet_name="profiles_reels_posts", index=False)
 
 def ELT(apify_api_key: str, links: list[str], results_limit: int = 30):
     """
