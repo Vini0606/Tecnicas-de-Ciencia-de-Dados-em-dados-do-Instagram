@@ -17,3 +17,4 @@ sentencepiece
 sentence-transformers
 google-generativeai
 emoji
+streamlit

@@ -1,5 +1,7 @@
 # Arquivo com Variáveis de Ambiente
 .env
+*.pbix
+*.png
 
 data/
 

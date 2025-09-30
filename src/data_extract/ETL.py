@@ -115,6 +115,7 @@ class Transform():
         df.to_excel(settings.DICIONARIO_XLSX, index=False)
 
     def lerDataframes(self):
+        
         profiles = self.lerArquivo(settings.PROFILES_JSON)
         posts = self.lerArquivo(settings.POSTS_JSON)
         reels = self.lerArquivo(settings.REELS_JSON)
@@ -143,7 +144,8 @@ class Transform():
         ).reset_index()
 
         self.df_profiles = pd.merge(self.df_profiles, self.df_reels_posts_gruped, left_on='id', right_on='ownerId', how='left').drop(['ownerId'], axis=1) 
-        self.df_profiles[r'% ENGAJAMENTO'] = (self.df_profiles['commentsSum'] + self.df_profiles['likesSum']) / self.df_profiles['followersCount']
+        self.df_profiles[r'TOTAL ENGAJAMENTO'] = self.df_profiles['commentsSum'] + self.df_profiles['likesSum']
+        self.df_profiles[r'% ENGAJAMENTO'] = self.df_profiles[r'TOTAL ENGAJAMENTO'] / self.df_profiles['followersCount']
         self.df_profiles['RECENCIA'] = 1 / ((self.df_profiles['maxData'].max() - self.df_profiles['maxData']).dt.days + 1)
         self.df_profiles['FREQUENCIA'] = self.df_profiles['count'] / ((self.df_profiles['maxData'] - self.df_profiles['minData']).dt.days + 1)
 
