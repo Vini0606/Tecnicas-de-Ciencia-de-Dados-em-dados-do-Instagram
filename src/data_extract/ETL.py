@@ -129,6 +129,7 @@ class Transform():
         self.df_posts['data_hora'] = pd.to_datetime(self.df_posts['timestamp']).dt.tz_convert('America/Sao_Paulo').dt.tz_localize(None)
         self.df_reels['data_hora'] = pd.to_datetime(self.df_reels['timestamp']).dt.tz_convert('America/Sao_Paulo').dt.tz_localize(None)
         self.df_reels['Width X Height'] = self.df_reels['dimensionsWidth'].astype(str) + ' X ' + self.df_reels['dimensionsHeight'].astype(str)
+        self.df_reels['Total de Engajamento'] = self.df_reels['commentsCount'] + self.df_reels['likesCount']
         
         self.df_posts['Tipo'] = 'FEED'
         self.df_reels['Tipo'] = 'REELS'
