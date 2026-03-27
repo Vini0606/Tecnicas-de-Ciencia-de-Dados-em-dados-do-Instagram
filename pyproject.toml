@@ -1,0 +1,27 @@
+[project]
+name = "tecnicas-nlp-insta"
+version = "0.1.0"
+description = "Técnicas de NLP em dados do Instagram"
+requires-python = ">=3.9"
+dependencies = [
+    "pandas",
+    "apify-client",
+    "scikit-learn",
+    "transformers",
+    "torch",
+    "matplotlib",
+    "seaborn",
+    "hyperopt",
+    "python-dotenv",
+    "openpyxl",
+    "bertopic",
+    "nltk",
+    "spacy",
+    "protobuf",
+    "tiktoken",
+    "sentencepiece",
+    "sentence-transformers",
+    "google-generativeai",
+    "emoji",
+    "streamlit",
+]
