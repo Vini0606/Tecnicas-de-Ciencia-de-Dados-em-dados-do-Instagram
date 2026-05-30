@@ -1,11 +1,18 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyc
+
 # Arquivo com Variáveis de Ambiente
 .env
 *.pbix
 *.png
 
-av_nlp_insta/
+# ambiente virtual  
+.venv/
 
 # Medallion data
+data/raw/
 data/bronze/
 data/silver/
 data/gold/
