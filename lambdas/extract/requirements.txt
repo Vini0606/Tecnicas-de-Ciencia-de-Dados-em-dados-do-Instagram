@@ -1,0 +1,5 @@
+apify-client
+python-dotenv
+pandas
+deltalake>=0.18
+pyarrow>=15.0
