@@ -1,0 +1,4 @@
+boto3
+pandas
+pyarrow
+deltalake>=0.18
