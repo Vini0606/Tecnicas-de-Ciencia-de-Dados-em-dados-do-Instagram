@@ -1,0 +1,85 @@
+\chapter{INTRODUÇÃO}\label{INTRODUÇÃO}
+
+Em um cenário onde as mídias sociais se consolidaram como plataformas centrais para a comunicação e a formação da opinião pública, o volume massivo de dados textuais gerados por interações de usuários, como comentários no Instagram, emerge como uma fonte inestimável para a análise do engajamento político. No entanto, a natureza não estruturada e a escala desses dados tornam as abordagens analíticas manuais ou isoladas impraticáveis e superficiais \cite{JURAFSKY2025}. A lacuna de conhecimento reside na necessidade de metodologias que não apenas identifiquem a polaridade do sentimento, mas também compreendam os tópicos subjacentes e a segmentação do público, fornecendo uma visão holística e granular da opinião pública. Diante disso, esta pesquisa propõe uma abordagem metodológica híbrida, combinando técnicas de Processamento de Linguagem Natural (PLN) como a análise de sentimentos e modelagem de tópicos e métodos não supervisionados, como a clusterização, para analisar a opinião dos usuários seguidores das páginas de instagram dos governadores brasileiros. O estudo visa demonstrar que a integração sinérgica dessas ferramentas permite superar as limitações das análises tradicionais, oferecendo uma compreensão mais profunda e matizada sobre as dinâmicas de opinião e os temas de interesse do eleitorado, e validando um novo framework analítico que pode ser replicado em diversos contextos de marketing político e comunicação organizacional.
+
+\section{Contextualização e Definição do Problema}
+
+A ascensão das plataformas de mídias sociais transformou o cenário da comunicação política e da formação de opinião pública. O Instagram, em particular, com sua natureza visual e capacidade de gerar engajamento massivo através de comentários, tornou-se um palco onde a percepção da marca política é moldada e expressa. Nesse contexto, a grande quantidade de dados textuais gerados diariamente representa um desafio significativo: a extração de inteligência e insights acionáveis de um volume tão grande e não estruturado. O problema de pesquisa central, portanto, reside na incapacidade das metodologias analíticas tradicionais, que frequentemente aplicam técnicas de forma isolada, como apenas a análise de sentimento ou a modelagem de tópicos, de capturar de forma mais detalhada a complexidade e a multidimensionalidade da percepção pública. Tais abordagens fragmentadas falham em identificar as nuances do discurso, os temas específicos que impulsionam um determinado sentimento e, crucialmente, em agrupar as publicações ou os comentários com base em semelhanças que podem indicar a formação de comunidades de opinião ou segmentos de semelhantes de público. Assim, a falta de uma metodologia integrada que combine sentimentos, tópicos e clusterização deixa um vácuo no entendimento aprofundado do comportamento e das opiniões do eleitorado, limitando a capacidade de estrategistas políticos e de comunicação de tomar decisões informadas em um ambiente digital dinâmico e volátil.
+
+\section{Relevância e Motivação}
+
+A relevância e a motivação deste estudo residem na lacuna crítica entre a proliferação de dados de mídias sociais e a carência de metodologias analíticas robustas e integradas para extrair insights significativos. Academicamente, a pesquisa contribui para os campos da Ciência da Computação, da Comunicação Social e do Marketing Político ao propor e validar um framework analítico híbrido que transcende as limitações das abordagens tradicionais e isoladas de PLN. Ao demonstrar como a combinação sinérgica de análise de sentimentos, modelagem de tópicos e clusterização pode revelar padrões complexos de opinião, o estudo estabelece uma nova fronteira metodológica para a pesquisa em mídias sociais \cite{PANG2008}. A motivação principal é suprir uma necessidade prática e urgente: oferecer a estrategistas de marketing político e comunicadores organizacionais ferramentas que permitam ir além de métricas superficiais (como curtidas e compartilhamentos), proporcionando uma compreensão profunda e acionável da percepção de marca e dos temas que realmente ressoam com o público. Em um ambiente político polarizado, onde a comunicação digital é decisiva, a capacidade de identificar não apenas o que o público sente, mas também por que ele se sente assim e como os diferentes segmentos de opinião se organizam, torna-se um diferencial competitivo e um imperativo estratégico. O presente trabalho, ao focar na análise de governadores brasileiros, oferece um estudo de caso oportuno e de grande impacto, ilustrando a aplicação prática da metodologia para informar tomadas de decisão e aprimorar estratégias de engajamento em tempo real.
+
+\section{Visão Geral do Método}
+
+A metodologia de análise foi concebida como um pipeline de processamento de dados e mineração de texto. O processo teve início com a coleta de um corpus de comentários de usuários, extraídos via api da APIFY e salvos em um arquivo Excel. A etapa subsequente, de pré-processamento, incluiu a aplicação de uma função para remoção de stopwords da língua portuguesa, utilizando o recurso stopwords da biblioteca nltk. Em paralelo, para a análise de sentimentos, foi empregada uma abordagem baseada em modelos pré-treinados, utilizando o pipeline de sentiment-analysis da biblioteca transformers. O modelo específico escolhido foi o cardiffnlp/twitter-xlm-roberta-base-sentiment, um modelo multilíngue robusto, que classificou cada comentário com um rótulo de sentimento (Positive, Negative ou Neutral) e uma pontuação de confiança correspondente.
+
+A modelagem de tópicos foi realizada utilizando a biblioteca BERTopic, selecionada por sua capacidade de gerar tópicos coerentes e interpretáveis. Para otimizar a representação textual, os embeddings de sentenças foram gerados pelo modelo rufimelo/bert-large-portuguese-cased-sts, um modelo pré-treinado em português que captura nuances semânticas. A representação dos documentos foi aprimorada com a inclusão de emojis como tokens, por meio da conversão de emojis em texto (demojize) e da configuração de um CountVectorizer com uma expressão regular customizada. Uma inovação crucial da metodologia foi a utilização de um Large Language Model (LLM), o Gemini API, para refinar os rótulos dos tópicos. Através de uma classe GeminiDocsRefiner, uma amostra de até 10 comentários de cada tópico foi fornecida ao LLM, que gerou descrições detalhadas em um parágrafo, melhorando significativamente a interpretabilidade dos resultados. Por fim, os resultados da análise de sentimento e da modelagem de tópicos foram integrados ao dataframe original para uma análise combinada.
+
+\section{Contribuições do Trabalho}
+
+As principais contribuições deste trabalho desdobram-se em duas frentes: metodológica e prática. No âmbito metodológico, o estudo inova ao propor, desenvolver e validar uma abordagem analítica híbrida de Processamento de Linguagem Natural (PLN). Diferentemente de pesquisas que aplicam técnicas de forma isolada, esta pesquisa integra análise de sentimentos, modelagem de tópicos e clusterização em um único pipeline coerente, demonstrando que a sinergia dessas ferramentas oferece uma compreensão mais profunda e multifacetada do discurso nas redes sociais. A implementação prática dessa metodologia é evidenciada pela utilização de modelos e bibliotecas de ponta, como o modelo cardiffnlp para análise de sentimento e o BERTopic para modelagem de tópicos. Uma contribuição científica particularmente relevante é a incorporação de um Large Language Model (LLM), o Gemini API, para refinar e gerar descrições interpretáveis para os tópicos identificados, elevando a qualidade e a utilidade dos resultados da modelagem. No campo prático, a pesquisa oferece um framework replicável e acionável para profissionais de marketing e comunicação política, permitindo uma análise granular e eficiente da percepção de marca. Ao aplicar a metodologia no estudo de caso dos governadores brasileiros, o trabalho fornece um exemplo concreto de como as organizações podem extrair inteligência estratégica de grandes volumes de dados não estruturados do Instagram para informar suas decisões e aprimorar suas estratégias de engajamento com o público.
+
+\section{Estrutura e Organização do Trabalho}
+
+A estrutura do Trabalho de Conclusão de Curso (TCC) pode ser organizada de forma clara e lógica, seguindo as diretrizes acadêmicas e as etapas já delineadas no projeto. Uma sugestão de organização detalhada é a seguinte:
+
+\begin{itemize}
+  \item \textbf{Introdução}
+  \begin{itemize}
+    \item Contextualização e Definição do Problema
+    \item Relevância e Motivação
+    \item Objetivos do Estudo
+    \item Estrutura do Trabalho
+  \end{itemize}
+  
+  \item \textbf{Referencial Teórico}
+  \begin{itemize}
+    \item Mídias Sociais e Marketing Político Digital
+    \item Fundamentos de Processamento de Linguagem Natural (PLN)
+    \item Técnicas de Mineração de Texto para Análise de Mídias Sociais
+    \begin{itemize}
+      \item Análise de Sentimentos
+      \item Modelagem de Tópicos
+      \item Clusterização
+    \end{itemize}
+    \item Abordagens Híbridas em Análise de Dados Textuais
+  \end{itemize}
+  
+  \item \textbf{Metodologia}
+  \begin{itemize}
+    \item Visão Geral do Método
+    \item Coleta e Preparação do Corpus de Dados
+    \item Pipeline de Processamento Textual
+    \begin{itemize}
+      \item Pré-processamento e Remoção de Stopwords
+      \item Análise de Sentimentos com \texttt{cardiffnlp/twitter-xlm-roberta-base-sentiment}
+      \item Modelagem de Tópicos com \textbf{BERTopic} e \textbf{Gemini API}
+      \item Técnicas de Clusterização para Agrupamento de Comentários
+    \end{itemize}
+    \item Ferramentas e Tecnologias Utilizadas
+  \end{itemize}
+  
+  \item \textbf{Análise e Discussão dos Resultados}
+  \begin{itemize}
+    \item Análise Descritiva do Conjunto de Dados
+    \item Distribuição e Análise da Polaridade do Sentimento
+    \item Tópicos Emergentes e sua Interpretação
+    \item Resultados da Clusterização e Segmentação do Público
+    \item Validação da Abordagem Proposta: Comparação com Métodos Isolados
+  \end{itemize}
+  
+  \item \textbf{Conclusão}
+  \begin{itemize}
+    \item Considerações Finais e Sumário das Contribuições
+    \item Limitações do Estudo
+    \item Sugestões para Trabalhos Futuros
+  \end{itemize}
+
+\section{Cronograma e planejamento do trabalho}
+
+O planejamento e a execução deste projeto de pesquisa foram estruturados para um período de seis meses, com início em janeiro do próximo ano, garantindo que todas as etapas, desde a concepção até a defesa, sejam realizadas de forma sistemática e eficiente. A alocação de tempo para cada fase foi estrategicamente definida para permitir a profundidade metodológica exigida por uma abordagem híbrida de mineração de dados.
+
+A primeira fase, que se estende por janeiro e fevereiro, é dedicada ao Planejamento e Estruturação do Trabalho. Este período inicial é crucial para a definição final do problema de pesquisa e para a elaboração do referencial teórico, que fornecerá a base conceitual para a análise. Em seguida, a Coleta e Pré-processamento dos Dados ocorrerá entre fevereiro e março. Esta etapa envolve a aquisição do corpus de comentários do Instagram e o tratamento dos dados brutos, incluindo a limpeza e normalização, para prepará-los para a análise.
+
+O núcleo analítico do projeto, a fase de Análise e Modelagem, está programado para o período de março a abril. Durante este tempo, serão aplicadas as técnicas de Processamento de Linguagem Natural (PLN) de forma integrada, como a análise de sentimentos, a modelagem de tópicos e a clusterização, conforme a metodologia proposta. A interpretação dos resultados e a elaboração da Análise e Discussão estão previstas para os meses de abril e maio. Esta fase é vital para a extração de insights significativos e a validação das hipóteses levantadas. Por fim, a última fase, em junho, será dedicada à Redação Final e Revisão do documento. Este período de conclusão permitirá a escrita da seção final, a consolidação das contribuições e a revisão meticulosa do trabalho, culminando na defesa do Trabalho de Conclusão de Curso.

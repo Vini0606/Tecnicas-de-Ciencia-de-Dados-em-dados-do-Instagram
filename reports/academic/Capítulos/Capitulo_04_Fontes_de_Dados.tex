@@ -1,0 +1,43 @@
+\chapter{Fontes de Dados}\label{FontesDados} 
+
+Esta seção detalha o processo sistemático de aquisição dos dados e oferece uma caracterização do corpus que constitui a base empírica deste estudo, abordando a fonte, a estrutura e a escala. O corpus de dados foi extraído da rede social Instagram, plataforma selecionada por sua elevada taxa de engajamento de usuários e sua crescente relevância como arena para a comunicação política no Brasil. A coleta foi realizada de forma programática por meio da plataforma APIFY, Uma ferramenta especializada na extração automatizada de dados públicos via interface de programação de aplicações (API). Desta ferramenta, foram utilizados 4 atores diferentes, mais especificamente os atores: "Instagram Profile Scraper", “Instagram Reels Scraper” e “Instagram Posts Scraper”. Os scripts, bem como todas as configurações de requisições estão disponíveis no repositório do projeto no github, disponível \href{https://github.com/Vini0606/Tecnicas-de-Ciencia-de-Dados-em-dados-do-Instagram}{neste link}. Os dados referentes a links dos perfis foram coletados a mão e salvos na planilha “governadores.xlsx” também em anexo. A plataforma APIFY garantiu um processo de coleta sistemático, padronizado e replicável. Ao final do processo, o escopo da coleta abrangeu os perfis públicos oficiais de todos os 27 governadores das unidades federativas brasileiras em exercício durante o período de coleta, bem como dados das 30 últimas publicações de feed e reels destes, assegurando uma cobertura nacional do fenômeno em estudo.
+Os dados brutos foram extraídos e organizados em três arquivos distintos no formato JSON, cada um correspondendo a saída de um ator específico, sendo o nome do arquivo o indentificador deste. Assim, os arquivos foram:
+
+\begin{itemize}
+    \item \textbf{profiles.json}: Contém metadados de nível de perfil para cada um dos 27 governadores, incluindo identificador do usuário (ID), nome de usuário, nome completo, texto da biografia, número de seguidores, número de perfis seguidos e contagem total de publicações.
+
+    \item \textbf{posts.json}: Agrega os dados referentes a cada postagem individual (formato de imagem ou vídeo no feed) realizada pelos governadores no período de coleta. Os campos-chave incluem ID da postagem, URL, texto da legenda (caption), número de curtidas, número de comentários e data e hora da publicação (timestamp).
+
+    \item \textbf{reels.json}: Contém dados específicos do formato \textit{Reels}, incluindo ID do Reel, legenda, número de visualizações, número de curtidas e número de comentários.
+\end{itemize}
+
+Para dimensionar a base empírica da pesquisa, foi realizada uma análise descritiva do volume de dados coletados. No anexo deste trabalho contém o arquivo “Dicionário de variáveis.xlsx” com as informações referentes a fonte, nome e descrição de todos os atributos coletados e utilizados pela API, separados por arquivo-fonte juntamente com os códigos desenvolvidos, bem como os arquivos extraídos da API para as análises.
+
+\section{Detalhamento do Processo de ETL (Extract, Tranform and Load)}
+
+Para que se cumprisse com o objetivo específico de "Estruturar um pipeline de processamento de dados textuais extraídos de comentários do Instagram, incluindo limpeza, normalização e preparação textual, foi realizado um processo de ETL (Extract, Tranform, load), para que se pudesse Extrair, Tratar e Carregar, ou salvar, os dados tratados. O processo de extração e uso dos atores da APIFY foi automatizado através de um pipeline, garantindo que os dados brutos sejam coletados, processados e armazenados de forma eficiente e estruturada. Esta fase foi encapsulada na classe ‘Extract‘ do script ‘ETL.py‘, disponível no repositório do projeto no github. Basicamente, esta classe utiliza a biblioteca ‘apify\_client‘ disponível pela plataforma APIFY na linguagem Python para realizar a extração dos dados. Para isso, ela é inicializada com 3 parâmetros, o 'apify\_api\_key', que é a chave de API para autenticação na plataforma Apify; 'links', que é uma lista de URLs de perfis do Instagram dos quais os dados serão extraídos; 'resultsLimit', que corresponde ao limite de resultados extraídos. Após a inicialização, 3 metodos são chamados, os metodos extractProfiles, extractPosts e extractReels. Ambos os metodos utilizam o ator ‘shu8hvrXbJbY3Eb9W‘ da Apify para buscar detalhes dos perfis especificados. Os resultados foram salvos nos arquivos JSONs citados anteriormente. Após extraídos os dados brutos em formato JSON s˜ao lidos e processados. Esta fase foi gerenciada pela classe ‘Transform‘, que, incicialmente, os trˆes arquivos JSON (‘profiles.json‘, ‘posts.json‘, ‘reels.json‘) s˜ao lidos e
+carregados em DataFrames do Pandas, uma poderosa biblioteca para manipula¸c˜ao de
+dados em Python. Cada DataFrame passa por um processo de limpeza e transforma¸c˜ao específico
+
+\begin{itemize}
+    \item \textbf{Perfis (\texttt{df\_profiles})}: Colunas desnecessárias são removidas e os tipos de dados são ajustados.
+    
+    \item \textbf{Posts (\texttt{df\_posts})}: Tratamento semelhante ao dos perfis, com foco em manter apenas as colunas relevantes para a análise das postagens.
+    
+    \item \textbf{Reels (\texttt{df\_reels})}: Além da limpeza de colunas, os comentários mais recentes (\texttt{latestComments}) são extraídos e armazenados em um DataFrame separado (\texttt{df\_latest\_comments}). As duas fontes de postagens (posts e reels) são então unificadas em um único DataFrame (\texttt{df\_reels\_posts}) para facilitar a análise consolidada.
+\end{itemize}
+
+A etapa final do processo foi a carga dos DataFrames transformados em um destino final.
+A classe ‘Load‘ ´e respons´avel por esta tarefa. Os dados processados foram salvos em um unico arquivo Excel (‘all data.xlsx‘), onde cada DataFrame está armazenado em uma planilha separada. Isso facilita a consulta e a análise exploratória dos dados. O fluxo completo do ETL foi orquestrado pela função ‘ELT‘. Esta função verifica se os arquivos JSON já existem. Se não existirem, ela executa a etapa de extração. Em seguida, prossegue com as etapas de transformação e carga.
+
+O sistema de ETL descrito neste relatório automatiza com sucesso a coleta, limpeza
+e armazenamento de dados do Instagram. A arquitetura modular, dividida em classes
+para cada fase do processo, garante a manutenibilidade e escalabilidade do c´odigo. O
+resultado final ´e um conjunto de dados estruturado e pronto para ser utilizado em análises
+aprofundadas, como modelagem de linguagem natural e visualização de dados, conforme
+planejado nas próximas etapas do projeto.
+
+
+
+
+

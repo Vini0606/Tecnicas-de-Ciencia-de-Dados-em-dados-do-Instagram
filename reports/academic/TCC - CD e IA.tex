@@ -1,0 +1,362 @@
+% ---------------------------------------------------------------------------
+% IESB - Graduação em Ciência de Dados e Inteligência Artificial
+% Template para desenvolvimento do Trabalho de Conclusão do Curso
+% Este template teve como ponto de partida o template do curso de 
+% Engenharia da Computação do IESB
+% Adaptação Professores Sérgio Côrtes e Suélio Moura
+% ---------------------------------------------------------------------------
+%\documentclass[12pt,openright,twoside,a4paper,brazil]{abntex2}
+\documentclass[
+	12pt,				% tamanho da fonte			
+	a4paper,			% tamanho do papel
+                    	% opções do pacote babel
+    openany,            % As três classes de documentos padrão mais comumente usadas em LaTeX incluem: artigo, relatório e livro.
+    twoside,            % oneside: impressão só frente - twoside: impressão em frente e verso. Controle das marges do documento (O LATEX oferece a possibilidade de declarar o documento como unilateral ou bilateral, isto irá organizar vários elementos para que fiquem bem no formato escolhido. - twoside)
+	english,			% idioma adicional para hifenização
+%	french,				% idioma adicional para hifenização
+	spanish,			% idioma adicional para hifenização
+	brazil,				% idioma principal do documento (último na declaração)
+	]{abntex2}          %
+
+% {abntex2} O abnTeX2, evolução do abnTeX (Normas ABsurd para TeX *), é uma suíte para LaTeX que atende os requisitos das normas da ABNT (Associação Brasileira de Normas Técnicas) para elaboração de documentos técnicos e científicos brasileiros, como artigos científicos, relatórios, trabalhos acadêmicos como teses, dissertações, projetos de pesquisa e outros documentos do gênero.
+
+% ---------------------------------------------------------------------------
+% PACOTES para construção do documento
+% ---------------------------------------------------------------------------
+
+% ---------------------------------------------------------------------------
+% Pacotes fundamentais 
+% ---------------------------------------------------------------------------
+
+\usepackage[utf8]{inputenc}		% Codificação do documento (conversão automática dos acentos)
+\usepackage{indentfirst}		% Indenta o primeiro parágrafo de cada seção.
+\usepackage{color}	
+\usepackage{xcolor} % Controle das cores
+\usepackage{graphicx}			% Inclusão de gráficos
+\usepackage{microtype} 			% para melhorias de justificação
+\usepackage[toc,page]{appendix}
+
+% ---------------------------------------------------------------------------
+\usepackage{pdfpages} % permite inserir páginas em pdf
+% ---------------------------------------------------------------------------
+\usepackage{setspace} % permite inserir notas em tabelas
+\usepackage{threeparttable}
+% ----------------------------------------------------------
+\usepackage{verbatim}			% pacote para adicionar comentários em bloco
+% ----------------------------------------------------------
+% Pacotes adicionais, usados no anexo do modelo de folha de identificação e cronograma
+% ----------------------------------------------------------
+\usepackage{multicol}
+\usepackage{multirow}
+\usepackage{pgfgantt}     %pacote do gráfico de gantt
+\usepackage{hyperref}     %pacote para adicionar links internos
+
+% ----------------------------------------------------------
+% Pacotes adicionais, usados apenas no âmbito do Modelo Canônico do abnteX2
+
+% ----------------------------------------------------------
+% Pacotes de citações
+% ----------------------------------------------------------
+\usepackage[brazilian,hyperpageref]{backref}	 % Paginas com as citações na bibl
+%\usepackage[num]{abntex2cite}	% Citações padrão ABNT
+\usepackage[alf]{abntex2cite}	% Citações padrão ABNT
+\usepackage{listings}
+
+
+%\usepackage{cite}
+%\renewcommand\citeleft{(}
+%\renewcommand\citeright{)}
+
+% ----------------------------------------------------------
+% CONFIGURAÇÕES DE PACOTES
+% ----------------------------------------------------------
+
+% Configurações do pacote backref
+% Usado sem a opção hyperpageref de backref
+\renewcommand{\backrefpagesname}{Citado na(s) página(s):~}
+% Texto padrão antes do número das páginas
+\renewcommand{\backref}{}
+% Define os textos da citação
+\renewcommand*{\backrefalt}[4]{
+	\ifcase #1 %
+		Nenhuma citação no texto.%
+	\or
+		Citado na página #2.%
+	\else
+		Citado #1 vezes nas páginas #2.%
+	\fi}%
+% ---
+
+% ---
+% Configurações de aparência do PDF final
+
+% alterando o aspecto da cor azul
+\definecolor{blue}{RGB}{41,5,195}
+
+% informações do PDF
+\makeatletter
+\hypersetup{
+     	%pagebackref=true,
+		pdftitle={\@title}, 
+		pdfauthor={\@author},
+    	pdfsubject={\imprimirpreambulo},
+	    pdfcreator={LaTeX with abnTeX2},
+		pdfkeywords={abnt}{latex}{abntex}{abntex2}{gestão participativa}{gênero feminino}{IFTO}, 
+		colorlinks=true,       		% false: boxed links; true: colored links
+    	linkcolor=blue,          	% color of internal links
+    	citecolor=blue,        		% color of links to bibliography
+    	filecolor=magenta,      		% color of file links
+		urlcolor=blue,
+		bookmarksdepth=4
+}
+\makeatother
+% --- 
+
+% --- 
+% Espaçamentos entre linhas e parágrafos 
+% --- 
+
+% O tamanho do parágrafo é dado por:
+\setlength{\parindent}{1.3cm}
+
+%espaçamento entre capítulos e o texto subsequente
+\setlength{\afterchapskip}{1cm}
+
+% Controle do espaçamento entre um parágrafo e outro:
+\setlength{\parskip}{0.2cm}  % tente também \onelineskip
+
+% ---
+% compila o indice
+% ---
+\makeindex
+% ---
+
+% ----
+% Início do documento
+% ----
+\begin{document}
+
+
+% Seleciona o idioma do documento (conforme pacotes do babel)
+%\selectlanguage{english}
+\selectlanguage{brazil}
+
+% Retira espaço extra obsoleto entre as frases.
+\frenchspacing 
+
+% ----------------------------------------------------------
+% ELEMENTOS PRÉ-TEXTUAIS
+% ----------------------------------------------------------
+% \pretextual
+
+% ----------------------------------------------------------------------------
+% Capa do TCC
+% ----------------------------------------------------------------------------
+
+\thispagestyle{empty}
+\begin{center}
+ \includegraphics[width=0.30\textwidth]{Figuras/iesb_Logo}
+ \vspace*{1 mm}
+\end{center}
+\begin{center}
+\vspace{1 mm}
+   \begin{minipage}[b]{0.9\linewidth}
+     \begin{center}
+       \vspace{1cm}
+       {\textbf{\Large {CENTRO UNIVERSITÁRIO INSTITUTO DE EDUCAÇÃO SUPERIOR DE BRASÍLIA}}} 
+       {\textbf{\Large Bacharelado em \\ Ciência de Dados e Inteligência Artificial}}\\
+        \vspace{1cm}
+       {\textbf{\Large \textit{Trabalho de Conclusão de Curso I - TCC-I}}}
+     \end{center}
+   \end{minipage}
+\end{center}
+
+\vspace{8 mm}
+
+\begin{center}
+   {\textbf{\Large  \textbf{Vinícius de Paula R Carvalho}}}\\[2 cm]
+   {\textbf{\Large Uma abordagem híbrida de mineração de texto e aprendizado não supervisionado para análise de comentários do Instagram dos governadores brasileiros. }}\\[2cm]
+   {\textbf{\Large Brasília \\  2025}}\\[5cm]
+   \vfill
+\end{center}
+
+% ---------------------------------------------------------------------------- %
+% Página de rosto (SÓ PARA A VERSÃO DEPOSITADA - ANTES DA DEFESA)
+% Resolução CoPGr 5890 (20/12/2010)
+%
+% IMPORTANTE:
+%   Coloque um '%' em todas as linhas
+%   desta página antes de compilar a versão
+%   final, corrigida, do trabalho
+%
+%
+\newpage
+\thispagestyle{empty}
+    \begin{center}
+        \vspace{1.5 cm}
+        \textbf{\LARGE{Uma abordagem híbrida de mineração de texto e aprendizado não supervisionado para análise de comentários do Instagram dos governadores brasileiros.}}\\ [3cm]
+        \vspace{1.5 cm}
+    \end{center}
+
+   
+     \hspace{.42\textwidth}
+     \begin{minipage}{.52\textwidth}
+Trabalho de Conclusão de Curso (TCC) apresentado como pré-requisito para obtenção de Bacharelado em Ciência de Dados e Inteligência Artificial pelo Instituto de Educação Superior de Brasília - IESB. \\ 
+\textbf{Orientador:} Professor Sérgio da Costa Côrtes
+    \end{minipage}
+
+\pagebreak
+
+% ---------------------------------------------------------------------------- %
+%
+% IMPORTANTE:
+%   Coloque um '%' em todas as linhas
+%   desta página antes de compilar a versão
+%   final, corrigida, do trabalho
+%
+%
+\newpage
+
+\clearpage
+\begin{center} 
+    \textbf{\LARGE Uma abordagem híbrida de mineração de texto e aprendizado não supervisionado para análise de associações de marca dos governadores brasileiros. }\\[0.5cm]
+
+    \textbf{{\large Vinícius de Paula R Carvalho}}\\[1.5cm]
+\end{center}
+
+\hspace{0.85cm}Trabalho de Conclusão de Curso (TCC) apresentado como pré-requisito para obtenção de Bacharelado em Ciência de Dados e Inteligência Artificial
+pelo Instituto de Educação Superior de Brasília - IESB 
+
+\vspace{1cm}
+
+\hspace{0.85cm} Brasília – Distrito Federal, em \rule{1.5cm}{0.005cm} de \rule{3cm}{0.005cm} de \rule{1.5cm}{0.005cm}
+
+\vspace{3cm}
+
+\hspace{0.85cm}Banca Examinadora constituída pelos Professores:
+
+\vspace{1cm}
+\begin{center}\rule{10cm}{0.005cm}\\
+    {\textbf {Profª. Drª. Fulana de Tal - Orientadora\\
+    Professor no IESB}}
+    
+    \vspace{1cm}
+    \rule{10cm}{0.005cm}\\
+    {\textbf {Prof. Dr. Fulano de Tal - Membro \\
+    Professor no IESB}}
+    
+    \vspace{1cm}
+    \rule{10cm}{0.005cm}\\
+    {\textbf {Prof. Dr. Fulano de Tal - Membro Externo \\
+    Professor na UnB}}
+    
+    \vspace{1cm}
+    \rule{10cm}{0.005cm}\\
+    {\textbf{Prof. Dr. Fulano de Tal - Membro Externo \\
+    Professor na ENCE}}
+
+\end{center}
+
+% ----------------------------------------------------------
+% Agradecimentos
+% ----------------------------------------------------------
+
+\begin{agradecimentos}
+Agradeço a DEUS pelo dom da vida e pela oportunidade de ter a família que tenho. Aos meus pais que sempre me proporcionaram um ensino de excelência, dentro de suas possibilidades. Agradeço, também, a todos os Professores do IESB que com seus conhecimentos, competências e habilidades me ensinaram e me prepararam para ser um profissional de excelência e um ser humano melhor.
+\end{agradecimentos}
+% ---
+
+% ---
+% Epígrafe
+% ---
+\begin{epigrafe}
+    \vspace*{\fill}
+	\begin{flushright}
+		\textit{``Dados são iguais dentes,    \\
+		só se joga fora em últico caso. \\
+        Mas, ao usá-los a ética deve \\
+        vir em primeiro lugar.''\\
+		(Sérgio Côrtes)}
+	\end{flushright}
+\end{epigrafe}
+
+% ----------------------------------------------------------
+% RESUMO
+% ----------------------------------------------------------
+
+\include{Resumo}
+
+% ----------------------------------------------------------
+% ABSTRACT
+% ----------------------------------------------------------
+\include{Abstract}
+
+% ----------------------------------------------------------
+
+\clearpage
+
+% ----------------------------------------------------------
+% inserir lista de ilustrações
+% ----------------------------------------------------------
+\pdfbookmark[0]{\listfigurename}{lof}
+\listoffigures*
+\cleardoublepage
+
+% ----------------------------------------------------------
+% inserir lista de tabelas
+% ----------------------------------------------------------
+
+\pdfbookmark[0]{\listtablename}{lot}
+\listoftables*
+\cleardoublepage
+
+% ----------------------------------------------------------
+% inserir lista de abreviaturas e siglas
+% ----------------------------------------------------------
+\include{Abreviaturas}
+
+% ----------------------------------------------------------
+% inserir o sumario
+% ----------------------------------------------------------
+\pdfbookmark[0]{\contentsname}{toc}
+\tableofcontents*
+\cleardoublepage
+
+% ----------------------------------------------------------
+% ELEMENTOS TEXTUAIS
+% ----------------------------------------------------------
+\textual
+
+% ----------------------------------------------------------
+% Capítulos do Trabalho
+% ----------------------------------------------------------
+
+\include {Capítulos/Capitulo_01_Introdução}
+
+\include {Capítulos/Capitulo_02_Objetivos}
+
+\include {Capítulos/Capitulo_03_Referencial_Teórico}
+
+\include {Capítulos/Capitulo_04_Fontes_de_Dados}
+
+\include {Capítulos/Capitulo_05_Modelagem}
+
+\include {Capítulos/Capitulo_06_Resultados}
+
+\include {Capítulos/Capitulo_07_Conclusões}
+
+% ----------------------------------------------------------
+\pagebreak
+
+% ----------------------------------------------------------
+% Bibliografia
+% ----------------------------------------------------------
+\bibliography{IESB-CDeIA-Bibliografia}
+
+% ----------------------------------------------------------
+% Anexos
+% ----------------------------------------------------------
+\include {Anexos}
+
+% ----------------------------------------------------------
+\end{document}
