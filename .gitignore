@@ -8,6 +8,11 @@ __pycache__/
 *.pbix
 *.png
 
+# Exceção: as figuras dos relatórios são artefatos do trabalho.
+# Sem elas o README não exibe os resultados e o TCC em LaTeX não compila.
+!reports/figures/*.png
+!reports/academic/Figuras/*.png
+
 # ambiente virtual  
 .venv/
 
