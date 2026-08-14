@@ -198,8 +198,8 @@ GOLD_SENTIMENT_SCHEMA = pa.schema(
 
 GOLD_CLUSTERS_SCHEMA = pa.schema(
     [
-        pa.field("id", pa.string(), nullable=False),
-        pa.field("username", pa.string(), nullable=False),
+        pa.field("id_reel", pa.string(), nullable=False),
+        pa.field("ownerUsername", pa.string(), nullable=False),
         pa.field("cluster_label", pa.int64(), nullable=False),
         pa.field("cluster_algo", pa.string(), nullable=False),
         pa.field("cluster_score", pa.float64(), nullable=True),

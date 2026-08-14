@@ -24,20 +24,22 @@ class ModelEnricher:
 
     def write_clusters(
         self,
-        df_profiles_silver: pd.DataFrame,
-        cluster_labels,
-        algo_name: str,
-        best_score: float,
+        df_reels_clustered: pd.DataFrame,
         path: Path | str,
         run_id: str,
     ) -> None:
+        """Grava clusters de reels (AutoClusterHPO). Espera as colunas
+        produzidas pelo notebook 03: id, ownerUsername, 'Clusters (AutoClusterHPO)',
+        algo_name, score."""
         df_clusters = pd.DataFrame(
             {
-                "id": df_profiles_silver["id"].values,
-                "username": df_profiles_silver["username"].values,
-                "cluster_label": cluster_labels.astype("int64"),
-                "cluster_algo": algo_name,
-                "cluster_score": float(best_score),
+                "id_reel": df_reels_clustered["id"].values,
+                "ownerUsername": df_reels_clustered["ownerUsername"].values,
+                "cluster_label": df_reels_clustered["Clusters (AutoClusterHPO)"]
+                .astype("int64")
+                .values,
+                "cluster_algo": df_reels_clustered["algo_name"].astype(str).values,
+                "cluster_score": df_reels_clustered["score"].astype(float).values,
                 "_run_id": run_id,
                 "_generated_at": datetime.now(timezone.utc),
             }

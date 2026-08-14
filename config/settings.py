@@ -54,7 +54,6 @@ SILVER_COMMENTS = SILVER_DIR / "comments_clean"
 GOLD_DIR = DATA_DIR / "gold"
 GOLD_ENGAGEMENT = GOLD_DIR / "governor_engagement"
 GOLD_SENTIMENT = GOLD_DIR / "governor_sentiment"
-GOLD_TOPICS = GOLD_DIR / "governor_topics"
 GOLD_CLUSTERS = GOLD_DIR / "governor_clusters"
 
 # S3 prefixes (cloud)
