@@ -1,628 +1,393 @@
 # Técnicas de NLP em Dados do Instagram
 
-**Autor:** Vinícius de Paula R. Carvalho
-**Versão do repositório:** atual (veja histórico de commits)
-**Python mínimo suportado:** 3.10
+[![CI](https://github.com/Vini0606/Tecnicas-de-Ciencia-de-Dados-em-dados-do-Instagram/actions/workflows/python-app.yml/badge.svg)](https://github.com/Vini0606/Tecnicas-de-Ciencia-de-Dados-em-dados-do-Instagram/actions/workflows/python-app.yml)
+![Python](https://img.shields.io/badge/python-3.10%2B-blue)
+![Delta Lake](https://img.shields.io/badge/Delta_Lake-Medallion-00ADD8)
 
-Resumo: este repositório implementa um pipeline de extração e processamento de dados do Instagram (perfís, posts e reels) e expõe dashboards Streamlit que consomem tabelas Delta Lake organizadas em uma arquitetura Medallion (Bronze → Silver → Gold). Uma implementação legacy baseada em Excel (`data/processed/all.xlsx`) é mantida exclusivamente para compatibilidade com notebooks históricos.
+**Autor:** Vinícius de Paula R. Carvalho
+**Trabalho de Conclusão de Curso** — Ciência de Dados e Inteligência Artificial, IESB
+
+Este repositório é a implementação completa de um TCC que **propõe e valida uma metodologia híbrida de Processamento de Linguagem Natural**: em vez de aplicar análise de sentimentos, modelagem de tópicos e clusterização isoladamente, o trabalho as integra e demonstra que a combinação revela o que nenhuma delas mostra sozinha. O estudo de caso são os perfis de Instagram dos **27 governadores do Brasil**.
+
+O achado central, em uma frase: **o conteúdo padrão é aprovado, o viral é debatido, e o longo é ignorado.** Nenhuma das três técnicas, isolada, chega a essa conclusão.
+
+![Mapa de distância intertópica dos comentários](reports/academic/Figuras/intertopic_map.png)
+
+<sup>Mapa de distância intertópica dos 50 temas identificados por BERTopic no corpus de comentários. Círculos próximos são semanticamente similares; o tamanho é proporcional à frequência do tópico.</sup>
 
 ---
 
 ## Sumário
 
-1. [Visão geral](#visão-geral)
-2. [Arquitetura (Medallion + Delta)](#arquitetura-medallion--delta)
-3. [Fluxo de dados e pontos de entrada](#fluxo-de-dados-e-pontos-de-entrada)
-4. [Estrutura de diretórios](#estrutura-de-diretórios)
-5. [Repositórios de dados (`src/repositories`)](#repositórios-de-dados-srcrepositories)
-6. [Configuração (`config/settings.py`)](#configuração-configsettingspy)
-7. [Como executar (local)](#como-executar-local)
-8. [Dashboards Streamlit](#dashboards-streamlit)
-9. [Notebooks — estado e compatibilidade](#notebooks---estado-e-compatibilidade)
-10. [Testes](#testes)
-11. [Legado (`legacy/`)](#legado-legacy)
-12. [Dependências e ambiente](#dependências-e-ambiente)
-13. [Contribuição e manutenção](#contribuição-e-manutenção)
+1. [Contexto da pesquisa](#1-contexto-da-pesquisa)
+2. [Metodologia híbrida e resultados](#2-metodologia-híbrida-e-resultados)
+3. [Arquitetura de dados](#3-arquitetura-de-dados)
+4. [Estrutura do repositório](#4-estrutura-do-repositório)
+5. [Como executar](#5-como-executar)
+6. [Estado atual e limitações conhecidas](#6-estado-atual-e-limitações-conhecidas)
+7. [Testes e CI](#7-testes-e-ci)
+8. [Dependências e referências](#8-dependências-e-referências)
 
 ---
 
-## Visão geral
+## 1. Contexto da pesquisa
 
-O repositório centraliza a coleta, transformação e disponibilização de dados do Instagram para análise e visualização. A fonte de leitura ativa para os dashboards e análises é o conjunto de tabelas Delta Lake organizadas nas camadas Bronze, Silver e Gold. A versão baseada em Excel (`data/processed/all.xlsx`) é considerada LEGADO e somente usada para notebooks que não foram atualizados.
+### O problema
 
-## Arquitetura (Medallion + Delta)
+As mídias sociais se consolidaram como plataformas centrais na formação da opinião pública, mas o volume e a natureza não estruturada dos comentários tornam a análise manual impraticável. A lacuna que este trabalho ataca não é a falta de ferramentas — é o fato de que as abordagens tradicionais aplicam essas ferramentas **isoladamente**. Medir apenas a polaridade do sentimento não diz *sobre o quê* o público reage; extrair apenas tópicos não diz *como* o público reage; agrupar apenas por métricas não diz *nada* sobre conteúdo.
 
-- Bronze: diretório local `data/bronze/` (configurável em `config/settings.py`) contendo dados brutos particionados por tipo (`instagram_profiles`, `instagram_posts`, `instagram_reels`).
-- Silver: diretório local `data/silver/` com tabelas limpas e normalizadas (`profiles_clean`, `posts_clean`, `reels_clean`, `comments_clean`).
-- Gold: diretório local `data/gold/` com tabelas agregadas e prontas para consumo (`governor_engagement`, `governor_sentiment`, `governor_topics`, `governor_clusters`).
+### A hipótese
 
-Leitura principal: `src/repositories/delta_repository.py` usa `deltalake.DeltaTable` para carregar tabelas; é read-only e suporta `as_of_version` / `as_of_timestamp` para reproducibilidade.
+A integração sinérgica de análise de sentimentos, modelagem de tópicos e clusterização produz uma leitura da percepção pública mais granular do que a soma das partes.
 
-## Fluxo de dados e pontos de entrada
+### Objetivo geral
 
-- Extração: `src/data_extract/InstagramScraper` (usa `ApifyClient`) gera JSONs em `data/raw/` (`profiles.json`, `posts.json`, `reels.json`).
-- Transformação: `src/features` aplica limpeza, explode comentários (`CommentsTransformer`) e calcula métricas de engajamento (`EngagementFeatureBuilder`).
-- Carga (ativa): os DataFrames são persistidos em tabelas Delta na estrutura Medallion (Bronze→Silver→Gold). A escrita para Delta é feita por writers (não por `DeltaRepository`).
-- Compatibilidade legada: `src/repositories/ExcelDataRepository` escreve/ler `data/processed/all.xlsx` apenas quando scripts/notebooks legados o exigem.
+> Desenvolver e validar uma metodologia de modelagem híbrida baseada em Processamento de Linguagem Natural que combine análise de sentimentos, modelagem de tópicos e técnicas de clusterização para análise de publicações e comentários de redes sociais.
 
-Pontos de entrada:
-- `pipeline.py` — orquestrador local principal (executa extração condicional, transformação e gravação nas camadas Delta). Use para regenerar tabelas Delta.
-- `app.py` / `pages/` — dashboards Streamlit que consomem `DeltaRepository`.
+### Objetivos específicos
 
-## Estrutura de diretórios (essencial)
+1. Estruturar um pipeline de processamento de dados textuais (limpeza, normalização, preparação)
+2. Aplicar análise de sentimentos para identificar polaridades
+3. Implementar modelagem de tópicos para extrair os temas discutidos
+4. Aplicar clusterização para agrupar publicações por semelhança
+5. Validar em estudo de caso real — os governadores do Brasil
+6. **Comparar com abordagens isoladas**, evidenciando as vantagens da integração
 
-Veja a organização principal do projeto (resumida):
+O objetivo nº 6 é o que diferencia o trabalho: não basta aplicar as três técnicas, é preciso provar que juntas valem mais.
 
-- `app.py` — Streamlit root page
-- `pipeline.py` — orquestrador ETL (local)
-- `config/settings.py` — caminhos e parâmetros (medallion dirs, jsons, legacy xlsx)
-- `src/` — código fonte (scraper, readers, features, repositories, visualization, analyzes)
-- `pages/` — Streamlit pages (`01_exploratory.py`, `02_modeling.py`)
-- `data/` — `raw/`, `bronze/`, `silver/`, `gold/`, `processed/` (legacy)
-- `notebooks/` — análises históricas (algumas dependem de `all.xlsx`)
-- `legacy/` — scripts legados (migrados; não são necessários para o fluxo ativo)
+### O corpus
 
-## Repositórios de dados (`src/repositories`)
-
-- `DeltaRepository` — leitura somente (usa `deltalake.DeltaTable`). Métodos principais: `load_profiles()`, `load_posts()`, `load_reels()`, `load_comments()`, `load_clusters()`. Lança `FileNotFoundError` com instrução para executar o pipeline Medallion quando a tabela não existe.
-- `ExcelDataRepository` — leitura/escrita para `all.xlsx`. Mantido para compatibilidade com notebooks legados.
-- `S3DataRepository` — implementação cloud (Parquet sobre S3). Usada pelos lambdas ou deployment cloud.
-
-### Observação importante
-Os dashboards e testes do repositório devem usar `DeltaRepository` por padrão. `ExcelDataRepository` é considerado legacy e sua presença no `config` indica apenas um caminho de compatibilidade (`ALL_XLSX`).
-
-## Configuração (`config/settings.py`)
-
-As principais variáveis e caminhos (hoje):
-
-- `DATA_DIR`: raiz dos dados (padrão `./data`)
-- `RAW_DATA_DIR`: `DATA_DIR/raw`
-- `PROCESSED_DATA_DIR`: `DATA_DIR/processed` (contém `all.xlsx` legado)
-- `PROFILES_JSON`, `POSTS_JSON`, `REELS_JSON` — paths para JSONs brutos em `data/raw`
-- `ALL_XLSX` — path legado para `data/processed/all.xlsx` (mantido por compatibilidade)
-- Medallion dirs: `BRONZE_DIR`, `SILVER_DIR`, `GOLD_DIR` e nomes específicos das tabelas (ex.: `GOLD_ENGAGEMENT` = `gold/governor_engagement`)
-
-Se for executar em cloud/CI, configure as variáveis de ambiente correspondentes (ex.: `S3_BUCKET`, `AWS_LAMBDA_FUNCTION_NAME` quando aplicável).
-
-## Como executar (local)
-
-Recomendações rápidas:
-
-1) Instale dependências (venv recomendado):
-
-```powershell
-.\\.venv\\Scripts\\Activate.ps1
-pip install -r requirements.txt
-```
-
-2) Regenerar tabelas Delta (executa ETL local):
-
-```powershell
-uv run python pipeline.py
-```
-
-3) Executar dashboards Streamlit (raiz do projeto):
-
-```powershell
-uv run streamlit run app.py
-# ou abrir uma página específica
-uv run streamlit run pages/01_exploratory.py
-```
-
-4) Testes unitários:
-
-```powershell
-uv run pytest -q
-```
-
-## Dashboards Streamlit
-
-- `app.py` — define configuração global do Streamlit e texto inicial.
-- `pages/01_exploratory.py` — Análise exploratória que consome `DeltaRepository.load_profiles()` e `load_reels()`.
-- `pages/02_modeling.py` — Modelagem/NLP que consome comentários e tópicos a partir das tabelas Gold/Silver.
-
-Dica: os scripts dos pages inserem a raiz do projeto no `sys.path` quando necessário para importar `src/` e `config/` corretamente dentro do ambiente do Streamlit.
-
-## Notebooks — estado e compatibilidade
-
-- Notebooks em `notebooks/` são históricos e muitos dependem de `data/processed/all.xlsx` (fluxo legado). Não é obrigatório rodá-los para ter o pipeline Delta funcionando.
-- Se precisar reexecutar notebooks legados, gere `all.xlsx` via `legacy/pipeline_legacy.py` ou adapte os notebooks para consumir `DeltaRepository`.
-
-## Testes
-
-- Testes unitários e de integração estão em `tests/` (ex.: `test_repository.py` valida a leitura via `DeltaRepository`).
-- Execute com `uv run pytest -q`.
-
-## Legado (`legacy`)
-
-Arquivos legados foram movidos para `legacy/`. Eles existem apenas para referência ou migração manual:
-
-- `legacy/pipeline_legacy.py` — pipeline antigo que gera `data/processed/all.xlsx`.
-- `legacy/migrate_to_medallion.py` — utilitário que tenta mover dados do Excel para tabelas Delta.
-
-## Dependências e ambiente
-
-- `deltalake` — leitura/escrita de tabelas Delta
-- `pandas`, `numpy` — manipulação de dados
-- `streamlit` — dashboards
-- `pyarrow` — serialização Parquet/Delta
-
-Consulte `requirements.txt` e `pyproject.toml` para a lista completa e versões.
-
-## Contribuição e manutenção
-
-- Prioridade: manter o fluxo Delta (Medallion) funcionando; alterações no Excel devem ser consideradas apenas para compatibilidade documental.
-- Ao adicionar novas tabelas, registre corretamente o caminho em `config/settings.py` e adicione métodos correspondentes em `src/repositories/delta_repository.py`.
-
----
-
-Se quiser, aplico agora pequenas atualizações nos notebooks e em `config/settings.py` para eliminar as últimas referências ativas ao Excel (ou manter um aviso claro). 
-
-**Qualidade dos dados:**
-- Inspeção com `.info()` e `.isnull()` para cada DataFrame
-- Identificação de colunas com dados ausentes e candidatas à remoção (ex: `businessAddress` com apenas 1 entrada preenchida de 27)
-- Conversões de tipo (ex: `isPinned` para `bool`)
-
-**Análise univariada dos perfis:**
-- Seguidores: média 719k, mediana 361k, desvio padrão 996k (CV de 138%) — forte assimetria positiva por outliers
-- Seguidos: média 3.417, mediana 2.814 — estratégias muito diversas
-- `% ENGAJAMENTO`: mediana 0.54, máximo 2.51 (um perfil gerou 2,5× mais interações que seus seguidores)
-- `RECENCIA`: ao menos 75% dos governadores postaram no último dia da coleta
-- `FREQUENCIA`: média 2.7 posts/dia, variando de 0.1 a 7.4
-
-**Análise univariada dos reels:**
-- Curtidas: média 6.763, mediana 2.208 — desempenho altamente assimétrico com picos de 246k
-- `videoPlayCount`: métrica primária de alcance (mediana 67k); `videoViewCount` é descartada (>75% dos vídeos com valor 0)
-- Duração: 50% dos vídeos entre 43 e 81 segundos; máximo de 900 segundos
-
-**Análise univariada dos posts do feed:**
-- Comentários: média 452, mediana 176, máximo 11.135
-- Curtidas: média 7.061, mediana 1.961, máximo 246.802
-- `videoPlayCount`: média 142k, mediana 67k, máximo 2,6M
-
-**Análise categórica:**
-- 100% dos perfis são verificados, públicos e não criados recentemente
-- 63% utilizam perfil de criador de conteúdo (não empresarial)
-- 70% classificados como `Politician` na categoria profissional
-
----
-
-### `03_modelagem_hibrida.ipynb`
-
-**Pré-requisito:** `all.xlsx` com aba `reels_latestComments` preenchida.
-
-Este é o notebook central de NLP e Machine Learning. Aplica quatro técnicas de modelagem em sequência:
-
-**Análise de Componentes Principais (PCA):**
-- Redução dimensional das métricas numéricas dos perfis para visualização e pré-processamento do clustering
-- Seleção de componentes que explicam o máximo de variância
-
-**Clusterização automática (`AutoClusterHPO`):**
-- Agrupa governadores por padrão de comportamento digital
-- Testa KMeans, DBSCAN e Agglomerative Clustering com otimização TPE via Hyperopt
-- Score combinado de Silhouette, Calinski-Harabasz e Davies-Bouldin
-- Resultado: clusters de governadores com perfis de engajamento semelhantes
-
-**Análise de Sentimentos:**
-- Pré-processamento dos comentários (limpeza de emojis, stopwords, normalização)
-- Classificação de cada comentário como positivo, negativo ou neutro
-- Utiliza modelos da biblioteca `transformers` (Hugging Face), especificamente modelos pré-treinados para português
-- Produz a coluna `sentiment_label` no DataFrame de comentários
-
-**Modelagem de Tópicos (BERTopic):**
-- Identifica os principais temas abordados nos comentários usando embeddings semânticos
-- Gera o "Intertopic Distance Map" via UMAP para visualização das relações entre tópicos
-- O tópico dominante (maior círculo no mapa) representa o tema mais recorrente no corpus
-- Produz as colunas `Topic` e `Name` no DataFrame de comentários
-
-**Saída:** DataFrame de comentários enriquecido com `sentiment_label`, `Topic` e `Name`, salvo de volta no `all.xlsx`.
-
----
-
-### `04_analise_regressao.ipynb`
-
-**Pré-requisito:** `all.xlsx` com métricas de engajamento calculadas.
-
-Investiga relações causais entre variáveis de perfil e métricas de desempenho por meio de regressão. Analisa se variáveis como número de seguidores, frequência de postagem e recência impactam significativamente o percentual de engajamento.
-
----
-
-### `05_visualizacao_e_conclusoes.ipynb`
-
-**Pré-requisito:** `all.xlsx` com todos os dados de modelagem preenchidos.
-
-Notebook de síntese e relatório final. Lê os dados processados e modelados, realiza análise descritiva final e gera visualizações consolidadas que comunicam as conclusões do projeto — incluindo os gráficos exportados para `reports/figures/`.
-
----
-
-## 9. Infraestrutura serverless (`lambdas/`)
-
-Cada Lambda representa uma etapa do pipeline ETL, projetadas para serem disparadas em sequência via **AWS EventBridge** (agendado) ou **API Gateway** (sob demanda).
-
-### `lambdas/extract/handler.py`
-
-**Gatilho:** EventBridge agendado ou evento manual com `{"links": [...]}`.
-
-Instancia `InstagramScraper` com o token Apify lido de variáveis de ambiente, coleta dados dos perfis passados no evento e salva os três JSONs brutos no S3 em `raw/profiles.json`, `raw/posts.json` e `raw/reels.json`.
-
-**Variáveis de ambiente necessárias:** `APIFY_API_TOKEN`, `S3_BUCKET`, `RESULTS_LIMIT` (opcional, padrão 30).
-
-**Dependências mínimas** (`lambdas/extract/requirements.txt`): `apify-client`, `boto3`, `python-dotenv`, `pandas`.
-
----
-
-### `lambdas/transform/handler.py`
-
-**Gatilho:** conclusão da Lambda de extração (S3 event ou Step Functions).
-
-Lê os três JSONs do S3, aplica `EngagementFeatureBuilder` e `CommentsTransformer`, e salva cinco arquivos Parquet no S3 em `processed/`: `profiles.parquet`, `posts.parquet`, `reels.parquet`, `comments.parquet`, `reels_posts.parquet`.
-
-**Variáveis de ambiente necessárias:** `S3_BUCKET`, `RAW_PREFIX` (padrão `raw/`), `PROCESSED_PREFIX` (padrão `processed/`).
-
-**Dependências mínimas:** `boto3`, `pandas`, `pyarrow`, `fastparquet`.
-
----
-
-### `lambdas/load/handler.py`
-
-**Gatilho:** conclusão da Lambda de transformação.
-
-Lê os cinco Parquets do S3, consolida em um único arquivo Excel com múltiplas abas e salva de volta no S3 como `processed/all.xlsx`.
-
-**Variáveis de ambiente necessárias:** `S3_BUCKET`, `PROCESSED_PREFIX`, `OUTPUT_KEY` (opcional).
-
-**Dependências mínimas:** `boto3`, `pandas`, `openpyxl`, `pyarrow`.
-
-> **Nota arquitetural:** quando o dashboard usa `S3DataRepository`, este Lambda é opcional — o dashboard lê os Parquets diretamente. O Load Lambda é útil para gerar o Excel consolidado para consumo humano (relatórios, Power BI).
-
----
-
-## 10. Testes (`tests/`)
-
-A suíte de testes usa **pytest** com **pytest-mock** e **pytest-cov**.
-
-| Arquivo | O que testa |
+| Dimensão | Volume |
 |---|---|
-| `test_engagement.py` | Verifica que `EngagementFeatureBuilder.build()` cria as colunas `TOTAL ENGAJAMENTO`, `% ENGAJAMENTO`, `RECENCIA` e `FREQUENCIA`, e que os valores de engajamento percentual não são negativos |
-| `test_comments.py` | Verifica que `CommentsTransformer.transform()` filtra corretamente comentários com mais de 512 caracteres |
-| `test_repository.py` | Verifica a leitura de dados via `DeltaRepository` nos caminhos Gold/Silver do Delta Lake. |
-| `test_transform_lambda.py` | Mocka o `boto3.client` com respostas sequenciais e verifica que o handler da Lambda de transformação retorna `statusCode 200` com os arquivos Parquet esperados no body |
-| `test_load_lambda.py` | Mocka o `boto3.client` com bytes Parquet e verifica que o handler da Lambda de carga retorna `statusCode 200` com o `output_key` no body |
+| Perfis de governadores | 27 (todos verificados e públicos) |
+| Posts do feed | 810 |
+| Reels | 810 |
+| Comentários coletados | ~13.500 (6.777 em reels + 6.749 em posts) |
 
-**Cobertura de casos de erro:** cada Lambda tem um teste verificando que, na ausência de `S3_BUCKET`, o handler retorna `statusCode 400` imediatamente.
+Coleta via [Apify](https://apify.com), a partir da lista curada em `data/raw/governadores.xlsx`.
 
-**Executar todos os testes:**
-```bash
-uv run pytest tests/ -v --cov=src --cov-report=term-missing
-```
+### Por que engenharia de dados em um TCC de NLP
+
+Esta é uma decisão de projeto deliberada, não excesso de escopo. Um resultado acadêmico precisa ser **reproduzível**: qualquer número citado no texto do TCC deve poder ser recuperado meses depois, exatamente como estava. Um pipeline que sobrescreve arquivos Excel não oferece isso.
+
+A arquitetura Medallion sobre Delta Lake resolve o problema com três garantias:
+
+- **Time travel** — `DeltaRepository(as_of_version=…)` recupera o estado exato dos dados de qualquer execução anterior
+- **Linhagem** — todo registro carrega `_run_id`, `_ingested_at` e `_source_layer`, permitindo rastrear um número até a coleta que o produziu
+- **Contratos de schema** — `src/schemas_delta.py` declara os tipos de cada camada, com `nullable=False` nas camadas Silver e Gold como validação *fail-fast*
 
 ---
 
-## 11. Configuração (`config/`)
+## 2. Metodologia híbrida e resultados
 
-### `config/settings.py`
+As quatro técnicas são aplicadas em sequência, cada uma alimentando a seguinte. Os resultados abaixo estão documentados em `reports/academic/Capítulos/Capitulo_05_Modelagem.tex`.
 
-Centraliza todas as configurações do projeto. Cada valor pode ser sobrescrito por variável de ambiente, tornando o projeto executável em contextos diferentes (local, Docker, Lambda) sem alterar código.
+### 2.1 PCA — redução dimensional
 
-| Variável | Padrão | Descrição |
+As métricas numéricas dos reels foram reduzidas a dois componentes que retêm **92% da variância**:
+
+| Componente | Variância | Interpretação | Carga dominante |
+|---|---|---|---|
+| PC1 | 67% | Índice de Engajamento | `likesCount` 0.59 · `videoPlayCount` 0.57 · `commentsCount` 0.56 |
+| PC2 | 25% | Fator de Duração | `videoDuration` 1.00 |
+
+A separação é limpa: PC1 mede repercussão, PC2 mede duração, e um não contamina o outro. Isso torna a clusterização subsequente interpretável.
+
+![Boxplot dos componentes principais](reports/academic/Figuras/boxplot_do_dataframe.png)
+
+<sup>Distribuição de PC1 (Engajamento) e PC2 (Duração). A longa cauda de outliers positivos em ambos é o que justifica escolher, na etapa seguinte, um algoritmo robusto a outliers.</sup>
+
+### 2.2 Clusterização automática — `AutoClusterHPO`
+
+`src/analyzes/AutoClusterHPO.py` é a peça original do trabalho. Em vez de arbitrar o número de clusters, ele conduz uma busca automatizada:
+
+- Testa **KMeans, DBSCAN e Agglomerative Clustering**, cada um com seu próprio espaço de hiperparâmetros
+- Otimiza via **TPE (Hyperopt)**, 50 avaliações por algoritmo
+- Avalia com um **score CVI combinado** — Silhouette + Calinski-Harabasz normalizado por `tanh(chi/10000)` + Davies-Bouldin invertido por `tanh(1/dbi)` ([`AutoClusterHPO.py:77-83`](src/analyzes/AutoClusterHPO.py))
+- Filtra os pontos de ruído do DBSCAN antes de calcular os índices, evitando a distorção que invalidaria a comparação entre algoritmos
+
+**Resultado:** o framework elegeu **DBSCAN** (`eps=1.40`, `min_samples=5`) com score CVI combinado de **0.6594**, encontrando três grupos:
+
+| Cluster | Reels | Perfil | Duração média |
+|---|---|---|---|
+| **0** — Padrão | 792 | Engajamento moderado e consistente | 64,5 s |
+| **-1** — Viral | 12 | ~4.843 comentários, ~90k curtidas, 1,12M views | 26–900 s |
+| **1** — Longo / Baixa performance | 6 | Pior desempenho em todas as métricas | 721 s (~12 min) |
+
+![Clusters projetados sobre os componentes principais](reports/academic/Figuras/avaliacaoAutoCluster.png)
+
+<sup>Os três grupos no espaço PC1 × PC2. O DBSCAN isolou automaticamente os reels de performance anômala no rótulo de ruído (-1).</sup>
+
+### 2.3 Análise de sentimentos
+
+Modelo `cardiffnlp/twitter-xlm-roberta-base-sentiment` via `transformers` — especializado em texto de redes sociais, classifica em `positive` / `neutral` / `negative` e devolve um score de confiança.
+
+O modelo classificou a maioria dos comentários com alta confiança. As classes `positive` e `negative` apresentam scores consistentemente mais altos que `neutral` — comportamento esperado, já que neutralidade é semanticamente mais ambígua.
+
+![Painel de análise de sentimentos](reports/academic/Figuras/sentiment_plots.png)
+
+<sup>(a) Distribuição de rótulos · (b) Distribuição dos scores de confiança · (c) Boxplot de scores por sentimento.</sup>
+
+Nos extremos por perfil, a assimetria é brutal: **Clécio Luís** com 92,01% de comentários positivos, contra **Ibaneis** com 51,89% de negativos — mais da metade das interações em seu perfil são críticas. Não existe "governador médio".
+
+<table>
+<tr>
+<td width="50%"><img src="reports/academic/Figuras/top_5_governadores_positivo.png" alt="Top 5 governadores por percentual de comentários positivos"></td>
+<td width="50%"><img src="reports/academic/Figuras/top_5_governadores_negativo.png" alt="Top 5 governadores por percentual de comentários negativos"></td>
+</tr>
+<tr>
+<td align="center"><sup>Maior percentual de comentários <b>positivos</b></sup></td>
+<td align="center"><sup>Maior percentual de comentários <b>negativos</b></sup></td>
+</tr>
+</table>
+
+### 2.4 Modelagem de tópicos — BERTopic
+
+BERTopic com embeddings de `sentence-transformers` e redução via UMAP identificou **50 temas distintos** no corpus. O mapa de distância intertópica está no topo deste README; abaixo, as duas visões complementares da estrutura desses temas.
+
+![Dendrograma da clusterização hierárquica dos tópicos](reports/academic/Figuras/hierarchy.png)
+
+<sup>Dendrograma da clusterização hierárquica dos tópicos — mostra como os 50 temas se agrupam em famílias semânticas.</sup>
+
+![Matriz de similaridade entre os tópicos](reports/academic/Figuras/heatmap.png)
+
+<sup>Matriz de similaridade entre os tópicos. Blocos quentes na diagonal indicam grupos de temas correlacionados.</sup>
+
+### 2.5 O cruzamento — onde a tese se prova
+
+Esta é a etapa que responde ao objetivo específico nº 6. Cruzando a clusterização (métrica) com a análise de sentimentos (qualitativa), cada cluster ganha um significado que nenhuma das análises isoladas produziria:
+
+| Cluster | Positivo | Neutro | Negativo | Leitura |
+|---|---|---|---|---|
+| **0** — Padrão | 72,3% | 14,1% | 13,7% | Aprovação consistente |
+| **-1** — Viral | 53,5% | 25,7% | 20,8% | **Polarizado** — viralidade movida tanto por aclamação quanto por controvérsia |
+| **1** — Longo | 60,4% | **27,1%** | 12,5% | **Indiferença** — maior taxa de neutros; falha em provocar reação |
+
+<table>
+<tr>
+<td width="33%"><img src="reports/academic/Figuras/grafico_sentimentos_cluster0.png" alt="Distribuição de sentimentos no Cluster 0"></td>
+<td width="33%"><img src="reports/academic/Figuras/grafico_sentimentos_cluster-1.png" alt="Distribuição de sentimentos no Cluster -1"></td>
+<td width="33%"><img src="reports/academic/Figuras/grafico_sentimentos_cluster1.png" alt="Distribuição de sentimentos no Cluster 1"></td>
+</tr>
+<tr>
+<td align="center"><sup><b>Cluster 0</b> — Padrão<br/>aprovado</sup></td>
+<td align="center"><sup><b>Cluster -1</b> — Viral<br/>debatido</sup></td>
+<td align="center"><sup><b>Cluster 1</b> — Longo<br/>ignorado</sup></td>
+</tr>
+</table>
+
+A conclusão que só a abordagem híbrida permite: **"alto engajamento" não é sinônimo de "alta aprovação"**. O cluster com as métricas mais fortes é também o mais polarizado. O cluster de pior desempenho não gera rejeição — gera indiferença.
+
+---
+
+## 3. Arquitetura de dados
+
+```mermaid
+flowchart LR
+    G[governadores.xlsx] --> A[Apify API]
+    A --> B[("🥉 Bronze<br/>Delta append-only")]
+    B --> S[("🥈 Silver<br/>limpo e conformado")]
+    S --> O[("🥇 Gold<br/>agregado")]
+    O --> D[Dashboards Streamlit]
+    O --> N[Notebooks]
+    N --> T[TCC LaTeX]
+```
+
+| Camada | Caminho | Tabelas | Escrita por | Garante |
+|---|---|---|---|---|
+| **Bronze** | `data/bronze/` | `instagram_profiles`, `instagram_posts`, `instagram_reels` | `src/data_extract/bronze_writer.py` | Imutabilidade — append-only, nada é sobrescrito |
+| **Silver** | `data/silver/` | `profiles_clean`, `posts_clean`, `reels_clean`, `comments_clean` | `src/features/silver/*_cleaner.py` | Conformidade — tipos, deduplicação, comentários explodidos |
+| **Gold** | `data/gold/` | `governor_engagement`, `governor_sentiment`, `governor_clusters` | `src/features/gold/*` | Prontidão — métricas agregadas, resultados de modelagem |
+
+### Leitura dos dados
+
+`src/repositories/delta_repository.py` é a única porta de entrada dos dashboards e notebooks. É **read-only por design** — `save()` levanta `NotImplementedError` deliberadamente; a escrita pertence aos writers de cada camada.
+
+```python
+repo = DeltaRepository(gold_dir=settings.GOLD_DIR, silver_dir=settings.SILVER_DIR)
+df = repo.load_profiles()
+
+# Reproduzir o estado exato de uma execução anterior
+repo_v3 = DeltaRepository(settings.GOLD_DIR, as_of_version=3)
+```
+
+### Pipeline local
+
+`pipeline.py` orquestra as três camadas e resolve a fonte dos dados em cascata ([`pipeline.py:66-99`](pipeline.py)):
+
+1. Tabelas Bronze já existentes — o caminho mais barato
+2. JSONs em `data/raw/` — migra para Bronze sem chamar a API
+3. API Apify — só quando não há nada local (consome créditos)
+
+Passar `force_extract=True` pula direto para a API.
+
+### Pipeline serverless
+
+As três Lambdas em `lambdas/` reproduzem o mesmo fluxo sobre S3, encadeadas via EventBridge ou Step Functions. **Todas escrevem tabelas Delta** — não há Parquet nem Excel no caminho:
+
+| Lambda | Lê | Escreve |
 |---|---|---|
-| `PROJECT_ROOT` | detectado automaticamente | Caminho absoluto para a raiz do projeto |
-| `DATA_DIR` | `data/` | Diretório base de dados |
-| `RAW_DATA_DIR` | `data/raw/` | Dados brutos (JSONs da API) |
-| `PROCESSED_DATA_DIR` | `data/processed/` | Dados transformados |
-| `GOVERNADORES_FILE` | `data/raw/governadores.xlsx` | Lista de perfis a coletar |
-| `PROFILES_JSON` | `data/raw/profiles.json` | Dados brutos de perfis |
-| `POSTS_JSON` | `data/raw/posts.json` | Dados brutos de posts |
-| `REELS_JSON` | `data/raw/reels.json` | Dados brutos de reels |
-| `ALL_XLSX` | `data/processed/all.xlsx` | Dataset processado consolidado |
-| `RANDOM_STATE` | `42` | Semente para reprodutibilidade |
-| `RESULTS_LIMIT` | `30` | Máximo de posts/reels por perfil na API |
-| `S3_BUCKET` | `""` | Bucket S3 para ambiente cloud |
-| `IS_CLOUD` | `False` | `True` se executando em AWS Lambda |
-| `N_CLUSTERS_KMEANS` | `5` | Número inicial de clusters |
-| `TSNE_PERPLEXITY` | `30` | Perplexidade do t-SNE |
+| `extract/handler.py` | API Apify | Bronze Delta em `s3://<bucket>/bronze/` |
+| `transform/handler.py` | Bronze Delta | Silver Delta em `s3://<bucket>/silver/` |
+| `load/handler.py` | Silver Delta | Gold Delta em `s3://<bucket>/gold/` |
 
 ---
 
-## 12. Dados (`data/`)
+## 4. Estrutura do repositório
 
 ```
-data/
-├── raw/
-│   ├── .gitkeep             ← mantém o diretório versionado sem expor dados
-│   ├── governadores.xlsx    ← lista de 27 governadores com nome, estado e link
-│   ├── profiles.json        ← gerado pelo pipeline (não versionado)
-│   ├── posts.json           ← gerado pelo pipeline (não versionado)
-│   └── reels.json           ← gerado pelo pipeline (não versionado)
-└── processed/
-    └── all.xlsx             ← gerado pelo pipeline (não versionado)
+├── app.py                  # Página raiz do Streamlit
+├── pipeline.py             # Orquestrador ETL local (Bronze → Silver → Gold)
+├── config/settings.py      # Caminhos e parâmetros, sobrescrevíveis por env var
+├── src/
+│   ├── analyzes/           # AutoClusterHPO — seleção automática de clustering
+│   ├── data_extract/       # Scraper Apify, leitores JSON, BronzeWriter
+│   ├── features/
+│   │   ├── silver/         # Cleaners de perfis, posts e comentários
+│   │   └── gold/           # Agregador de engajamento, enriquecedor de modelos
+│   ├── repositories/       # DeltaRepository (ativo), S3, Excel (legado)
+│   ├── schemas_delta.py    # Contratos PyArrow das três camadas
+│   └── visualization/      # Gráficos Plotly reutilizáveis
+├── pages/                  # Dashboards Streamlit (exploratório, modelagem)
+├── lambdas/                # extract / transform / load para AWS
+├── notebooks/              # 01 extração · 02 EDA · 03 modelagem · 04 regressão · 05 síntese
+├── tests/                  # 8 arquivos de teste (pytest)
+├── data/                   # raw/ · bronze/ · silver/ · gold/ · processed/ (legado)
+├── reports/
+│   ├── academic/           # TCC completo em LaTeX — 7 capítulos, bibliografia, figuras
+│   └── figures/            # Figuras geradas pelos notebooks
+└── scripts/                # Migração para Medallion, sync de figuras para o TCC
 ```
 
-### `governadores.xlsx`
-
-Arquivo de entrada manual com as colunas:
-
-| Coluna | Descrição |
-|---|---|
-| `Nome` | Nome completo do governador |
-| `Estado` | Unidade federativa |
-| `Link` | URL do perfil Instagram (ex: `https://www.instagram.com/fulano/`) |
-
-### `all.xlsx` — estrutura das abas
-
-| Aba | Conteúdo | Linhas aproximadas |
-|---|---|---|
-| `profiles` | Dados de perfil enriquecidos com métricas RFM-like | 27 |
-| `posts` | Posts do feed com métricas de engajamento | ~810 |
-| `reels` | Reels com métricas de reprodução e engajamento | ~810 |
-| `reels_latestComments` | Comentários explodidos e normalizados | variável |
-| `reels_posts` | União de posts e reels para análise combinada | ~1.620 |
+O notebook `03_modelagem_hibrida.ipynb` é o centro da pesquisa: aplica PCA → `AutoClusterHPO` → sentimentos → BERTopic em sequência.
 
 ---
 
-## 13. Relatórios (`reports/`)
-
-| Arquivo | Descrição |
-|---|---|
-| `Analises.pbix` | Dashboard Power BI com análises visuais dos dados |
-| `Dicionário de Dados.xlsx` | Definição de cada coluna dos DataFrames produzidos |
-| `Relatório de ETL.pdf` | Documentação técnica do pipeline de extração e transformação |
-| `Análise de Modelagem Híbrida p_ TCC.pdf` | Relatório completo com resultados de PCA, clustering, sentimentos e tópicos |
-| `figures/heatmap.png` | Heatmap de correlação exportado |
-| `figures/hierarchical_Documents_and_Topics.png` | Hierarquia de tópicos do BERTopic |
-| `figures/hierarchy.png` | Dendrograma de clustering hierárquico |
-| `figures/intertopic_map.png` | Mapa de distância intertópica (UMAP) |
-| `figures/sentiment_plots.png` | Distribuição de sentimentos por governador |
-
----
-
-## 14. CI/CD (`.github/`)
-
-### `.github/workflows/python-app.yml`
-
-Pipeline de integração contínua executado a cada `push` ou `pull_request` na branch `main`.
-
-**Etapas:**
-
-1. `actions/checkout@v4` — clona o repositório
-2. `actions/setup-python@v5` — instala Python 3.11
-3. `pip install -e .[dev]` — instala dependências de produção e desenvolvimento
-4. `pytest tests/ -v --cov=src --cov-report=term-missing` — executa todos os testes com relatório de cobertura
-5. `ruff check src/` — lint de todo o código-fonte
-
-> Para usar `uv` no CI (mais rápido), substituir o passo de instalação por `pip install uv && uv sync`.
-
----
-
-## 15. Como rodar o projeto com uv
+## 5. Como executar
 
 ### Pré-requisitos
 
-- Python 3.9 ou superior
-- [uv](https://docs.astral.sh/uv/) instalado
+- **Python 3.10+** (o código usa sintaxe `X | None` em anotações avaliadas em tempo de import)
+- [uv](https://docs.astral.sh/uv/) — `pip install uv`
 
-**Instalar o uv** (caso ainda não tenha):
-
-```bash
-# macOS e Linux
-curl -LsSf https://astral.sh/uv/install.sh | sh
-
-# Windows (PowerShell)
-powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
-
-# Via pip (alternativa)
-pip install uv
-```
-
----
-
-### Passo 1 — Clonar o repositório
+### Passo a passo
 
 ```bash
-git clone https://github.com/Vini0606/Tecnicas-de-NLP-em-dados-do-Instagram.git
-cd "Tecnicas de NLP em dados do Instagram"
-```
+# 1. Clonar
+git clone https://github.com/Vini0606/Tecnicas-de-Ciencia-de-Dados-em-dados-do-Instagram.git
+cd Tecnicas-de-Ciencia-de-Dados-em-dados-do-Instagram
 
----
-
-### Passo 2 — Criar o ambiente virtual e instalar dependências
-
-O `uv` lê o `pyproject.toml` e o `uv.lock` para criar um ambiente completamente determinístico:
-
-```bash
-# Instala dependências de produção + desenvolvimento (recomendado para trabalho local)
+# 2. Ambiente determinístico a partir do uv.lock
 uv sync --extra dev
 
-# Apenas dependências de produção (sem pytest, ruff etc.)
-uv sync
-```
+# 3. Variáveis de ambiente
+cp .env.example .env      # editar e preencher APIFY_API_TOKEN
 
-O ambiente virtual é criado automaticamente em `.venv/`.
-
-> **Por que usar `uv sync` em vez de `pip install`?** O `uv sync` usa o `uv.lock` para instalar versões exatamente iguais às testadas pelo autor, garantindo que o ambiente seja idêntico independente da data de instalação.
-
----
-
-### Passo 3 — Configurar variáveis de ambiente
-
-```bash
-# Copiar o template
-cp .env.example .env
-
-# Editar o .env com suas credenciais
-nano .env   # ou use seu editor preferido
-```
-
-Conteúdo mínimo do `.env`:
-
-```env
-APIFY_API_TOKEN=seu_token_apify_aqui
-DATA_DIR=data
-RESULTS_LIMIT=30
-```
-
-Para obter um token Apify gratuito: [apify.com](https://apify.com) → criar conta → API & Integrations → Personal API tokens.
-
----
-
-### Passo 4 — Verificar a instalação
-
-```bash
-# Confirma que o ambiente está correto e todos os módulos são importáveis
-uv run python -c "from src.features.engagement import EngagementFeatureBuilder; print('OK')"
-```
-
----
-
-### Passo 5 — Executar os testes
-
-```bash
-# Todos os testes com relatório de cobertura
-uv run pytest tests/ -v --cov=src --cov-report=term-missing
-
-# Apenas um arquivo de teste
-uv run pytest tests/test_engagement.py -v
-
-# Com output detalhado em caso de falha
-uv run pytest tests/ -v -s
-```
-
----
-
-### Passo 6 — Rodar o pipeline ETL
-
-Este passo coleta dados da API Apify (requer token válido e custo de créditos Apify) e gera o `all.xlsx`:
-
-```bash
+# 4. Gerar as tabelas Delta
 uv run python pipeline.py
-```
 
-Se os arquivos JSON já existirem em `data/raw/`, a extração via API é pulada. Para forçar uma nova extração:
+# 5. Abrir os dashboards
+uv run streamlit run app.py     # http://localhost:8501
 
-```python
-# Dentro do pipeline.py (alterar o __main__):
-run_pipeline(apify_api_token=token, links=links, results_limit=30, force_extract=True)
-```
-
----
-
-### Passo 7 — Executar os notebooks
-
-```bash
-# Instalar o Jupyter (já incluído nas dependências dev) e abrir
-uv run jupyter notebook notebooks/
-
-# Ou com JupyterLab
-uv run jupyter lab notebooks/
-```
-
-Executar na ordem:
-1. `01_extracao_e_limpeza_de_dados.ipynb`
-2. `02_analise_exploratoria.ipynb`
-3. `03_modelagem_hibrida.ipynb`
-4. `04_analise_regressao.ipynb`
-5. `05_visualizacao_e_conclusoes.ipynb`
-
----
-
-### Passo 8 — Iniciar os dashboards
-
-```bash
-# Dashboard completo com navegação multi-página
-uv run streamlit run app.py
-
-# Ou uma página específica diretamente
-uv run streamlit run pages/01_exploratory.py
-uv run streamlit run pages/02_modeling.py
-```
-
-Acesse em: `http://localhost:8501`
-
-> **Pré-requisito:** o arquivo `data/processed/all.xlsx` deve existir antes de abrir o dashboard. Rode o notebook 01 ou o `pipeline.py` primeiro.
-
----
-
-### Passo 9 — Lint e formatação
-
-```bash
-# Verificar problemas de estilo e bugs
+# 6. Testes e lint
+uv run pytest tests/ -v --cov=src --cov-report=term-missing
 uv run ruff check src/
-
-# Corrigir automaticamente o que for possível
-uv run ruff check src/ --fix
-
-# Formatar o código
-uv run ruff format src/
 ```
 
----
+> **Sobre créditos da API:** os JSONs de `data/raw/` já estão presentes no repositório local, então o passo 4 **não consome créditos Apify** — o pipeline detecta os arquivos e migra para Bronze. Um token só é necessário para coletar dados novos.
 
-### Referência rápida de comandos uv
+### Referência rápida de comandos `uv`
 
 | Tarefa | Comando |
 |---|---|
 | Criar/atualizar ambiente | `uv sync --extra dev` |
-| Adicionar dependência de produção | `uv add nome-do-pacote` |
-| Adicionar dependência de desenvolvimento | `uv add --dev nome-do-pacote` |
-| Remover dependência | `uv remove nome-do-pacote` |
-| Executar qualquer script | `uv run python script.py` |
-| Executar pytest | `uv run pytest` |
-| Executar Streamlit | `uv run streamlit run app.py` |
-| Atualizar o lockfile | `uv lock --upgrade` |
-| Ver dependências instaladas | `uv pip list` |
-| Ativar manualmente o venv | `source .venv/bin/activate` (Linux/Mac) |
+| Adicionar dependência | `uv add <pacote>` (`--dev` para desenvolvimento) |
+| Executar script | `uv run python <script>.py` |
+| Executar testes | `uv run pytest` |
+| Executar dashboards | `uv run streamlit run app.py` |
+| Abrir notebooks | `uv run jupyter lab notebooks/` |
+| Atualizar lockfile | `uv lock --upgrade` |
 
----
-
-## 16. Variáveis de ambiente
+### Variáveis de ambiente
 
 | Variável | Obrigatória | Padrão | Descrição |
 |---|---|---|---|
-| `APIFY_API_TOKEN` | Sim (para ETL) | — | Token de autenticação da API Apify |
-| `DATA_DIR` | Não | `data` | Diretório raiz dos dados |
-| `RESULTS_LIMIT` | Não | `30` | Limite de posts/reels por perfil |
-| `RANDOM_STATE` | Não | `42` | Semente para reprodutibilidade |
-| `S3_BUCKET` | Só em cloud | `""` | Nome do bucket AWS S3 |
-| `RAW_PREFIX` | Não | `raw/` | Prefixo S3 para dados brutos |
-| `PROCESSED_PREFIX` | Não | `processed/` | Prefixo S3 para dados processados |
-| `OUTPUT_KEY` | Não | `processed/all.xlsx` | Chave S3 do Excel consolidado |
-| `N_CLUSTERS_KMEANS` | Não | `5` | Número de clusters inicial |
-| `TSNE_PERPLEXITY` | Não | `30` | Perplexidade para redução t-SNE |
-| `AWS_LAMBDA_FUNCTION_NAME` | Não | — | Definida automaticamente pela AWS; detecta ambiente cloud |
+| `APIFY_API_TOKEN` | Só para coleta nova | — | Token da API Apify |
+| `DATA_DIR` | Não | `data` | Raiz dos dados |
+| `RESULTS_LIMIT` | Não | `30` | Posts/reels por perfil |
+| `RANDOM_STATE` | Não | `42` | Semente de reprodutibilidade |
+| `S3_BUCKET` | Só em cloud | `""` | Bucket para as Lambdas |
+| `S3_BRONZE_PREFIX` / `S3_SILVER_PREFIX` / `S3_GOLD_PREFIX` | Não | `bronze/` `silver/` `gold/` | Prefixos S3 por camada |
+
+Lista completa em `config/settings.py`.
 
 ---
 
-## 17. Dependências
+## 6. Estado atual e limitações conhecidas
 
-### Produção
+Esta seção registra honestamente o que ainda não funciona. As camadas Silver e Gold **não estão materializadas** no repositório — `data/silver/` e `data/gold/` contêm apenas `.gitkeep`.
 
-| Pacote | Uso |
+**Bloqueio de escrita nas camadas Silver e Gold.** Os writers passam `schema=` para `write_deltalake()`, argumento removido na versão 1.x do `deltalake` (instalada: 1.6.0). Toda chamada levanta `TypeError`. Afeta `profile_cleaner.py`, `post_cleaner.py`, `comment_cleaner.py`, `engagement_aggregator.py` e `model_enricher.py`. O `BronzeWriter` não é afetado porque constrói a `pa.Table` antes de escrever — por isso Bronze é a única camada funcional.
+
+**Perda de campos entre Bronze e Silver.** `BRONZE_PROFILES_SCHEMA` não declara `fullName` nem `businessCategoryName`, e a projeção via `pa.Table.from_pandas(df, schema=…)` descarta silenciosamente as colunas ausentes do schema. Ambos os campos existem nos dados brutos. Como `SILVER_PROFILES_SCHEMA` exige `businessCategoryName`, a escrita da camada Silver falha. O mesmo padrão faz `inputUrl` desaparecer da Silver de reels e `followsCount`/`postsCount` da Gold — colunas que os dashboards consomem.
+
+**Colisão de nomes nos comentários.** `CommentCleaner` faz o join com `lsuffix="_reel"` / `rsuffix="_comment"`, produzindo `ownerUsername_reel` e `ownerUsername_comment`. `SILVER_COMMENTS_SCHEMA` declara esses campos sem sufixo, causando divergência.
+
+**Duplicação em re-execuções.** `get_latest_posts()` lê a tabela Bronze inteira, não apenas a última execução, e `PostCleaner` não deduplica. Rodar o pipeline duas vezes duplica posts e reels, inflando as métricas de engajamento.
+
+**O ciclo da modelagem não se fecha.** O notebook 03 lê via `DeltaRepository` mas persiste os resultados em `all.xlsx`. O `ModelEnricher` — único código capaz de escrever `governor_sentiment` e `governor_clusters` — é chamado apenas por `scripts/migrate_to_medallion.py`. `GOLD_TOPICS` está declarado em `config/settings.py` sem schema, writer ou reader correspondente.
+
+**Sincronização de figuras.** `scripts/sync_figures_to_tcc.sh` tenta copiar 11 figuras de `reports/figures/` para `reports/academic/Figuras/`, mas apenas 5 existem na origem — as outras 6 vivem somente no destino, e o script reporta "não encontrado" para elas. `hierarchical_Documents_and_Topics.png` está em `reports/figures/` sem ser usado pelo TCC nem pelo script.
+
+**Pendências menores.** `pyproject.toml` declara `requires-python = ">=3.9"`, mas o mínimo real é 3.10. O arquivo `LICENSE` está vazio. Os notebooks 01 e 02 ainda leem Excel; 03, 04 e 05 já usam `DeltaRepository`. Os capítulos 6 (Resultados) e 7 (Conclusões) do TCC ainda estão no texto-modelo.
+
+### Próximos passos
+
+1. Destravar os writers — remover `schema=` e conformar o DataFrame antes de escrever
+2. Alinhar os schemas Bronze/Silver/Gold com os campos que as camadas seguintes consomem
+3. Deduplicar por `_run_id` na leitura da Bronze
+4. Corrigir o guarda `_skip_if_missing` em `tests/test_repository.py` para checar `_delta_log/`, devolvendo a CI ao verde
+5. Chamar `ModelEnricher` a partir do `pipeline.py`, fechando o ciclo da modelagem em Delta
+6. Alinhar `scripts/sync_figures_to_tcc.sh` com as figuras que os notebooks de fato geram
+7. Completar os capítulos 6 (Resultados) e 7 (Conclusões) do TCC
+
+---
+
+## 7. Testes e CI
+
+| Arquivo | O que verifica |
 |---|---|
-| `pandas` | Manipulação de DataFrames em todo o pipeline |
-| `apify-client` | Comunicação com a API Apify para coleta de dados |
-| `scikit-learn` | Pré-processamento, clustering, PCA, métricas |
-| `transformers` | Modelos de linguagem pré-treinados (análise de sentimentos) |
-| `torch` | Backend PyTorch para os modelos Hugging Face |
-| `sentence-transformers` | Embeddings semânticos para BERTopic |
-| `bertopic` | Modelagem de tópicos com embeddings e UMAP |
-| `hyperopt` | Otimização de hiperparâmetros via TPE (AutoClusterHPO) |
-| `streamlit` | Framework dos dashboards interativos |
-| `plotly` | Gráficos interativos nos dashboards e notebooks |
-| `matplotlib` / `seaborn` | Visualizações estáticas nos notebooks |
-| `openpyxl` | Leitura e escrita de arquivos `.xlsx` |
-| `boto3` | SDK AWS para comunicação com S3 nas Lambdas |
-| `python-dotenv` | Carregamento do arquivo `.env` |
-| `nltk` / `spacy` | Pré-processamento de texto (tokenização, stopwords) |
-| `google-generativeai` | Integração com modelos generativos do Google |
-| `emoji` | Processamento de emojis nos comentários |
-| `tiktoken` / `sentencepiece` / `protobuf` | Dependências de tokenização dos modelos LLM |
+| `test_bronze_writer.py` | Escrita e leitura da Bronze, comportamento append-only, erro em dados vazios, histórico Delta |
+| `test_silver_cleaners.py` | `ProfileCleaner`, `PostCleaner` e `CommentCleaner` — tipagem, fallback de `fullName`, explosão de comentários |
+| `test_delta_repository.py` | `DeltaRepository` lê uma tabela Gold escrita em diretório temporário |
+| `test_repository.py` | Leitura das tabelas Delta reais — **falha atualmente**, ver nota abaixo |
+| `test_engagement.py` | `EngagementFeatureBuilder` cria `TOTAL ENGAJAMENTO`, `% ENGAJAMENTO`, `RECENCIA`, `FREQUENCIA` e não gera percentuais negativos |
+| `test_comments.py` | `CommentsTransformer` filtra comentários com 512 caracteres ou mais |
+| `test_transform_lambda.py` | Handler Silver retorna `200` / `silver_complete`; retorna `400` sem `S3_BUCKET` |
+| `test_load_lambda.py` | Handler Gold retorna `200` / `gold_complete`; retorna `400` sem `S3_BUCKET` |
 
-### Desenvolvimento
+**Resultado atual: 16 passam, 3 falham.** As três falhas estão em `test_repository.py` e decorrem diretamente do bloqueio descrito nas [limitações](#6-estado-atual-e-limitações-conhecidas) — as tabelas Silver e Gold não existem. O teste tem um guarda `_skip_if_missing` que deveria pular nesse caso, mas ele testa `path.exists()`, e os diretórios existem por conterem `.gitkeep`. O guarda precisa verificar a presença do log Delta (`_delta_log/`), não do diretório.
 
-| Pacote | Uso |
+`.github/workflows/python-app.yml` roda a cada push e pull request na `main`: checkout, Python 3.11, `pip install -e .[dev]`, pytest com cobertura e `ruff check src/`. **A CI está vermelha** pelo motivo acima.
+
+---
+
+## 8. Dependências e referências
+
+O núcleo do projeto: **`deltalake`** e **`pyarrow`** para as tabelas Delta e contratos de schema; **`pandas`** em todo o pipeline; **`transformers`** e **`torch`** para a análise de sentimentos; **`bertopic`** e **`sentence-transformers`** para a modelagem de tópicos; **`scikit-learn`** e **`hyperopt`** para PCA e o `AutoClusterHPO`; **`streamlit`** e **`plotly`** para os dashboards; **`apify-client`** para a coleta.
+
+Lista completa e versões em `pyproject.toml` e `uv.lock`.
+
+### Documentação do trabalho
+
+| Recurso | Onde |
 |---|---|
-| `pytest` | Framework de testes |
-| `pytest-mock` | Fixtures de mock para testes de Lambda |
-| `pytest-cov` | Relatório de cobertura de código |
-| `pandas-stubs` | Type stubs do pandas para IDE |
-| `ruff` | Linter e formatter (substitui flake8, isort, black) |
+| TCC completo (LaTeX, 7 capítulos) | `reports/academic/` |
+| Metodologia e resultados detalhados | `reports/academic/Capítulos/Capitulo_05_Modelagem.tex` |
+| Dicionário de dados | `reports/academic/Dicionário de Dados.xlsx` |
+| Bibliografia | `reports/academic/IESB-CDeIA-Bibliografia.bib` |
+| Figuras geradas | `reports/figures/` |
+
+### Legado
+
+`data/processed/all.xlsx` e o diretório `legacy/` são resquícios da implementação original baseada em Excel, anterior à migração para Delta Lake. São mantidos apenas para os notebooks 01 e 02, que ainda não foram convertidos. **Nenhum fluxo ativo depende deles.**
