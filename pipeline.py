@@ -1,6 +1,6 @@
 import os
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 from apify_client import ApifyClient
 from dotenv import load_dotenv
@@ -26,7 +26,7 @@ def _bronze_has_data(bronze: BronzeWriter) -> bool:
 def _build_run_id(run_id: str | None = None) -> str:
     if run_id:
         return run_id
-    timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
     return f"{timestamp}_{uuid.uuid4().hex[:8]}"
 
 
@@ -76,6 +76,13 @@ def run_medallion_pipeline(
             bronze.write_profiles(df_profiles.to_dict(orient="records"), run_id=run_id)
             bronze.write_posts(df_posts.to_dict(orient="records"), run_id=run_id)
             bronze.write_reels(df_reels.to_dict(orient="records"), run_id=run_id)
+
+            # Relê da Bronze para que as camadas seguintes recebam os
+            # metadados de linhagem (_ingested_at, _run_id, _source), que os
+            # DataFrames lidos direto do JSON não possuem.
+            df_profiles = bronze.get_latest_profiles()
+            df_posts = bronze.get_latest_posts()
+            df_reels = bronze.get_latest_reels()
         else:
             if not apify_api_token:
                 raise ValueError(
@@ -147,4 +154,6 @@ if __name__ == "__main__":
         links=links,
         results_limit=settings.RESULTS_LIMIT,
     )
-    print(f"✅ Pipeline Medallion finalizado com run_id: {run_id}")
+    # Sem emoji: o console padrão do Windows usa cp1252 e levanta
+    # UnicodeEncodeError ao imprimi-los.
+    print(f"[OK] Pipeline Medallion finalizado com run_id: {run_id}")

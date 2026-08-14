@@ -13,8 +13,8 @@ from pathlib import Path
 import pandas as pd
 import pyarrow as pa
 from deltalake import DeltaTable
-from deltalake.writer import write_deltalake
 
+from src.delta_io import write_delta
 from src.schemas_delta import (
     BRONZE_POSTS_SCHEMA,
     BRONZE_PROFILES_SCHEMA,
@@ -92,18 +92,11 @@ class BronzeWriter:
         enriched = self._add_ingestion_metadata(raw_data, run_id)
         df = pd.DataFrame(enriched)
 
-        for field in schema:
-            if field.name not in df.columns:
-                df[field.name] = pd.NA
-
-        # Convert to pyarrow Table using the provided schema to avoid Null-only columns
-        table = pa.Table.from_pandas(df, schema=schema, preserve_index=False)
-
-        write_deltalake(
+        write_delta(
             path,
-            table,
+            df,
+            schema,
             mode="append",
-            schema_mode="merge",
             storage_options=self._storage_options,
         )
 

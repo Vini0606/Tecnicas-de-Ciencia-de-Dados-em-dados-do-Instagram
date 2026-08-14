@@ -2,7 +2,7 @@
 name = "tecnicas-nlp-insta"
 version = "0.1.0"
 description = "Técnicas de NLP em dados do Instagram"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 dependencies = [
     "pandas>=2.0,<3.0",
     "apify-client>=1.7",
@@ -24,7 +24,7 @@ dependencies = [
     "google-generativeai>=0.5",
     "emoji>=2.0",
     "streamlit>=1.35",
-    "deltalake>=0.18",
+    "deltalake>=1.0",
     "pyarrow>=15.0",
     "plotly>=5.0",
     "boto3>=1.34",

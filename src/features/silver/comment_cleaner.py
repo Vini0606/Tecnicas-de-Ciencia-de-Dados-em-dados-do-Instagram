@@ -6,16 +6,17 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import ClassVar
 
 import pandas as pd
-from deltalake.writer import write_deltalake
 
+from src.delta_io import write_delta
 from src.schemas_delta import SILVER_COMMENTS_SCHEMA
 
 
 class CommentCleaner:
     MAX_TEXT_LENGTH = 512
-    COLUMNS_TO_DROP = [
+    COLUMNS_TO_DROP: ClassVar[list[str]] = [
         "hashtags",
         "mentions",
         "images",
@@ -52,6 +53,8 @@ class CommentCleaner:
         if "text" not in df_result.columns:
             df_result["text"] = ""
 
+        df_result = self._promote_comment_columns(df_result)
+
         cols_to_drop = [c for c in self.COLUMNS_TO_DROP if c in df_result.columns]
         if cols_to_drop:
             df_result = df_result.drop(columns=cols_to_drop)
@@ -62,11 +65,18 @@ class CommentCleaner:
 
         return df_result
 
+    def _promote_comment_columns(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        O join entre reel e comentário sufixa as colunas homônimas com
+        `_reel` e `_comment`. Estes campos descrevem o comentário, não o
+        reel, então a variante `_comment` é promovida ao nome sem sufixo
+        esperado por SILVER_COMMENTS_SCHEMA.
+        """
+        for column in ("ownerUsername", "likesCount", "timestamp"):
+            suffixed = f"{column}_comment"
+            if suffixed in df.columns:
+                df[column] = df[suffixed]
+        return df
+
     def write(self, df_silver: pd.DataFrame, path: Path | str) -> None:
-        write_deltalake(
-            str(path),
-            df_silver,
-            mode="overwrite",
-            schema=SILVER_COMMENTS_SCHEMA,
-            schema_mode="overwrite",
-        )
+        write_delta(path, df_silver, SILVER_COMMENTS_SCHEMA)

@@ -8,8 +8,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import pandas as pd
-from deltalake.writer import write_deltalake
 
+from src.delta_io import write_delta
 from src.schemas_delta import GOLD_ENGAGEMENT_SCHEMA
 
 
@@ -43,23 +43,31 @@ class EngagementAggregator:
             how="left",
         ).drop(columns=["ownerId"], errors="ignore")
 
-        df["TOTAL ENGAJAMENTO"] = (
-            df["commentsSum"].fillna(0) + df["likesSum"].fillna(0)
-        ).astype("int64")
+        # O merge é left: perfis sem publicações correspondentes chegam com
+        # NaN nestes agregados, que o contrato Gold declara como não-anuláveis.
+        for column in ("commentsSum", "likesSum", "count"):
+            df[column] = df[column].fillna(0).astype("int64")
 
+        df["TOTAL ENGAJAMENTO"] = (df["commentsSum"] + df["likesSum"]).astype("int64")
+
+        followers = pd.to_numeric(df["followersCount"], errors="coerce").astype("float64")
         df["% ENGAJAMENTO"] = (
-            df["TOTAL ENGAJAMENTO"] / df["followersCount"].replace(0, pd.NA)
-        ).fillna(0.0)
+            df["TOTAL ENGAJAMENTO"].div(followers.where(followers > 0)).fillna(0.0)
+        )
 
         if "maxData" in df.columns:
             max_data = df["maxData"].max()
-            df["RECENCIA"] = 1.0 / ((max_data - df["maxData"]).dt.days.fillna(0) + 1)
+            dias_desde_ultimo = (max_data - df["maxData"]).dt.days
+            # Perfil sem publicações tem maxData nulo. Sem o tratamento
+            # explícito, o fillna(0) o classificaria como o mais recente
+            # possível — ausência de dados viraria recência máxima.
+            df["RECENCIA"] = (1.0 / (dias_desde_ultimo + 1)).fillna(0.0)
         else:
             df["RECENCIA"] = 0.0
 
         if "maxData" in df.columns and "minData" in df.columns:
-            active_days = (df["maxData"] - df["minData"]).dt.days.fillna(0) + 1
-            df["FREQUENCIA"] = df["count"].fillna(0) / active_days
+            dias_ativos = (df["maxData"] - df["minData"]).dt.days + 1
+            df["FREQUENCIA"] = (df["count"] / dias_ativos).fillna(0.0)
         else:
             df["FREQUENCIA"] = 0.0
 
@@ -69,10 +77,4 @@ class EngagementAggregator:
         return df
 
     def write(self, df_gold: pd.DataFrame, path: Path | str) -> None:
-        write_deltalake(
-            str(path),
-            df_gold,
-            mode="overwrite",
-            schema=GOLD_ENGAGEMENT_SCHEMA,
-            schema_mode="overwrite",
-        )
+        write_delta(path, df_gold, GOLD_ENGAGEMENT_SCHEMA)

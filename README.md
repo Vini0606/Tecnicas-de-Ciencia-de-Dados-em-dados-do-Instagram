@@ -325,31 +325,25 @@ Lista completa em `config/settings.py`.
 
 ## 6. Estado atual e limitações conhecidas
 
-Esta seção registra honestamente o que ainda não funciona. As camadas Silver e Gold **não estão materializadas** no repositório — `data/silver/` e `data/gold/` contêm apenas `.gitkeep`.
+O pipeline roda de ponta a ponta: `uv run python pipeline.py` materializa Bronze, Silver e Gold, e ambos os dashboards carregam. As tabelas Delta não são versionadas (`data/` está no `.gitignore`), então um clone novo precisa executar o pipeline uma vez — os JSONs de `data/raw/` bastam, sem consumir créditos da API.
 
-**Bloqueio de escrita nas camadas Silver e Gold.** Os writers passam `schema=` para `write_deltalake()`, argumento removido na versão 1.x do `deltalake` (instalada: 1.6.0). Toda chamada levanta `TypeError`. Afeta `profile_cleaner.py`, `post_cleaner.py`, `comment_cleaner.py`, `engagement_aggregator.py` e `model_enricher.py`. O `BronzeWriter` não é afetado porque constrói a `pa.Table` antes de escrever — por isso Bronze é a única camada funcional.
+Esta seção registra honestamente o que ainda não está fechado.
 
-**Perda de campos entre Bronze e Silver.** `BRONZE_PROFILES_SCHEMA` não declara `fullName` nem `businessCategoryName`, e a projeção via `pa.Table.from_pandas(df, schema=…)` descarta silenciosamente as colunas ausentes do schema. Ambos os campos existem nos dados brutos. Como `SILVER_PROFILES_SCHEMA` exige `businessCategoryName`, a escrita da camada Silver falha. O mesmo padrão faz `inputUrl` desaparecer da Silver de reels e `followsCount`/`postsCount` da Gold — colunas que os dashboards consomem.
+**O ciclo da modelagem não se fecha.** O notebook 03 lê via `DeltaRepository`, mas persiste os resultados em `all.xlsx`. O `ModelEnricher` — único código capaz de escrever `governor_sentiment` e `governor_clusters` — é chamado apenas por `scripts/migrate_to_medallion.py`. Na prática, as tabelas Gold de sentimento e clusters só existem se esse script de migração for executado. `GOLD_TOPICS` está declarado em `config/settings.py` sem schema, writer ou reader correspondente.
 
-**Colisão de nomes nos comentários.** `CommentCleaner` faz o join com `lsuffix="_reel"` / `rsuffix="_comment"`, produzindo `ownerUsername_reel` e `ownerUsername_comment`. `SILVER_COMMENTS_SCHEMA` declara esses campos sem sufixo, causando divergência.
-
-**Duplicação em re-execuções.** `get_latest_posts()` lê a tabela Bronze inteira, não apenas a última execução, e `PostCleaner` não deduplica. Rodar o pipeline duas vezes duplica posts e reels, inflando as métricas de engajamento.
-
-**O ciclo da modelagem não se fecha.** O notebook 03 lê via `DeltaRepository` mas persiste os resultados em `all.xlsx`. O `ModelEnricher` — único código capaz de escrever `governor_sentiment` e `governor_clusters` — é chamado apenas por `scripts/migrate_to_medallion.py`. `GOLD_TOPICS` está declarado em `config/settings.py` sem schema, writer ou reader correspondente.
+**Notebooks parcialmente migrados.** Os notebooks 01 e 02 ainda leem Excel; 03, 04 e 05 já usam `DeltaRepository`.
 
 **Sincronização de figuras.** `scripts/sync_figures_to_tcc.sh` tenta copiar 11 figuras de `reports/figures/` para `reports/academic/Figuras/`, mas apenas 5 existem na origem — as outras 6 vivem somente no destino, e o script reporta "não encontrado" para elas. `hierarchical_Documents_and_Topics.png` está em `reports/figures/` sem ser usado pelo TCC nem pelo script.
 
-**Pendências menores.** `pyproject.toml` declara `requires-python = ">=3.9"`, mas o mínimo real é 3.10. O arquivo `LICENSE` está vazio. Os notebooks 01 e 02 ainda leem Excel; 03, 04 e 05 já usam `DeltaRepository`. Os capítulos 6 (Resultados) e 7 (Conclusões) do TCC ainda estão no texto-modelo.
+**Pendências de documentação.** O arquivo `LICENSE` está vazio. Os capítulos 6 (Resultados) e 7 (Conclusões) do TCC ainda estão no texto-modelo, embora os resultados já existam e estejam redigidos no capítulo 5.
 
 ### Próximos passos
 
-1. Destravar os writers — remover `schema=` e conformar o DataFrame antes de escrever
-2. Alinhar os schemas Bronze/Silver/Gold com os campos que as camadas seguintes consomem
-3. Deduplicar por `_run_id` na leitura da Bronze
-4. Corrigir o guarda `_skip_if_missing` em `tests/test_repository.py` para checar `_delta_log/`, devolvendo a CI ao verde
-5. Chamar `ModelEnricher` a partir do `pipeline.py`, fechando o ciclo da modelagem em Delta
-6. Alinhar `scripts/sync_figures_to_tcc.sh` com as figuras que os notebooks de fato geram
-7. Completar os capítulos 6 (Resultados) e 7 (Conclusões) do TCC
+1. Chamar `ModelEnricher` a partir do `pipeline.py`, fechando o ciclo da modelagem em Delta
+2. Migrar os notebooks 01 e 02 para `DeltaRepository`, aposentando o `all.xlsx`
+3. Dar a `GOLD_TOPICS` um schema e um writer, ou remover a configuração órfã
+4. Alinhar `scripts/sync_figures_to_tcc.sh` com as figuras que os notebooks de fato geram
+5. Completar os capítulos 6 (Resultados) e 7 (Conclusões) do TCC
 
 ---
 
@@ -360,15 +354,17 @@ Esta seção registra honestamente o que ainda não funciona. As camadas Silver 
 | `test_bronze_writer.py` | Escrita e leitura da Bronze, comportamento append-only, erro em dados vazios, histórico Delta |
 | `test_silver_cleaners.py` | `ProfileCleaner`, `PostCleaner` e `CommentCleaner` — tipagem, fallback de `fullName`, explosão de comentários |
 | `test_delta_repository.py` | `DeltaRepository` lê uma tabela Gold escrita em diretório temporário |
-| `test_repository.py` | Leitura das tabelas Delta reais — **falha atualmente**, ver nota abaixo |
+| `test_repository.py` | Leitura das tabelas Delta reais (pula quando não materializadas) |
+| `test_delta_io.py` | Conformação ao contrato de schema: descarta colunas extras, cria as anuláveis ausentes e falha em campo obrigatório vazio |
+| `test_engagement_aggregator.py` | Perfil sem publicações não recebe recência máxima, agregados conformam ao contrato Gold, `% ENGAJAMENTO` não divide por zero |
 | `test_engagement.py` | `EngagementFeatureBuilder` cria `TOTAL ENGAJAMENTO`, `% ENGAJAMENTO`, `RECENCIA`, `FREQUENCIA` e não gera percentuais negativos |
 | `test_comments.py` | `CommentsTransformer` filtra comentários com 512 caracteres ou mais |
 | `test_transform_lambda.py` | Handler Silver retorna `200` / `silver_complete`; retorna `400` sem `S3_BUCKET` |
 | `test_load_lambda.py` | Handler Gold retorna `200` / `gold_complete`; retorna `400` sem `S3_BUCKET` |
 
-**Resultado atual: 16 passam, 3 falham.** As três falhas estão em `test_repository.py` e decorrem diretamente do bloqueio descrito nas [limitações](#6-estado-atual-e-limitações-conhecidas) — as tabelas Silver e Gold não existem. O teste tem um guarda `_skip_if_missing` que deveria pular nesse caso, mas ele testa `path.exists()`, e os diretórios existem por conterem `.gitkeep`. O guarda precisa verificar a presença do log Delta (`_delta_log/`), não do diretório.
+**Resultado atual: 30 testes, todos passando.**
 
-`.github/workflows/python-app.yml` roda a cada push e pull request na `main`: checkout, Python 3.11, `pip install -e .[dev]`, pytest com cobertura e `ruff check src/`. **A CI está vermelha** pelo motivo acima.
+`.github/workflows/python-app.yml` roda a cada push e pull request na `main`: checkout, Python 3.11, `pip install -e .[dev]`, pytest com cobertura e `ruff check src/`.
 
 ---
 

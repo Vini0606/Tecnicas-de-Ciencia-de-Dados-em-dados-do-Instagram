@@ -8,8 +8,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import pandas as pd
-from deltalake.writer import write_deltalake
 
+from src.delta_io import write_delta
 from src.schemas_delta import GOLD_CLUSTERS_SCHEMA, GOLD_SENTIMENT_SCHEMA
 
 
@@ -20,13 +20,7 @@ class ModelEnricher:
         df = df_comments_with_sentiment.copy()
         df["_run_id"] = run_id
         df["_generated_at"] = datetime.now(timezone.utc)
-        write_deltalake(
-            str(path),
-            df,
-            mode="overwrite",
-            schema=GOLD_SENTIMENT_SCHEMA,
-            schema_mode="overwrite",
-        )
+        write_delta(path, df, GOLD_SENTIMENT_SCHEMA)
 
     def write_clusters(
         self,
@@ -48,10 +42,4 @@ class ModelEnricher:
                 "_generated_at": datetime.now(timezone.utc),
             }
         )
-        write_deltalake(
-            str(path),
-            df_clusters,
-            mode="overwrite",
-            schema=GOLD_CLUSTERS_SCHEMA,
-            schema_mode="overwrite",
-        )
+        write_delta(path, df_clusters, GOLD_CLUSTERS_SCHEMA)
