@@ -77,3 +77,55 @@ def test_comment_cleaner_explode():
     cc = CommentCleaner()
     out = cc.clean(df_reels)
     assert not out.empty
+
+
+def test_post_cleaner_deduplica_execucoes_acumuladas():
+    """
+    A Bronze é append-only. Sem deduplicação, reprocessar o pipeline
+    multiplicaria as publicações e inflaria as métricas da camada Gold.
+    """
+    linha = {
+        "id": "p1",
+        "ownerId": "1",
+        "ownerUsername": "g",
+        "commentsCount": 1,
+        "likesCount": 2,
+        "timestamp": "2026-05-01T00:00:00+00:00",
+        "_run_id": "r1",
+    }
+    df = pd.DataFrame([linha, {**linha, "_run_id": "r2"}])
+    df["_ingested_at"] = pd.to_datetime(["2026-05-01", "2026-05-02"], utc=True)
+
+    out = PostCleaner().clean_posts(df)
+
+    assert len(out) == 1
+    # Mantém a ingestão mais recente
+    assert out.iloc[0]["_run_id"] == "r2"
+
+
+def test_comment_cleaner_promove_colunas_do_comentario():
+    """
+    O join reel × comentário sufixa colunas homônimas. Os campos que
+    descrevem o comentário precisam chegar ao Silver sem sufixo, como
+    SILVER_COMMENTS_SCHEMA declara.
+    """
+    df_reels = pd.DataFrame(
+        {
+            "id": ["r1"],
+            "ownerUsername": ["governador"],
+            "likesCount": [500],
+            "timestamp": ["2026-05-01T00:00:00+00:00"],
+            "latestComments": [
+                (
+                    '[{"id": "c1", "text": "ok", "ownerUsername": "eleitor",'
+                    ' "likesCount": 3, "timestamp": "2026-05-02T00:00:00+00:00"}]'
+                )
+            ],
+        }
+    )
+
+    out = CommentCleaner().clean(df_reels)
+
+    assert out.iloc[0]["ownerUsername"] == "eleitor"
+    assert out.iloc[0]["likesCount"] == 3
+    assert out.iloc[0]["timestamp"].startswith("2026-05-02")

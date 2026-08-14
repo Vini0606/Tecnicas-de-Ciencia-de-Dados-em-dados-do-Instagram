@@ -1,3 +1,5 @@
+from typing import ClassVar
+
 import pandas as pd
 
 
@@ -7,7 +9,7 @@ class CommentsTransformer:
     """
 
     MAX_TEXT_LENGTH: int = 512
-    COLUMNS_TO_DROP: list[str] = [
+    COLUMNS_TO_DROP: ClassVar[list[str]] = [
         "hashtags",
         "mentions",
         "images",

@@ -7,8 +7,11 @@ from src.repositories.delta_repository import DeltaRepository
 
 
 def _skip_if_missing(path: Path) -> None:
-    if not path.exists():
-        pytest.skip(f"Delta path not found: {path}")
+    # Os diretórios existem no repositório por conterem .gitkeep, então
+    # checar `path.exists()` nunca pula. O que indica uma tabela Delta
+    # materializada é a presença do log de transações.
+    if not (path / "_delta_log").is_dir():
+        pytest.skip(f"Tabela Delta não materializada: {path}")
 
 
 def test_load_profiles_from_delta():

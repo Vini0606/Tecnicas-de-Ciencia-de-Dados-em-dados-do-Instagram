@@ -49,7 +49,7 @@ def plot_dual_axis(
             y=df_sorted[line_col],
             name=line_name,
             mode="lines+markers",
-            line=dict(color="red", width=3),
+            line={"color": "red", "width": 3},
         ),
         secondary_y=True,
     )

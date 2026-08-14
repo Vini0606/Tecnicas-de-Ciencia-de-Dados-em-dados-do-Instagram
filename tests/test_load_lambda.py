@@ -71,7 +71,7 @@ def test_load_handler(monkeypatch):
 
     # Stub gold writer to avoid real Delta writes
     monkeypatch.setattr(
-        "src.features.gold.engagement_aggregator.write_deltalake", lambda *a, **k: None
+        "src.features.gold.engagement_aggregator.write_delta", lambda *a, **k: None
     )
 
     from lambdas.load import handler as load_handler

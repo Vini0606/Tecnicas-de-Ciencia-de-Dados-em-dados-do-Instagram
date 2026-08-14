@@ -1,5 +1,5 @@
 apify-client
 python-dotenv
 pandas
-deltalake>=0.18
+deltalake>=1.0
 pyarrow>=15.0

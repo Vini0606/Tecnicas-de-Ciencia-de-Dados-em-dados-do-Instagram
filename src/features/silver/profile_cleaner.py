@@ -5,15 +5,16 @@ Silver profile cleaner
 from __future__ import annotations
 
 from pathlib import Path
+from typing import ClassVar
 
 import pandas as pd
-from deltalake.writer import write_deltalake
 
+from src.delta_io import write_delta
 from src.schemas_delta import SILVER_PROFILES_SCHEMA
 
 
 class ProfileCleaner:
-    COLUMNS_TO_DROP = [
+    COLUMNS_TO_DROP: ClassVar[list[str]] = [
         "businessAddress",
         "externalUrl",
         "externalUrlShimmed",
@@ -25,8 +26,8 @@ class ProfileCleaner:
         "fbid",
     ]
 
-    INT32_COLUMNS = ["followersCount", "followsCount", "postsCount", "igtvVideoCount"]
-    BOOL_COLUMNS = [
+    INT32_COLUMNS: ClassVar[list[str]] = ["followersCount", "followsCount", "postsCount", "igtvVideoCount"]
+    BOOL_COLUMNS: ClassVar[list[str]] = [
         "verified",
         "private",
         "isBusinessAccount",
@@ -68,10 +69,4 @@ class ProfileCleaner:
         return df
 
     def write(self, df_silver: pd.DataFrame, path: Path | str) -> None:
-        write_deltalake(
-            str(path),
-            df_silver,
-            mode="overwrite",
-            schema=SILVER_PROFILES_SCHEMA,
-            schema_mode="overwrite",
-        )
+        write_delta(path, df_silver, SILVER_PROFILES_SCHEMA)

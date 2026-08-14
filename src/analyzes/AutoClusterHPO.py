@@ -20,7 +20,7 @@ class AutoClusterHPO:
         self,
         max_evals_per_algo: int = 50,
         random_state: int = 42,
-        max_n_clusters: int = None,
+        max_n_clusters: int | None = None,
     ):
         """
         Inicializa a classe AutoClusterHPO para aplicar o método do autor.
@@ -128,7 +128,8 @@ class AutoClusterHPO:
                 "labels": labels,
                 "params": params,
             }
-        except Exception:
+        except Exception:  # noqa: BLE001 — qualquer falha de um algoritmo
+            # descarta apenas aquela avaliação; a busca deve seguir.
             return {"loss": np.inf, "status": STATUS_OK}
 
     def fit_predict(self, X_df):
@@ -156,8 +157,7 @@ class AutoClusterHPO:
             if self.max_n_clusters is not None
             else min(21, int(n_samples * 0.5) + 1)
         )
-        if max_n_clusters < 3:
-            max_n_clusters = 3
+        max_n_clusters = max(max_n_clusters, 3)
 
         algorithms_and_spaces = {
             "KMeans": {
@@ -180,8 +180,11 @@ class AutoClusterHPO:
         for algo_name, space in algorithms_and_spaces.items():
             trials = Trials()
             fmin(
-                fn=lambda params: self._objective_function(
-                    params, X_scaled, algo_name, random_state=self.random_state
+                # algo=algo_name fixa o valor da iteração atual: sem o
+                # binding explícito, a lambda resolveria a variável de laço
+                # apenas na chamada, um late-binding frágil.
+                fn=lambda params, algo=algo_name: self._objective_function(
+                    params, X_scaled, algo, random_state=self.random_state
                 ),
                 space=space,
                 algo=tpe.suggest,
@@ -197,12 +200,12 @@ class AutoClusterHPO:
                     and ("model" in t)
                     and ("labels" in t)
                     and not np.isinf(-t["loss"])
-                ):
-                    if (
+                    and (
                         best_trial_result is None
                         or -t["loss"] > -best_trial_result["loss"]
-                    ):
-                        best_trial_result = t
+                    )
+                ):
+                    best_trial_result = t
 
             if best_trial_result:
                 current_best_score = -best_trial_result["loss"]

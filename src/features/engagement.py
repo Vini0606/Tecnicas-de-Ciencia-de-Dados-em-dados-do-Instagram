@@ -12,7 +12,8 @@ class EngagementFeatureBuilder:
         df_profiles: pd.DataFrame,
         df_posts: pd.DataFrame,
         df_reels: pd.DataFrame,
-    ) -> pd.DataFrame:
+    ) -> tuple[pd.DataFrame, pd.DataFrame]:
+        """Devolve (perfis enriquecidos, posts e reels combinados)."""
         df_posts = df_posts.copy()
         df_reels = df_reels.copy()
 

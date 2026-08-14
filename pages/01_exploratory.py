@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import os
 import sys
-from typing import Tuple
 
 import numpy as np
 import pandas as pd
@@ -25,7 +24,7 @@ st.set_page_config(layout="wide")
 
 
 @st.cache_data
-def load_data() -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+def load_data() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     repo = DeltaRepository(gold_dir=settings.GOLD_DIR, silver_dir=settings.SILVER_DIR)
     df_profiles = repo.load_profiles()
     df_comments = repo.load_comments()
@@ -36,40 +35,44 @@ def load_data() -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
 df_profiles, df_comments, df_reels = load_data()
 
 
+def media(df: pd.DataFrame, coluna: str) -> float:
+    """Média de uma coluna, ou NaN quando ela não existe no DataFrame."""
+    if coluna not in df.columns:
+        return float("nan")
+    return pd.to_numeric(df[coluna], errors="coerce").mean()
+
+
+def media_por_publicacao(df: pd.DataFrame, total: str) -> float:
+    """Média por publicação, protegida contra colunas ausentes e divisão por zero."""
+    if total not in df.columns or "count" not in df.columns:
+        return float("nan")
+    numerador = pd.to_numeric(df[total], errors="coerce")
+    denominador = pd.to_numeric(df["count"], errors="coerce")
+    return numerador.div(denominador.where(denominador > 0)).mean()
+
+
 # --- MÉTRICAS ---
 col1, col2, col3, col4, col5, col6 = st.columns(6)
 with col1:
-    st.metric(
-        label="Média de Seguidores",
-        value=round(df_profiles["followersCount"].mean(), 2),
-    )
+    st.metric(label="Média de Seguidores", value=round(media(df_profiles, "followersCount"), 2))
 with col2:
-    st.metric(
-        label="Média de Seguidos", value=round(df_profiles["followsCount"].mean(), 2)
-    )
+    st.metric(label="Média de Seguidos", value=round(media(df_profiles, "followsCount"), 2))
 with col3:
-    st.metric(
-        label="Média de Publicações",
-        value=round(df_profiles.get("postsCount", pd.Series()).mean(), 2),
-    )
+    st.metric(label="Média de Publicações", value=round(media(df_profiles, "postsCount"), 2))
 with col4:
     st.metric(
         label="Média de Comentários p/ Publicação",
-        value=round(
-            (df_profiles.get("commentsSum", 0) / df_profiles.get("count", 1)).mean(), 2
-        ),
+        value=round(media_por_publicacao(df_profiles, "commentsSum"), 2),
     )
 with col5:
     st.metric(
         label="Média de Likes p/ Publicação",
-        value=round(
-            (df_profiles.get("likesSum", 0) / df_profiles.get("count", 1)).mean(), 2
-        ),
+        value=round(media_por_publicacao(df_profiles, "likesSum"), 2),
     )
 with col6:
     st.metric(
         label="Média de % de Engajamento",
-        value=round(df_profiles.get("% ENGAJAMENTO", pd.Series()).mean(), 2),
+        value=round(media(df_profiles, "% ENGAJAMENTO"), 2),
     )
 
 

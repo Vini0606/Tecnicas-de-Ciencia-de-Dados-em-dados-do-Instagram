@@ -97,13 +97,13 @@ def test_transform_handler(monkeypatch, tmp_path):
 
     # Stub writer calls in silver modules to avoid real Delta writes
     monkeypatch.setattr(
-        "src.features.silver.profile_cleaner.write_deltalake", lambda *a, **k: None
+        "src.features.silver.profile_cleaner.write_delta", lambda *a, **k: None
     )
     monkeypatch.setattr(
-        "src.features.silver.post_cleaner.write_deltalake", lambda *a, **k: None
+        "src.features.silver.post_cleaner.write_delta", lambda *a, **k: None
     )
     monkeypatch.setattr(
-        "src.features.silver.comment_cleaner.write_deltalake", lambda *a, **k: None
+        "src.features.silver.comment_cleaner.write_delta", lambda *a, **k: None
     )
 
     # Import handler and run
