@@ -329,21 +329,16 @@ O pipeline roda de ponta a ponta: `uv run python pipeline.py` materializa Bronze
 
 Esta seção registra honestamente o que ainda não está fechado.
 
-**O ciclo da modelagem não se fecha.** O notebook 03 lê via `DeltaRepository`, mas persiste os resultados em `all.xlsx`. O `ModelEnricher` — único código capaz de escrever `governor_sentiment` e `governor_clusters` — é chamado apenas por `scripts/migrate_to_medallion.py`. Na prática, as tabelas Gold de sentimento e clusters só existem se esse script de migração for executado. `GOLD_TOPICS` está declarado em `config/settings.py` sem schema, writer ou reader correspondente.
+**O ciclo da modelagem fecha ao rodar o notebook 03.** `notebooks/03_modelagem_hibrida.ipynb` lê Bronze/Silver/Gold via `DeltaRepository` e, ao final, grava os resultados direto em Gold através do `ModelEnricher`: sentimento e tópicos em `governor_sentiment` (os tópicos do BERTopic viajam junto, nas colunas `Topic`/`Name` — não há uma tabela separada), e clusters em `governor_clusters`. A clusterização é por **reel** (PCA de engajamento/duração do vídeo via `AutoClusterHPO`), não por perfil — não há, e nunca houve, clusterização de governadores no projeto. Essa etapa continua sendo executada manualmente, fora do `pipeline.py`: depende de uma API key do Gemini (`GeminiDocsRefiner`) e de BERTopic, e é uma etapa de pesquisa exploratória, não um job batch.
 
 **Notebooks parcialmente migrados.** Os notebooks 01 e 02 ainda leem Excel; 03, 04 e 05 já usam `DeltaRepository`.
 
-**Sincronização de figuras.** `scripts/sync_figures_to_tcc.sh` tenta copiar 11 figuras de `reports/figures/` para `reports/academic/Figuras/`, mas apenas 5 existem na origem — as outras 6 vivem somente no destino, e o script reporta "não encontrado" para elas. `hierarchical_Documents_and_Topics.png` está em `reports/figures/` sem ser usado pelo TCC nem pelo script.
-
-**Pendências de documentação.** O arquivo `LICENSE` está vazio. Os capítulos 6 (Resultados) e 7 (Conclusões) do TCC ainda estão no texto-modelo, embora os resultados já existam e estejam redigidos no capítulo 5.
+**Pendências de documentação.** Os capítulos 6 (Resultados) e 7 (Conclusões) do TCC ainda estão no texto-modelo, embora os resultados já existam e estejam redigidos no capítulo 5.
 
 ### Próximos passos
 
-1. Chamar `ModelEnricher` a partir do `pipeline.py`, fechando o ciclo da modelagem em Delta
-2. Migrar os notebooks 01 e 02 para `DeltaRepository`, aposentando o `all.xlsx`
-3. Dar a `GOLD_TOPICS` um schema e um writer, ou remover a configuração órfã
-4. Alinhar `scripts/sync_figures_to_tcc.sh` com as figuras que os notebooks de fato geram
-5. Completar os capítulos 6 (Resultados) e 7 (Conclusões) do TCC
+1. Migrar os notebooks 01 e 02 para `DeltaRepository`, aposentando o `all.xlsx`
+2. Completar os capítulos 6 (Resultados) e 7 (Conclusões) do TCC
 
 ---
 
