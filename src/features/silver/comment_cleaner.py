@@ -10,7 +10,7 @@ from typing import ClassVar
 
 import pandas as pd
 
-from src.delta_io import write_delta
+from src.delta_io import deduplicate_latest, write_delta
 from src.schemas_delta import SILVER_COMMENTS_SCHEMA
 
 
@@ -60,7 +60,7 @@ class CommentCleaner:
             df_result = df_result.drop(columns=cols_to_drop)
         df_result["comprimento texto"] = df_result["text"].astype(str).str.len()
         df_result = df_result[df_result["comprimento texto"] < self.MAX_TEXT_LENGTH]
-        df_result = df_result.drop_duplicates()
+        df_result = deduplicate_latest(df_result, id_col="id_comment")
         df_result["_source_layer"] = "bronze"
 
         return df_result

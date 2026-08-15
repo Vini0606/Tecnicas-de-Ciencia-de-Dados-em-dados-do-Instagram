@@ -329,16 +329,15 @@ O pipeline roda de ponta a ponta: `uv run python pipeline.py` materializa Bronze
 
 Esta seção registra honestamente o que ainda não está fechado.
 
-**O ciclo da modelagem fecha ao rodar o notebook 03.** `notebooks/03_modelagem_hibrida.ipynb` lê Bronze/Silver/Gold via `DeltaRepository` e, ao final, grava os resultados direto em Gold através do `ModelEnricher`: sentimento e tópicos em `governor_sentiment` (os tópicos do BERTopic viajam junto, nas colunas `Topic`/`Name` — não há uma tabela separada), e clusters em `governor_clusters`. A clusterização é por **reel** (PCA de engajamento/duração do vídeo via `AutoClusterHPO`), não por perfil — não há, e nunca houve, clusterização de governadores no projeto. Essa etapa continua sendo executada manualmente, fora do `pipeline.py`: depende de uma API key do Gemini (`GeminiDocsRefiner`) e de BERTopic, e é uma etapa de pesquisa exploratória, não um job batch.
+**O ciclo da modelagem fecha ao rodar o notebook 03.** `notebooks/03_modelagem_hibrida.ipynb` lê Bronze/Silver/Gold via `DeltaRepository` e, ao final, grava os resultados direto em Gold através do `ModelEnricher`: sentimento e tópicos em `governor_sentiment` (os tópicos do BERTopic viajam junto, nas colunas `Topic`/`Name` — não há uma tabela separada), e clusters em `governor_clusters`. A clusterização é por **reel** (PCA de engajamento/duração do vídeo via `AutoClusterHPO`), não por perfil — não há, e nunca houve, clusterização de governadores no projeto. Essa etapa continua sendo executada manualmente, fora do `pipeline.py`: depende de uma API key do Gemini (`GeminiDocsRefiner`) e de BERTopic, e é uma etapa de pesquisa exploratória, não um job batch. O dashboard de modelagem (`pages/02_modeling.py`) exibe a distribuição de sentimento, os tópicos mais frequentes e os clusters de reels assim que essas tabelas existem — e se ainda não existirem, mostra instruções em vez de quebrar.
 
-**Notebooks parcialmente migrados.** Os notebooks 01 e 02 ainda leem Excel; 03, 04 e 05 já usam `DeltaRepository`.
+**Notebooks já migrados para Delta.** Os 5 notebooks usam `DeltaRepository`/`run_medallion_pipeline` — nenhum lê mais `all.xlsx` como fonte de pipeline (o notebook 01 só toca Excel para ler `governadores.xlsx`, a lista de perfis a coletar, que é configuração, não dado).
 
 **Pendências de documentação.** Os capítulos 6 (Resultados) e 7 (Conclusões) do TCC ainda estão no texto-modelo, embora os resultados já existam e estejam redigidos no capítulo 5.
 
 ### Próximos passos
 
-1. Migrar os notebooks 01 e 02 para `DeltaRepository`, aposentando o `all.xlsx`
-2. Completar os capítulos 6 (Resultados) e 7 (Conclusões) do TCC
+1. Completar os capítulos 6 (Resultados) e 7 (Conclusões) do TCC
 
 ---
 
@@ -352,12 +351,13 @@ Esta seção registra honestamente o que ainda não está fechado.
 | `test_repository.py` | Leitura das tabelas Delta reais (pula quando não materializadas) |
 | `test_delta_io.py` | Conformação ao contrato de schema: descarta colunas extras, cria as anuláveis ausentes e falha em campo obrigatório vazio |
 | `test_engagement_aggregator.py` | Perfil sem publicações não recebe recência máxima, agregados conformam ao contrato Gold, `% ENGAJAMENTO` não divide por zero |
+| `test_model_enricher.py` | `write_sentiment`/`write_clusters` na granularidade de reel, falha clara quando falta coluna esperada |
 | `test_engagement.py` | `EngagementFeatureBuilder` cria `TOTAL ENGAJAMENTO`, `% ENGAJAMENTO`, `RECENCIA`, `FREQUENCIA` e não gera percentuais negativos |
 | `test_comments.py` | `CommentsTransformer` filtra comentários com 512 caracteres ou mais |
 | `test_transform_lambda.py` | Handler Silver retorna `200` / `silver_complete`; retorna `400` sem `S3_BUCKET` |
 | `test_load_lambda.py` | Handler Gold retorna `200` / `gold_complete`; retorna `400` sem `S3_BUCKET` |
 
-**Resultado atual: 30 testes, todos passando.**
+**Resultado atual: 34 testes, todos passando.**
 
 `.github/workflows/python-app.yml` roda a cada push e pull request na `main`: checkout, Python 3.11, `pip install -e .[dev]`, pytest com cobertura e `ruff check src/`.
 

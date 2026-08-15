@@ -32,6 +32,22 @@ def conform_to_schema(df: pd.DataFrame, schema: pa.Schema) -> pa.Table:
     return pa.Table.from_pandas(df_conformed, schema=schema, preserve_index=False)
 
 
+def deduplicate_latest(
+    df: pd.DataFrame, id_col: str, timestamp_col: str = "_ingested_at"
+) -> pd.DataFrame:
+    """
+    Mantém apenas a linha mais recente por `id_col`.
+
+    A camada Bronze é append-only e acumula todas as execuções do pipeline;
+    sem isso, reprocessar duplicaria cada registro na Silver.
+    """
+    if id_col not in df.columns:
+        return df
+    if timestamp_col in df.columns:
+        df = df.sort_values(timestamp_col, ascending=False)
+    return df.drop_duplicates(subset=[id_col], keep="first")
+
+
 def write_delta(
     path: Path | str,
     df: pd.DataFrame,

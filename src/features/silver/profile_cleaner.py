@@ -9,7 +9,7 @@ from typing import ClassVar
 
 import pandas as pd
 
-from src.delta_io import write_delta
+from src.delta_io import deduplicate_latest, write_delta
 from src.schemas_delta import SILVER_PROFILES_SCHEMA
 
 
@@ -51,10 +51,7 @@ class ProfileCleaner:
             if col in df.columns:
                 df[col] = df[col].fillna(False).astype(bool)
 
-        if "id" in df.columns and "_ingested_at" in df.columns:
-            df = df.sort_values("_ingested_at", ascending=False).drop_duplicates(
-                subset=["id"], keep="first"
-            )
+        df = deduplicate_latest(df, id_col="id")
 
         if "fullName" not in df.columns:
             if "username" in df.columns:

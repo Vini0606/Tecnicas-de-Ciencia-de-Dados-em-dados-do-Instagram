@@ -129,3 +129,27 @@ def test_comment_cleaner_promove_colunas_do_comentario():
     assert out.iloc[0]["ownerUsername"] == "eleitor"
     assert out.iloc[0]["likesCount"] == 3
     assert out.iloc[0]["timestamp"].startswith("2026-05-02")
+
+
+def test_comment_cleaner_deduplica_execucoes_acumuladas():
+    """
+    Assim como a Bronze de posts/reels, o mesmo comentário reaparece a cada
+    reprocessamento do pipeline (o reel é reingerido inteiro, com
+    latestComments embutido). Sem deduplicar por id_comment, comentários se
+    acumulariam a cada execução.
+    """
+    comment = '[{"id": "c1", "text": "ok", "ownerUsername": "eleitor"}]'
+    df_reels = pd.DataFrame(
+        {
+            "id": ["r1", "r1"],
+            "ownerUsername": ["governador", "governador"],
+            "latestComments": [comment, comment],
+            "_ingested_at": pd.to_datetime(["2026-05-01", "2026-05-02"], utc=True),
+            "_run_id": ["r1_run", "r2_run"],
+        }
+    )
+
+    out = CommentCleaner().clean(df_reels)
+
+    assert len(out) == 1
+    assert out.iloc[0]["_run_id"] == "r2_run"
