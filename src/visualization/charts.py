@@ -68,6 +68,13 @@ def plot_correlation_heatmap(df: pd.DataFrame, method: str = "pearson") -> go.Fi
     )
 
 
+def plot_value_counts(df: pd.DataFrame, column: str, title: str) -> go.Figure:
+    """Gráfico de pizza com a contagem de valores de uma coluna categórica."""
+    counts = df[column].value_counts().reset_index(name="count")
+    counts.columns = [column, "count"]
+    return px.pie(counts, names=column, values="count", title=title)
+
+
 def plot_scatter(df: pd.DataFrame, x: str, y: str) -> go.Figure:
     """Gráfico de dispersão interativo."""
     return px.scatter(df, x=x, y=y, hover_data=df.columns, height=800)

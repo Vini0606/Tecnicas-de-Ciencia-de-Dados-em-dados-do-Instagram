@@ -9,7 +9,7 @@ from typing import ClassVar
 
 import pandas as pd
 
-from src.delta_io import write_delta
+from src.delta_io import deduplicate_latest, write_delta
 from src.schemas_delta import SILVER_POSTS_SCHEMA, SILVER_REELS_SCHEMA
 
 
@@ -26,7 +26,7 @@ class PostCleaner:
 
     def clean_posts(self, df_bronze: pd.DataFrame) -> pd.DataFrame:
         df = df_bronze.copy()
-        df = self._deduplicate(df)
+        df = deduplicate_latest(df, id_col="id")
         df = self._parse_timestamp(df)
         df["Tipo"] = "FEED"
         df = self._cast_numerics(df)
@@ -36,7 +36,7 @@ class PostCleaner:
 
     def clean_reels(self, df_bronze: pd.DataFrame) -> pd.DataFrame:
         df = df_bronze.copy()
-        df = self._deduplicate(df)
+        df = deduplicate_latest(df, id_col="id")
         df = self._parse_timestamp(df)
         df["Tipo"] = "REELS"
         df["Total de Engajamento"] = (
@@ -61,18 +61,6 @@ class PostCleaner:
 
     def write_reels(self, df_silver: pd.DataFrame, path: Path | str) -> None:
         write_delta(path, df_silver, SILVER_REELS_SCHEMA)
-
-    def _deduplicate(self, df: pd.DataFrame) -> pd.DataFrame:
-        """
-        A camada Bronze é append-only e acumula todas as execuções. Sem esta
-        deduplicação, reprocessar o pipeline multiplicaria cada publicação e
-        inflaria as métricas de engajamento agregadas na camada Gold.
-        """
-        if "id" not in df.columns:
-            return df
-        if "_ingested_at" in df.columns:
-            df = df.sort_values("_ingested_at", ascending=False)
-        return df.drop_duplicates(subset=["id"], keep="first")
 
     def _parse_timestamp(self, df: pd.DataFrame) -> pd.DataFrame:
         if "timestamp" in df.columns:

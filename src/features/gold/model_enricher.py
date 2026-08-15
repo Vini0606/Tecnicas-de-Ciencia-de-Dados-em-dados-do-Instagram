@@ -31,6 +31,13 @@ class ModelEnricher:
         """Grava clusters de reels (AutoClusterHPO). Espera as colunas
         produzidas pelo notebook 03: id, ownerUsername, 'Clusters (AutoClusterHPO)',
         algo_name, score."""
+        required = {"id", "ownerUsername", "Clusters (AutoClusterHPO)", "algo_name", "score"}
+        missing = required - set(df_reels_clustered.columns)
+        if missing:
+            raise ValueError(
+                f"df_reels_clustered não tem as colunas esperadas: {sorted(missing)}"
+            )
+
         df_clusters = pd.DataFrame(
             {
                 "id_reel": df_reels_clustered["id"].values,

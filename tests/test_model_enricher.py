@@ -1,4 +1,5 @@
 import pandas as pd
+import pytest
 from deltalake import DeltaTable
 
 from src.features.gold.model_enricher import ModelEnricher
@@ -57,3 +58,10 @@ def test_write_clusters_usa_granularidade_de_reel(tmp_path):
     assert len(out) == 2
     assert set(out.columns) >= {"id_reel", "ownerUsername", "cluster_label"}
     assert out.loc[out["id_reel"] == "r2", "cluster_label"].iloc[0] == -1
+
+
+def test_write_clusters_falha_com_mensagem_clara_se_faltar_coluna(tmp_path):
+    df_incompleto = _reels_clusterizados().drop(columns=["algo_name"])
+
+    with pytest.raises(ValueError, match="algo_name"):
+        ModelEnricher().write_clusters(df_incompleto, tmp_path / "governor_clusters", run_id="r1")
