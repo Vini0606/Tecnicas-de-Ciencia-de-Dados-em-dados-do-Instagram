@@ -99,11 +99,11 @@ A separação é limpa: PC1 mede repercussão, PC2 mede duração, e um não con
 
 ### 2.2 Clusterização automática — `AutoClusterHPO`
 
-`src/analyzes/AutoClusterHPO.py` é a peça original do trabalho. Em vez de arbitrar o número de clusters, ele conduz uma busca automatizada:
+`src/modeling/clustering.py` é a peça original do trabalho. Em vez de arbitrar o número de clusters, ele conduz uma busca automatizada:
 
 - Testa **KMeans, DBSCAN e Agglomerative Clustering**, cada um com seu próprio espaço de hiperparâmetros
 - Otimiza via **TPE (Hyperopt)**, 50 avaliações por algoritmo
-- Avalia com um **score CVI combinado** — Silhouette + Calinski-Harabasz normalizado por `tanh(chi/10000)` + Davies-Bouldin invertido por `tanh(1/dbi)` ([`AutoClusterHPO.py:77-83`](src/analyzes/AutoClusterHPO.py))
+- Avalia com um **score CVI combinado** — Silhouette + Calinski-Harabasz normalizado por `tanh(chi/10000)` + Davies-Bouldin invertido por `tanh(1/dbi)` ([`clustering.py:77-88`](src/modeling/clustering.py))
 - Filtra os pontos de ruído do DBSCAN antes de calcular os índices, evitando a distorção que invalidaria a comparação entre algoritmos
 
 **Resultado:** o framework elegeu **DBSCAN** (`eps=1.40`, `min_samples=5`) com score CVI combinado de **0.6594**, encontrando três grupos:
@@ -240,18 +240,19 @@ As três Lambdas em `lambdas/` reproduzem o mesmo fluxo sobre S3, encadeadas via
 ├── pipeline.py             # Orquestrador ETL local (Bronze → Silver → Gold)
 ├── config/settings.py      # Caminhos e parâmetros, sobrescrevíveis por env var
 ├── src/
-│   ├── analyzes/           # AutoClusterHPO — seleção automática de clustering
+│   ├── modeling/            # PCA, AutoClusterHPO, sentimento, tópicos (BERTopic) e refinamento via Gemini
 │   ├── data_extract/       # Scraper Apify, leitores JSON, BronzeWriter
 │   ├── features/
 │   │   ├── silver/         # Cleaners de perfis, posts e comentários
 │   │   └── gold/           # Agregador de engajamento, enriquecedor de modelos
 │   ├── repositories/       # DeltaRepository (ativo), S3, Excel (legado)
 │   ├── schemas_delta.py    # Contratos PyArrow das três camadas
+│   ├── run_id.py           # Geração do identificador de execução, compartilhado por pipeline.py e src/modeling/
 │   └── visualization/      # Gráficos Plotly reutilizáveis
 ├── pages/                  # Dashboards Streamlit (exploratório, modelagem)
 ├── lambdas/                # extract / transform / load para AWS
 ├── notebooks/              # 01 extração · 02 EDA · 03 modelagem · 04 regressão · 05 síntese
-├── tests/                  # 8 arquivos de teste (pytest)
+├── tests/                  # 18 arquivos de teste (pytest)
 ├── data/                   # raw/ · bronze/ · silver/ · gold/ · processed/ (legado)
 ├── reports/
 │   ├── academic/           # TCC completo em LaTeX — 7 capítulos, bibliografia, figuras
@@ -259,7 +260,7 @@ As três Lambdas em `lambdas/` reproduzem o mesmo fluxo sobre S3, encadeadas via
 └── scripts/                # Migração para Medallion, sync de figuras para o TCC
 ```
 
-O notebook `03_modelagem_hibrida.ipynb` é o centro da pesquisa: aplica PCA → `AutoClusterHPO` → sentimentos → BERTopic em sequência.
+O notebook `03_modelagem_hibrida.ipynb` é um driver fino sobre `src/modeling/`: chama `run_deterministic_modeling` (PCA → `AutoClusterHPO` → sentimento → BERTopic, com representação determinística) e, em seguida, `refine_topics_with_gemini` (refinamento manual dos rótulos de tópico, separado por decisão registrada no [ADR 0001](docs/adr/0001-separar-modelagem-em-etapas-deterministicas-e-refinamento-manual.md)).
 
 ---
 
@@ -329,7 +330,7 @@ O pipeline roda de ponta a ponta: `uv run python pipeline.py` materializa Bronze
 
 Esta seção registra honestamente o que ainda não está fechado.
 
-**O ciclo da modelagem fecha ao rodar o notebook 03.** `notebooks/03_modelagem_hibrida.ipynb` lê Bronze/Silver/Gold via `DeltaRepository` e, ao final, grava os resultados direto em Gold através do `ModelEnricher`: sentimento e tópicos em `governor_sentiment` (os tópicos do BERTopic viajam junto, nas colunas `Topic`/`Name` — não há uma tabela separada), e clusters em `governor_clusters`. A clusterização é por **reel** (PCA de engajamento/duração do vídeo via `AutoClusterHPO`), não por perfil — não há, e nunca houve, clusterização de governadores no projeto. Essa etapa continua sendo executada manualmente, fora do `pipeline.py`: depende de uma API key do Gemini (`GeminiDocsRefiner`) e de BERTopic, e é uma etapa de pesquisa exploratória, não um job batch. O dashboard de modelagem (`pages/02_modeling.py`) exibe a distribuição de sentimento, os tópicos mais frequentes e os clusters de reels assim que essas tabelas existem — e se ainda não existirem, mostra instruções em vez de quebrar.
+**O ciclo da modelagem fecha ao rodar o notebook 03.** `notebooks/03_modelagem_hibrida.ipynb` lê Bronze/Silver/Gold via `DeltaRepository` e é um driver fino sobre `src/modeling/`, que faz o trabalho em duas etapas (ver [ADR 0001](docs/adr/0001-separar-modelagem-em-etapas-deterministicas-e-refinamento-manual.md)): `run_deterministic_modeling` (PCA → `AutoClusterHPO` → sentimento → BERTopic com representação determinística) grava clusters e sentimento/tópicos provisórios em Gold via `ModelEnricher` sob um `run_id`; em seguida, `refine_topics_with_gemini` reescreve só os rótulos de tópico com o refinamento manual via Gemini, sob um segundo `run_id` — sentimento e tópicos vivem em `governor_sentiment` (os tópicos do BERTopic viajam junto, nas colunas `Topic`/`Name` — não há uma tabela separada), e clusters em `governor_clusters`. A clusterização é por **reel** (PCA de engajamento/duração do vídeo via `AutoClusterHPO`), não por perfil — não há, e nunca houve, clusterização de governadores no projeto. Essa etapa continua sendo executada manualmente, fora do `pipeline.py`: o estágio determinístico já não depende de API externa (usa `KeyBERTInspired` para representação de tópicos), mas o refinamento via `GeminiDocsRefiner` depende de uma API key do Gemini e é uma etapa de revisão humana, não um job batch — motivo pelo qual ficou separada do estágio automatizável. O dashboard de modelagem (`pages/02_modeling.py`) exibe a distribuição de sentimento, os tópicos mais frequentes e os clusters de reels assim que essas tabelas existem — e se ainda não existirem, mostra instruções em vez de quebrar.
 
 **Notebooks já migrados para Delta.** Os 5 notebooks usam `DeltaRepository`/`run_medallion_pipeline` — nenhum lê mais `all.xlsx` como fonte de pipeline (o notebook 01 só toca Excel para ler `governadores.xlsx`, a lista de perfis a coletar, que é configuração, não dado).
 

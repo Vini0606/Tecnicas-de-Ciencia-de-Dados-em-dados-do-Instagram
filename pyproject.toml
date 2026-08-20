@@ -15,6 +15,7 @@ dependencies = [
     "python-dotenv>=1.0",
     "openpyxl>=3.1",
     "bertopic>=0.16",
+    "hdbscan>=0.8",
     "nltk>=3.8",
     "spacy>=3.7",
     "protobuf>=4.0",

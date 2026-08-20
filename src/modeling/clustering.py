@@ -1,3 +1,7 @@
+"""Clusterização automática de reels via AutoClusterHPO"""
+
+from __future__ import annotations
+
 import warnings
 
 import numpy as np
@@ -10,6 +14,8 @@ from sklearn.metrics import (
     silhouette_score,
 )
 from sklearn.preprocessing import StandardScaler
+
+from src.modeling.config import ClusterConfig
 
 # Suprimir avisos para uma saída mais limpa
 warnings.filterwarnings("ignore")
@@ -239,40 +245,32 @@ class AutoClusterHPO:
             return (self.best_overall_labels, None, None, -np.inf, None)
 
 
-# Exemplo de uso:
-if __name__ == "__main__":
-    from sklearn.datasets import make_blobs
+def cluster_reels(
+    df_reels: pd.DataFrame, config: ClusterConfig
+) -> tuple[pd.DataFrame, object, dict | None, float, str | None]:
+    """Aplica `AutoClusterHPO` sobre `config.feature_columns` e anexa o resultado ao DataFrame.
 
-    # Criar um DataFrame de exemplo qualquer
-    X_sample, _ = make_blobs(
-        n_samples=500, n_features=4, centers=4, cluster_std=1.0, random_state=42
+    `model`/`cluster_config`/`score`/`algo_name` são escalares — um único
+    modelo vencedor, não um valor por linha — e por isso ficam
+    broadcastados nas colunas `model`/`config`/`score`/`algo_name`,
+    reproduzindo o comportamento já esperado pelos testes de
+    `ModelEnricher.write_clusters`.
+    """
+    df = df_reels.copy()
+
+    autocluster = AutoClusterHPO(
+        max_evals_per_algo=config.max_evals_per_algo,
+        random_state=config.random_state,
+        max_n_clusters=config.max_n_clusters,
     )
-    data_to_cluster_df = pd.DataFrame(
-        X_sample, columns=[f"feature_{i}" for i in range(X_sample.shape[1])]
+    labels, model, cluster_config, score, algo_name = autocluster.fit_predict(
+        df[config.feature_columns]
     )
 
-    print(f"DataFrame de entrada. Dimensões: {data_to_cluster_df.shape}")
-    print(data_to_cluster_df.head())
+    df["Clusters (AutoClusterHPO)"] = labels
+    df["model"] = [model] * len(df)
+    df["config"] = [cluster_config] * len(df)
+    df["score"] = score
+    df["algo_name"] = algo_name
 
-    # Inicializar e aplicar o AutoCluster
-    autocluster_tool = AutoClusterHPO(max_evals_per_algo=20)
-    cluster_labels = autocluster_tool.fit_predict(data_to_cluster_df)
-
-    if cluster_labels.size > 0:
-        print("\n--- Resultados do Agrupamento ---")
-        unique_labels = np.unique(cluster_labels)
-        n_detected_clusters = len(unique_labels)
-        if -1 in unique_labels:
-            n_detected_clusters -= 1
-            print(
-                f"Número de clusters detectados (excluindo ruído): {n_detected_clusters}"
-            )
-            print(f"Número de pontos de ruído: {np.sum(cluster_labels == -1)}")
-        else:
-            print(f"Número de clusters detectados: {n_detected_clusters}")
-        print(f"Primeiros 10 rótulos de cluster: {cluster_labels[:10]}")
-
-        # Opcional: adicionar os rótulos ao DataFrame original para inspeção
-        data_to_cluster_df["cluster_label"] = cluster_labels
-        print("\nDataFrame com rótulos de cluster (primeiras linhas):")
-        print(data_to_cluster_df.head())
+    return df, model, cluster_config, score, algo_name

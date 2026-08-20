@@ -1,6 +1,4 @@
 import os
-import uuid
-from datetime import datetime, timezone
 
 from apify_client import ApifyClient
 from dotenv import load_dotenv
@@ -13,6 +11,7 @@ from src.features.gold.engagement_aggregator import EngagementAggregator
 from src.features.silver.comment_cleaner import CommentCleaner
 from src.features.silver.post_cleaner import PostCleaner
 from src.features.silver.profile_cleaner import ProfileCleaner
+from src.run_id import build_run_id
 
 
 def _bronze_has_data(bronze: BronzeWriter) -> bool:
@@ -21,13 +20,6 @@ def _bronze_has_data(bronze: BronzeWriter) -> bool:
         return not df.empty
     except Exception:
         return False
-
-
-def _build_run_id(run_id: str | None = None) -> str:
-    if run_id:
-        return run_id
-    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
-    return f"{timestamp}_{uuid.uuid4().hex[:8]}"
 
 
 def _raw_has_data() -> bool:
@@ -54,7 +46,7 @@ def run_medallion_pipeline(
     run_id: str | None = None,
     force_extract: bool = False,
 ) -> str:
-    run_id = _build_run_id(run_id)
+    run_id = build_run_id(run_id)
 
     bronze = BronzeWriter(
         bronze_profiles_path=settings.BRONZE_PROFILES,
