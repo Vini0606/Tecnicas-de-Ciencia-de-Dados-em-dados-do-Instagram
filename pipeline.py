@@ -152,8 +152,22 @@ def run_medallion_pipeline(
 
 
 if __name__ == "__main__":
+    import argparse
+
     load_dotenv()
     import pandas as pd
+
+    parser = argparse.ArgumentParser(description="Roda o pipeline Medallion (Bronze/Silver/Gold).")
+    parser.add_argument(
+        "--run-modeling",
+        action="store_true",
+        help=(
+            "Roda tambem o estagio deterministico de modelagem ao final do "
+            "Gold (pesado: ~14 min so o embedding do BERTopic). O "
+            "refinamento via Gemini nunca roda daqui -- ver scripts/refine_topics.py."
+        ),
+    )
+    args = parser.parse_args()
 
     df_gov = pd.read_excel(settings.GOVERNADORES_FILE)
     df_gov.columns = df_gov.columns.str.strip()
@@ -164,6 +178,7 @@ if __name__ == "__main__":
         apify_api_token=token,
         links=links,
         results_limit=settings.RESULTS_LIMIT,
+        run_modeling=args.run_modeling,
     )
     # Sem emoji: o console padrão do Windows usa cp1252 e levanta
     # UnicodeEncodeError ao imprimi-los.

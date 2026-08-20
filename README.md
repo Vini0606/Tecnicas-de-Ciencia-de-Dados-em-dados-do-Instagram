@@ -221,7 +221,7 @@ repo_v3 = DeltaRepository(settings.GOLD_DIR, as_of_version=3)
 
 Passar `force_extract=True` pula direto para a API.
 
-`run_medallion_pipeline(..., run_modeling=True)` roda também o estágio determinístico de modelagem (`src.modeling.orchestration.run_deterministic_modeling`) ao final do Gold — desligado por padrão porque é pesado (o embedding do BERTopic sozinho leva ~14 min). O refinamento de tópicos via Gemini nunca é chamado daqui: continua manual, só via `scripts/refine_topics.py` (ver [ADR 0001](docs/adr/0001-separar-modelagem-em-etapas-deterministicas-e-refinamento-manual.md)).
+`uv run python pipeline.py --run-modeling` (ou `run_medallion_pipeline(..., run_modeling=True)` chamado diretamente) roda também o estágio determinístico de modelagem (`src.modeling.orchestration.run_deterministic_modeling`) ao final do Gold — desligado por padrão porque é pesado (o embedding do BERTopic sozinho leva ~14 min). O refinamento de tópicos via Gemini nunca é chamado daqui: continua manual, só via `scripts/refine_topics.py` (ver [ADR 0001](docs/adr/0001-separar-modelagem-em-etapas-deterministicas-e-refinamento-manual.md)).
 
 ### Scripts de modelagem
 
