@@ -22,6 +22,7 @@ data/raw/
 data/bronze/
 data/silver/
 data/gold/
+data/model_checkpoints/
 !data/bronze/**/.gitkeep
 !data/silver/**/.gitkeep
 !data/gold/**/.gitkeep
