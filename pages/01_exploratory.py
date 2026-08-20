@@ -5,34 +5,28 @@ import sys
 
 import numpy as np
 import pandas as pd
-import plotly.express as px
 import streamlit as st
 
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if ROOT_DIR not in sys.path:
     sys.path.insert(0, ROOT_DIR)
 
-from config import settings
-from src.repositories.delta_repository import DeltaRepository
+from src.dashboard.loaders import load_profiles
 from src.visualization.charts import (
     plot_correlation_heatmap,
     plot_dual_axis,
-    plot_top5_bar,
+    plot_scatter,
+    plot_top_n_bar,
 )
 
-st.set_page_config(layout="wide")
+st.set_page_config(
+    page_title="Instagram Analytics — Exploratório",
+    page_icon="📊",
+    layout="wide",
+)
 
 
-@st.cache_data
-def load_data() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-    repo = DeltaRepository(gold_dir=settings.GOLD_DIR, silver_dir=settings.SILVER_DIR)
-    df_profiles = repo.load_profiles()
-    df_comments = repo.load_comments()
-    df_reels = repo.load_reels()
-    return df_profiles, df_comments, df_reels
-
-
-df_profiles, df_comments, df_reels = load_data()
+df_profiles = load_profiles()
 
 
 def media(df: pd.DataFrame, coluna: str) -> float:
@@ -80,21 +74,23 @@ with col6:
 col_freq, col_eng = st.columns(2)
 with col_freq:
     st.plotly_chart(
-        plot_top5_bar(
+        plot_top_n_bar(
             df_profiles,
             x="FREQUENCIA",
             y="username",
             title="Top 5 — Frequência de postagem",
+            top_n=5,
         ),
         use_container_width=True,
     )
 with col_eng:
     st.plotly_chart(
-        plot_top5_bar(
+        plot_top_n_bar(
             df_profiles,
             x="% ENGAJAMENTO",
             y="username",
             title="Top 5 — % de Engajamento",
+            top_n=5,
         ),
         use_container_width=True,
     )
@@ -187,19 +183,7 @@ else:
     # Gera o gráfico apenas se as variáveis dos eixos foram selecionadas
     if x_axis and y_axis:
         with st.spinner("Gerando seu gráfico..."):
-            # Cria a figura do gráfico de dispersão usando Plotly Express
-            fig = px.scatter(
-                df_profiles,
-                x=x_axis,
-                y=y_axis,
-                # title=f'Gráfico de Dispersão: {y_axis.capitalize()} vs. {x_axis.capitalize()}',
-                # Adiciona mais informações ao passar o mouse sobre os pontos
-                hover_data=df_profiles.columns,
-                height=1000,  # <--- ADICIONE ESTA LINHA para ajustar a altura
-                width=1000,
-            )
-
-            # Exibe o gráfico interativo no Streamlit
+            fig = plot_scatter(df_profiles, x=x_axis, y=y_axis, height=1000, width=1000)
             st.plotly_chart(fig, use_container_width=True)
     else:
         st.warning("Por favor, selecione as variáveis para os eixos X e Y.")

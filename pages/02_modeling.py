@@ -3,15 +3,13 @@
 import os
 import sys
 
-import pandas as pd
 import streamlit as st
 
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if ROOT_DIR not in sys.path:
     sys.path.insert(0, ROOT_DIR)
 
-from config import settings
-from src.repositories.delta_repository import DeltaRepository
+from src.dashboard.loaders import load_clusters, load_comments, load_reels
 from src.visualization.charts import plot_top_n_bar, plot_value_counts
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
@@ -22,18 +20,7 @@ st.set_page_config(
 )
 
 
-@st.cache_data
-def load_data():
-    repo = DeltaRepository(settings.GOLD_DIR, settings.SILVER_DIR)
-    df_comments, df_reels = repo.load_comments(), repo.load_reels()
-    try:
-        df_clusters = repo.load_clusters()
-    except FileNotFoundError:
-        df_clusters = pd.DataFrame()
-    return df_comments, df_reels, df_clusters
-
-
-df_comments, df_reels, df_clusters = load_data()
+df_comments, df_reels, df_clusters = load_comments(), load_reels(), load_clusters()
 tem_modelagem = "sentiment_label" in df_comments.columns
 
 # --- BARRA LATERAL (SIDEBAR) PARA FILTROS ---

@@ -4,17 +4,6 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
 
-def plot_top5_bar(
-    df: pd.DataFrame,
-    x: str,
-    y: str,
-    title: str,
-) -> go.Figure:
-    """Gráfico de barras horizontal com top 5. Reutilizável em notebooks e dashboards."""
-    df_sorted = df.sort_values(by=x, ascending=True).tail(5)
-    return px.bar(df_sorted, y=y, x=x, orientation="h", title=title, text_auto=True)
-
-
 def plot_top_n_bar(
     df: pd.DataFrame,
     x: str,
@@ -75,6 +64,8 @@ def plot_value_counts(df: pd.DataFrame, column: str, title: str) -> go.Figure:
     return px.pie(counts, names=column, values="count", title=title)
 
 
-def plot_scatter(df: pd.DataFrame, x: str, y: str) -> go.Figure:
+def plot_scatter(
+    df: pd.DataFrame, x: str, y: str, height: int = 800, width: int | None = None
+) -> go.Figure:
     """Gráfico de dispersão interativo."""
-    return px.scatter(df, x=x, y=y, hover_data=df.columns, height=800)
+    return px.scatter(df, x=x, y=y, hover_data=df.columns, height=height, width=width)
