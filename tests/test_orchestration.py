@@ -70,6 +70,7 @@ def test_run_deterministic_modeling_grava_clusters_e_sentimento_com_mesmo_run_id
         cluster=ClusterConfig(max_evals_per_algo=10, random_state=42, max_n_clusters=5),
         gold_clusters_path=tmp_path / "governor_clusters",
         gold_sentiment_path=tmp_path / "governor_sentiment",
+        checkpoints_dir=tmp_path / "checkpoints",
     )
 
     result = run_deterministic_modeling(_df_reels(), _df_comments(), config)
@@ -81,6 +82,13 @@ def test_run_deterministic_modeling_grava_clusters_e_sentimento_com_mesmo_run_id
     assert (clusters_out["_run_id"] == result.run_id).all()
     assert (sentiment_out["_run_id"] == result.run_id).all()
     assert (sentiment_out["Name"] == "0_provisorio").all()
+
+    checkpoint_dir = config.checkpoints_dir / result.run_id
+    assert (checkpoint_dir / "metadata.json").exists()
+    assert (checkpoint_dir / "df_reels.parquet").exists()
+    assert (checkpoint_dir / "df_comments.parquet").exists()
+    assert (checkpoint_dir / "pca_model.joblib").exists()
+    assert (checkpoint_dir / "cluster_model.joblib").exists()
 
 
 def test_refine_topics_with_gemini_so_reescreve_sentimento_com_run_id_novo(
@@ -101,6 +109,7 @@ def test_refine_topics_with_gemini_so_reescreve_sentimento_com_run_id_novo(
         cluster=ClusterConfig(max_evals_per_algo=10, random_state=42, max_n_clusters=5),
         gold_clusters_path=tmp_path / "governor_clusters",
         gold_sentiment_path=tmp_path / "governor_sentiment",
+        checkpoints_dir=tmp_path / "checkpoints",
     )
     result = run_deterministic_modeling(_df_reels(), _df_comments(), config)
 

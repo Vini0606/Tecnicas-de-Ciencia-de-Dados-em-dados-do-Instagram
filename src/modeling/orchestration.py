@@ -8,6 +8,7 @@ import pandas as pd
 from bertopic import BERTopic
 
 from src.features.gold.model_enricher import ModelEnricher
+from src.modeling.checkpoint import save_checkpoint
 from src.modeling.clustering import cluster_reels
 from src.modeling.config import GeminiRefinerConfig, ModelingConfig
 from src.modeling.gemini_refiner import apply_gemini_refinement
@@ -70,6 +71,25 @@ def run_deterministic_modeling(
     enricher = ModelEnricher()
     enricher.write_clusters(df_reels_clustered, config.gold_clusters_path, run_id)
     enricher.write_sentiment(df_comments_final, config.gold_sentiment_path, run_id)
+
+    # Checkpoint incondicional (ver ADR 0003): sem ele, o refinamento via
+    # Gemini só poderia rodar no mesmo processo que acabou de ajustar o
+    # topic_model — tornar isso opcional reintroduziria a dependência do
+    # notebook que essa separação existe para eliminar.
+    save_checkpoint(
+        run_id,
+        topic_model=topic_model,
+        df_comments=df_comments_final,
+        df_reels=df_reels_clustered,
+        pca_model=pca_model,
+        pca_feature_columns=config.pca.feature_columns,
+        cluster_model=cluster_model,
+        cluster_config=cluster_config,
+        cluster_score=cluster_score,
+        cluster_algo_name=cluster_algo_name,
+        embedding_model_name=config.topics.embedding_model,
+        checkpoints_dir=config.checkpoints_dir,
+    )
 
     return DeterministicModelingResult(
         df_reels=df_reels_clustered,

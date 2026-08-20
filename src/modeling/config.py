@@ -81,6 +81,7 @@ class ModelingConfig:
     topics: TopicModelConfig = field(default_factory=TopicModelConfig)
     gold_clusters_path: Path = settings.GOLD_CLUSTERS
     gold_sentiment_path: Path = settings.GOLD_SENTIMENT
+    checkpoints_dir: Path = settings.MODEL_CHECKPOINTS_DIR
 
 
 @dataclass

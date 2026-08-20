@@ -221,7 +221,18 @@ repo_v3 = DeltaRepository(settings.GOLD_DIR, as_of_version=3)
 
 Passar `force_extract=True` pula direto para a API.
 
-`run_medallion_pipeline(..., run_modeling=True)` roda também o estágio determinístico de modelagem (`src.modeling.orchestration.run_deterministic_modeling`) ao final do Gold — desligado por padrão porque é pesado (o embedding do BERTopic sozinho leva ~14 min). O refinamento de tópicos via Gemini nunca é chamado daqui: continua manual, só pelo notebook 03 (ver [ADR 0001](docs/adr/0001-separar-modelagem-em-etapas-deterministicas-e-refinamento-manual.md)).
+`run_medallion_pipeline(..., run_modeling=True)` roda também o estágio determinístico de modelagem (`src.modeling.orchestration.run_deterministic_modeling`) ao final do Gold — desligado por padrão porque é pesado (o embedding do BERTopic sozinho leva ~14 min). O refinamento de tópicos via Gemini nunca é chamado daqui: continua manual, só via `scripts/refine_topics.py` (ver [ADR 0001](docs/adr/0001-separar-modelagem-em-etapas-deterministicas-e-refinamento-manual.md)).
+
+### Scripts de modelagem
+
+O notebook 03 não dispara mais nenhuma escrita — só lê Gold/checkpoint para análise (ver [ADR 0003](docs/adr/0003-desacoplar-modelagem-do-notebook-via-scripts-cli-com-checkpoint.md)). Os disparadores são dois scripts em `scripts/`:
+
+```bash
+uv run python scripts/run_modeling.py                  # estágio determinístico, sobre a Silver existente
+uv run python scripts/refine_topics.py --run-id <ID>    # refinamento manual via Gemini, sobre o checkpoint acima
+```
+
+`run_modeling.py` imprime o `run_id` usado — é esse valor que vai em `--run-id` do `refine_topics.py` (e em `RUN_ID` no notebook 03). Cada chamada de `run_deterministic_modeling` (daqui, do `pipeline.py --run-modeling`, ou do notebook, se alguém ainda chamar diretamente) grava incondicionalmente um checkpoint local em `data/model_checkpoints/<run_id>/` — o `topic_model` do BERTopic, o `df_comments`/`df_reels` provisórios e os modelos de PCA/clustering — porque sem isso o refinamento via Gemini só poderia rodar no mesmo processo que acabou de ajustar o `topic_model`. `refine_topics.py` atualiza esse checkpoint com os rótulos finais depois de refinar.
 
 ### Pipeline serverless
 
@@ -259,10 +270,10 @@ As três Lambdas em `lambdas/` reproduzem o mesmo fluxo sobre S3, encadeadas via
 ├── reports/
 │   ├── academic/           # TCC completo em LaTeX — 7 capítulos, bibliografia, figuras
 │   └── figures/            # Figuras geradas pelos notebooks
-└── scripts/                # Migração para Medallion, sync de figuras para o TCC
+└── scripts/                # run_modeling.py, refine_topics.py, migração para Medallion, sync de figuras para o TCC
 ```
 
-O notebook `03_modelagem_hibrida.ipynb` é um driver fino sobre `src/modeling/`: chama `run_deterministic_modeling` (PCA → `AutoClusterHPO` → sentimento → BERTopic, com representação determinística) e, em seguida, `refine_topics_with_gemini` (refinamento manual dos rótulos de tópico, separado por decisão registrada no [ADR 0001](docs/adr/0001-separar-modelagem-em-etapas-deterministicas-e-refinamento-manual.md)).
+A modelagem roda via `scripts/run_modeling.py` (PCA → `AutoClusterHPO` → sentimento → BERTopic, representação determinística) e `scripts/refine_topics.py` (refinamento manual dos rótulos de tópico via Gemini) — não mais pelo notebook, que virou leitura pura de Gold/checkpoint para análise e visualização (ver [ADR 0003](docs/adr/0003-desacoplar-modelagem-do-notebook-via-scripts-cli-com-checkpoint.md)).
 
 ---
 
@@ -289,15 +300,19 @@ cp .env.example .env      # editar e preencher APIFY_API_TOKEN
 # 4. Gerar as tabelas Delta
 uv run python pipeline.py
 
-# 5. Abrir os dashboards
+# 5. (opcional) Modelagem — preencher API_GEMINI no .env antes do segundo comando
+uv run python scripts/run_modeling.py
+uv run python scripts/refine_topics.py --run-id <ID_IMPRESSO_ACIMA>
+
+# 6. Abrir os dashboards
 uv run streamlit run app.py     # http://localhost:8501
 
-# 6. Testes e lint
+# 7. Testes e lint
 uv run pytest tests/ -v --cov=src --cov-report=term-missing
 uv run ruff check src/
 ```
 
-> **Sobre créditos da API:** os JSONs de `data/raw/` já estão presentes no repositório local, então o passo 4 **não consome créditos Apify** — o pipeline detecta os arquivos e migra para Bronze. Um token só é necessário para coletar dados novos.
+> **Sobre créditos da API:** os JSONs de `data/raw/` já estão presentes no repositório local, então o passo 4 **não consome créditos Apify** — o pipeline detecta os arquivos e migra para Bronze. Um token só é necessário para coletar dados novos. O passo 5 é opcional e pesado (~14 min só o embedding do BERTopic) — pule se só quiser ver os dashboards com dados de modelagem já existentes.
 
 ### Referência rápida de comandos `uv`
 
@@ -332,7 +347,7 @@ O pipeline roda de ponta a ponta: `uv run python pipeline.py` materializa Bronze
 
 Esta seção registra honestamente o que ainda não está fechado.
 
-**O ciclo da modelagem fecha ao rodar o notebook 03.** `notebooks/03_modelagem_hibrida.ipynb` lê Bronze/Silver/Gold via `DeltaRepository` e é um driver fino sobre `src/modeling/`, que faz o trabalho em duas etapas (ver [ADR 0001](docs/adr/0001-separar-modelagem-em-etapas-deterministicas-e-refinamento-manual.md)): `run_deterministic_modeling` (PCA → `AutoClusterHPO` → sentimento → BERTopic com representação determinística) grava clusters e sentimento/tópicos provisórios em Gold via `ModelEnricher` sob um `run_id`; em seguida, `refine_topics_with_gemini` reescreve só os rótulos de tópico com o refinamento manual via Gemini, sob um segundo `run_id` — sentimento e tópicos vivem em `governor_sentiment` (os tópicos do BERTopic viajam junto, nas colunas `Topic`/`Name` — não há uma tabela separada), e clusters em `governor_clusters`. A clusterização é por **reel** (PCA de engajamento/duração do vídeo via `AutoClusterHPO`), não por perfil — não há, e nunca houve, clusterização de governadores no projeto. Essa etapa continua sendo executada manualmente, fora do `pipeline.py`: o estágio determinístico já não depende de API externa (usa `KeyBERTInspired` para representação de tópicos), mas o refinamento via `GeminiDocsRefiner` depende de uma API key do Gemini e é uma etapa de revisão humana, não um job batch — motivo pelo qual ficou separada do estágio automatizável. O dashboard de modelagem (`pages/02_modeling.py`) exibe a distribuição de sentimento, os tópicos mais frequentes e os clusters de reels assim que essas tabelas existem — e se ainda não existirem, mostra instruções em vez de quebrar.
+**O ciclo da modelagem fecha via dois scripts, não mais pelo notebook.** `scripts/run_modeling.py` lê a Silver via `DeltaRepository` e roda o estágio determinístico (PCA → `AutoClusterHPO` → sentimento → BERTopic com representação determinística via `KeyBERTInspired`, sem depender de API externa), gravando clusters e sentimento/tópicos provisórios em Gold via `ModelEnricher` sob um `run_id`, e um checkpoint local em `data/model_checkpoints/<run_id>/` (o `topic_model` do BERTopic, `df_comments`/`df_reels`, os modelos de PCA/clustering). `scripts/refine_topics.py --run-id <ID>` carrega esse checkpoint e roda o refinamento manual dos rótulos de tópico via Gemini (`GeminiDocsRefiner`) — depende de uma API key do Gemini e é uma etapa de revisão humana (o texto gerado vira citação no TCC), por isso continua separada e manual mesmo com o estágio determinístico automatizável (ver [ADR 0001](docs/adr/0001-separar-modelagem-em-etapas-deterministicas-e-refinamento-manual.md) e [ADR 0003](docs/adr/0003-desacoplar-modelagem-do-notebook-via-scripts-cli-com-checkpoint.md)); reescreve `governor_sentiment` sob um segundo `run_id` e atualiza o checkpoint com os rótulos finais. Sentimento e tópicos vivem em `governor_sentiment` (os tópicos do BERTopic viajam junto, nas colunas `Topic`/`Name` — não há uma tabela separada), e clusters em `governor_clusters`. A clusterização é por **reel** (PCA de engajamento/duração do vídeo via `AutoClusterHPO`), não por perfil — não há, e nunca houve, clusterização de governadores no projeto. `notebooks/03_modelagem_hibrida.ipynb` agora só lê (`governor_sentiment`/`governor_clusters` da Gold, mais o checkpoint para as visualizações de PCA/validação de cluster) — não dispara nenhuma escrita. O dashboard de modelagem (`pages/02_modeling.py`) exibe a distribuição de sentimento, os tópicos mais frequentes e os clusters de reels assim que essas tabelas existem — e se ainda não existirem, mostra instruções em vez de quebrar.
 
 **Notebooks já migrados para Delta.** Os 5 notebooks usam `DeltaRepository`/`run_medallion_pipeline` — nenhum lê mais `all.xlsx` como fonte de pipeline (o notebook 01 só toca Excel para ler `governadores.xlsx`, a lista de perfis a coletar, que é configuração, não dado).
 
