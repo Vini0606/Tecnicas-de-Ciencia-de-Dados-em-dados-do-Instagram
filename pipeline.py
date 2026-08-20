@@ -11,6 +11,8 @@ from src.features.gold.engagement_aggregator import EngagementAggregator
 from src.features.silver.comment_cleaner import CommentCleaner
 from src.features.silver.post_cleaner import PostCleaner
 from src.features.silver.profile_cleaner import ProfileCleaner
+from src.modeling.config import ModelingConfig
+from src.modeling.orchestration import run_deterministic_modeling
 from src.run_id import build_run_id
 
 
@@ -45,6 +47,7 @@ def run_medallion_pipeline(
     results_limit: int = 30,
     run_id: str | None = None,
     force_extract: bool = False,
+    run_modeling: bool = False,
 ) -> str:
     run_id = build_run_id(run_id)
 
@@ -128,6 +131,22 @@ def run_medallion_pipeline(
         aggregator.write(df_gold, settings.GOLD_ENGAGEMENT)
     except Exception as e:
         raise RuntimeError(f"[GOLD] Falha na agregação de métricas: {e}") from e
+
+    if run_modeling:
+        # Só o estágio determinístico. O refinamento de tópicos via Gemini
+        # (src.modeling.orchestration.refine_topics_with_gemini) fica de
+        # fora de propósito — é uma etapa manual e de revisão humana, não
+        # deve rodar sozinha a cada execução do pipeline (ver ADR 0001).
+        try:
+            print(
+                "[MODELAGEM] Rodando estágio determinístico "
+                "(PCA -> clustering -> sentimento -> tópicos)..."
+            )
+            run_deterministic_modeling(
+                df_reels_silver, df_comments_silver, ModelingConfig(), run_id=run_id
+            )
+        except Exception as e:
+            raise RuntimeError(f"[MODELAGEM] Falha no estágio determinístico: {e}") from e
 
     return run_id
 

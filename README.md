@@ -213,13 +213,15 @@ repo_v3 = DeltaRepository(settings.GOLD_DIR, as_of_version=3)
 
 ### Pipeline local
 
-`pipeline.py` orquestra as três camadas e resolve a fonte dos dados em cascata ([`pipeline.py:66-99`](pipeline.py)):
+`pipeline.py` orquestra as três camadas e resolve a fonte dos dados em cascata ([`pipeline.py:62-101`](pipeline.py)):
 
 1. Tabelas Bronze já existentes — o caminho mais barato
 2. JSONs em `data/raw/` — migra para Bronze sem chamar a API
 3. API Apify — só quando não há nada local (consome créditos)
 
 Passar `force_extract=True` pula direto para a API.
+
+`run_medallion_pipeline(..., run_modeling=True)` roda também o estágio determinístico de modelagem (`src.modeling.orchestration.run_deterministic_modeling`) ao final do Gold — desligado por padrão porque é pesado (o embedding do BERTopic sozinho leva ~14 min). O refinamento de tópicos via Gemini nunca é chamado daqui: continua manual, só pelo notebook 03 (ver [ADR 0001](docs/adr/0001-separar-modelagem-em-etapas-deterministicas-e-refinamento-manual.md)).
 
 ### Pipeline serverless
 
@@ -252,7 +254,7 @@ As três Lambdas em `lambdas/` reproduzem o mesmo fluxo sobre S3, encadeadas via
 ├── pages/                  # Dashboards Streamlit (exploratório, modelagem)
 ├── lambdas/                # extract / transform / load para AWS
 ├── notebooks/              # 01 extração · 02 EDA · 03 modelagem · 04 regressão · 05 síntese
-├── tests/                  # 18 arquivos de teste (pytest)
+├── tests/                  # 19 arquivos de teste (pytest)
 ├── data/                   # raw/ · bronze/ · silver/ · gold/ · processed/ (legado)
 ├── reports/
 │   ├── academic/           # TCC completo em LaTeX — 7 capítulos, bibliografia, figuras

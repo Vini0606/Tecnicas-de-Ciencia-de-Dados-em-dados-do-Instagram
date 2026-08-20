@@ -1,0 +1,96 @@
+from unittest.mock import MagicMock
+
+import pandas as pd
+
+
+def _fake_bronze_writer_class(df_profiles, df_posts, df_reels):
+    class FakeBronzeWriter:
+        def __init__(self, **kwargs):
+            pass
+
+        def get_latest_profiles(self):
+            return df_profiles
+
+        def get_latest_posts(self):
+            return df_posts
+
+        def get_latest_reels(self):
+            return df_reels
+
+        def write_profiles(self, *a, **k):
+            pass
+
+        def write_posts(self, *a, **k):
+            pass
+
+        def write_reels(self, *a, **k):
+            pass
+
+    return FakeBronzeWriter
+
+
+def _patch_medallion_dependencies(monkeypatch, df_reels_silver, df_comments_silver):
+    df_profiles = pd.DataFrame({"id": ["1"]})
+    df_posts = pd.DataFrame({"id": ["1"]})
+    df_reels = pd.DataFrame({"id": ["1"]})
+
+    monkeypatch.setattr(
+        "pipeline.BronzeWriter", _fake_bronze_writer_class(df_profiles, df_posts, df_reels)
+    )
+
+    profile_cleaner = MagicMock()
+    profile_cleaner.clean.return_value = pd.DataFrame({"id": ["1"]})
+    post_cleaner = MagicMock()
+    post_cleaner.clean_posts.return_value = pd.DataFrame({"id": ["1"]})
+    post_cleaner.clean_reels.return_value = df_reels_silver
+    comment_cleaner = MagicMock()
+    comment_cleaner.clean.return_value = df_comments_silver
+    aggregator = MagicMock()
+    aggregator.aggregate.return_value = pd.DataFrame({"id": ["1"]})
+
+    monkeypatch.setattr("pipeline.ProfileCleaner", lambda: profile_cleaner)
+    monkeypatch.setattr("pipeline.PostCleaner", lambda: post_cleaner)
+    monkeypatch.setattr("pipeline.CommentCleaner", lambda: comment_cleaner)
+    monkeypatch.setattr("pipeline.EngagementAggregator", lambda: aggregator)
+
+    fake_run_deterministic_modeling = MagicMock()
+    monkeypatch.setattr("pipeline.run_deterministic_modeling", fake_run_deterministic_modeling)
+    return fake_run_deterministic_modeling
+
+
+def test_run_medallion_pipeline_nao_roda_modelagem_por_padrao(monkeypatch):
+    import pipeline
+
+    df_reels_silver = pd.DataFrame({"id": ["1"]})
+    df_comments_silver = pd.DataFrame({"text": ["oi"]})
+    fake_modeling = _patch_medallion_dependencies(monkeypatch, df_reels_silver, df_comments_silver)
+
+    pipeline.run_medallion_pipeline(apify_api_token="token", links=["l"], run_id="r1")
+
+    fake_modeling.assert_not_called()
+
+
+def test_run_medallion_pipeline_com_run_modeling_chama_estagio_deterministico(monkeypatch):
+    import pipeline
+
+    df_reels_silver = pd.DataFrame({"id": ["1"]})
+    df_comments_silver = pd.DataFrame({"text": ["oi"]})
+    fake_modeling = _patch_medallion_dependencies(monkeypatch, df_reels_silver, df_comments_silver)
+
+    pipeline.run_medallion_pipeline(
+        apify_api_token="token", links=["l"], run_id="r1", run_modeling=True
+    )
+
+    fake_modeling.assert_called_once()
+    args, kwargs = fake_modeling.call_args
+    assert args[0] is df_reels_silver
+    assert args[1] is df_comments_silver
+    assert kwargs["run_id"] == "r1"
+
+
+def test_run_medallion_pipeline_nunca_chama_refinamento_via_gemini(monkeypatch):
+    """O refinamento via Gemini é sempre manual (ver ADR 0001) -- não deve
+    existir nenhum caminho em pipeline.py que o dispare automaticamente."""
+    import pipeline
+
+    assert not hasattr(pipeline, "refine_topics_with_gemini")
