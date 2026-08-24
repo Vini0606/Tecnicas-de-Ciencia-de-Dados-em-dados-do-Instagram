@@ -87,7 +87,7 @@ else:
         else:
             st.info(
                 "Sentimento ainda não gerado para este governador. "
-                "Rode `notebooks/03_modelagem_hibrida.ipynb` para popular `governor_sentiment`."
+                "Rode `scripts/run_modeling.py` para popular `governor_sentiment`."
             )
 
     st.markdown("#### Tópicos mais frequentes")
@@ -105,14 +105,15 @@ else:
     else:
         st.info(
             "Tópicos ainda não gerados para este governador. "
-            "Rode `notebooks/03_modelagem_hibrida.ipynb` para popular `governor_sentiment`."
+            "Rode `scripts/run_modeling.py` (e opcionalmente `scripts/refine_topics.py "
+            "--run-id <ID>` para refinar os rótulos) para popular `governor_sentiment`."
         )
 
     st.markdown("#### Clusters dos reels (AutoClusterHPO)")
     if df_clusters.empty:
         st.info(
             "`governor_clusters` ainda não existe. "
-            "Rode `notebooks/03_modelagem_hibrida.ipynb` para gerá-la."
+            "Rode `scripts/run_modeling.py` para gerá-la."
         )
     else:
         df_reels_com_cluster = df_filtrado_reels.merge(
