@@ -142,9 +142,10 @@ def run_medallion_pipeline(
                 "[MODELAGEM] Rodando estágio determinístico "
                 "(PCA -> clustering -> sentimento -> tópicos)..."
             )
-            run_deterministic_modeling(
-                df_reels_silver, df_comments_silver, ModelingConfig(), run_id=run_id
+            result = run_deterministic_modeling(
+                df_reels_silver, df_comments_silver, ModelingConfig()
             )
+            print(f"[MODELAGEM] Concluída com run_id: {result.run_id}")
         except Exception as e:
             raise RuntimeError(f"[MODELAGEM] Falha no estágio determinístico: {e}") from e
 
