@@ -85,7 +85,9 @@ def test_run_medallion_pipeline_com_run_modeling_chama_estagio_deterministico(mo
     args, kwargs = fake_modeling.call_args
     assert args[0] is df_reels_silver
     assert args[1] is df_comments_silver
-    assert kwargs["run_id"] == "r1"
+    # ADR 0001: "um run_id = um estado imutável" -- a modelagem deve gerar o
+    # seu próprio run_id, nunca reaproveitar o run_id da ingestão.
+    assert kwargs.get("run_id") != "r1"
 
 
 def test_run_medallion_pipeline_nunca_chama_refinamento_via_gemini(monkeypatch):
