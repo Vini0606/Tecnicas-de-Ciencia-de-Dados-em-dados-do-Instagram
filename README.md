@@ -236,13 +236,21 @@ uv run python scripts/refine_topics.py --run-id <ID>    # refinamento manual via
 
 ### Pipeline serverless
 
-As três Lambdas em `lambdas/` reproduzem o mesmo fluxo sobre S3, encadeadas via EventBridge ou Step Functions. **Todas escrevem tabelas Delta** — não há Parquet nem Excel no caminho:
+As três Lambdas em `lambdas/` reproduzem o mesmo fluxo sobre S3. **Todas escrevem tabelas Delta**
+— não há Parquet nem Excel no caminho:
 
 | Lambda | Lê | Escreve |
 |---|---|---|
 | `extract/handler.py` | API Apify | Bronze Delta em `s3://<bucket>/bronze/` |
 | `transform/handler.py` | Bronze Delta | Silver Delta em `s3://<bucket>/silver/` |
 | `load/handler.py` | Silver Delta | Gold Delta em `s3://<bucket>/gold/` |
+
+Uma quarta Lambda, `orchestrator/handler.py`, encadeia as três em sequência via `boto3`
+(`lambda:InvokeFunction`), propagando o `run_id` gerado por `extract` para `transform` e `load` —
+ver [ADR 0008](docs/adr/0008-orquestrar-lambdas-via-orquestradora-unica-e-terraform.md) para o
+porquê dessa escolha (em vez de Step Functions/EventBridge) e suas limitações conhecidas. A
+infraestrutura (S3, ECR, IAM, as 4 Lambdas como imagens de container) é provisionada via
+Terraform em [`infra/`](infra/README.md).
 
 ---
 
