@@ -1,7 +1,28 @@
 import pandas as pd
 from deltalake.writer import write_deltalake
 
+from src.repositories import delta_repository
 from src.repositories.delta_repository import DeltaRepository
+
+
+def test_delta_repository_com_uri_s3_nao_corrompe_a_uri(monkeypatch):
+    # Regressão: DeltaRepository usava pathlib.Path para juntar caminhos, e
+    # Path colapsa barras duplas -- "s3://bucket/gold" virava "s3:/bucket/gold".
+    captured = {}
+
+    class FakeDeltaTable:
+        def __init__(self, path, storage_options=None):
+            captured["path"] = path
+
+        def to_pandas(self):
+            return pd.DataFrame({"id": ["1"]})
+
+    monkeypatch.setattr(delta_repository, "DeltaTable", FakeDeltaTable)
+
+    repo = DeltaRepository(gold_dir="s3://meu-bucket/gold")
+    repo.load_profiles()
+
+    assert captured["path"] == "s3://meu-bucket/gold/governor_engagement"
 
 
 def test_delta_repository_basic(tmp_path):

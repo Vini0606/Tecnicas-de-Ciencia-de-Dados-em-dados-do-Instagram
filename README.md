@@ -337,7 +337,8 @@ uv run ruff check src/
 | `S3_BUCKET` | Só em cloud | `""` | Bucket para as Lambdas |
 | `S3_BRONZE_PREFIX` / `S3_SILVER_PREFIX` / `S3_GOLD_PREFIX` | Não | `bronze/` `silver/` `gold/` | Prefixos S3 por camada |
 
-Lista completa em `config/settings.py`.
+As variáveis acima de S3 são lidas diretamente pelos handlers em `lambdas/`, não por
+`config/settings.py` (ver ADR 0007). Lista completa das demais em `config/settings.py`.
 
 ---
 
