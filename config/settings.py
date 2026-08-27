@@ -25,10 +25,6 @@ ALL_XLSX = Path(os.environ.get("ALL_XLSX", PROCESSED_DATA_DIR / "all.xlsx"))
 RANDOM_STATE = int(os.environ.get("RANDOM_STATE", 42))
 RESULTS_LIMIT = int(os.environ.get("RESULTS_LIMIT", 30))
 
-# Cloud
-S3_BUCKET = os.environ.get("S3_BUCKET", "")
-IS_CLOUD = bool(os.environ.get("AWS_LAMBDA_FUNCTION_NAME"))
-
 # Valores padrão adicionais
 N_CLUSTERS_KMEANS = int(os.environ.get("N_CLUSTERS_KMEANS", 5))
 TSNE_PERPLEXITY = int(os.environ.get("TSNE_PERPLEXITY", 30))
@@ -59,8 +55,3 @@ GOLD_CLUSTERS = GOLD_DIR / "governor_clusters"
 # Checkpoints locais do estágio determinístico de modelagem (ver ADR 0003) —
 # não são Delta, ficam fora do git.
 MODEL_CHECKPOINTS_DIR = DATA_DIR / "model_checkpoints"
-
-# S3 prefixes (cloud)
-S3_BRONZE_PREFIX = os.environ.get("S3_BRONZE_PREFIX", "bronze/")
-S3_SILVER_PREFIX = os.environ.get("S3_SILVER_PREFIX", "silver/")
-S3_GOLD_PREFIX = os.environ.get("S3_GOLD_PREFIX", "gold/")
