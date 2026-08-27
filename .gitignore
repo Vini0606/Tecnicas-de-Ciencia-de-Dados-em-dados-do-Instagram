@@ -14,8 +14,18 @@ __pycache__/
 !reports/figures/*.png
 !reports/academic/Figuras/*.png
 
-# ambiente virtual  
+# ambiente virtual
 .venv/
+
+# Terraform (infra/) -- estado e variáveis locais nunca vão pro git;
+# terraform.tfvars pode conter o apify_api_token em texto plano.
+# .terraform.lock.hcl fica de fora do gitignore de propósito: é um lockfile
+# de versão de provider, deve ser commitado.
+infra/.terraform/
+infra/*.tfstate
+infra/*.tfstate.*
+infra/terraform.tfvars
+infra/*.tfplan
 
 # Medallion data
 data/raw/
