@@ -273,7 +273,7 @@ Terraform em [`infra/`](infra/README.md).
 ├── pages/                  # Dashboards Streamlit (exploratório, modelagem)
 ├── lambdas/                # extract / transform / load para AWS
 ├── notebooks/              # 01 extração · 02 EDA · 03 modelagem · 04 regressão · 05 síntese
-├── tests/                  # 19 arquivos de teste (pytest)
+├── tests/                  # 25 arquivos de teste (pytest)
 ├── data/                   # raw/ · bronze/ · silver/ · gold/ · processed/ (legado)
 ├── reports/
 │   ├── academic/           # TCC completo em LaTeX — 7 capítulos, bibliografia, figuras
@@ -384,7 +384,7 @@ Esta seção registra honestamente o que ainda não está fechado.
 | `test_transform_lambda.py` | Handler Silver retorna `200` / `silver_complete`; retorna `400` sem `S3_BUCKET` |
 | `test_load_lambda.py` | Handler Gold retorna `200` / `gold_complete`; retorna `400` sem `S3_BUCKET` |
 
-**Resultado atual: 34 testes, todos passando.**
+**Resultado atual: 77 testes (25 arquivos), todos passando.**
 
 `.github/workflows/python-app.yml` roda a cada push e pull request na `main`: checkout, Python 3.11, `pip install -e .[dev]`, pytest com cobertura e `ruff check src/`.
 

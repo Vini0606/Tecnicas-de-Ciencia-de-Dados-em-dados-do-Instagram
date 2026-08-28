@@ -81,3 +81,37 @@ def test_orchestrator_aborta_e_nao_chama_as_proximas_etapas_se_uma_falhar(monkey
     assert body["stage"] == "transform"
 
     assert invoked == ["extract-fn", "transform-fn"]
+
+
+def test_orchestrator_propaga_a_mensagem_real_quando_sublambda_lanca_excecao_nao_tratada(monkeypatch):
+    from lambdas.orchestrator import handler as orchestrator_handler
+
+    _set_function_names(monkeypatch)
+
+    # Uma exceção não tratada dentro de uma Lambda não produz {"statusCode", "body"};
+    # o próprio Lambda runtime devolve esse formato de erro.
+    responses = {
+        "extract-fn": {
+            "errorMessage": "Nenhum dado fornecido para escrita em Bronze: instagram_posts",
+            "errorType": "ValueError",
+            "stackTrace": ["..."],
+        },
+    }
+    invoked = []
+
+    def fake_invoke(FunctionName, InvocationType, Payload):
+        invoked.append(FunctionName)
+        return {"Payload": _payload_stream(responses[FunctionName])}
+
+    fake_client = MagicMock()
+    fake_client.invoke.side_effect = fake_invoke
+    monkeypatch.setattr("boto3.client", lambda service: fake_client)
+
+    resp = orchestrator_handler.handler({"links": []}, {})
+
+    assert resp["statusCode"] == 500
+    body = json.loads(resp["body"])
+    assert body["stage"] == "extract"
+    assert body["error"] == "Nenhum dado fornecido para escrita em Bronze: instagram_posts"
+
+    assert invoked == ["extract-fn"]
