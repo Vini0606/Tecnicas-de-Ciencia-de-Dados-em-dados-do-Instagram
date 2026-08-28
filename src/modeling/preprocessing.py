@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from functools import lru_cache
+from functools import cache
 
 import emoji
 import nltk
@@ -11,7 +11,7 @@ import pandas as pd
 from src.modeling.config import PreprocessingConfig
 
 
-@lru_cache(maxsize=None)
+@cache
 def _stopwords(language: str) -> frozenset[str]:
     try:
         words = nltk.corpus.stopwords.words(language)

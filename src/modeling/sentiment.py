@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Callable
+from collections.abc import Callable
 
 import pandas as pd
 from transformers import pipeline
@@ -34,7 +34,7 @@ def analyze_sentiment(
             try:
                 resultado = analisador(texto, truncation=True, max_length=512)[0]
                 return pd.Series([resultado["label"], resultado["score"]])
-            except Exception:
+            except Exception:  # noqa: BLE001 -- qualquer falha do pipeline de inferência cai no fallback abaixo
                 return pd.Series([None, None])
         return pd.Series([None, None])
 
