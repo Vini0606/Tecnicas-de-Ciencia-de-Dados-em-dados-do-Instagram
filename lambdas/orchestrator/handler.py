@@ -18,9 +18,13 @@ def _invoke(client, function_name: str, payload: dict) -> dict:
 
 
 def _stage_error(stage: str, result: dict) -> dict:
+    # Uma falha tratada (statusCode != 200) traz a mensagem em "body"; uma
+    # exceção não tratada dentro da sub-Lambda não passa por esse contrato e
+    # vem, em vez disso, como {"errorMessage", "errorType", "stackTrace"}.
+    error = result["errorMessage"] if "errorMessage" in result else result.get("body")
     return {
         "statusCode": 500,
-        "body": json.dumps({"stage": stage, "error": result.get("body")}),
+        "body": json.dumps({"stage": stage, "error": error}),
     }
 
 

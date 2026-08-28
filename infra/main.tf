@@ -115,11 +115,10 @@ resource "aws_lambda_function" "data_lambda" {
   environment {
     variables = merge(
       {
-        S3_BUCKET          = aws_s3_bucket.data_lake.bucket
-        S3_BRONZE_PREFIX   = "bronze/"
-        S3_SILVER_PREFIX   = "silver/"
-        S3_GOLD_PREFIX     = "gold/"
-        AWS_DEFAULT_REGION = var.aws_region
+        S3_BUCKET        = aws_s3_bucket.data_lake.bucket
+        S3_BRONZE_PREFIX = "bronze/"
+        S3_SILVER_PREFIX = "silver/"
+        S3_GOLD_PREFIX   = "gold/"
       },
       each.key == "extract" ? { APIFY_API_TOKEN = var.apify_api_token } : {}
     )
