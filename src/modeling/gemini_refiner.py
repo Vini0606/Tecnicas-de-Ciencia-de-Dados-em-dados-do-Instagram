@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import random
 import time
-from typing import List, Mapping, Tuple
+from collections.abc import Mapping
 
 import google.generativeai as genai
 import pandas as pd
@@ -40,8 +40,8 @@ class GeminiDocsRefiner(BaseRepresentation):
         topic_model,
         documents: pd.DataFrame,
         c_tf_idf: csr_matrix,
-        topics: Mapping[str, List[Tuple[str, float]]],
-    ) -> Mapping[str, List[Tuple[str, float]]]:
+        topics: Mapping[str, list[tuple[str, float]]],
+    ) -> Mapping[str, list[tuple[str, float]]]:
         updated_topics = {}
         docs_per_topic = documents.groupby(["Topic"])["Document"].apply(list)
 
@@ -65,7 +65,7 @@ class GeminiDocsRefiner(BaseRepresentation):
                     updated_topics[topic_id] = [(label, 1.0)] + keywords
                 else:
                     updated_topics[topic_id] = keywords
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001 -- qualquer falha da API do Gemini cai no fallback abaixo
                 print(f"[GeminiDocsRefiner] Erro no tópico {topic_id}: {e}")
                 updated_topics[topic_id] = keywords
         return updated_topics
