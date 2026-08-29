@@ -1,10 +1,14 @@
 # Infraestrutura AWS (Terraform)
 
 Provisiona os recursos para rodar o pipeline Medallion na nuvem: bucket S3 (data lake),
-repositórios ECR e as 4 funções Lambda (`extract`, `transform`, `load`, `orchestrator`) como
+repositórios ECR e as 5 funções Lambda (`extract`, `transform`, `load`, `orchestrator`, `model`) como
 imagens de container. Ver [ADR 0008](../docs/adr/0008-orquestrar-lambdas-via-orquestradora-unica-e-terraform.md)
 para o porquê dessas escolhas, e [ADR 0009](../docs/adr/0009-publicar-imagens-das-lambdas-via-github-actions-com-oidc.md)
 para a publicação automática das imagens via GitHub Actions.
+
+`model` (clustering de perfil de governador por Engajamento, Fase 2) fica **fora** da cadeia da
+orquestradora de propósito -- é invocada manualmente, como a modelagem local também é opt-in (ver
+"Rodar o clustering de perfil" abaixo e ADR 0001).
 
 **Aviso de custo:** Lambda, S3 e ECR têm free tier, mas não são gratuitos indefinidamente —
 revise os preços atuais antes de aplicar isto numa conta com cobrança ativa. Nada aqui é aplicado
@@ -47,7 +51,7 @@ automaticamente; você decide quando rodar `terraform apply`.
    tem um provedor OIDC do GitHub Actions criado por outra infraestrutura — só pode existir um por
    conta), rode de novo com `-var="create_github_oidc_provider=false"`.
 
-3. **Buildar e publicar as 4 imagens** usando os URLs de repositório do passo anterior:
+3. **Buildar e publicar as 5 imagens** usando os URLs de repositório do passo anterior:
 
    ```bash
    cd ..
@@ -58,7 +62,7 @@ automaticamente; você decide quando rodar `terraform apply`.
    rodar sozinho a cada merge relevante em `main` — este script continua existindo só como
    fallback manual.
 
-4. **Provisionar o resto** (bucket S3, IAM, as 4 funções Lambda):
+4. **Provisionar o resto** (bucket S3, IAM, as 5 funções Lambda):
 
    ```bash
    cd infra
@@ -83,7 +87,7 @@ Depois da fase 1 do bootstrap acima, configure o GitHub Actions para autenticar 
    `instagram-governadores`), defina também as repository variables `AWS_REGION` e `PROJECT_NAME`.
 
 A partir daí, todo push em `main` que passar no CI e mexer em `lambdas/**` ou `src/**` publica as
-4 imagens no ECR automaticamente, tagueadas com o SHA do commit (ver
+5 imagens no ECR automaticamente, tagueadas com o SHA do commit (ver
 `.github/workflows/build-lambdas.yml` e [ADR 0009](../docs/adr/0009-publicar-imagens-das-lambdas-via-github-actions-com-oidc.md)).
 Isso **não** afeta as Lambdas em execução — promover continua sendo manual:
 
@@ -105,6 +109,19 @@ TF_VAR_image_tag=$(git rev-parse origin/main) terraform apply
    cat response.json
    ```
 
+6. **(Opcional, manual) Rodar o clustering de perfil por Engajamento** invocando `model`
+   diretamente -- não faz parte da cadeia acima, precisa de um `run_id` (reaproveite o de uma
+   execução anterior da orquestradora, ou gere um novo):
+
+   ```bash
+   aws lambda invoke \
+     --function-name "$(terraform output -raw model_function_name)" \
+     --payload '{"run_id": "20260829_120000_abcdef12"}' \
+     --cli-binary-format raw-in-base64-out \
+     response.json
+   cat response.json
+   ```
+
 ## Destruir tudo
 
 ```bash
@@ -119,7 +136,9 @@ terraform destroy
   de 15 minutos de timeout de Lambda. Ver ADR 0008 para a alternativa rejeitada (Step Functions).
 - Não há gatilho agendado (EventBridge/cron) configurado — o pipeline roda só quando invocado
   manualmente. Adicionar um agendamento é uma mudança pequena e aditiva neste mesmo `main.tf`.
-- O workflow `build-lambdas.yml` builda as 4 imagens sempre juntas (sem detecção seletiva por
+- O workflow `build-lambdas.yml` builda as 5 imagens sempre juntas (sem detecção seletiva por
   Lambda) — decisão deliberada, ver ADR 0009.
+- `model` não tem retry/DLQ configurado (mesmo padrão simples das outras Lambdas) -- uma falha na
+  invocação manual não deixa rastro além do próprio `response.json`/logs do CloudWatch.
 - A trust policy da role OIDC do GitHub Actions está restrita a `ref:refs/heads/main` — publicar a
   partir de outro branch (ex.: staging) exige revisar `infra/main.tf`.
