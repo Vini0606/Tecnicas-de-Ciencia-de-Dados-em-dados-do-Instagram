@@ -36,6 +36,27 @@ def test_profile_cleaner_adds_fullname_when_missing():
     assert out.loc[0, "fullName"] == "g"
 
 
+def test_profile_cleaner_descarta_linhas_com_id_nulo():
+    """
+    A Apify ocasionalmente retorna um resultado de scrape sem `id` (perfil
+    indisponível/erro parcial). SILVER_PROFILES_SCHEMA exige `id` não nulo --
+    sem descartar essas linhas, a escrita da Silver inteira quebraria.
+    """
+    df = pd.DataFrame(
+        {
+            "id": ["1", None],
+            "username": ["g", "sem_id"],
+            "followersCount": [100, 50],
+            "_ingested_at": pd.to_datetime(["2026-05-01", "2026-05-01"], utc=True),
+            "_run_id": ["r1", "r1"],
+        }
+    )
+    cleaner = ProfileCleaner()
+    out = cleaner.clean(df, run_id="r1")
+    assert len(out) == 1
+    assert out.iloc[0]["id"] == "1"
+
+
 def test_post_cleaner_feed_and_reel():
     df_posts = pd.DataFrame(
         {
