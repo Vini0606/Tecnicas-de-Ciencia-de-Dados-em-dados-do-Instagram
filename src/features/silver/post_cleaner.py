@@ -26,6 +26,7 @@ class PostCleaner:
 
     def clean_posts(self, df_bronze: pd.DataFrame) -> pd.DataFrame:
         df = df_bronze.copy()
+        df = self._drop_null_id(df)
         df = deduplicate_latest(df, id_col="id")
         df = self._parse_timestamp(df)
         df["Tipo"] = "FEED"
@@ -36,6 +37,7 @@ class PostCleaner:
 
     def clean_reels(self, df_bronze: pd.DataFrame) -> pd.DataFrame:
         df = df_bronze.copy()
+        df = self._drop_null_id(df)
         df = deduplicate_latest(df, id_col="id")
         df = self._parse_timestamp(df)
         df["Tipo"] = "REELS"
@@ -83,3 +85,12 @@ class PostCleaner:
     def _drop_noise_columns(self, df: pd.DataFrame) -> pd.DataFrame:
         cols = [c for c in self.POSTS_COLUMNS_TO_DROP if c in df.columns]
         return df.drop(columns=cols)
+
+    def _drop_null_id(self, df: pd.DataFrame) -> pd.DataFrame:
+        # Apify ocasionalmente retorna um post/reel sem `id` (item indisponível/
+        # erro parcial no scrape) -- SILVER_POSTS_SCHEMA/SILVER_REELS_SCHEMA
+        # exigem `id` não nulo, então uma linha assim quebraria a escrita da
+        # Silver inteira em vez de só descartar o registro inválido.
+        if "id" in df.columns:
+            df = df[df["id"].notna()]
+        return df

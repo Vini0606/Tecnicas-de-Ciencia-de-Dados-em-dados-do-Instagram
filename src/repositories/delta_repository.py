@@ -59,6 +59,11 @@ class DeltaRepository(DataRepository):
     def load_clusters(self) -> pd.DataFrame:
         return self._load(_join(self._gold_dir, "governor_clusters"))
 
+    def load_governors_metadata(self) -> pd.DataFrame:
+        if self._silver_dir is None:
+            raise ValueError("silver_dir não foi configurado neste repositório.")
+        return self._load(_join(self._silver_dir, "governors_metadata"))
+
     def save(self, dataframes: dict[str, pd.DataFrame]) -> None:
         raise NotImplementedError(
             "DeltaRepository é somente leitura. Use os writers para escrever."

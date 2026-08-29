@@ -48,10 +48,17 @@ def _patch_medallion_dependencies(monkeypatch, df_reels_silver, df_comments_silv
     aggregator = MagicMock()
     aggregator.aggregate.return_value = pd.DataFrame({"id": ["1"]})
 
+    governors_cleaner = MagicMock()
+    governors_cleaner.clean.return_value = pd.DataFrame({"inputUrl": ["u1"]})
+
     monkeypatch.setattr("pipeline.ProfileCleaner", lambda: profile_cleaner)
     monkeypatch.setattr("pipeline.PostCleaner", lambda: post_cleaner)
     monkeypatch.setattr("pipeline.CommentCleaner", lambda: comment_cleaner)
     monkeypatch.setattr("pipeline.EngagementAggregator", lambda: aggregator)
+    monkeypatch.setattr("pipeline.GovernorsMetadataCleaner", lambda: governors_cleaner)
+    monkeypatch.setattr(
+        "pipeline.pd.read_excel", lambda *a, **k: pd.DataFrame({"Link": ["u1"]})
+    )
 
     fake_run_deterministic_modeling = MagicMock()
     monkeypatch.setattr("pipeline.run_deterministic_modeling", fake_run_deterministic_modeling)

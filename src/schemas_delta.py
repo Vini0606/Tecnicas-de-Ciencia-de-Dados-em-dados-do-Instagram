@@ -153,6 +153,18 @@ SILVER_COMMENTS_SCHEMA = pa.schema(
     ]
 )
 
+SILVER_GOVERNORS_METADATA_SCHEMA = pa.schema(
+    [
+        pa.field("inputUrl", pa.string(), nullable=False),
+        pa.field("nome", pa.string(), nullable=False),
+        pa.field("uf", pa.string(), nullable=True),
+        pa.field("partido", pa.string(), nullable=True),
+        pa.field("_ingested_at", pa.timestamp("us", tz="UTC"), nullable=False),
+        pa.field("_run_id", pa.string(), nullable=False),
+        pa.field("_source_layer", pa.string(), nullable=False),
+    ]
+)
+
 # GOLD
 GOLD_ENGAGEMENT_SCHEMA = pa.schema(
     [
