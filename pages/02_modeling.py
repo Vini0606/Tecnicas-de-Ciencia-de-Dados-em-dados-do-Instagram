@@ -10,12 +10,15 @@ if ROOT_DIR not in sys.path:
     sys.path.insert(0, ROOT_DIR)
 
 from src.dashboard.filters import (
+    TODOS_GOVERNADORES,
     apply_group_filters,
     build_cluster_membership,
     build_governor_directory,
     enrich_with_governor_metadata,
     render_governor_selector,
     render_group_filters,
+    render_unmatched_warning,
+    select_governor_rows,
 )
 from src.dashboard.loaders import load_clusters, load_comments, load_reels
 from src.visualization.charts import plot_top_n_bar, plot_value_counts
@@ -34,23 +37,26 @@ tem_modelagem = "sentiment_label" in df_comments.columns
 # --- BARRA LATERAL (SIDEBAR) PARA FILTROS ---
 st.sidebar.header("Filtros do Dashboard")
 
-directory = build_governor_directory()
+governor_directory = build_governor_directory()
 cluster_membership = build_cluster_membership()
-filters = render_group_filters(directory, cluster_membership)
+filters = render_group_filters(governor_directory, cluster_membership)
 
 # O universo de opções do seletor vem do próprio inputUrl de df_comments (não
 # do xlsx) -- governor_sentiment/reels_clean gravam a URL sem barra final,
 # governors_metadata (xlsx) grava com barra final; usar o valor do xlsx aqui
-# faria o `.query("inputUrl == ...")` abaixo nunca encontrar nada. nome/uf/
+# faria `select_governor_rows` abaixo nunca encontrar nada. nome/uf/regiao/
 # partido continuam vindo do xlsx, só que via join normalizado.
 governor_universe = df_comments[["inputUrl"]].dropna().drop_duplicates()
 governor_universe_enriched = enrich_with_governor_metadata(governor_universe)
-universe_filtrado = apply_group_filters(governor_universe_enriched, filters, cluster_membership)
+render_unmatched_warning(governor_universe_enriched)
+governor_universe_filtrado = apply_group_filters(
+    governor_universe_enriched, filters, cluster_membership
+)
 
 st.sidebar.markdown("---")
 governador_selecionado = render_governor_selector(
-    universe_filtrado,
-    directory_exists=not directory.empty,
+    governor_universe_filtrado,
+    directory_exists=not governor_directory.empty,
     fallback_urls=df_comments["inputUrl"].dropna().unique().tolist(),
 )
 
@@ -58,9 +64,14 @@ if governador_selecionado is None:
     st.stop()
 
 # --- APLICAÇÃO DOS FILTROS NO DATAFRAME ---
-df_filtrado_comments = df_comments.query("inputUrl == @governador_selecionado")
-
-df_filtrado_reels = df_reels.query("inputUrl == @governador_selecionado")
+# inputUrl comparado normalizado (não `==`/`.query` direto) -- reels_clean e
+# governor_sentiment vêm do mesmo df_reels bruto sem transformação de URL
+# entre os dois, então hoje coincidem byte-a-byte, mas isso não é uma garantia
+# formal do pipeline, e já houve um bug real de formatação de URL divergente
+# entre tabelas nesta branch (ver governor_engagement vs reels_clean).
+universo_ativo = governor_universe_filtrado["inputUrl"].tolist()
+df_filtrado_comments = select_governor_rows(df_comments, governador_selecionado, universo_ativo)
+df_filtrado_reels = select_governor_rows(df_reels, governador_selecionado, universo_ativo)
 
 # --- PÁGINA PRINCIPAL ---
 st.title("📊 Comentários dos Governadores do Brasil")

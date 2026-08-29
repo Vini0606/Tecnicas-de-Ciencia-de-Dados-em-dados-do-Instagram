@@ -17,6 +17,7 @@ from src.dashboard.filters import (
     build_governor_directory,
     enrich_with_governor_metadata,
     render_group_filters,
+    render_unmatched_warning,
 )
 from src.dashboard.loaders import load_profiles
 from src.visualization.charts import (
@@ -33,11 +34,12 @@ st.set_page_config(
 )
 
 
-directory = build_governor_directory()
+governor_directory = build_governor_directory()
 cluster_membership = build_cluster_membership()
-filters = render_group_filters(directory, cluster_membership)
+filters = render_group_filters(governor_directory, cluster_membership)
 
 df_profiles_enriched = enrich_with_governor_metadata(load_profiles())
+render_unmatched_warning(df_profiles_enriched)
 df_profiles = apply_group_filters(df_profiles_enriched, filters, cluster_membership)
 
 if df_profiles.empty:
