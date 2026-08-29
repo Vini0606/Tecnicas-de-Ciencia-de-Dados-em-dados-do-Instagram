@@ -3,6 +3,7 @@
 import os
 import sys
 
+import pandas as pd
 import streamlit as st
 
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -14,7 +15,9 @@ from src.dashboard.filters import (
     apply_group_filters,
     build_cluster_membership,
     build_governor_directory,
+    build_profile_cluster_directory,
     enrich_with_governor_metadata,
+    enrich_with_profile_cluster,
     render_governor_selector,
     render_group_filters,
     render_unmatched_warning,
@@ -39,15 +42,18 @@ st.sidebar.header("Filtros do Dashboard")
 
 governor_directory = build_governor_directory()
 cluster_membership = build_cluster_membership()
-filters = render_group_filters(governor_directory, cluster_membership)
+profile_cluster_directory = build_profile_cluster_directory()
+filters = render_group_filters(governor_directory, cluster_membership, profile_cluster_directory)
 
 # O universo de opções do seletor vem do próprio inputUrl de df_comments (não
 # do xlsx) -- governor_sentiment/reels_clean gravam a URL sem barra final,
 # governors_metadata (xlsx) grava com barra final; usar o valor do xlsx aqui
 # faria `select_governor_rows` abaixo nunca encontrar nada. nome/uf/regiao/
-# partido continuam vindo do xlsx, só que via join normalizado.
+# partido/cluster_perfil_engajamento continuam vindo do xlsx/Gold, só que via
+# join normalizado.
 governor_universe = df_comments[["inputUrl"]].dropna().drop_duplicates()
 governor_universe_enriched = enrich_with_governor_metadata(governor_universe)
+governor_universe_enriched = enrich_with_profile_cluster(governor_universe_enriched)
 render_unmatched_warning(governor_universe_enriched)
 governor_universe_filtrado = apply_group_filters(
     governor_universe_enriched, filters, cluster_membership
@@ -183,6 +189,28 @@ else:
                 .agg(qtd_reels=("id_reel", "nunique"), algoritmo=("cluster_algo", "first"))
                 .reset_index()
             )
+
+    st.markdown("#### Cluster de Perfil por Engajamento (Fase 2)")
+    if profile_cluster_directory.empty:
+        st.info(
+            "`governor_profile_clusters_engagement` ainda não existe. "
+            "Rode `scripts/run_profile_clustering_engagement.py` para gerá-la."
+        )
+    elif governador_selecionado == TODOS_GOVERNADORES:
+        st.dataframe(
+            governor_universe_filtrado.groupby("cluster_perfil_engajamento")
+            .agg(qtd_governadores=("inputUrl", "nunique"))
+            .reset_index()
+        )
+    else:
+        linha = governor_universe_filtrado.loc[
+            governor_universe_filtrado["inputUrl"] == governador_selecionado
+        ]
+        cluster_valor = linha["cluster_perfil_engajamento"].iloc[0] if not linha.empty else None
+        if cluster_valor is None or pd.isna(cluster_valor):
+            st.info("Este governador não tem cluster de perfil atribuído.")
+        else:
+            st.metric("Cluster de Perfil", int(cluster_valor))
 
 # Para mostrar os dados brutos (opcional)
 if st.checkbox("Mostrar dados brutos filtrados"):
