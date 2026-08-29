@@ -12,13 +12,21 @@ output "lambda_function_names" {
   description = "Nomes das funções Lambda provisionadas."
   value = merge(
     { for name, fn in aws_lambda_function.data_lambda : name => fn.function_name },
-    { orchestrator = aws_lambda_function.orchestrator.function_name }
+    {
+      orchestrator = aws_lambda_function.orchestrator.function_name
+      model        = aws_lambda_function.model.function_name
+    }
   )
 }
 
 output "orchestrator_function_name" {
   description = "Nome da função a invocar para rodar o pipeline completo (aws lambda invoke)."
   value       = aws_lambda_function.orchestrator.function_name
+}
+
+output "model_function_name" {
+  description = "Nome da função de clustering de perfil por engajamento (Fase 2) -- invocação manual, aws lambda invoke --function-name <isto> --payload '{\"run_id\": \"...\"}'. Não faz parte da cadeia da orquestradora."
+  value       = aws_lambda_function.model.function_name
 }
 
 output "github_actions_role_arn" {

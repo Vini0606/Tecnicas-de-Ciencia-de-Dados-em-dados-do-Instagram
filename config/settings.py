@@ -52,6 +52,7 @@ GOLD_DIR = DATA_DIR / "gold"
 GOLD_ENGAGEMENT = GOLD_DIR / "governor_engagement"
 GOLD_SENTIMENT = GOLD_DIR / "governor_sentiment"
 GOLD_CLUSTERS = GOLD_DIR / "governor_clusters"
+GOLD_PROFILE_CLUSTERS_ENGAGEMENT = GOLD_DIR / "governor_profile_clusters_engagement"
 
 # Checkpoints locais do estágio determinístico de modelagem (ver ADR 0003) —
 # não são Delta, ficam fora do git.

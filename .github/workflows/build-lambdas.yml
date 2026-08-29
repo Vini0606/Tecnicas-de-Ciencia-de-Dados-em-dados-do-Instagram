@@ -1,7 +1,7 @@
 name: Build and Push Lambda Images
 
-# Publica as 4 imagens das Lambdas (extract, transform, load, orchestrator)
-# no ECR via OIDC. Não atualiza nenhuma Lambda em execução -- terraform
+# Publica as 5 imagens das Lambdas (extract, transform, load, orchestrator,
+# model) no ECR via OIDC. Não atualiza nenhuma Lambda em execução -- terraform
 # apply continua manual/intencional. Ver ADR 0009.
 
 on:
@@ -55,7 +55,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        lambda: [extract, transform, load, orchestrator]
+        lambda: [extract, transform, load, orchestrator, model]
     steps:
       - uses: actions/checkout@v4
         with:

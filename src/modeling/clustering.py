@@ -245,18 +245,22 @@ class AutoClusterHPO:
             return (self.best_overall_labels, None, None, -np.inf, None)
 
 
-def cluster_reels(
-    df_reels: pd.DataFrame, config: ClusterConfig
+def run_autocluster(
+    df: pd.DataFrame, config: ClusterConfig
 ) -> tuple[pd.DataFrame, object, dict | None, float, str | None]:
     """Aplica `AutoClusterHPO` sobre `config.feature_columns` e anexa o resultado ao DataFrame.
 
     `model`/`cluster_config`/`score`/`algo_name` são escalares — um único
     modelo vencedor, não um valor por linha — e por isso ficam
-    broadcastados nas colunas `model`/`config`/`score`/`algo_name`,
-    reproduzindo o comportamento já esperado pelos testes de
-    `ModelEnricher.write_clusters`.
+    broadcastados nas colunas `model`/`config`/`score`/`algo_name`.
+
+    Genérico quanto à granularidade das linhas de `df` (reel, perfil de
+    governador, etc.) — só depende de `config.feature_columns` serem
+    numéricas. `cluster_reels` (abaixo) e `cluster_governor_profiles`
+    (`src/modeling/profile_clustering.py`) são wrappers com nome específico
+    sobre esta mesma função, para não duplicar a lógica.
     """
-    df = df_reels.copy()
+    df = df.copy()
 
     autocluster = AutoClusterHPO(
         max_evals_per_algo=config.max_evals_per_algo,
@@ -274,3 +278,11 @@ def cluster_reels(
     df["algo_name"] = algo_name
 
     return df, model, cluster_config, score, algo_name
+
+
+def cluster_reels(
+    df_reels: pd.DataFrame, config: ClusterConfig
+) -> tuple[pd.DataFrame, object, dict | None, float, str | None]:
+    """Aplica `run_autocluster` a reels. Reproduz o comportamento já esperado
+    pelos testes de `ModelEnricher.write_clusters`."""
+    return run_autocluster(df_reels, config)
