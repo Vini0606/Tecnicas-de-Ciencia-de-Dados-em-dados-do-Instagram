@@ -234,23 +234,116 @@ uv run python scripts/refine_topics.py --run-id <ID>    # refinamento manual via
 
 `run_modeling.py` imprime o `run_id` usado — é esse valor que vai em `--run-id` do `refine_topics.py` (e em `RUN_ID` no notebook 03). Cada chamada de `run_deterministic_modeling` (daqui, do `pipeline.py --run-modeling`, ou do notebook, se alguém ainda chamar diretamente) grava incondicionalmente um checkpoint local em `data/model_checkpoints/<run_id>/` — o `topic_model` do BERTopic, o `df_comments`/`df_reels` provisórios e os modelos de PCA/clustering — porque sem isso o refinamento via Gemini só poderia rodar no mesmo processo que acabou de ajustar o `topic_model`. `refine_topics.py` atualiza esse checkpoint com os rótulos finais depois de refinar.
 
-### Pipeline serverless
+### Pipeline serverless (AWS Lambda)
 
-As três Lambdas em `lambdas/` reproduzem o mesmo fluxo sobre S3. **Todas escrevem tabelas Delta**
-— não há Parquet nem Excel no caminho:
+As quatro Lambdas em `lambdas/` reproduzem **a mesma arquitetura Medallion do pipeline local**,
+trocando apenas o backend de armazenamento: disco local vira `s3://<bucket>/{bronze,silver,gold}/`,
+mas continuam sendo tabelas **Delta Lake** — nunca Parquet solto nem Excel. Nada muda na lógica de
+limpeza, agregação ou contrato de schema; só quem lê/escreve os arquivos.
 
-| Lambda | Lê | Escreve |
-|---|---|---|
-| `extract/handler.py` | API Apify | Bronze Delta em `s3://<bucket>/bronze/` |
-| `transform/handler.py` | Bronze Delta | Silver Delta em `s3://<bucket>/silver/` |
-| `load/handler.py` | Silver Delta | Gold Delta em `s3://<bucket>/gold/` |
+```mermaid
+flowchart TB
+    CLI["aws lambda invoke<br/>(payload: links, run_id?)"] --> ORCH
 
-Uma quarta Lambda, `orchestrator/handler.py`, encadeia as três em sequência via `boto3`
-(`lambda:InvokeFunction`), propagando o `run_id` gerado por `extract` para `transform` e `load` —
-ver [ADR 0008](docs/adr/0008-orquestrar-lambdas-via-orquestradora-unica-e-terraform.md) para o
-porquê dessa escolha (em vez de Step Functions/EventBridge) e suas limitações conhecidas. A
-infraestrutura (S3, ECR, IAM, as 4 Lambdas como imagens de container) é provisionada via
-Terraform em [`infra/`](infra/README.md).
+    subgraph AWS["Conta AWS"]
+        ORCH["🧭 orchestrator<br/>256 MB · timeout 900s"]
+        EXT["📥 extract<br/>512 MB · timeout 300s"]
+        TRN["🔄 transform<br/>1024 MB · timeout 120s"]
+        LOD["📊 load<br/>1024 MB · timeout 120s"]
+
+        ORCH -- "1. invoke(links, run_id)" --> EXT
+        EXT -- "run_id gerado" --> ORCH
+        ORCH -- "2. invoke(run_id)" --> TRN
+        TRN --> ORCH
+        ORCH -- "3. invoke(run_id)" --> LOD
+        LOD --> ORCH
+
+        EXT -.write.-> S3B[("🥉 S3 Bronze")]
+        TRN -.read.-> S3B
+        TRN -.write.-> S3S[("🥈 S3 Silver")]
+        LOD -.read.-> S3S
+        LOD -.write.-> S3G[("🥇 S3 Gold")]
+    end
+```
+
+| Lambda | Lê | Escreve | Memória | Timeout | Variáveis próprias |
+|---|---|---|---|---|---|
+| `extract/handler.py` | API Apify | Bronze Delta | 512 MB | 300s | `APIFY_API_TOKEN` |
+| `transform/handler.py` | Bronze Delta | Silver Delta | 1024 MB | 120s | — |
+| `load/handler.py` | Silver Delta | Gold Delta | 1024 MB | 120s | — |
+| `orchestrator/handler.py` | — (só invoca as 3 acima) | — | 256 MB | 900s (teto AWS) | `EXTRACT_FUNCTION_NAME`, `TRANSFORM_FUNCTION_NAME`, `LOAD_FUNCTION_NAME` |
+
+As três primeiras compartilham `S3_BUCKET`, `S3_BRONZE_PREFIX`, `S3_SILVER_PREFIX`,
+`S3_GOLD_PREFIX` (lidas direto pelos handlers, não por `config/settings.py` — ver
+[ADR 0007](docs/adr/0007-generalizar-deltarepository-para-s3-e-aposentar-is-cloud.md)).
+
+**Encadeamento.** `orchestrator/handler.py` chama `extract` de forma síncrona
+(`InvocationType="RequestResponse"`), lê o `run_id` do corpo da resposta e o repassa para
+`transform` e depois `load`. Se qualquer etapa devolver `statusCode != 200` — ou lançar uma
+exceção não tratada, que a AWS entrega como `{"errorMessage", "errorType", "stackTrace"}` em vez
+do contrato `{"statusCode", "body"}` — a cadeia para imediatamente e o erro da etapa é propagado
+com `statusCode 500` (`_stage_error`, [`lambdas/orchestrator/handler.py:20-28`](lambdas/orchestrator/handler.py)).
+Não há retry automático por etapa nem persistência de progresso parcial: uma falha no `load`
+não desfaz o que `extract`/`transform` já gravaram, mas também não reexecuta essas duas
+etapas — reinvocar a orquestradora com o mesmo `run_id` (via payload) faz `transform`/`load`
+reprocessarem os mesmos dados de Bronze/Silver.
+
+**Empacotamento.** As 4 Lambdas rodam como **imagens de container** (`package_type = "Image"`,
+publicadas no ECR), não como zip + Lambda Layer — `pyarrow`/`deltalake` têm binários nativos que
+tipicamente quebram em Layers construídas fora do Amazon Linux. Cada uma tem seu próprio
+`Dockerfile`/`requirements.txt`; o contexto de build das três Lambdas de dados é a raiz do
+repositório (para poder copiar `src/`), e `orchestrator` só depende de `boto3`. Ver
+[ADR 0008](docs/adr/0008-orquestrar-lambdas-via-orquestradora-unica-e-terraform.md) para o porquê
+dessas escolhas em vez de Step Functions/EventBridge, e suas limitações conhecidas.
+
+### Infraestrutura provisionada (Terraform)
+
+`infra/main.tf` (Terraform ≥ 1.6) declara toda a infraestrutura como código:
+
+- **1 bucket S3** — o data lake, mesmo layout de prefixos que `data/` localmente
+- **4 repositórios ECR** (um por Lambda) com política de lifecycle que mantém só as **10 imagens
+  mais recentes** por repositório — necessário porque cada merge relevante em `main` publica 4
+  imagens novas e imutáveis, sem sobrescrever uma tag `latest`
+- **IAM com privilégio mínimo por função**: `extract`/`transform`/`load` recebem um papel cada,
+  com política customizada restrita a `s3:ListBucket`/`GetObject`/`PutObject` só no bucket do data
+  lake; `orchestrator` recebe um papel à parte cuja única permissão além do básico de execução é
+  `lambda:InvokeFunction`, e só nos ARNs das 3 Lambdas de dados — não pode invocar mais nada
+- **IAM/OIDC do GitHub Actions** — uma role federada (`sts:AssumeRoleWithWebIdentity`) que a esteira
+  de CI assume sem credenciais estáticas da AWS, com a trust policy restrita a
+  `repo:<este repositório>:ref:refs/heads/main` (publicar a partir de outro branch exige revisar
+  `infra/main.tf`)
+
+Provisionamento, ordem de bootstrap (ECR/OIDC antes das Lambdas, já que a imagem precisa existir
+no ECR primeiro) e como destruir tudo: passo a passo completo em [`infra/README.md`](infra/README.md).
+
+### CI/CD: publicação de imagens via GitHub Actions (OIDC)
+
+`.github/workflows/build-lambdas.yml` builda e publica as 4 imagens no ECR automaticamente a cada
+push em `main` que passe no CI e mexa em `lambdas/**` ou `src/**`, tagueadas com o SHA do commit.
+A autenticação com a AWS usa o papel OIDC acima — **nenhuma AWS access key fica armazenada como
+secret do GitHub**. As 4 imagens são sempre buildadas juntas, sem detecção seletiva por Lambda
+(decisão deliberada, ver [ADR 0009](docs/adr/0009-publicar-imagens-das-lambdas-via-github-actions-com-oidc.md)).
+
+Publicar uma imagem nova no ECR **não** atualiza as Lambdas em execução — promover uma versão
+continua sendo um passo manual e deliberado:
+
+```bash
+TF_VAR_image_tag=$(git rev-parse origin/main) terraform apply
+```
+
+### Limitações conhecidas do pipeline serverless
+
+- **Sem retry nativo por etapa** — uma falha transitória em `transform` (ex.: throttling do S3)
+  não é reexecutada automaticamente; é preciso reinvocar a orquestradora.
+- **Teto de 15 minutos** — a soma de `extract` + `transform` + `load` precisa caber no timeout
+  máximo de Lambda (900s, hard limit da AWS). Um `RESULTS_LIMIT` muito alto pode estourar esse
+  teto; a migração para Step Functions é o caminho natural se isso virar um problema real (a
+  lógica de cada etapa não muda, só quem as invoca).
+- **Sem gatilho agendado** — não há regra EventBridge/cron configurada; o pipeline roda só quando
+  invocado manualmente (`aws lambda invoke` na Lambda orquestradora, payload `{"links": [...]}`).
+  Adicionar um agendamento é uma mudança pequena e aditiva em `infra/main.tf`.
+- **Custo não é zero indefinidamente** — Lambda, S3 e ECR têm free tier, mas nada aqui é aplicado
+  automaticamente; `terraform apply` é sempre uma decisão manual do autor.
 
 ---
 
