@@ -1,5 +1,6 @@
 import os
 
+import pandas as pd
 from apify_client import ApifyClient
 from dotenv import load_dotenv
 
@@ -9,6 +10,7 @@ from src.data_extract.readers import JsonDataReader
 from src.data_extract.scraper import InstagramScraper, ScraperConfig
 from src.features.gold.engagement_aggregator import EngagementAggregator
 from src.features.silver.comment_cleaner import CommentCleaner
+from src.features.silver.governors_metadata_cleaner import GovernorsMetadataCleaner
 from src.features.silver.post_cleaner import PostCleaner
 from src.features.silver.profile_cleaner import ProfileCleaner
 from src.modeling.config import ModelingConfig
@@ -117,6 +119,16 @@ def run_medallion_pipeline(
         post_cleaner.write_posts(df_posts_silver, settings.SILVER_POSTS)
         post_cleaner.write_reels(df_reels_silver, settings.SILVER_REELS)
         comment_cleaner.write(df_comments_silver, settings.SILVER_COMMENTS)
+
+        # Dimensão de metadados dos governadores (nome/UF/partido), ingerida
+        # de `governadores.xlsx` -- não vem do scraper, então não passa por
+        # Bronze (ver decisão de design: planilha mantida manualmente, já
+        # relativamente limpa de origem, não precisa do estágio de proteção
+        # contra reprocessamento que a Bronze existe para dar aos dados do Apify).
+        governors_cleaner = GovernorsMetadataCleaner()
+        df_governors_raw = pd.read_excel(settings.GOVERNADORES_FILE)
+        df_governors_silver = governors_cleaner.clean(df_governors_raw, run_id)
+        governors_cleaner.write(df_governors_silver, settings.SILVER_GOVERNORS_METADATA)
     except Exception as e:
         raise RuntimeError(
             f"[SILVER] Falha na limpeza e conformação dos dados: {e}"
@@ -156,7 +168,6 @@ if __name__ == "__main__":
     import argparse
 
     load_dotenv()
-    import pandas as pd
 
     parser = argparse.ArgumentParser(description="Roda o pipeline Medallion (Bronze/Silver/Gold).")
     parser.add_argument(

@@ -9,6 +9,14 @@ ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if ROOT_DIR not in sys.path:
     sys.path.insert(0, ROOT_DIR)
 
+from src.dashboard.filters import (
+    apply_group_filters,
+    build_cluster_membership,
+    build_governor_directory,
+    enrich_with_governor_metadata,
+    render_governor_selector,
+    render_group_filters,
+)
 from src.dashboard.loaders import load_clusters, load_comments, load_reels
 from src.visualization.charts import plot_top_n_bar, plot_value_counts
 
@@ -26,10 +34,28 @@ tem_modelagem = "sentiment_label" in df_comments.columns
 # --- BARRA LATERAL (SIDEBAR) PARA FILTROS ---
 st.sidebar.header("Filtros do Dashboard")
 
-governador_selecionado = st.sidebar.selectbox(
-    "Selecione o Governador:",
-    options=df_comments["inputUrl"].dropna().unique(),
+directory = build_governor_directory()
+cluster_membership = build_cluster_membership()
+filters = render_group_filters(directory, cluster_membership)
+
+# O universo de opções do seletor vem do próprio inputUrl de df_comments (não
+# do xlsx) -- governor_sentiment/reels_clean gravam a URL sem barra final,
+# governors_metadata (xlsx) grava com barra final; usar o valor do xlsx aqui
+# faria o `.query("inputUrl == ...")` abaixo nunca encontrar nada. nome/uf/
+# partido continuam vindo do xlsx, só que via join normalizado.
+governor_universe = df_comments[["inputUrl"]].dropna().drop_duplicates()
+governor_universe_enriched = enrich_with_governor_metadata(governor_universe)
+universe_filtrado = apply_group_filters(governor_universe_enriched, filters, cluster_membership)
+
+st.sidebar.markdown("---")
+governador_selecionado = render_governor_selector(
+    universe_filtrado,
+    directory_exists=not directory.empty,
+    fallback_urls=df_comments["inputUrl"].dropna().unique().tolist(),
 )
+
+if governador_selecionado is None:
+    st.stop()
 
 # --- APLICAÇÃO DOS FILTROS NO DATAFRAME ---
 df_filtrado_comments = df_comments.query("inputUrl == @governador_selecionado")
@@ -70,6 +96,25 @@ else:
                 title="Top 10 Reels por Engajamento",
                 top_n=10,
             ),
+            width="stretch",
+        )
+
+        df_links = (
+            df_plot.dropna(subset=["shortCode"])
+            .sort_values("Total de Engajamento", ascending=False)
+            .head(10)
+            .copy()
+        )
+        df_links["Link"] = "https://www.instagram.com/reel/" + df_links["shortCode"] + "/"
+        st.dataframe(
+            df_links[["shortCode", "Total de Engajamento", "Link"]],
+            column_config={
+                "shortCode": "Código do Reel",
+                "Link": st.column_config.LinkColumn(
+                    "Link", display_text="Abrir no Instagram"
+                ),
+            },
+            hide_index=True,
             width="stretch",
         )
 

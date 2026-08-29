@@ -46,6 +46,7 @@ SILVER_PROFILES = SILVER_DIR / "profiles_clean"
 SILVER_POSTS = SILVER_DIR / "posts_clean"
 SILVER_REELS = SILVER_DIR / "reels_clean"
 SILVER_COMMENTS = SILVER_DIR / "comments_clean"
+SILVER_GOVERNORS_METADATA = SILVER_DIR / "governors_metadata"
 
 GOLD_DIR = DATA_DIR / "gold"
 GOLD_ENGAGEMENT = GOLD_DIR / "governor_engagement"
