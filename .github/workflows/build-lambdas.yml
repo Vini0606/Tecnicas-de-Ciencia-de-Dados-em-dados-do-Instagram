@@ -1,0 +1,103 @@
+name: Build and Push Lambda Images
+
+# Publica as 4 imagens das Lambdas (extract, transform, load, orchestrator)
+# no ECR via OIDC. Não atualiza nenhuma Lambda em execução -- terraform
+# apply continua manual/intencional. Ver ADR 0009.
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch: {}
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  changes:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    outputs:
+      build: ${{ steps.decide.outputs.build }}
+      sha: ${{ steps.decide.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          fetch-depth: 2 # precisa do commit pai para o diff do path-filter
+
+      - name: Path filter (só workflow_run; workflow_dispatch sempre builda)
+        id: filter
+        if: github.event_name == 'workflow_run'
+        uses: dorny/paths-filter@v3
+        with:
+          base: HEAD^
+          filters: |
+            lambdas:
+              - 'lambdas/**'
+              - 'src/**'
+
+      - name: Decide se builda
+        id: decide
+        run: |
+          echo "sha=${{ github.event.workflow_run.head_sha || github.sha }}" >> "$GITHUB_OUTPUT"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "build=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "build=${{ steps.filter.outputs.lambdas }}" >> "$GITHUB_OUTPUT"
+          fi
+
+  build:
+    needs: changes
+    if: needs.changes.outputs.build == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        lambda: [extract, transform, load, orchestrator]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.changes.outputs.sha }}
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_OIDC_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION || 'us-east-1' }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build and push ${{ matrix.lambda }}
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: lambdas/${{ matrix.lambda }}/Dockerfile
+          push: true
+          tags: ${{ steps.login-ecr.outputs.registry }}/${{ vars.PROJECT_NAME || 'instagram-governadores' }}-${{ matrix.lambda }}:${{ needs.changes.outputs.sha }}
+          cache-from: type=gha,scope=${{ matrix.lambda }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.lambda }}
+
+  summary:
+    needs: [changes, build]
+    if: needs.changes.outputs.build == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Write promotion summary
+        run: |
+          {
+            echo "## Imagens publicadas"
+            echo ""
+            echo "SHA: \`${{ needs.changes.outputs.sha }}\`"
+            echo ""
+            echo "Para promover (aplica nas Lambdas reais -- passo manual e consciente):"
+            echo ""
+            echo '```bash'
+            echo "TF_VAR_image_tag=${{ needs.changes.outputs.sha }} terraform apply"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

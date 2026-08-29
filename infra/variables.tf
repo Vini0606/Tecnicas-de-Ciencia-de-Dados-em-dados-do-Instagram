@@ -22,7 +22,12 @@ variable "apify_api_token" {
 }
 
 variable "image_tag" {
-  description = "Tag das imagens de container publicadas no ECR (ex.: latest, ou um SHA de commit)."
+  description = "Tag das imagens de container publicadas no ECR (SHA de commit -- sem default 'latest', ver ADR 0009)."
   type        = string
-  default     = "latest"
+}
+
+variable "create_github_oidc_provider" {
+  description = "Se true, cria o aws_iam_openid_connect_provider do GitHub Actions. Uma conta AWS só pode ter um por URL -- se já existir (de outra infra), definir como false para reaproveitar via data source."
+  type        = bool
+  default     = true
 }

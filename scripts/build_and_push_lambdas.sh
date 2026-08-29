@@ -7,8 +7,12 @@
 # (ver infra/README.md).
 #
 # Uso: ./scripts/build_and_push_lambdas.sh [tag]
-#   tag  -- tag da imagem a publicar (default: latest, deve bater com a
-#           variável image_tag do Terraform se for diferente do padrão).
+#   tag  -- tag da imagem a publicar (default: latest). Este script é o
+#           fallback manual -- a publicação normal roda via GitHub Actions
+#           (.github/workflows/build-lambdas.yml), que tagueia por SHA de
+#           commit. Se for aplicar via Terraform depois, passe uma tag que
+#           bata com TF_VAR_image_tag (ex.: $(git rev-parse HEAD)), seguindo
+#           a mesma convenção (ver ADR 0009).
 set -euo pipefail
 
 cd "$(dirname "$0")/.."  # raiz do repositório
