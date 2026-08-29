@@ -15,7 +15,9 @@ from src.dashboard.filters import (
     apply_group_filters,
     build_cluster_membership,
     build_governor_directory,
+    build_profile_cluster_directory,
     enrich_with_governor_metadata,
+    enrich_with_profile_cluster,
     render_group_filters,
     render_unmatched_warning,
 )
@@ -36,9 +38,11 @@ st.set_page_config(
 
 governor_directory = build_governor_directory()
 cluster_membership = build_cluster_membership()
-filters = render_group_filters(governor_directory, cluster_membership)
+profile_cluster_directory = build_profile_cluster_directory()
+filters = render_group_filters(governor_directory, cluster_membership, profile_cluster_directory)
 
 df_profiles_enriched = enrich_with_governor_metadata(load_profiles())
+df_profiles_enriched = enrich_with_profile_cluster(df_profiles_enriched)
 render_unmatched_warning(df_profiles_enriched)
 df_profiles = apply_group_filters(df_profiles_enriched, filters, cluster_membership)
 

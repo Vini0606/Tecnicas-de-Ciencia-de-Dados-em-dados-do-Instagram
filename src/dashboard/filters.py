@@ -11,12 +11,14 @@ Decisões de design (sessão de grilling de 2026-08-29, ver handoff):
 - "Região" filtra pela macrorregião (Norte/Nordeste/Centro-Oeste/Sudeste/Sul),
   não pela UF -- há sempre exatamente 1 governador por UF, então um filtro por
   UF nunca agrupa nada, só reimplementa o seletor individual de forma mais lenta.
-- O filtro de cluster é por "contém" (pelo menos 1 reel no cluster
+- O filtro de cluster de REELS é por "contém" (pelo menos 1 reel no cluster
   selecionado), não por "cluster dominante" (moda) -- outliers do DBSCAN
   (cluster -1) podem ser reels virais/atípicos, e a moda esconderia esse sinal
   num governador que só tem 1-2 reels fora do padrão.
-- É um dado de clustering *por reel*, não por perfil -- rotulado como tal na
-  UI. Clustering por perfil é uma frente futura separada (Fase 2).
+- O filtro de cluster de PERFIL (Fase 2, `governor_profile_clusters_engagement`)
+  é 1:1 -- cada governador pertence a exatamente 1 cluster de perfil, então
+  aqui basta um `.isin()` direto na coluna, sem a indireção de "contém" que
+  o cluster de reels precisa (que é N:1, vários reels por governador).
 """
 
 from __future__ import annotations
@@ -24,7 +26,12 @@ from __future__ import annotations
 import pandas as pd
 import streamlit as st
 
-from src.dashboard.loaders import load_clusters, load_governors_metadata, load_reels
+from src.dashboard.loaders import (
+    load_clusters,
+    load_governors_metadata,
+    load_profile_clusters_engagement,
+    load_reels,
+)
 
 TODOS_GOVERNADORES = "__todos_governadores__"
 
@@ -129,6 +136,43 @@ def build_cluster_membership() -> pd.DataFrame:
     return merged[["inputUrl", "cluster_label"]].drop_duplicates()
 
 
+@st.cache_data
+def build_profile_cluster_directory() -> pd.DataFrame:
+    """1 linha por governador: inputUrl, cluster_perfil_engajamento (Fase 2).
+    Vazio (mas com essas colunas) se `governor_profile_clusters_engagement`
+    ainda não existir -- `scripts/run_profile_clustering_engagement.py` não
+    rodado é "sem dado ainda", não erro, mesmo padrão do resto do módulo."""
+    df = load_profile_clusters_engagement()
+    if df.empty:
+        return pd.DataFrame(columns=["inputUrl", "cluster_perfil_engajamento"])
+    return df[["inputUrl", "cluster_label"]].rename(
+        columns={"cluster_label": "cluster_perfil_engajamento"}
+    )
+
+
+def enrich_with_profile_cluster(df: pd.DataFrame, url_col: str = "inputUrl") -> pd.DataFrame:
+    """Adiciona `cluster_perfil_engajamento` a `df` via join por `url_col`
+    normalizado. Left join -- preserva todas as linhas de `df`; sem match ou
+    tabela ainda não gerada vira NaN, sem quebrar a página.
+
+    Função pura (sem I/O de UI), mesmo padrão de `enrich_with_governor_metadata`."""
+    directory = build_profile_cluster_directory()
+    df = df.copy()
+    if url_col not in df.columns or directory.empty:
+        if "cluster_perfil_engajamento" not in df.columns:
+            df["cluster_perfil_engajamento"] = pd.NA
+        return df
+
+    df = _with_match_key(df, url_col)
+    directory = _with_match_key(directory, "inputUrl")
+    merged = df.merge(
+        directory[["_match_key", "cluster_perfil_engajamento"]],
+        on="_match_key",
+        how="left",
+    ).drop(columns="_match_key")
+    return merged
+
+
 def enrich_with_governor_metadata(df: pd.DataFrame, url_col: str = "inputUrl") -> pd.DataFrame:
     """Adiciona nome/uf/regiao/partido a `df` via join por `url_col` (URL
     normalizada -- ver `_normalize_url`). Preserva todas as linhas de `df`
@@ -171,14 +215,22 @@ def render_unmatched_warning(df_enriched: pd.DataFrame, url_col: str = "inputUrl
         )
 
 
-def render_group_filters(governor_directory: pd.DataFrame, cluster_membership: pd.DataFrame) -> dict:
-    """Renderiza os filtros de grupo (região, partido, cluster) na sidebar.
-    Compartilhados entre páginas via `key=` -- a seleção persiste ao navegar."""
+def render_group_filters(
+    governor_directory: pd.DataFrame,
+    cluster_membership: pd.DataFrame,
+    profile_cluster_directory: pd.DataFrame,
+) -> dict:
+    """Renderiza os filtros de grupo (região, partido, cluster de reels,
+    cluster de perfil) na sidebar. Compartilhados entre páginas via `key=` --
+    a seleção persiste ao navegar."""
     st.sidebar.header("Filtros de Grupo")
 
     regiao_options = sorted(governor_directory["regiao"].dropna().unique().tolist())
     partido_options = sorted(governor_directory["partido"].dropna().unique().tolist())
     cluster_options = sorted(cluster_membership["cluster_label"].dropna().unique().tolist())
+    profile_cluster_options = sorted(
+        profile_cluster_directory["cluster_perfil_engajamento"].dropna().unique().tolist()
+    )
 
     selected_regiao = st.sidebar.multiselect(
         "Região:", options=regiao_options, key="filter_regiao"
@@ -186,8 +238,20 @@ def render_group_filters(governor_directory: pd.DataFrame, cluster_membership: p
     selected_partido = st.sidebar.multiselect(
         "Partido:", options=partido_options, key="filter_partido"
     )
+    selected_cluster_perfil = st.sidebar.multiselect(
+        "Cluster de Perfil por Engajamento (Fase 2):",
+        options=profile_cluster_options,
+        key="filter_cluster_perfil",
+        help=(
+            "Agrupa governadores por padrão de comportamento -- % engajamento, "
+            "recência e frequência de postagem -- não por conteúdo de reel "
+            "específico. Cada governador pertence a exatamente 1 cluster aqui "
+            "(diferente do filtro de Cluster de Reels abaixo, que é 'contém "
+            "pelo menos 1 reel')."
+        ),
+    )
     selected_cluster = st.sidebar.multiselect(
-        "Cluster de Reels (dado atual, por reel):",
+        "Cluster de Reels (por reel):",
         options=cluster_options,
         key="filter_cluster",
         help=(
@@ -198,13 +262,18 @@ def render_group_filters(governor_directory: pd.DataFrame, cluster_membership: p
         ),
     )
 
-    if not regiao_options and not partido_options and not cluster_options:
+    if not regiao_options and not partido_options and not cluster_options and not profile_cluster_options:
         st.sidebar.caption(
             "Sem dados de região/partido/cluster ainda -- rode a pipeline "
             "(`uv run python pipeline.py`) para popular os filtros de grupo."
         )
 
-    return {"regiao": selected_regiao, "partido": selected_partido, "cluster": selected_cluster}
+    return {
+        "regiao": selected_regiao,
+        "partido": selected_partido,
+        "cluster": selected_cluster,
+        "cluster_perfil": selected_cluster_perfil,
+    }
 
 
 def apply_group_filters(
@@ -227,6 +296,8 @@ def apply_group_filters(
         df = df[df["regiao"].isin(filters["regiao"])]
     if filters["partido"]:
         df = df[df["partido"].isin(filters["partido"])]
+    if filters["cluster_perfil"]:
+        df = df[df["cluster_perfil_engajamento"].isin(filters["cluster_perfil"])]
     if filters["cluster"]:
         cm = _with_match_key(cluster_membership, "inputUrl")
         keys_in_clusters = set(
