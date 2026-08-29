@@ -20,3 +20,8 @@ output "orchestrator_function_name" {
   description = "Nome da função a invocar para rodar o pipeline completo (aws lambda invoke)."
   value       = aws_lambda_function.orchestrator.function_name
 }
+
+output "github_actions_role_arn" {
+  description = "ARN da role OIDC assumida pelo GitHub Actions para publicar imagens no ECR. Configure como repository variable AWS_OIDC_ROLE_ARN no GitHub (Settings > Secrets and variables > Actions > Variables)."
+  value       = aws_iam_role.github_actions_oidc.arn
+}

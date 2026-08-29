@@ -143,3 +143,115 @@ resource "aws_lambda_function" "orchestrator" {
     }
   }
 }
+
+# ── IAM/OIDC: GitHub Actions publica imagens no ECR sem credenciais estáticas ─
+# Ver ADR 0009. terraform apply continua manual -- isto só permite que a
+# esteira de CI publique imagens novas no ECR, nunca atualiza uma Lambda.
+
+locals {
+  github_repo = "Vini0606/Tecnicas-de-Ciencia-de-Dados-em-dados-do-Instagram"
+}
+
+resource "aws_iam_openid_connect_provider" "github" {
+  count = var.create_github_oidc_provider ? 1 : 0
+
+  url            = "https://token.actions.githubusercontent.com"
+  client_id_list = ["sts.amazonaws.com"]
+  # Thumbprint público e amplamente documentado do certificado raiz usado por
+  # token.actions.githubusercontent.com. A AWS na prática ignora este valor
+  # para emissores cuja CA já está na lista de confiança da AWS (caso do
+  # GitHub Actions) -- o campo é obrigatório só pela forma (precisa de 40
+  # caracteres hex), não é usado para validar de fato. Ver
+  # https://docs.github.com/actions/deployment/security-hardening-your-deployments/about-security-hardening-with-openid-connect
+  thumbprint_list = ["6938fd4d98bab03faadb97b34396831e3780aea1"]
+}
+
+data "aws_iam_openid_connect_provider" "github" {
+  count = var.create_github_oidc_provider ? 0 : 1
+
+  url = "https://token.actions.githubusercontent.com"
+}
+
+locals {
+  github_oidc_provider_arn = var.create_github_oidc_provider ? aws_iam_openid_connect_provider.github[0].arn : data.aws_iam_openid_connect_provider.github[0].arn
+}
+
+data "aws_iam_policy_document" "github_actions_assume_role" {
+  statement {
+    actions = ["sts:AssumeRoleWithWebIdentity"]
+
+    principals {
+      type        = "Federated"
+      identifiers = [local.github_oidc_provider_arn]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "token.actions.githubusercontent.com:aud"
+      values   = ["sts.amazonaws.com"]
+    }
+
+    # Só main -- nunca PRs/forks/outros branches. Rever se algum dia precisar
+    # publicar a partir de outro branch (ex.: staging).
+    condition {
+      test     = "StringLike"
+      variable = "token.actions.githubusercontent.com:sub"
+      values   = ["repo:${local.github_repo}:ref:refs/heads/main"]
+    }
+  }
+}
+
+resource "aws_iam_role" "github_actions_oidc" {
+  name               = "${var.project_name}-github-actions"
+  assume_role_policy = data.aws_iam_policy_document.github_actions_assume_role.json
+}
+
+data "aws_iam_policy_document" "github_actions_ecr_push" {
+  statement {
+    sid       = "EcrAuth"
+    actions   = ["ecr:GetAuthorizationToken"]
+    resources = ["*"] # exigido pela API do ECR -- não é escopável por recurso
+  }
+
+  statement {
+    sid = "EcrPush"
+    actions = [
+      "ecr:BatchCheckLayerAvailability",
+      "ecr:PutImage",
+      "ecr:InitiateLayerUpload",
+      "ecr:UploadLayerPart",
+      "ecr:CompleteLayerUpload",
+      "ecr:BatchGetImage",
+    ]
+    resources = [for repo in aws_ecr_repository.lambdas : repo.arn]
+  }
+}
+
+resource "aws_iam_role_policy" "github_actions_ecr_push" {
+  name   = "${var.project_name}-github-actions-ecr-push"
+  role   = aws_iam_role.github_actions_oidc.id
+  policy = data.aws_iam_policy_document.github_actions_ecr_push.json
+}
+
+# ── ECR: mantém só as 10 imagens mais recentes por repositório ───────────
+# Necessário porque, sem tag "latest" sobrescrita, cada merge relevante em
+# main gera 4 imagens novas e imutáveis (ADR 0009).
+
+resource "aws_ecr_lifecycle_policy" "lambdas" {
+  for_each = aws_ecr_repository.lambdas
+
+  repository = each.value.name
+
+  policy = jsonencode({
+    rules = [{
+      rulePriority = 1
+      description  = "Manter só as 10 imagens mais recentes"
+      selection = {
+        tagStatus   = "any"
+        countType   = "imageCountMoreThan"
+        countNumber = 10
+      }
+      action = { type = "expire" }
+    }]
+  })
+}
