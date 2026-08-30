@@ -64,6 +64,27 @@ def test_model_topics_com_embedder_fake_encontra_multiplos_topicos():
     assert topics == document_info["Topic"].tolist()
 
 
+def test_model_topics_loga_debug_quando_reduce_topics_e_noop(caplog):
+    """ADR 0012/0015: reduce_topics recalcula a representação mesmo quando
+    não há nada a reduzir -- essa checagem deve ficar visível em DEBUG."""
+    caplog.set_level("DEBUG", logger="src.modeling.topics")
+    docs = _docs_sinteticos()
+    config = TopicModelConfig(
+        hdbscan_min_cluster_size=4,
+        hdbscan_min_samples=2,
+        nr_topics=10,  # acima dos 4 tópicos que os grupos sintéticos produzem -- no-op.
+        calculate_probabilities=False,
+        verbose=False,
+    )
+
+    model_topics(docs, config, embedding_model=_FakeEmbedder())
+
+    mensagens_noop = [
+        r.getMessage() for r in caplog.records if "no-op esperado" in r.getMessage()
+    ]
+    assert len(mensagens_noop) == 1
+
+
 def test_model_topics_retorna_document_info_com_colunas_esperadas():
     docs = _docs_sinteticos()
     config = TopicModelConfig(
