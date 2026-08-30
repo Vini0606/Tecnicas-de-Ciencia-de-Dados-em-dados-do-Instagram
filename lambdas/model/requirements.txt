@@ -1,0 +1,6 @@
+boto3
+pandas
+pyarrow
+deltalake>=1.0
+scikit-learn
+hyperopt

@@ -1,15 +1,22 @@
 locals {
-  # As 3 Lambdas que fazem I/O real no data lake (Bronze/Silver/Gold).
+  # As 3 Lambdas que fazem I/O real no data lake (Bronze/Silver/Gold),
+  # encadeadas automaticamente pela orquestradora.
   data_lambdas = toset(["extract", "transform", "load"])
 
   # Timeout/memória por Lambda -- extract pode demorar dependendo do
   # RESULTS_LIMIT (scraping via Apify); orchestrator precisa cobrir a soma
-  # das 3 etapas, até o teto de 15 min (900s) do Lambda.
+  # das 3 etapas, até o teto de 15 min (900s) do Lambda. `model` (Fase 2 --
+  # clustering de perfil de governador) fica FORA da cadeia da orquestradora
+  # de propósito: modelagem é opt-in, não parte da ingestão obrigatória
+  # (mesmo princípio da modelagem local, ver ADR 0001) -- por isso não conta
+  # pro orçamento de tempo do orchestrator, e não entra em `data_lambdas`/
+  # na policy `invoke_data_lambdas` abaixo.
   lambda_settings = {
     extract      = { timeout = 300, memory = 512 }
     transform    = { timeout = 120, memory = 1024 }
     load         = { timeout = 120, memory = 1024 }
     orchestrator = { timeout = 900, memory = 256 }
+    model        = { timeout = 120, memory = 1024 }
   }
 }
 
@@ -22,7 +29,7 @@ resource "aws_s3_bucket" "data_lake" {
 # ── Repositórios ECR (um por Lambda, incluindo a orquestradora) ──────────
 
 resource "aws_ecr_repository" "lambdas" {
-  for_each = toset(["extract", "transform", "load", "orchestrator"])
+  for_each = toset(["extract", "transform", "load", "orchestrator", "model"])
 
   name         = "${var.project_name}-${each.key}"
   force_delete = true
@@ -122,6 +129,47 @@ resource "aws_lambda_function" "data_lambda" {
       },
       each.key == "extract" ? { APIFY_API_TOKEN = var.apify_api_token } : {}
     )
+  }
+}
+
+# ── IAM: model lê/escreve só na camada Gold do data lake ──────────────────
+# Fora de `data_lambdas` de propósito (ver comentário em `lambda_settings`
+# acima) -- role e Lambda próprios, não entra na cadeia da orquestradora.
+
+resource "aws_iam_role" "model_lambda" {
+  name               = "${var.project_name}-model-role"
+  assume_role_policy = data.aws_iam_policy_document.lambda_assume_role.json
+}
+
+resource "aws_iam_role_policy_attachment" "model_lambda_basic_execution" {
+  role       = aws_iam_role.model_lambda.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+}
+
+resource "aws_iam_role_policy" "model_lambda_s3_access" {
+  name   = "${var.project_name}-model-s3-access"
+  role   = aws_iam_role.model_lambda.id
+  policy = data.aws_iam_policy_document.data_lake_access.json
+}
+
+# ── Lambda: model (clustering de perfil de governador por Engajamento,
+# Fase 2) ──────────────────────────────────────────────────────────────────
+# Invocada manualmente (aws lambda invoke --function-name ...), nunca pela
+# orquestradora -- ver decisão em `lambda_settings`.
+
+resource "aws_lambda_function" "model" {
+  function_name = "${var.project_name}-model"
+  role          = aws_iam_role.model_lambda.arn
+  package_type  = "Image"
+  image_uri     = "${aws_ecr_repository.lambdas["model"].repository_url}:${var.image_tag}"
+  timeout       = local.lambda_settings.model.timeout
+  memory_size   = local.lambda_settings.model.memory
+
+  environment {
+    variables = {
+      S3_BUCKET      = aws_s3_bucket.data_lake.bucket
+      S3_GOLD_PREFIX = "gold/"
+    }
   }
 }
 

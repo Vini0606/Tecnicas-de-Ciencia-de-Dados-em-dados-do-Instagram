@@ -36,6 +36,27 @@ def test_profile_cleaner_adds_fullname_when_missing():
     assert out.loc[0, "fullName"] == "g"
 
 
+def test_profile_cleaner_descarta_linhas_com_id_nulo():
+    """
+    A Apify ocasionalmente retorna um resultado de scrape sem `id` (perfil
+    indisponível/erro parcial). SILVER_PROFILES_SCHEMA exige `id` não nulo --
+    sem descartar essas linhas, a escrita da Silver inteira quebraria.
+    """
+    df = pd.DataFrame(
+        {
+            "id": ["1", None],
+            "username": ["g", "sem_id"],
+            "followersCount": [100, 50],
+            "_ingested_at": pd.to_datetime(["2026-05-01", "2026-05-01"], utc=True),
+            "_run_id": ["r1", "r1"],
+        }
+    )
+    cleaner = ProfileCleaner()
+    out = cleaner.clean(df, run_id="r1")
+    assert len(out) == 1
+    assert out.iloc[0]["id"] == "1"
+
+
 def test_post_cleaner_feed_and_reel():
     df_posts = pd.DataFrame(
         {
@@ -77,6 +98,32 @@ def test_comment_cleaner_explode():
     cc = CommentCleaner()
     out = cc.clean(df_reels)
     assert not out.empty
+
+
+def test_post_cleaner_descarta_linhas_com_id_nulo():
+    """Mesmo cenário de dado sujo do ProfileCleaner (ver teste equivalente),
+    só que para posts/reels: um item sem `id` quebraria SILVER_POSTS_SCHEMA/
+    SILVER_REELS_SCHEMA (id não-nulo) se não fosse descartado antes."""
+    df = pd.DataFrame(
+        {
+            "id": ["p1", None],
+            "ownerId": ["1", "1"],
+            "ownerUsername": ["g", "g"],
+            "commentsCount": [1, 2],
+            "likesCount": [2, 3],
+            "timestamp": ["2026-05-01T00:00:00+00:00", "2026-05-01T00:00:00+00:00"],
+            "_ingested_at": pd.to_datetime(["2026-05-01", "2026-05-01"], utc=True),
+            "_run_id": ["r1", "r1"],
+        }
+    )
+    pc = PostCleaner()
+    outp = pc.clean_posts(df)
+    assert len(outp) == 1
+    assert outp.iloc[0]["id"] == "p1"
+
+    outr = pc.clean_reels(df.assign(latestComments=["[]", "[]"]))
+    assert len(outr) == 1
+    assert outr.iloc[0]["id"] == "p1"
 
 
 def test_post_cleaner_deduplica_execucoes_acumuladas():

@@ -1,14 +1,16 @@
 import os
 
+import pandas as pd
 from apify_client import ApifyClient
 from dotenv import load_dotenv
 
 from config import settings
 from src.data_extract.bronze_writer import BronzeWriter
-from src.data_extract.readers import JsonDataReader
+from src.data_extract.ingestion import extract_and_land
 from src.data_extract.scraper import InstagramScraper, ScraperConfig
 from src.features.gold.engagement_aggregator import EngagementAggregator
 from src.features.silver.comment_cleaner import CommentCleaner
+from src.features.silver.governors_metadata_cleaner import GovernorsMetadataCleaner
 from src.features.silver.post_cleaner import PostCleaner
 from src.features.silver.profile_cleaner import ProfileCleaner
 from src.modeling.config import ModelingConfig
@@ -22,23 +24,6 @@ def _bronze_has_data(bronze: BronzeWriter) -> bool:
         return not df.empty
     except Exception:
         return False
-
-
-def _raw_has_data() -> bool:
-    return all(
-        [
-            settings.PROFILES_JSON.exists(),
-            settings.POSTS_JSON.exists(),
-            settings.REELS_JSON.exists(),
-        ]
-    )
-
-
-def _load_raw_data(reader: JsonDataReader):
-    df_profiles = reader.read(settings.PROFILES_JSON)
-    df_posts = reader.read(settings.POSTS_JSON)
-    df_reels = reader.read(settings.REELS_JSON)
-    return df_profiles, df_posts, df_reels
 
 
 def run_medallion_pipeline(
@@ -56,25 +41,9 @@ def run_medallion_pipeline(
         bronze_posts_path=settings.BRONZE_POSTS,
         bronze_reels_path=settings.BRONZE_REELS,
     )
-    reader = JsonDataReader()
 
     try:
         if not force_extract and _bronze_has_data(bronze):
-            df_profiles = bronze.get_latest_profiles()
-            df_posts = bronze.get_latest_posts()
-            df_reels = bronze.get_latest_reels()
-        elif not force_extract and _raw_has_data():
-            print(
-                "[1/3] BRONZE: Usando dados JSON locais existentes e migrando para Bronze..."
-            )
-            df_profiles, df_posts, df_reels = _load_raw_data(reader)
-            bronze.write_profiles(df_profiles.to_dict(orient="records"), run_id=run_id)
-            bronze.write_posts(df_posts.to_dict(orient="records"), run_id=run_id)
-            bronze.write_reels(df_reels.to_dict(orient="records"), run_id=run_id)
-
-            # Relê da Bronze para que as camadas seguintes recebam os
-            # metadados de linhagem (_ingested_at, _run_id, _source), que os
-            # DataFrames lidos direto do JSON não possuem.
             df_profiles = bronze.get_latest_profiles()
             df_posts = bronze.get_latest_posts()
             df_reels = bronze.get_latest_reels()
@@ -88,13 +57,7 @@ def run_medallion_pipeline(
                 client=ApifyClient(apify_api_token),
                 config=ScraperConfig(results_limit=results_limit),
             )
-            profiles = scraper.scrape_profiles(links)
-            posts = scraper.scrape_posts(links)
-            reels = scraper.scrape_reels(links)
-
-            bronze.write_profiles(profiles, run_id=run_id)
-            bronze.write_posts(posts, run_id=run_id)
-            bronze.write_reels(reels, run_id=run_id)
+            extract_and_land(scraper, bronze, settings.LANDING_DIR, links, run_id=run_id)
 
             df_profiles = bronze.get_latest_profiles()
             df_posts = bronze.get_latest_posts()
@@ -117,6 +80,16 @@ def run_medallion_pipeline(
         post_cleaner.write_posts(df_posts_silver, settings.SILVER_POSTS)
         post_cleaner.write_reels(df_reels_silver, settings.SILVER_REELS)
         comment_cleaner.write(df_comments_silver, settings.SILVER_COMMENTS)
+
+        # Dimensão de metadados dos governadores (nome/UF/partido), ingerida
+        # de `governadores.xlsx` -- não vem do scraper, então não passa por
+        # Bronze (ver decisão de design: planilha mantida manualmente, já
+        # relativamente limpa de origem, não precisa do estágio de proteção
+        # contra reprocessamento que a Bronze existe para dar aos dados do Apify).
+        governors_cleaner = GovernorsMetadataCleaner()
+        df_governors_raw = pd.read_excel(settings.GOVERNADORES_FILE)
+        df_governors_silver = governors_cleaner.clean(df_governors_raw, run_id)
+        governors_cleaner.write(df_governors_silver, settings.SILVER_GOVERNORS_METADATA)
     except Exception as e:
         raise RuntimeError(
             f"[SILVER] Falha na limpeza e conformação dos dados: {e}"
@@ -156,7 +129,6 @@ if __name__ == "__main__":
     import argparse
 
     load_dotenv()
-    import pandas as pd
 
     parser = argparse.ArgumentParser(description="Roda o pipeline Medallion (Bronze/Silver/Gold).")
     parser.add_argument(

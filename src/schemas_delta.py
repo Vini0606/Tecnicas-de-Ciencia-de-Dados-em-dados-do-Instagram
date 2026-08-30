@@ -153,6 +153,18 @@ SILVER_COMMENTS_SCHEMA = pa.schema(
     ]
 )
 
+SILVER_GOVERNORS_METADATA_SCHEMA = pa.schema(
+    [
+        pa.field("inputUrl", pa.string(), nullable=False),
+        pa.field("nome", pa.string(), nullable=False),
+        pa.field("uf", pa.string(), nullable=True),
+        pa.field("partido", pa.string(), nullable=True),
+        pa.field("_ingested_at", pa.timestamp("us", tz="UTC"), nullable=False),
+        pa.field("_run_id", pa.string(), nullable=False),
+        pa.field("_source_layer", pa.string(), nullable=False),
+    ]
+)
+
 # GOLD
 GOLD_ENGAGEMENT_SCHEMA = pa.schema(
     [
@@ -200,6 +212,22 @@ GOLD_CLUSTERS_SCHEMA = pa.schema(
     [
         pa.field("id_reel", pa.string(), nullable=False),
         pa.field("ownerUsername", pa.string(), nullable=False),
+        pa.field("cluster_label", pa.int64(), nullable=False),
+        pa.field("cluster_algo", pa.string(), nullable=False),
+        pa.field("cluster_score", pa.float64(), nullable=True),
+        pa.field("_run_id", pa.string(), nullable=False),
+        pa.field("_generated_at", pa.timestamp("us", tz="UTC"), nullable=False),
+    ]
+)
+
+# Clusterização de PERFIL de governador (Fase 2, por Engajamento) -- 1 linha
+# por governador, não por reel. Tabela separada de GOLD_CLUSTERS_SCHEMA de
+# propósito (ver ADR 0004/0005: não generalizar schema até existir motivo
+# real) -- futuros tipos (sentimento, tópico) ganham cada um sua própria
+# tabela/schema, em vez de uma coluna "cluster_type" genérica aqui.
+GOLD_PROFILE_CLUSTERS_ENGAGEMENT_SCHEMA = pa.schema(
+    [
+        pa.field("inputUrl", pa.string(), nullable=False),
         pa.field("cluster_label", pa.int64(), nullable=False),
         pa.field("cluster_algo", pa.string(), nullable=False),
         pa.field("cluster_score", pa.float64(), nullable=True),

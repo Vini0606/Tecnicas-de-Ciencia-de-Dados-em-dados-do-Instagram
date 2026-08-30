@@ -45,3 +45,19 @@ def load_clusters() -> pd.DataFrame:
         return get_delta_repository().load_clusters()
     except FileNotFoundError:
         return pd.DataFrame()
+
+
+@st.cache_data
+def load_governors_metadata() -> pd.DataFrame:
+    try:
+        return get_delta_repository().load_governors_metadata()
+    except FileNotFoundError:
+        return pd.DataFrame()
+
+
+@st.cache_data
+def load_profile_clusters_engagement() -> pd.DataFrame:
+    try:
+        return get_delta_repository().load_profile_clusters_engagement()
+    except FileNotFoundError:
+        return pd.DataFrame()

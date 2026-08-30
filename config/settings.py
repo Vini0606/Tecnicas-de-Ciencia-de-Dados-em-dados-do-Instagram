@@ -9,17 +9,15 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 # Diretórios de dados (podem ser sobrescritos por variáveis de ambiente)
 DATA_DIR = Path(os.environ.get("DATA_DIR", PROJECT_ROOT / "data"))
 RAW_DATA_DIR = DATA_DIR / "raw"
-PROCESSED_DATA_DIR = DATA_DIR / "processed"
+
+# Dado de referência mantido manualmente (não gerado pelo pipeline, por isso
+# fora de data/ -- essa árvore é ignorada/efêmera; ver ADR 0013).
+REFERENCE_DIR = PROJECT_ROOT / "reference"
 
 # Arquivos principais
 GOVERNADORES_FILE = Path(
-    os.environ.get("GOVERNADORES_FILE", RAW_DATA_DIR / "governadores.xlsx")
+    os.environ.get("GOVERNADORES_FILE", REFERENCE_DIR / "governadores.xlsx")
 )
-PROFILES_JSON = Path(os.environ.get("PROFILES_JSON", RAW_DATA_DIR / "profiles.json"))
-POSTS_JSON = Path(os.environ.get("POSTS_JSON", RAW_DATA_DIR / "posts.json"))
-REELS_JSON = Path(os.environ.get("REELS_JSON", RAW_DATA_DIR / "reels.json"))
-# Legacy Excel path used only for historic notebooks and backward compatibility.
-ALL_XLSX = Path(os.environ.get("ALL_XLSX", PROCESSED_DATA_DIR / "all.xlsx"))
 
 # Parâmetros de execução
 RANDOM_STATE = int(os.environ.get("RANDOM_STATE", 42))
@@ -35,6 +33,11 @@ TEXT_COLUMN = os.environ.get("TEXT_COLUMN", "text")
 DATE_COLUMN = os.environ.get("DATE_COLUMN", "timestamp")
 LINK_COLUMN = os.environ.get("LINK_COLUMN", "Link")
 
+# Landing zone: JSON bruto por entidade/run_id, sem schema, anterior à
+# Bronze — arquiva fidelidade total contra a Bronze descartar campos fora
+# do seu schema fixo (ver ADR 0011, decisão 1).
+LANDING_DIR = DATA_DIR / "landing"
+
 # ── Caminhos Medallion (Bronze / Silver / Gold)
 BRONZE_DIR = DATA_DIR / "bronze"
 BRONZE_PROFILES = BRONZE_DIR / "instagram_profiles"
@@ -46,11 +49,13 @@ SILVER_PROFILES = SILVER_DIR / "profiles_clean"
 SILVER_POSTS = SILVER_DIR / "posts_clean"
 SILVER_REELS = SILVER_DIR / "reels_clean"
 SILVER_COMMENTS = SILVER_DIR / "comments_clean"
+SILVER_GOVERNORS_METADATA = SILVER_DIR / "governors_metadata"
 
 GOLD_DIR = DATA_DIR / "gold"
 GOLD_ENGAGEMENT = GOLD_DIR / "governor_engagement"
 GOLD_SENTIMENT = GOLD_DIR / "governor_sentiment"
 GOLD_CLUSTERS = GOLD_DIR / "governor_clusters"
+GOLD_PROFILE_CLUSTERS_ENGAGEMENT = GOLD_DIR / "governor_profile_clusters_engagement"
 
 # Checkpoints locais do estágio determinístico de modelagem (ver ADR 0003) —
 # não são Delta, ficam fora do git.

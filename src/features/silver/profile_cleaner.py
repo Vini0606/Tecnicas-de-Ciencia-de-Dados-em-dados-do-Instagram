@@ -37,6 +37,14 @@ class ProfileCleaner:
 
     def clean(self, df_bronze: pd.DataFrame, run_id: str) -> pd.DataFrame:
         df = df_bronze.copy()
+
+        # Apify ocasionalmente retorna um resultado de scrape sem `id` (perfil
+        # indisponível/erro parcial) -- SILVER_PROFILES_SCHEMA exige `id` não
+        # nulo, então uma linha assim quebraria a escrita da Silver inteira
+        # em vez de só descartar o registro inválido.
+        if "id" in df.columns:
+            df = df[df["id"].notna()]
+
         cols_to_drop = [c for c in self.COLUMNS_TO_DROP if c in df.columns]
         if cols_to_drop:
             df = df.drop(columns=cols_to_drop)

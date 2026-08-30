@@ -3,12 +3,26 @@
 import os
 import sys
 
+import pandas as pd
 import streamlit as st
 
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if ROOT_DIR not in sys.path:
     sys.path.insert(0, ROOT_DIR)
 
+from src.dashboard.filters import (
+    TODOS_GOVERNADORES,
+    apply_group_filters,
+    build_cluster_membership,
+    build_governor_directory,
+    build_profile_cluster_directory,
+    enrich_with_governor_metadata,
+    enrich_with_profile_cluster,
+    render_governor_selector,
+    render_group_filters,
+    render_unmatched_warning,
+    select_governor_rows,
+)
 from src.dashboard.loaders import load_clusters, load_comments, load_reels
 from src.visualization.charts import plot_top_n_bar, plot_value_counts
 
@@ -26,15 +40,44 @@ tem_modelagem = "sentiment_label" in df_comments.columns
 # --- BARRA LATERAL (SIDEBAR) PARA FILTROS ---
 st.sidebar.header("Filtros do Dashboard")
 
-governador_selecionado = st.sidebar.selectbox(
-    "Selecione o Governador:",
-    options=df_comments["inputUrl"].dropna().unique(),
+governor_directory = build_governor_directory()
+cluster_membership = build_cluster_membership()
+profile_cluster_directory = build_profile_cluster_directory()
+filters = render_group_filters(governor_directory, cluster_membership, profile_cluster_directory)
+
+# O universo de opções do seletor vem do próprio inputUrl de df_comments (não
+# do xlsx) -- governor_sentiment/reels_clean gravam a URL sem barra final,
+# governors_metadata (xlsx) grava com barra final; usar o valor do xlsx aqui
+# faria `select_governor_rows` abaixo nunca encontrar nada. nome/uf/regiao/
+# partido/cluster_perfil_engajamento continuam vindo do xlsx/Gold, só que via
+# join normalizado.
+governor_universe = df_comments[["inputUrl"]].dropna().drop_duplicates()
+governor_universe_enriched = enrich_with_governor_metadata(governor_universe)
+governor_universe_enriched = enrich_with_profile_cluster(governor_universe_enriched)
+render_unmatched_warning(governor_universe_enriched)
+governor_universe_filtrado = apply_group_filters(
+    governor_universe_enriched, filters, cluster_membership
 )
 
-# --- APLICAÇÃO DOS FILTROS NO DATAFRAME ---
-df_filtrado_comments = df_comments.query("inputUrl == @governador_selecionado")
+st.sidebar.markdown("---")
+governador_selecionado = render_governor_selector(
+    governor_universe_filtrado,
+    directory_exists=not governor_directory.empty,
+    fallback_urls=df_comments["inputUrl"].dropna().unique().tolist(),
+)
 
-df_filtrado_reels = df_reels.query("inputUrl == @governador_selecionado")
+if governador_selecionado is None:
+    st.stop()
+
+# --- APLICAÇÃO DOS FILTROS NO DATAFRAME ---
+# inputUrl comparado normalizado (não `==`/`.query` direto) -- reels_clean e
+# governor_sentiment vêm do mesmo df_reels bruto sem transformação de URL
+# entre os dois, então hoje coincidem byte-a-byte, mas isso não é uma garantia
+# formal do pipeline, e já houve um bug real de formatação de URL divergente
+# entre tabelas nesta branch (ver governor_engagement vs reels_clean).
+universo_ativo = governor_universe_filtrado["inputUrl"].tolist()
+df_filtrado_comments = select_governor_rows(df_comments, governador_selecionado, universo_ativo)
+df_filtrado_reels = select_governor_rows(df_reels, governador_selecionado, universo_ativo)
 
 # --- PÁGINA PRINCIPAL ---
 st.title("📊 Comentários dos Governadores do Brasil")
@@ -70,6 +113,25 @@ else:
                 title="Top 10 Reels por Engajamento",
                 top_n=10,
             ),
+            width="stretch",
+        )
+
+        df_links = (
+            df_plot.dropna(subset=["shortCode"])
+            .sort_values("Total de Engajamento", ascending=False)
+            .head(10)
+            .copy()
+        )
+        df_links["Link"] = "https://www.instagram.com/reel/" + df_links["shortCode"] + "/"
+        st.dataframe(
+            df_links[["shortCode", "Total de Engajamento", "Link"]],
+            column_config={
+                "shortCode": "Código do Reel",
+                "Link": st.column_config.LinkColumn(
+                    "Link", display_text="Abrir no Instagram"
+                ),
+            },
+            hide_index=True,
             width="stretch",
         )
 
@@ -127,6 +189,28 @@ else:
                 .agg(qtd_reels=("id_reel", "nunique"), algoritmo=("cluster_algo", "first"))
                 .reset_index()
             )
+
+    st.markdown("#### Cluster de Perfil por Engajamento (Fase 2)")
+    if profile_cluster_directory.empty:
+        st.info(
+            "`governor_profile_clusters_engagement` ainda não existe. "
+            "Rode `scripts/run_profile_clustering_engagement.py` para gerá-la."
+        )
+    elif governador_selecionado == TODOS_GOVERNADORES:
+        st.dataframe(
+            governor_universe_filtrado.groupby("cluster_perfil_engajamento")
+            .agg(qtd_governadores=("inputUrl", "nunique"))
+            .reset_index()
+        )
+    else:
+        linha = governor_universe_filtrado.loc[
+            governor_universe_filtrado["inputUrl"] == governador_selecionado
+        ]
+        cluster_valor = linha["cluster_perfil_engajamento"].iloc[0] if not linha.empty else None
+        if cluster_valor is None or pd.isna(cluster_valor):
+            st.info("Este governador não tem cluster de perfil atribuído.")
+        else:
+            st.metric("Cluster de Perfil", int(cluster_valor))
 
 # Para mostrar os dados brutos (opcional)
 if st.checkbox("Mostrar dados brutos filtrados"):

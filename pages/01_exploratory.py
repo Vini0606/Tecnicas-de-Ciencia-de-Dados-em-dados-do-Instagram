@@ -11,6 +11,16 @@ ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if ROOT_DIR not in sys.path:
     sys.path.insert(0, ROOT_DIR)
 
+from src.dashboard.filters import (
+    apply_group_filters,
+    build_cluster_membership,
+    build_governor_directory,
+    build_profile_cluster_directory,
+    enrich_with_governor_metadata,
+    enrich_with_profile_cluster,
+    render_group_filters,
+    render_unmatched_warning,
+)
 from src.dashboard.loaders import load_profiles
 from src.visualization.charts import (
     plot_correlation_heatmap,
@@ -26,7 +36,19 @@ st.set_page_config(
 )
 
 
-df_profiles = load_profiles()
+governor_directory = build_governor_directory()
+cluster_membership = build_cluster_membership()
+profile_cluster_directory = build_profile_cluster_directory()
+filters = render_group_filters(governor_directory, cluster_membership, profile_cluster_directory)
+
+df_profiles_enriched = enrich_with_governor_metadata(load_profiles())
+df_profiles_enriched = enrich_with_profile_cluster(df_profiles_enriched)
+render_unmatched_warning(df_profiles_enriched)
+df_profiles = apply_group_filters(df_profiles_enriched, filters, cluster_membership)
+
+if df_profiles.empty:
+    st.warning("Nenhum governador corresponde aos filtros de grupo selecionados.")
+    st.stop()
 
 
 def media(df: pd.DataFrame, coluna: str) -> float:
@@ -161,29 +183,29 @@ else:
         )
         st.stop()  # Interrompe a execução do script se não houver colunas suficientes
 
-    # Cria três colunas para organizar os widgets de seleção lado a lado
-    col1, col2 = st.columns(2)
+    # Gráfico à esquerda (75%), seletores de eixo à direita (25%)
+    col_scatter, col_selectors = st.columns([3, 1])
 
-    with col1:
+    with col_selectors:
         # Widget para selecionar a variável do Eixo X
         x_axis = st.selectbox(
-            "Selecione a variável para o Eixo X:",
+            "Eixo X:",
             options=numeric_cols,
             index=0,  # Define a primeira coluna numérica como padrão
         )
 
-    with col2:
         # Widget para selecionar a variável do Eixo Y
         y_axis = st.selectbox(
-            "Selecione a variável para o Eixo Y:",
+            "Eixo Y:",
             options=numeric_cols,
             index=1,  # Define a segunda coluna numérica como padrão
         )
 
-    # Gera o gráfico apenas se as variáveis dos eixos foram selecionadas
-    if x_axis and y_axis:
-        with st.spinner("Gerando seu gráfico..."):
-            fig = plot_scatter(df_profiles, x=x_axis, y=y_axis, height=1000, width=1000)
-            st.plotly_chart(fig, use_container_width=True)
-    else:
-        st.warning("Por favor, selecione as variáveis para os eixos X e Y.")
+    with col_scatter:
+        # Gera o gráfico apenas se as variáveis dos eixos foram selecionadas
+        if x_axis and y_axis:
+            with st.spinner("Gerando seu gráfico..."):
+                fig = plot_scatter(df_profiles, x=x_axis, y=y_axis, height=500)
+                st.plotly_chart(fig, use_container_width=True)
+        else:
+            st.warning("Por favor, selecione as variáveis para os eixos X e Y.")
