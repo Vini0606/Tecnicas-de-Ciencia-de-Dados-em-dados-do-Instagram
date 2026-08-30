@@ -55,9 +55,9 @@ def test_extract_handler(monkeypatch, tmp_path):
     assert resp["statusCode"] == 200
     body = json.loads(resp["body"])
     assert body == {"run_id": "test-run", "profiles": 1, "posts": 1, "reels": 2}
-    assert (tmp_path / "landing" / "profiles" / "test-run.json").exists()
-    assert (tmp_path / "landing" / "posts" / "test-run.json").exists()
-    assert (tmp_path / "landing" / "reels" / "test-run.json").exists()
+    assert (tmp_path / "landing" / "test-run" / "profiles.json").exists()
+    assert (tmp_path / "landing" / "test-run" / "posts.json").exists()
+    assert (tmp_path / "landing" / "test-run" / "reels.json").exists()
 
 
 def test_extract_handler_gera_run_id_quando_ausente(monkeypatch, tmp_path):

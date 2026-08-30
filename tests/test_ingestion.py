@@ -44,7 +44,7 @@ class _OrderCheckingBronzeWriter:
         self.write_order = []
 
     def _assert_archived(self, entity, run_id):
-        assert (self.landing_dir / entity / f"{run_id}.json").exists(), (
+        assert (self.landing_dir / run_id / f"{entity}.json").exists(), (
             f"{entity} foi escrito na Bronze antes de ser arquivado na landing zone"
         )
 
@@ -61,10 +61,10 @@ class _OrderCheckingBronzeWriter:
         self.write_order.append("reels")
 
 
-def test_archive_raw_json_grava_json_bruto_por_entidade_e_run_id(tmp_path):
+def test_archive_raw_json_grava_json_bruto_por_run_id_e_entidade(tmp_path):
     path = archive_raw_json(tmp_path, "posts", [{"id": "p1"}], run_id="run_1")
 
-    assert path == tmp_path / "posts" / "run_1.json"
+    assert path == tmp_path / "run_1" / "posts.json"
     assert path.exists()
     assert '"id": "p1"' in path.read_text(encoding="utf-8")
 
@@ -79,9 +79,9 @@ def test_extract_and_land_arquiva_e_escreve_as_tres_entidades_sob_o_mesmo_run_id
 
     assert {kind for kind, _, _ in bronze.calls} == {"profiles", "posts", "reels"}
     assert all(run_id == "run_fixo" for _, _, run_id in bronze.calls)
-    assert (tmp_path / "profiles" / "run_fixo.json").exists()
-    assert (tmp_path / "posts" / "run_fixo.json").exists()
-    assert (tmp_path / "reels" / "run_fixo.json").exists()
+    assert (tmp_path / "run_fixo" / "profiles.json").exists()
+    assert (tmp_path / "run_fixo" / "posts.json").exists()
+    assert (tmp_path / "run_fixo" / "reels.json").exists()
     assert result["profiles"][0]["username"] == "gov1"
     assert result["posts"][0]["id"] == "p1"
     assert result["reels"][0]["id"] == "r1"
@@ -138,6 +138,6 @@ def test_extract_and_land_preserva_o_arquivado_mesmo_se_a_bronze_falhar(tmp_path
     with pytest.raises(RuntimeError, match="falha simulada"):
         extract_and_land(scraper, bronze, tmp_path, links=["l"], run_id="run_1")
 
-    assert (tmp_path / "profiles" / "run_1.json").exists()
-    assert (tmp_path / "posts" / "run_1.json").exists()
-    assert (tmp_path / "reels" / "run_1.json").exists()
+    assert (tmp_path / "run_1" / "profiles.json").exists()
+    assert (tmp_path / "run_1" / "posts.json").exists()
+    assert (tmp_path / "run_1" / "reels.json").exists()

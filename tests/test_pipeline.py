@@ -168,6 +168,6 @@ def test_run_medallion_pipeline_branch_de_extracao_usa_extract_and_land(
 
     assert {kind for kind, _, _ in bronze_calls} == {"profiles", "posts", "reels"}
     assert all(run_id == "run_extract" for _, _, run_id in bronze_calls)
-    assert (tmp_path / "landing" / "profiles" / "run_extract.json").exists()
-    assert (tmp_path / "landing" / "posts" / "run_extract.json").exists()
-    assert (tmp_path / "landing" / "reels" / "run_extract.json").exists()
+    assert (tmp_path / "landing" / "run_extract" / "profiles.json").exists()
+    assert (tmp_path / "landing" / "run_extract" / "posts.json").exists()
+    assert (tmp_path / "landing" / "run_extract" / "reels.json").exists()
