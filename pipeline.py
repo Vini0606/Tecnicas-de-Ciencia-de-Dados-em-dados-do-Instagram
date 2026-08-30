@@ -1,10 +1,12 @@
 import os
+from typing import Callable
 
 import pandas as pd
 from apify_client import ApifyClient
 from dotenv import load_dotenv
 
 from config import settings
+from scripts.apify_backfill_shared import estimate_cost_usd_for_results_limit
 from src.data_extract.bronze_writer import BronzeWriter
 from src.data_extract.ingestion import extract_and_land
 from src.data_extract.scraper import InstagramScraper, ScraperConfig
@@ -33,6 +35,7 @@ def run_medallion_pipeline(
     run_id: str | None = None,
     force_extract: bool = False,
     run_modeling: bool = False,
+    confirm_extraction: Callable[[float], bool] | None = None,
 ) -> str:
     run_id = build_run_id(run_id)
 
@@ -52,6 +55,12 @@ def run_medallion_pipeline(
                 raise ValueError(
                     "APIFY_API_TOKEN não fornecido e não há dados brutos locais."
                 )
+            if confirm_extraction is not None:
+                estimated_cost = estimate_cost_usd_for_results_limit(
+                    results_limit, len(links)
+                )
+                if not confirm_extraction(estimated_cost):
+                    raise SystemExit(1)
             print("[1/3] BRONZE: Extraindo dados brutos...")
             scraper = InstagramScraper(
                 client=ApifyClient(apify_api_token),
@@ -140,6 +149,16 @@ if __name__ == "__main__":
             "refinamento via Gemini nunca roda daqui -- ver scripts/refine_topics.py."
         ),
     )
+    parser.add_argument(
+        "--yes",
+        action="store_true",
+        help=(
+            "Confirma uma extracao real na Apify (custo real), caso nao haja "
+            "Bronze/raw local em cache. Obrigatorio so quando o cache esta "
+            "vazio -- se a Bronze ja tem dado, o pipeline reusa e nao pede "
+            "confirmacao."
+        ),
+    )
     args = parser.parse_args()
 
     df_gov = pd.read_excel(settings.GOVERNADORES_FILE)
@@ -147,11 +166,24 @@ if __name__ == "__main__":
     token = os.getenv("APIFY_API_TOKEN")
     links = list(df_gov[settings.LINK_COLUMN].str.strip().unique())
 
+    def _confirm_extraction(estimated_cost: float) -> bool:
+        if args.yes:
+            return True
+        print(
+            f"[ABORTADO] Nao ha Bronze/raw local em cache -- rodar agora "
+            f"dispararia uma extracao real na Apify (~${estimated_cost} "
+            f"estimado no pior caso para {len(links)} governadores, "
+            f"resultsLimit={settings.RESULTS_LIMIT}, sem janela de data). "
+            "Rode de novo com --yes para confirmar."
+        )
+        return False
+
     run_id = run_medallion_pipeline(
         apify_api_token=token,
         links=links,
         results_limit=settings.RESULTS_LIMIT,
         run_modeling=args.run_modeling,
+        confirm_extraction=_confirm_extraction,
     )
     # Sem emoji: o console padrão do Windows usa cp1252 e levanta
     # UnicodeEncodeError ao imprimi-los.
