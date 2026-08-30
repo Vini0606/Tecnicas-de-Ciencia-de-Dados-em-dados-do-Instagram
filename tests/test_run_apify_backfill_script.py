@@ -48,7 +48,8 @@ def _patch_backfill_dependencies(monkeypatch, tmp_path, scraper_class=_FakeInsta
     monkeypatch.setattr(
         "scripts.run_apify_backfill.load_links", lambda: ["https://instagram.com/gov1"]
     )
-    monkeypatch.setattr("scripts.run_apify_backfill.BACKFILL_REPORT_DIR", tmp_path)
+    monkeypatch.setattr("scripts.run_apify_backfill.BACKFILL_REPORT_DIR", tmp_path / "backfill")
+    monkeypatch.setattr("scripts.run_apify_backfill.settings.LANDING_DIR", tmp_path / "landing")
     return calls
 
 
@@ -85,7 +86,7 @@ def test_run_nao_grava_json_bruto_de_itens_so_o_relatorio(monkeypatch, tmp_path)
 
     backfill_script.run(apify_api_token="token", days=90, results_limit=1000)
 
-    files = list(tmp_path.iterdir())
+    files = list((tmp_path / "backfill").iterdir())
     assert len(files) == 1
     assert files[0].name.startswith("backfill_report_")
 

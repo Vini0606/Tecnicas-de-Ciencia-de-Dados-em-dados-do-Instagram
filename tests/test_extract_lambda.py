@@ -19,7 +19,7 @@ def _fake_bronze_writer_class():
     return FakeBronzeWriter
 
 
-def _patch_extract_dependencies(monkeypatch, profiles, posts, reels):
+def _patch_extract_dependencies(monkeypatch, tmp_path, profiles, posts, reels):
     fake_scraper = MagicMock()
     fake_scraper.scrape_profiles.return_value = profiles
     fake_scraper.scrape_posts.return_value = posts
@@ -31,16 +31,21 @@ def _patch_extract_dependencies(monkeypatch, profiles, posts, reels):
         lambda client, config: fake_scraper,
     )
     monkeypatch.setattr("lambdas.extract.handler.BronzeWriter", _fake_bronze_writer_class())
+    monkeypatch.setattr("lambdas.extract.handler.LANDING_DIR", tmp_path / "landing")
     return fake_scraper
 
 
-def test_extract_handler(monkeypatch):
+def test_extract_handler(monkeypatch, tmp_path):
     from lambdas.extract import handler as extract_handler
 
     monkeypatch.setenv("APIFY_API_TOKEN", "token")
     monkeypatch.setenv("S3_BUCKET", "dummy-bucket")
     _patch_extract_dependencies(
-        monkeypatch, profiles=[{"id": "1"}], posts=[{"id": "1"}], reels=[{"id": "1"}, {"id": "2"}]
+        monkeypatch,
+        tmp_path,
+        profiles=[{"id": "1"}],
+        posts=[{"id": "1"}],
+        reels=[{"id": "1"}, {"id": "2"}],
     )
 
     resp = extract_handler.handler(
@@ -50,14 +55,17 @@ def test_extract_handler(monkeypatch):
     assert resp["statusCode"] == 200
     body = json.loads(resp["body"])
     assert body == {"run_id": "test-run", "profiles": 1, "posts": 1, "reels": 2}
+    assert (tmp_path / "landing" / "profiles" / "test-run.json").exists()
+    assert (tmp_path / "landing" / "posts" / "test-run.json").exists()
+    assert (tmp_path / "landing" / "reels" / "test-run.json").exists()
 
 
-def test_extract_handler_gera_run_id_quando_ausente(monkeypatch):
+def test_extract_handler_gera_run_id_quando_ausente(monkeypatch, tmp_path):
     from lambdas.extract import handler as extract_handler
 
     monkeypatch.setenv("APIFY_API_TOKEN", "token")
     monkeypatch.setenv("S3_BUCKET", "dummy-bucket")
-    _patch_extract_dependencies(monkeypatch, profiles=[], posts=[], reels=[])
+    _patch_extract_dependencies(monkeypatch, tmp_path, profiles=[], posts=[], reels=[])
 
     resp = extract_handler.handler({"links": ["https://www.instagram.com/exemplo/"]}, {})
 

@@ -35,6 +35,11 @@ TEXT_COLUMN = os.environ.get("TEXT_COLUMN", "text")
 DATE_COLUMN = os.environ.get("DATE_COLUMN", "timestamp")
 LINK_COLUMN = os.environ.get("LINK_COLUMN", "Link")
 
+# Landing zone: JSON bruto por entidade/run_id, sem schema, anterior a
+# Bronze -- arquiva fidelidade total contra a Bronze descartar campos fora
+# do seu schema fixo (ver ADR 0011, decisao 1).
+LANDING_DIR = DATA_DIR / "landing"
+
 # ── Caminhos Medallion (Bronze / Silver / Gold)
 BRONZE_DIR = DATA_DIR / "bronze"
 BRONZE_PROFILES = BRONZE_DIR / "instagram_profiles"

@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 
 from config import settings
 from src.data_extract.bronze_writer import BronzeWriter
+from src.data_extract.ingestion import extract_and_land
 from src.data_extract.readers import JsonDataReader
 from src.data_extract.scraper import InstagramScraper, ScraperConfig
 from src.features.gold.engagement_aggregator import EngagementAggregator
@@ -90,13 +91,7 @@ def run_medallion_pipeline(
                 client=ApifyClient(apify_api_token),
                 config=ScraperConfig(results_limit=results_limit),
             )
-            profiles = scraper.scrape_profiles(links)
-            posts = scraper.scrape_posts(links)
-            reels = scraper.scrape_reels(links)
-
-            bronze.write_profiles(profiles, run_id=run_id)
-            bronze.write_posts(posts, run_id=run_id)
-            bronze.write_reels(reels, run_id=run_id)
+            extract_and_land(scraper, bronze, settings.LANDING_DIR, links, run_id=run_id)
 
             df_profiles = bronze.get_latest_profiles()
             df_posts = bronze.get_latest_posts()
