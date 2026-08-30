@@ -37,6 +37,12 @@ data/model_checkpoints/
 !data/silver/**/.gitkeep
 !data/gold/**/.gitkeep
 
+# Landing zone (JSON bruto por run_id, ver ADR 0011/0014) e artefatos dos
+# scripts de extracao/calibracao Apify -- nunca gerados em git, so em disco.
+data/landing/
+data/backfill/
+data/calibration/
+
 # Backup local de data/ antes de simular ambiente limpo (issue #33) -- nunca
 # deve ser versionado, mesmo que criado fora de data/.
 data_backup_*/

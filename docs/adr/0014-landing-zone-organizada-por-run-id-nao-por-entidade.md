@@ -41,6 +41,13 @@ acumular uma mistura de pastas ordenáveis cronologicamente por nome e pastas qu
 problema de usabilidade que motivou esta ADR. `run_apify_backfill.py` passa a usar `build_run_id()`
 também, unificando o formato em todos os pontos de entrada que escrevem na landing zone.
 
+Também corrige uma lacuna de `.gitignore` encontrada na mesma investigação: `data/landing/`,
+`data/backfill/` (relatórios de `run_apify_backfill.py`) e `data/calibration/` (saída de
+`run_apify_calibration_test.py`) nunca tinham entrada própria no `.gitignore` -- ao contrário de
+`data/raw/`, `data/bronze/`, `data/silver/`, `data/gold/` e `data/model_checkpoints/`, que já eram
+ignoradas. Isso não tinha causado problema até agora porque nenhuma execução real desses scripts
+tinha gerado dado de verdade para vazar. As três entradas são adicionadas ao `.gitignore` nesta ADR.
+
 ## Por que
 
 **Apagar/arquivar por execução é a necessidade real, e só o layout novo resolve isso.** Cruzar por
@@ -79,3 +86,4 @@ não há assimetria real entre os dois esquemas para leitura/correlação, só p
 - `scripts/run_apify_backfill.py` passa a importar `build_run_id` de `src/run_id.py` em vez de
   `uuid` diretamente. O `run_id` do teste E2E da ADR 0012 (`a8f36a6f-...`, sem timestamp) fica como
   o único exemplo do formato antigo -- não é migrado, mesmo raciocínio do item acima.
+- `.gitignore` ganha `data/landing/`, `data/backfill/` e `data/calibration/`.
