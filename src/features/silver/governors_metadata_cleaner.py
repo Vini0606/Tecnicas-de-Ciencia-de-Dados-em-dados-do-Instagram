@@ -9,6 +9,7 @@ o dashboard (nome/UF/partido) em vez de ler a planilha bruta a cada carregamento
 from __future__ import annotations
 
 from pathlib import Path
+from typing import ClassVar
 
 import pandas as pd
 
@@ -17,7 +18,7 @@ from src.schemas_delta import SILVER_GOVERNORS_METADATA_SCHEMA
 
 
 class GovernorsMetadataCleaner:
-    COLUMN_MAP: dict[str, str] = {
+    COLUMN_MAP: ClassVar[dict[str, str]] = {
         "Governador": "nome",
         "Unidade Federativa": "uf",
         "Partido": "partido",

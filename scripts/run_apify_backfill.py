@@ -10,11 +10,13 @@ no teste de calibracao. --days e obrigatorio (sem default) para forcar uma
 escolha explicita a cada execucao -- nao existe "janela segura" default pra
 uma operacao que grava em producao.
 
-So faz a extracao (profiles + posts + reels sob o mesmo run_id, igual ao
-branch de extracao do `pipeline.py`) -- NAO roda Silver/Gold. Depois de
-rodar este script, execute `uv run python pipeline.py` normalmente: ele
-detecta a Bronze ja preenchida (`_bronze_has_data`) e cascateia Silver/Gold
-a partir dela, sem reextrair.
+So faz a extracao (profiles + posts + reels sob o mesmo run_id, via
+`src.data_extract.ingestion.extract_and_land` -- o mesmo ponto compartilhado
+que o branch de extracao do `pipeline.py` usa, que tambem arquiva o JSON
+bruto na landing zone antes de escrever na Bronze, ver ADR 0011) -- NAO roda
+Silver/Gold. Depois de rodar este script, execute `uv run python
+pipeline.py` normalmente: ele detecta a Bronze ja preenchida
+(`_bronze_has_data`) e cascateia Silver/Gold a partir dela, sem reextrair.
 
 NAO roda no import -- so via `uv run python scripts/run_apify_backfill.py
 --days N --yes`, disparado manualmente. Gera custo real na conta Apify.
@@ -48,6 +50,7 @@ from scripts.apify_backfill_shared import (
     project_backfill_costs,
 )
 from src.data_extract.bronze_writer import BronzeWriter
+from src.data_extract.ingestion import extract_and_land
 from src.data_extract.scraper import InstagramScraper, ScraperConfig
 
 BACKFILL_REPORT_DIR = settings.DATA_DIR / "backfill"
@@ -67,14 +70,20 @@ def run(apify_api_token: str, days: int, results_limit: int, run_id: str | None 
         config=ScraperConfig(results_limit=results_limit),
     )
     extra_run_input = {"onlyPostsNewerThan": only_newer_than}
+    bronze = BronzeWriter(
+        bronze_profiles_path=settings.BRONZE_PROFILES,
+        bronze_posts_path=settings.BRONZE_POSTS,
+        bronze_reels_path=settings.BRONZE_REELS,
+    )
 
-    profiles = scraper.scrape_profiles(links)
-    posts = scraper.scrape_posts(links, extra_run_input=extra_run_input)
-    reels = scraper.scrape_reels(links, extra_run_input=extra_run_input)
+    result = extract_and_land(
+        scraper, bronze, settings.LANDING_DIR, links, run_id=run_id, extra_run_input=extra_run_input
+    )
+    profiles, posts, reels = result["profiles"], result["posts"], result["reels"]
 
     print(
         f"[2/3] Resultado bruto: {len(profiles)} profiles, {len(posts)} posts, "
-        f"{len(reels)} reels. Escrevendo na Bronze de producao..."
+        f"{len(reels)} reels. Escrito na Bronze de producao."
     )
     truncated = {
         "posts": profiles_hitting_limit(posts, results_limit),
@@ -87,15 +96,6 @@ def run(apify_api_token: str, days: int, results_limit: int, run_id: str | None 
             f"posts={truncated['posts']} reels={truncated['reels']}. "
             "Rode de novo com --results-limit maior para esses casos."
         )
-
-    bronze = BronzeWriter(
-        bronze_profiles_path=settings.BRONZE_PROFILES,
-        bronze_posts_path=settings.BRONZE_POSTS,
-        bronze_reels_path=settings.BRONZE_REELS,
-    )
-    bronze.write_profiles(profiles, run_id=run_id)
-    bronze.write_posts(posts, run_id=run_id)
-    bronze.write_reels(reels, run_id=run_id)
 
     actual_reels_per_day = len(reels) / days / n_governors
     actual_posts_per_day = len(posts) / days / n_governors

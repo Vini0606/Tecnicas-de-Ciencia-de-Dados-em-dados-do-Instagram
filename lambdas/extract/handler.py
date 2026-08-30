@@ -5,12 +5,19 @@ import uuid
 from apify_client import ApifyClient
 
 from src.data_extract.bronze_writer import BronzeWriter
+from src.data_extract.ingestion import extract_and_land
 from src.data_extract.scraper import InstagramScraper, ScraperConfig
 
 STORAGE_OPTIONS = {
     "AWS_REGION": os.environ.get("AWS_DEFAULT_REGION", "us-east-1"),
     "AWS_S3_ALLOW_UNSAFE_RENAME": "true",
 }
+
+# Landing zone ainda local/efemera (o /tmp gravavel da Lambda) -- suporte a
+# S3 para a landing zone e explicitamente fora de escopo ate a infra AWS ser
+# de fato aplicada (ver ADR 0011 e docs/agents -- LANDING_DIR pode apontar
+# para s3://.../landing/ no futuro sem mudar `extract_and_land`).
+LANDING_DIR = os.environ.get("LANDING_DIR", "/tmp/landing")
 
 
 def handler(event, context):
@@ -31,10 +38,6 @@ def handler(event, context):
         config=ScraperConfig(results_limit=int(os.environ.get("RESULTS_LIMIT", 30))),
     )
 
-    profiles = scraper.scrape_profiles(links)
-    posts = scraper.scrape_posts(links)
-    reels = scraper.scrape_reels(links)
-
     bronze_prefix = os.environ.get("S3_BRONZE_PREFIX", "bronze/")
     bronze = BronzeWriter(
         bronze_profiles_path=f"s3://{bucket}/{bronze_prefix}instagram_profiles",
@@ -43,18 +46,16 @@ def handler(event, context):
         storage_options=STORAGE_OPTIONS,
     )
 
-    bronze.write_profiles(profiles, run_id=run_id)
-    bronze.write_posts(posts, run_id=run_id)
-    bronze.write_reels(reels, run_id=run_id)
+    result = extract_and_land(scraper, bronze, LANDING_DIR, links, run_id=run_id)
 
     return {
         "statusCode": 200,
         "body": json.dumps(
             {
                 "run_id": run_id,
-                "profiles": len(profiles),
-                "posts": len(posts),
-                "reels": len(reels),
+                "profiles": len(result["profiles"]),
+                "posts": len(result["posts"]),
+                "reels": len(result["reels"]),
             }
         ),
     }
