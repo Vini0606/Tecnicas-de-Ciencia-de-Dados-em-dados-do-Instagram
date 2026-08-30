@@ -34,6 +34,13 @@ O único run já arquivado no esquema antigo (do teste E2E real da ADR 0012,
 `data/landing/{profiles,posts,reels}/a8f36a6f-....json`) não é migrado -- fica como está, dado de um
 teste de validação, não de produção contínua.
 
+Junto, corrige uma inconsistência encontrada na mesma investigação: `scripts/run_apify_backfill.py`
+gerava `run_id` com `uuid.uuid4()` puro, sem timestamp, diferente de `build_run_id()` (`src/run_id.py`,
+já usado por `pipeline.py` e pelas lambdas), que prefixa `YYYYMMDD_HHMMSS_`. Isso fazia `data/landing/`
+acumular uma mistura de pastas ordenáveis cronologicamente por nome e pastas que não são -- o mesmo
+problema de usabilidade que motivou esta ADR. `run_apify_backfill.py` passa a usar `build_run_id()`
+também, unificando o formato em todos os pontos de entrada que escrevem na landing zone.
+
 ## Por que
 
 **Apagar/arquivar por execução é a necessidade real, e só o layout novo resolve isso.** Cruzar por
@@ -69,3 +76,6 @@ não há assimetria real entre os dois esquemas para leitura/correlação, só p
 - Apagar/arquivar uma execução específica vira uma operação de filesystem de um passo
   (`rm -rf data/landing/<run_id>/`), sem automação nenhuma por trás -- fica como trabalho futuro
   quando o monitor contínuo (ADR 0011) tiver volume real de runs acumulado.
+- `scripts/run_apify_backfill.py` passa a importar `build_run_id` de `src/run_id.py` em vez de
+  `uuid` diretamente. O `run_id` do teste E2E da ADR 0012 (`a8f36a6f-...`, sem timestamp) fica como
+  o único exemplo do formato antigo -- não é migrado, mesmo raciocínio do item acima.
