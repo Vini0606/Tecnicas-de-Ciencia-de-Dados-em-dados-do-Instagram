@@ -38,12 +38,24 @@ class InstagramScraper:
         )
         return list(self._client.dataset(run["defaultDatasetId"]).iterate_items())
 
-    def scrape_posts(self, usernames: list[str]) -> list[dict]:
-        run_input = {"username": usernames, "resultsLimit": self._config.results_limit}
+    def scrape_posts(
+        self, usernames: list[str], extra_run_input: dict | None = None
+    ) -> list[dict]:
+        run_input = {
+            "username": usernames,
+            "resultsLimit": self._config.results_limit,
+            **(extra_run_input or {}),
+        }
         run = self._client.actor(self._config.posts_actor_id).call(run_input=run_input)
         return list(self._client.dataset(run["defaultDatasetId"]).iterate_items())
 
-    def scrape_reels(self, usernames: list[str]) -> list[dict]:
-        run_input = {"username": usernames, "resultsLimit": self._config.results_limit}
+    def scrape_reels(
+        self, usernames: list[str], extra_run_input: dict | None = None
+    ) -> list[dict]:
+        run_input = {
+            "username": usernames,
+            "resultsLimit": self._config.results_limit,
+            **(extra_run_input or {}),
+        }
         run = self._client.actor(self._config.reels_actor_id).call(run_input=run_input)
         return list(self._client.dataset(run["defaultDatasetId"]).iterate_items())
