@@ -60,3 +60,7 @@ GOLD_PROFILE_CLUSTERS_ENGAGEMENT = GOLD_DIR / "governor_profile_clusters_engagem
 # Checkpoints locais do estágio determinístico de modelagem (ver ADR 0003) —
 # não são Delta, ficam fora do git.
 MODEL_CHECKPOINTS_DIR = DATA_DIR / "model_checkpoints"
+
+# Logs estruturados por run_id (ver ADR 0015) -- separado de LANDING_DIR e
+# MODEL_CHECKPOINTS_DIR de propósito: log operacional não é dado de negócio.
+LOGS_DIR = DATA_DIR / "logs"

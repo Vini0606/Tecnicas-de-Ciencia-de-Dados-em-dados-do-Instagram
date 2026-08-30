@@ -1,3 +1,4 @@
+import logging
 import os
 from typing import Callable
 
@@ -15,9 +16,12 @@ from src.features.silver.comment_cleaner import CommentCleaner
 from src.features.silver.governors_metadata_cleaner import GovernorsMetadataCleaner
 from src.features.silver.post_cleaner import PostCleaner
 from src.features.silver.profile_cleaner import ProfileCleaner
+from src.logging_setup import attach_run_log_handler, configure_console_logging
 from src.modeling.config import ModelingConfig
 from src.modeling.orchestration import run_deterministic_modeling
 from src.run_id import build_run_id
+
+logger = logging.getLogger(__name__)
 
 
 def _bronze_has_data(bronze: BronzeWriter) -> bool:
@@ -61,7 +65,7 @@ def run_medallion_pipeline(
                 )
                 if not confirm_extraction(estimated_cost):
                     raise SystemExit(1)
-            print("[1/3] BRONZE: Extraindo dados brutos...")
+            logger.info("[1/3] BRONZE: Extraindo dados brutos...")
             scraper = InstagramScraper(
                 client=ApifyClient(apify_api_token),
                 config=ScraperConfig(results_limit=results_limit),
@@ -75,7 +79,7 @@ def run_medallion_pipeline(
         raise RuntimeError(f"[BRONZE] Falha na ingestão de dados brutos: {e}") from e
 
     try:
-        print("[2/3] SILVER: Limpando e conformando dados...")
+        logger.info("[2/3] SILVER: Limpando e conformando dados...")
         profile_cleaner = ProfileCleaner()
         post_cleaner = PostCleaner()
         comment_cleaner = CommentCleaner()
@@ -105,7 +109,7 @@ def run_medallion_pipeline(
         ) from e
 
     try:
-        print("[3/3] GOLD: Agregando métricas de engajamento...")
+        logger.info("[3/3] GOLD: Agregando métricas de engajamento...")
         aggregator = EngagementAggregator()
         df_gold = aggregator.aggregate(
             df_profiles_silver, df_posts_silver, df_reels_silver, run_id
@@ -120,14 +124,14 @@ def run_medallion_pipeline(
         # fora de propósito — é uma etapa manual e de revisão humana, não
         # deve rodar sozinha a cada execução do pipeline (ver ADR 0001).
         try:
-            print(
+            logger.info(
                 "[MODELAGEM] Rodando estágio determinístico "
                 "(PCA -> clustering -> sentimento -> tópicos)..."
             )
             result = run_deterministic_modeling(
                 df_reels_silver, df_comments_silver, ModelingConfig()
             )
-            print(f"[MODELAGEM] Concluída com run_id: {result.run_id}")
+            logger.info(f"[MODELAGEM] Concluída com run_id: {result.run_id}")
         except Exception as e:
             raise RuntimeError(f"[MODELAGEM] Falha no estágio determinístico: {e}") from e
 
@@ -161,6 +165,13 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
+    configure_console_logging()
+    # run_id gerado aqui (não deixado para run_medallion_pipeline) porque o
+    # handler de arquivo por run_id (ADR 0015) precisa ser anexado antes de
+    # qualquer trabalho começar -- inclusive antes da eventual extração real.
+    run_id = build_run_id()
+    attach_run_log_handler(run_id, settings.LOGS_DIR)
+
     df_gov = pd.read_excel(settings.GOVERNADORES_FILE)
     df_gov.columns = df_gov.columns.str.strip()
     token = os.getenv("APIFY_API_TOKEN")
@@ -169,7 +180,7 @@ if __name__ == "__main__":
     def _confirm_extraction(estimated_cost: float) -> bool:
         if args.yes:
             return True
-        print(
+        logger.info(
             f"[ABORTADO] Nao ha Bronze/raw local em cache -- rodar agora "
             f"dispararia uma extracao real na Apify (~${estimated_cost} "
             f"estimado no pior caso para {len(links)} governadores, "
@@ -182,9 +193,10 @@ if __name__ == "__main__":
         apify_api_token=token,
         links=links,
         results_limit=settings.RESULTS_LIMIT,
+        run_id=run_id,
         run_modeling=args.run_modeling,
         confirm_extraction=_confirm_extraction,
     )
     # Sem emoji: o console padrão do Windows usa cp1252 e levanta
     # UnicodeEncodeError ao imprimi-los.
-    print(f"[OK] Pipeline Medallion finalizado com run_id: {run_id}")
+    logger.info(f"[OK] Pipeline Medallion finalizado com run_id: {run_id}")

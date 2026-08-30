@@ -43,6 +43,9 @@ data/landing/
 data/backfill/
 data/calibration/
 
+# Logs estruturados por run_id (ADR 0015).
+data/logs/
+
 # Backup local de data/ antes de simular ambiente limpo (issue #33) -- nunca
 # deve ser versionado, mesmo que criado fora de data/.
 data_backup_*/

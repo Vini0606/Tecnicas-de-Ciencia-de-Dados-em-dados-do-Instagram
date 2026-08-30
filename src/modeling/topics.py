@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import logging
+import time
 from typing import Any
 
 import numpy as np
@@ -12,6 +14,8 @@ from hdbscan import HDBSCAN
 from sklearn.feature_extraction.text import CountVectorizer
 
 from src.modeling.config import TopicModelConfig
+
+logger = logging.getLogger(__name__)
 
 
 def model_topics(
@@ -46,7 +50,27 @@ def model_topics(
     )
 
     _topics, probs = topic_model.fit_transform(docs)
+
+    # ADR 0012/0015: `reduce_topics` recalcula a representação inteira mesmo
+    # quando não há nada a reduzir (nr_topics >= tópicos atuais) -- comportamento
+    # incondicional do BERTopic (`_bertopic.py::_reduce_topics`), não corrigido
+    # aqui, só tornado visível.
+    n_topics_before = len(topic_model.get_topics())
+    is_noop = isinstance(config.nr_topics, int) and config.nr_topics >= n_topics_before
+    if is_noop:
+        logger.debug(
+            "BERTopic.reduce_topics: no-op esperado (tópicos atuais=%d <= "
+            "nr_topics=%d), mas o BERTopic recalcula a representação mesmo "
+            "assim (achado da ADR 0012).",
+            n_topics_before,
+            config.nr_topics,
+        )
+    start = time.monotonic()
     topic_model.reduce_topics(docs, nr_topics=config.nr_topics)
+    elapsed = time.monotonic() - start
+    logger.debug(
+        "BERTopic.reduce_topics levou %.1fs (no-op=%s).", elapsed, is_noop
+    )
 
     # `reduce_topics` não retorna as atribuições atualizadas — o array
     # `_topics` de `fit_transform` fica desatualizado após a redução.
