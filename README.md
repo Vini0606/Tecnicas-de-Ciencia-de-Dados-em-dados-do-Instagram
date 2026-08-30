@@ -64,7 +64,7 @@ O objetivo nº 6 é o que diferencia o trabalho: não basta aplicar as três té
 | Reels | 810 |
 | Comentários coletados | ~13.500 (6.777 em reels + 6.749 em posts) |
 
-Coleta via [Apify](https://apify.com), a partir da lista curada em `data/raw/governadores.xlsx`.
+Coleta via [Apify](https://apify.com), a partir da lista curada em `reference/governadores.xlsx`.
 
 ### Por que engenharia de dados em um TCC de NLP
 

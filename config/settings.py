@@ -10,9 +10,13 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = Path(os.environ.get("DATA_DIR", PROJECT_ROOT / "data"))
 RAW_DATA_DIR = DATA_DIR / "raw"
 
+# Dado de referência mantido manualmente (não gerado pelo pipeline, por isso
+# fora de data/ -- essa árvore é ignorada/efêmera; ver ADR 0013).
+REFERENCE_DIR = PROJECT_ROOT / "reference"
+
 # Arquivos principais
 GOVERNADORES_FILE = Path(
-    os.environ.get("GOVERNADORES_FILE", RAW_DATA_DIR / "governadores.xlsx")
+    os.environ.get("GOVERNADORES_FILE", REFERENCE_DIR / "governadores.xlsx")
 )
 
 # Parâmetros de execução

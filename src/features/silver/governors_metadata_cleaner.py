@@ -1,7 +1,7 @@
 """
 Silver governors metadata cleaner.
 
-Ingere `data/raw/governadores.xlsx` (nome, UF, partido, link do perfil) como
+Ingere `reference/governadores.xlsx` (nome, UF, partido, link do perfil) como
 tabela de dimensão no Delta Lake, para servir de fonte única de verdade para
 o dashboard (nome/UF/partido) em vez de ler a planilha bruta a cada carregamento.
 """
