@@ -36,3 +36,7 @@ data/model_checkpoints/
 !data/bronze/**/.gitkeep
 !data/silver/**/.gitkeep
 !data/gold/**/.gitkeep
+
+# Backup local de data/ antes de simular ambiente limpo (issue #33) -- nunca
+# deve ser versionado, mesmo que criado fora de data/.
+data_backup_*/
