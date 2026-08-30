@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 
 import pandas as pd
 from bertopic import BERTopic
 
 from src.features.gold.model_enricher import ModelEnricher
+from src.logging_setup import attach_run_log_handler
 from src.modeling.checkpoint import save_checkpoint
 from src.modeling.clustering import cluster_reels
 from src.modeling.config import GeminiRefinerConfig, ModelingConfig
@@ -17,6 +19,8 @@ from src.modeling.preprocessing import preprocess_comments
 from src.modeling.sentiment import analyze_sentiment
 from src.modeling.topics import model_topics
 from src.run_id import build_run_id
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -54,15 +58,23 @@ def run_deterministic_modeling(
     Escreve as duas tabelas Gold (clusters e sentimento/tópicos provisórios)
     sob um único `run_id` novo."""
     run_id = build_run_id(run_id)
+    # Handler de arquivo trocado aqui, não em pipeline.py -- este é o ponto
+    # onde o run_id da modelagem é de fato cunhado (ADR 0015, decisão 5).
+    attach_run_log_handler(run_id, config.logs_dir)
 
+    logger.info("[PCA] Reduzindo dimensionalidade...")
     df_reels_pca, pca_model = reduce_dimensions(df_reels, config.pca)
+
+    logger.info("[CLUSTERING] Agrupando reels...")
     df_reels_clustered, cluster_model, cluster_config, cluster_score, cluster_algo_name = (
         cluster_reels(df_reels_pca, config.cluster)
     )
 
+    logger.info("[SENTIMENTO] Analisando sentimento dos comentários...")
     df_comments_sentiment = analyze_sentiment(df_comments, config.sentiment)
     df_comments_preprocessed = preprocess_comments(df_comments_sentiment, config.preprocessing)
 
+    logger.info("[TÓPICOS] Ajustando BERTopic...")
     docs = list(df_comments_preprocessed["text_demojized"])
     topic_model, _topics, _probs, document_info = model_topics(docs, config.topics)
 

@@ -71,6 +71,7 @@ def test_run_deterministic_modeling_grava_clusters_e_sentimento_com_mesmo_run_id
         gold_clusters_path=tmp_path / "governor_clusters",
         gold_sentiment_path=tmp_path / "governor_sentiment",
         checkpoints_dir=tmp_path / "checkpoints",
+        logs_dir=tmp_path / "logs",
     )
 
     result = run_deterministic_modeling(_df_reels(), _df_comments(), config)
@@ -110,6 +111,7 @@ def test_refine_topics_with_gemini_so_reescreve_sentimento_com_run_id_novo(
         gold_clusters_path=tmp_path / "governor_clusters",
         gold_sentiment_path=tmp_path / "governor_sentiment",
         checkpoints_dir=tmp_path / "checkpoints",
+        logs_dir=tmp_path / "logs",
     )
     result = run_deterministic_modeling(_df_reels(), _df_comments(), config)
 

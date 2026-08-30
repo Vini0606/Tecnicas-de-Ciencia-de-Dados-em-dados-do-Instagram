@@ -37,6 +37,9 @@ data/model_checkpoints/
 !data/silver/**/.gitkeep
 !data/gold/**/.gitkeep
 
+# Logs estruturados por run_id (ADR 0015).
+data/logs/
+
 # Backup local de data/ antes de simular ambiente limpo (issue #33) -- nunca
 # deve ser versionado, mesmo que criado fora de data/.
 data_backup_*/

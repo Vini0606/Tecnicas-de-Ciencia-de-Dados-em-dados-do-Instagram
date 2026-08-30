@@ -82,6 +82,7 @@ class ModelingConfig:
     gold_clusters_path: Path = settings.GOLD_CLUSTERS
     gold_sentiment_path: Path = settings.GOLD_SENTIMENT
     checkpoints_dir: Path = settings.MODEL_CHECKPOINTS_DIR
+    logs_dir: Path = settings.LOGS_DIR
 
 
 @dataclass
