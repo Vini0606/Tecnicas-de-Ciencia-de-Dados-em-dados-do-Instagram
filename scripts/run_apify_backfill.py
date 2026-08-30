@@ -26,7 +26,6 @@ import argparse
 import json
 import os
 import sys
-import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -52,12 +51,13 @@ from scripts.apify_backfill_shared import (
 from src.data_extract.bronze_writer import BronzeWriter
 from src.data_extract.ingestion import extract_and_land
 from src.data_extract.scraper import InstagramScraper, ScraperConfig
+from src.run_id import build_run_id
 
 BACKFILL_REPORT_DIR = settings.DATA_DIR / "backfill"
 
 
 def run(apify_api_token: str, days: int, results_limit: int, run_id: str | None = None) -> dict:
-    run_id = run_id or str(uuid.uuid4())
+    run_id = build_run_id(run_id)
     links = load_links()
     n_governors = len(links)
     only_newer_than = f"{days} days"

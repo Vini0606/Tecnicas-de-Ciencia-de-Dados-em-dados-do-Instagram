@@ -26,10 +26,16 @@ def archive_raw_json(
 ) -> Path:
     """Grava a lista de itens brutos como veio da Apify, sem nenhuma
     projeção de schema — fidelidade total, para não perder campos que a
-    Bronze ainda não modela."""
-    entity_dir = Path(landing_dir) / entity
-    entity_dir.mkdir(parents=True, exist_ok=True)
-    path = entity_dir / f"{run_id}.json"
+    Bronze ainda não modela.
+
+    Layout `<landing_dir>/<run_id>/<entity>.json` — pasta por `run_id`, não
+    por entidade — para que arquivar/apagar tudo de uma execução seja uma
+    operação de filesystem só (`rm -rf landing/<run_id>/`), sem precisar
+    acertar uma pasta por entidade. Cruzar por `run_id` continua igual de
+    fácil nos dois esquemas (é o nome da pasta em vez do nome do arquivo)."""
+    run_dir = Path(landing_dir) / run_id
+    run_dir.mkdir(parents=True, exist_ok=True)
+    path = run_dir / f"{entity}.json"
     path.write_text(json.dumps(raw_data, ensure_ascii=False, indent=2), encoding="utf-8")
     return path
 
