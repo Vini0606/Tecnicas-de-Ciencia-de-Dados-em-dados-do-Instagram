@@ -7,7 +7,6 @@ from dotenv import load_dotenv
 from config import settings
 from src.data_extract.bronze_writer import BronzeWriter
 from src.data_extract.ingestion import extract_and_land
-from src.data_extract.readers import JsonDataReader
 from src.data_extract.scraper import InstagramScraper, ScraperConfig
 from src.features.gold.engagement_aggregator import EngagementAggregator
 from src.features.silver.comment_cleaner import CommentCleaner
@@ -27,23 +26,6 @@ def _bronze_has_data(bronze: BronzeWriter) -> bool:
         return False
 
 
-def _raw_has_data() -> bool:
-    return all(
-        [
-            settings.PROFILES_JSON.exists(),
-            settings.POSTS_JSON.exists(),
-            settings.REELS_JSON.exists(),
-        ]
-    )
-
-
-def _load_raw_data(reader: JsonDataReader):
-    df_profiles = reader.read(settings.PROFILES_JSON)
-    df_posts = reader.read(settings.POSTS_JSON)
-    df_reels = reader.read(settings.REELS_JSON)
-    return df_profiles, df_posts, df_reels
-
-
 def run_medallion_pipeline(
     apify_api_token: str,
     links: list[str],
@@ -59,25 +41,9 @@ def run_medallion_pipeline(
         bronze_posts_path=settings.BRONZE_POSTS,
         bronze_reels_path=settings.BRONZE_REELS,
     )
-    reader = JsonDataReader()
 
     try:
         if not force_extract and _bronze_has_data(bronze):
-            df_profiles = bronze.get_latest_profiles()
-            df_posts = bronze.get_latest_posts()
-            df_reels = bronze.get_latest_reels()
-        elif not force_extract and _raw_has_data():
-            print(
-                "[1/3] BRONZE: Usando dados JSON locais existentes e migrando para Bronze..."
-            )
-            df_profiles, df_posts, df_reels = _load_raw_data(reader)
-            bronze.write_profiles(df_profiles.to_dict(orient="records"), run_id=run_id)
-            bronze.write_posts(df_posts.to_dict(orient="records"), run_id=run_id)
-            bronze.write_reels(df_reels.to_dict(orient="records"), run_id=run_id)
-
-            # Relê da Bronze para que as camadas seguintes recebam os
-            # metadados de linhagem (_ingested_at, _run_id, _source), que os
-            # DataFrames lidos direto do JSON não possuem.
             df_profiles = bronze.get_latest_profiles()
             df_posts = bronze.get_latest_posts()
             df_reels = bronze.get_latest_reels()

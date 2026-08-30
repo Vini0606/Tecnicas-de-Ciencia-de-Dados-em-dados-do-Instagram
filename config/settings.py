@@ -9,17 +9,11 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 # Diretórios de dados (podem ser sobrescritos por variáveis de ambiente)
 DATA_DIR = Path(os.environ.get("DATA_DIR", PROJECT_ROOT / "data"))
 RAW_DATA_DIR = DATA_DIR / "raw"
-PROCESSED_DATA_DIR = DATA_DIR / "processed"
 
 # Arquivos principais
 GOVERNADORES_FILE = Path(
     os.environ.get("GOVERNADORES_FILE", RAW_DATA_DIR / "governadores.xlsx")
 )
-PROFILES_JSON = Path(os.environ.get("PROFILES_JSON", RAW_DATA_DIR / "profiles.json"))
-POSTS_JSON = Path(os.environ.get("POSTS_JSON", RAW_DATA_DIR / "posts.json"))
-REELS_JSON = Path(os.environ.get("REELS_JSON", RAW_DATA_DIR / "reels.json"))
-# Legacy Excel path used only for historic notebooks and backward compatibility.
-ALL_XLSX = Path(os.environ.get("ALL_XLSX", PROCESSED_DATA_DIR / "all.xlsx"))
 
 # Parâmetros de execução
 RANDOM_STATE = int(os.environ.get("RANDOM_STATE", 42))
