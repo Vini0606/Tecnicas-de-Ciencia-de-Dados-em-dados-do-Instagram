@@ -1,6 +1,7 @@
 from unittest.mock import MagicMock
 
 import pandas as pd
+import pytest
 
 
 def _fake_bronze_writer_class(df_profiles, df_posts, df_reels):
@@ -171,3 +172,107 @@ def test_run_medallion_pipeline_branch_de_extracao_usa_extract_and_land(
     assert (tmp_path / "landing" / "run_extract" / "profiles.json").exists()
     assert (tmp_path / "landing" / "run_extract" / "posts.json").exists()
     assert (tmp_path / "landing" / "run_extract" / "reels.json").exists()
+
+
+def _setup_extraction_branch(monkeypatch, tmp_path):
+    """Configura o pipeline para tomar o branch de extracao real (sem
+    depender de cache), reaproveitando os mocks das outras etapas."""
+    df_reels_silver = pd.DataFrame({"id": ["1"]})
+    df_comments_silver = pd.DataFrame({"text": ["oi"]})
+    _patch_medallion_dependencies(monkeypatch, df_reels_silver, df_comments_silver)
+
+    bronze_calls = []
+    monkeypatch.setattr(
+        "pipeline.BronzeWriter", _fake_bronze_writer_class_recording(bronze_calls)
+    )
+
+    fake_scraper = MagicMock()
+    fake_scraper.scrape_profiles.return_value = [{"inputUrl": "u1", "username": "gov1"}]
+    fake_scraper.scrape_posts.return_value = [{"inputUrl": "u1", "id": "p1"}]
+    fake_scraper.scrape_reels.return_value = [{"inputUrl": "u1", "id": "r1"}]
+    monkeypatch.setattr("pipeline.ApifyClient", lambda token: MagicMock())
+    monkeypatch.setattr(
+        "pipeline.InstagramScraper", lambda client, config: fake_scraper
+    )
+    monkeypatch.setattr("pipeline.settings.LANDING_DIR", tmp_path / "landing")
+    return bronze_calls
+
+
+def test_confirm_extraction_recusada_aborta_sem_extrair(monkeypatch, tmp_path):
+    """Issue #35: sem cache local, run_medallion_pipeline nao deve disparar
+    uma extracao real sem antes checar confirm_extraction."""
+    import pipeline
+
+    bronze_calls = _setup_extraction_branch(monkeypatch, tmp_path)
+
+    with pytest.raises(SystemExit):
+        pipeline.run_medallion_pipeline(
+            apify_api_token="token",
+            links=["u1"],
+            run_id="run_extract",
+            force_extract=True,
+            confirm_extraction=lambda estimated_cost: False,
+        )
+
+    assert bronze_calls == []
+
+
+def test_confirm_extraction_aceita_prossegue_com_extracao(monkeypatch, tmp_path):
+    import pipeline
+
+    bronze_calls = _setup_extraction_branch(monkeypatch, tmp_path)
+
+    pipeline.run_medallion_pipeline(
+        apify_api_token="token",
+        links=["u1"],
+        run_id="run_extract",
+        force_extract=True,
+        confirm_extraction=lambda estimated_cost: True,
+    )
+
+    assert {kind for kind, _, _ in bronze_calls} == {"profiles", "posts", "reels"}
+
+
+def test_confirm_extraction_recebe_estimativa_baseada_em_results_limit(monkeypatch, tmp_path):
+    import pipeline
+    from scripts.apify_backfill_shared import estimate_cost_usd_for_results_limit
+
+    _setup_extraction_branch(monkeypatch, tmp_path)
+    custos_recebidos = []
+
+    def _confirm(estimated_cost):
+        custos_recebidos.append(estimated_cost)
+        return True
+
+    pipeline.run_medallion_pipeline(
+        apify_api_token="token",
+        links=["u1"],
+        results_limit=50,
+        run_id="run_extract",
+        force_extract=True,
+        confirm_extraction=_confirm,
+    )
+
+    assert custos_recebidos == [estimate_cost_usd_for_results_limit(50, n_governors=1)]
+
+
+def test_confirm_extraction_nao_e_chamada_quando_bronze_ja_tem_dado(monkeypatch):
+    """O gate so faz sentido quando uma extracao real vai de fato acontecer
+    -- com a Bronze em cache, run_medallion_pipeline nunca deveria nem
+    avaliar o custo."""
+    import pipeline
+
+    df_reels_silver = pd.DataFrame({"id": ["1"]})
+    df_comments_silver = pd.DataFrame({"text": ["oi"]})
+    _patch_medallion_dependencies(monkeypatch, df_reels_silver, df_comments_silver)
+
+    confirm_extraction = MagicMock()
+
+    pipeline.run_medallion_pipeline(
+        apify_api_token="token",
+        links=["l"],
+        run_id="r1",
+        confirm_extraction=confirm_extraction,
+    )
+
+    confirm_extraction.assert_not_called()

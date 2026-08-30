@@ -65,6 +65,16 @@ def estimate_cost_usd(days: int, n_governors: int) -> float:
     return round(estimated_results / 1000 * STARTER_PRICE_PER_1000_RESULTS, 2)
 
 
+def estimate_cost_usd_for_results_limit(results_limit: int, n_governors: int) -> float:
+    """Estimativa PRE-run para uma extracao sem janela de data (sem
+    `onlyPostsNewerThan`, caso do branch de fallback de `pipeline.py`) --
+    `results_limit` e um teto por perfil por tipo de midia (posts e reels)
+    aplicado pela Apify, entao o pior caso -- e o unico limite que da pra
+    calcular sem rodar -- e cada perfil bater o teto nos dois tipos."""
+    worst_case_results = results_limit * 2 * n_governors
+    return round(worst_case_results / 1000 * STARTER_PRICE_PER_1000_RESULTS, 2)
+
+
 def project_backfill_costs(total_results: int, days: int) -> dict[int, float]:
     """Extrapola o total de resultados calibrado (na janela rodada) para
     janelas de 1-4 anos e converte em custo estimado no plano Starter."""

@@ -4,8 +4,10 @@ from config import settings
 from scripts.apify_backfill_shared import (
     RESULTS_LIMIT_FLOOR,
     RESULTS_LIMIT_SAFETY_MARGIN_PER_DAY,
+    STARTER_PRICE_PER_1000_RESULTS,
     default_results_limit,
     estimate_cost_usd,
+    estimate_cost_usd_for_results_limit,
     load_links,
     profiles_hitting_limit,
     project_backfill_costs,
@@ -46,6 +48,20 @@ def test_project_backfill_costs_retorna_as_quatro_janelas():
     projections = project_backfill_costs(total_results=1000, days=90)
     assert set(projections.keys()) == {1, 2, 3, 4}
     assert projections[1] < projections[4]
+
+
+def test_estimate_cost_usd_for_results_limit_e_positivo_e_cresce_com_o_limite():
+    custo_baixo = estimate_cost_usd_for_results_limit(results_limit=30, n_governors=27)
+    custo_alto = estimate_cost_usd_for_results_limit(results_limit=200, n_governors=27)
+    assert custo_baixo > 0
+    assert custo_alto > custo_baixo
+
+
+def test_estimate_cost_usd_for_results_limit_considera_posts_e_reels():
+    # pior caso: cada perfil bate o teto nos dois tipos de midia (posts e reels).
+    resultado = estimate_cost_usd_for_results_limit(results_limit=100, n_governors=1)
+    esperado = round(100 * 2 / 1000 * STARTER_PRICE_PER_1000_RESULTS, 2)
+    assert resultado == esperado
 
 
 def test_load_links_le_e_normaliza_planilha(monkeypatch):
