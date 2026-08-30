@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import pytest
+
 from src.data_extract.ingestion import archive_raw_json, extract_and_land
 
 
@@ -109,3 +111,33 @@ def test_extract_and_land_arquiva_cada_entidade_antes_de_escreve_la_na_bronze(tm
     extract_and_land(scraper, bronze, tmp_path, links=["l"], run_id="run_1")
 
     assert bronze.write_order == ["profiles", "posts", "reels"]
+
+
+class _BronzeWriterFalhandoEmReels:
+    """Simula uma falha na escrita da Bronze pra reels, depois de
+    profiles/posts terem sido escritos com sucesso."""
+
+    def write_profiles(self, raw_data, run_id=None):
+        pass
+
+    def write_posts(self, raw_data, run_id=None):
+        pass
+
+    def write_reels(self, raw_data, run_id=None):
+        raise RuntimeError("falha simulada na escrita da Bronze")
+
+
+def test_extract_and_land_preserva_o_arquivado_mesmo_se_a_bronze_falhar(tmp_path):
+    """Cenario descrito no spec (issue #31): uma falha na escrita da Bronze
+    para uma entidade nao deve apagar o JSON bruto ja arquivado das
+    entidades anteriores (nem da propria entidade que falhou, ja arquivada
+    antes da tentativa de escrita)."""
+    scraper = _FakeScraper()
+    bronze = _BronzeWriterFalhandoEmReels()
+
+    with pytest.raises(RuntimeError, match="falha simulada"):
+        extract_and_land(scraper, bronze, tmp_path, links=["l"], run_id="run_1")
+
+    assert (tmp_path / "profiles" / "run_1.json").exists()
+    assert (tmp_path / "posts" / "run_1.json").exists()
+    assert (tmp_path / "reels" / "run_1.json").exists()

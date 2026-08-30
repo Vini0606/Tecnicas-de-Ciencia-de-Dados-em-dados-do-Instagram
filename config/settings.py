@@ -35,9 +35,9 @@ TEXT_COLUMN = os.environ.get("TEXT_COLUMN", "text")
 DATE_COLUMN = os.environ.get("DATE_COLUMN", "timestamp")
 LINK_COLUMN = os.environ.get("LINK_COLUMN", "Link")
 
-# Landing zone: JSON bruto por entidade/run_id, sem schema, anterior a
-# Bronze -- arquiva fidelidade total contra a Bronze descartar campos fora
-# do seu schema fixo (ver ADR 0011, decisao 1).
+# Landing zone: JSON bruto por entidade/run_id, sem schema, anterior à
+# Bronze — arquiva fidelidade total contra a Bronze descartar campos fora
+# do seu schema fixo (ver ADR 0011, decisão 1).
 LANDING_DIR = DATA_DIR / "landing"
 
 # ── Caminhos Medallion (Bronze / Silver / Gold)
