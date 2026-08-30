@@ -66,8 +66,16 @@ class PostCleaner:
 
     def _parse_timestamp(self, df: pd.DataFrame) -> pd.DataFrame:
         if "timestamp" in df.columns:
+            # format="ISO8601" -- sem isso, pd.to_datetime infere o formato a
+            # partir do primeiro valor da série e aplica esse formato pra
+            # série inteira; um único timestamp sem timezone misturado com o
+            # restante (com timezone, formato real do Apify) faz quase todos
+            # os outros virarem NaT silenciosamente. Isso derruba a escrita
+            # da Silver inteira, já que `data_hora` é NOT NULL no schema --
+            # e numa Bronze acumulando muitos run_id (ADR 0011), basta um
+            # registro com timestamp em formato diferente pra travar tudo.
             df["data_hora"] = (
-                pd.to_datetime(df["timestamp"], errors="coerce", utc=True)
+                pd.to_datetime(df["timestamp"], errors="coerce", utc=True, format="ISO8601")
                 .dt.tz_convert("America/Sao_Paulo")
                 .dt.tz_localize(None)
             )
