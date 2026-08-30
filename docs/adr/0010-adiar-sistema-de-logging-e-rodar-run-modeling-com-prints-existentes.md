@@ -73,3 +73,12 @@ uma execução completa.
   que os `print`s já mostram, DEBUG para detalhe adicional), com handler de console e,
   possivelmente, um arquivo de log por `run_id` em `data/model_checkpoints/<run_id>/` ou local
   equivalente — a ser desenhado quando essa tarefa for priorizada.
+
+## Nota de acompanhamento
+
+Esta ADR ficou sem merge em `main` por um tempo (só existia na branch/worktree
+`worktree-adr-0010-logging-decision`). A ADR 0012 já rodou a primeira execução real do pipeline
+depois desta decisão, confirmou que adiar `logging` foi acertado para execuções supervisionadas, e
+acrescentou uma condição de expiração explícita (logging vira pré-requisito antes do regime de
+extração incremental automatizada da ADR 0011). Ver ADR 0012 para o estado atual da decisão — esta
+ADR permanece como registro histórico do raciocínio original.
