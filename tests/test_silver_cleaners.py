@@ -150,6 +150,41 @@ def test_post_cleaner_deduplica_execucoes_acumuladas():
     assert out.iloc[0]["_run_id"] == "r2"
 
 
+def test_post_cleaner_parseia_timestamps_com_formatos_mistos():
+    """
+    pd.to_datetime (sem format="ISO8601") infere o formato a partir do
+    PRIMEIRO valor da série e aplica esse formato pra série inteira -- um
+    timestamp sem timezone misturado com o restante (com timezone, formato
+    real do Apify) faz quase todos os outros virarem NaT silenciosamente.
+    Numa Bronze acumulando muitos run_id ao longo do tempo (ADR 0011), basta
+    um registro assim pra travar a escrita inteira (data_hora é NOT NULL).
+    """
+    df = pd.DataFrame(
+        {
+            "id": ["p_naive", "p_tz_1", "p_tz_2"],
+            "ownerId": ["1", "1", "1"],
+            "ownerUsername": ["g", "g", "g"],
+            "commentsCount": [1, 1, 1],
+            "likesCount": [2, 2, 2],
+            # sem timezone primeiro, de propósito -- é a ordem que dispara o bug.
+            "timestamp": [
+                "2026-05-01T00:00:00",
+                "2026-05-02T00:00:00+00:00",
+                "2026-05-03T00:00:00+00:00",
+            ],
+            "_ingested_at": pd.to_datetime(
+                ["2026-05-01", "2026-05-02", "2026-05-03"], utc=True
+            ),
+            "_run_id": ["r1", "r2", "r3"],
+        }
+    )
+
+    out = PostCleaner().clean_posts(df)
+
+    assert out["data_hora"].notna().all()
+    assert len(out) == 3
+
+
 def test_comment_cleaner_promove_colunas_do_comentario():
     """
     O join reel × comentário sufixa colunas homônimas. Os campos que
