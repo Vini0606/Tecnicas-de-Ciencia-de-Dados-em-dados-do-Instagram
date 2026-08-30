@@ -37,6 +37,12 @@ data/model_checkpoints/
 !data/silver/**/.gitkeep
 !data/gold/**/.gitkeep
 
+# Landing zone (JSON bruto por run_id) e artefatos de backfill/calibracao --
+# nunca devem ser versionados (ADR 0014 / issue de gap encontrado pos-PR #38).
+data/landing/
+data/backfill/
+data/calibration/
+
 # Backup local de data/ antes de simular ambiente limpo (issue #33) -- nunca
 # deve ser versionado, mesmo que criado fora de data/.
 data_backup_*/
