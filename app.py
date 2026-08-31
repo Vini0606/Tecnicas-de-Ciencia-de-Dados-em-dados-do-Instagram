@@ -67,7 +67,7 @@ detalhados estão no `README.md` do repositório.
 )
 
 st.markdown("### Navegue pelas análises")
-nav1, nav2 = st.columns(2)
+nav1, nav2, nav3 = st.columns(3)
 with nav1:
     st.page_link(
         "pages/01_exploratory.py",
@@ -79,4 +79,10 @@ with nav2:
         "pages/02_modeling.py",
         label="Modelagem — sentimento, tópicos e clusters",
         icon="📈",
+    )
+with nav3:
+    st.page_link(
+        "pages/03_monitoring.py",
+        label="Monitoramento — tendência de engajamento ao longo do tempo",
+        icon="📡",
     )
