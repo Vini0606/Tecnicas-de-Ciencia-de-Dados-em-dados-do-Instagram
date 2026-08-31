@@ -354,24 +354,42 @@ TF_VAR_image_tag=$(git rev-parse origin/main) terraform apply
 ├── pipeline.py             # Orquestrador ETL local (Bronze → Silver → Gold)
 ├── config/settings.py      # Caminhos e parâmetros, sobrescrevíveis por env var
 ├── src/
-│   ├── modeling/            # PCA, AutoClusterHPO, sentimento, tópicos (BERTopic) e refinamento via Gemini
-│   ├── data_extract/       # Scraper Apify, leitores JSON, BronzeWriter
+│   ├── modeling/           # PCA, AutoClusterHPO, sentimento, tópicos (BERTopic), clusterização de perfil (Fase 2) e refinamento via Gemini
+│   ├── data_extract/       # Scraper Apify (scraper.py), BronzeWriter, extract_and_land (landing zone + Bronze, ADR 0011)
+│   ├── dashboard/          # Loaders e filtros compartilhados pelos dashboards Streamlit
 │   ├── features/
-│   │   ├── silver/         # Cleaners de perfis, posts e comentários
+│   │   ├── silver/         # Cleaners de perfis, posts, reels e comentários
 │   │   └── gold/           # Agregador de engajamento, enriquecedor de modelos
-│   ├── repositories/       # DeltaRepository (ativo), S3, Excel (legado)
+│   ├── repositories/       # DeltaRepository -- única porta de leitura, local ou S3 via storage_options
 │   ├── schemas_delta.py    # Contratos PyArrow das três camadas
+│   ├── delta_io.py         # Escrita/leitura Delta com validação de schema e deduplicate_latest
+│   ├── logging_setup.py    # Setup de logging por run_id -- console INFO / arquivo DEBUG (ADR 0015)
 │   ├── run_id.py           # Geração do identificador de execução, compartilhado por pipeline.py e src/modeling/
 │   └── visualization/      # Gráficos Plotly reutilizáveis
 ├── pages/                  # Dashboards Streamlit (exploratório, modelagem)
-├── lambdas/                # extract / transform / load para AWS
+├── lambdas/                # Pipeline serverless AWS -- mesma arquitetura Medallion, backend S3 (ver seção 3)
+│   ├── extract/            # Apify -> Bronze (S3)
+│   ├── transform/          # Bronze -> Silver (S3)
+│   ├── load/               # Silver -> Gold (governor_engagement) (S3)
+│   ├── model/              # Gold engagement -> clusterização de perfil, Fase 2 (S3) -- ainda não documentada na tabela de Lambdas da seção 3
+│   └── orchestrator/       # Invoca extract -> transform -> load em sequência (não invoca model/ ainda)
 ├── notebooks/              # 01 extração · 02 EDA · 03 modelagem · 04 regressão · 05 síntese
-├── tests/                  # 25 arquivos de teste (pytest)
-├── data/                   # raw/ · bronze/ · silver/ · gold/ · processed/ (legado)
+├── tests/                  # 31 arquivos de teste (pytest)
+├── data/                   # Efêmero, fora do git (.gitignore) -- ver seção 3 pra Bronze/Silver/Gold
+│   ├── landing/<run_id>/           # JSON bruto do scraper, sem schema, anterior à Bronze (ADR 0011/0014)
+│   ├── bronze/                     # Delta append-only: instagram_profiles, instagram_posts, instagram_reels
+│   ├── silver/                     # Delta limpo/conformado: profiles_clean, posts_clean, reels_clean, comments_clean, governors_metadata
+│   ├── gold/                       # Delta agregado: governor_engagement, governor_sentiment, governor_clusters, governor_profile_clusters_engagement
+│   ├── model_checkpoints/<run_id>/ # Checkpoint do estágio determinístico de modelagem -- topic_model, PCA, clustering (ADR 0003)
+│   ├── logs/<run_id>/              # Log estruturado por run_id -- console INFO / arquivo DEBUG (ADR 0015)
+│   ├── backfill/                   # Relatórios de `scripts/run_apify_backfill.py` (contagens, taxa calibrada, projeção de custo)
+│   └── calibration/                # Saída isolada de `scripts/run_apify_calibration_test.py` -- nunca toca a Bronze real
+├── reference/              # Dado de entrada mantido manualmente (governadores.xlsx) -- não gerado pelo pipeline (ADR 0013)
 ├── reports/
 │   ├── academic/           # TCC completo em LaTeX — 7 capítulos, bibliografia, figuras
 │   └── figures/            # Figuras geradas pelos notebooks
-└── scripts/                # run_modeling.py, refine_topics.py, migração para Medallion, sync de figuras para o TCC
+├── docs/adr/               # ADRs -- registro das decisões de arquitetura (0001-0015)
+└── scripts/                # run_modeling.py, refine_topics.py, run_apify_backfill.py, run_apify_calibration_test.py, run_profile_clustering_engagement.py, sync de figuras para o TCC
 ```
 
 A modelagem roda via `scripts/run_modeling.py` (PCA → `AutoClusterHPO` → sentimento → BERTopic, representação determinística) e `scripts/refine_topics.py` (refinamento manual dos rótulos de tópico via Gemini) — não mais pelo notebook, que virou leitura pura de Gold/checkpoint para análise e visualização (ver [ADR 0003](docs/adr/0003-desacoplar-modelagem-do-notebook-via-scripts-cli-com-checkpoint.md)).
