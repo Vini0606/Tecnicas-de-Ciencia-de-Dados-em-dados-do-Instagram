@@ -53,6 +53,10 @@ SILVER_GOVERNORS_METADATA = SILVER_DIR / "governors_metadata"
 
 GOLD_DIR = DATA_DIR / "gold"
 GOLD_ENGAGEMENT = GOLD_DIR / "governor_engagement"
+# Tabela paralela de histórico (mesmo schema, modo append) -- só para
+# engajamento por enquanto, ver ADR 0016. `governor_engagement` continua em
+# overwrite, inalterada para os consumidores existentes.
+GOLD_ENGAGEMENT_HISTORY = GOLD_DIR / "governor_engagement_history"
 GOLD_SENTIMENT = GOLD_DIR / "governor_sentiment"
 GOLD_CLUSTERS = GOLD_DIR / "governor_clusters"
 GOLD_PROFILE_CLUSTERS_ENGAGEMENT = GOLD_DIR / "governor_profile_clusters_engagement"

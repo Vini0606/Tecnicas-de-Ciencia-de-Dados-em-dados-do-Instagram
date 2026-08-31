@@ -38,6 +38,13 @@ class DeltaRepository(DataRepository):
     def load_profiles(self) -> pd.DataFrame:
         return self._load(_join(self._gold_dir, "governor_engagement"))
 
+    def load_engagement_history(self) -> pd.DataFrame:
+        """Histórico de engajamento (mode append, uma linha por perfil por
+        execução) -- ver ADR 0016. Separada de `load_profiles` porque tem
+        granularidade diferente (várias linhas por governador ao longo do
+        tempo, não uma só)."""
+        return self._load(_join(self._gold_dir, "governor_engagement_history"))
+
     def load_posts(self) -> pd.DataFrame:
         if self._silver_dir is None:
             raise ValueError("silver_dir não foi configurado neste repositório.")

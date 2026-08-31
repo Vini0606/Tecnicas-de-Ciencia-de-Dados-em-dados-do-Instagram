@@ -38,6 +38,8 @@ def handler(event, context):
     aggregator = EngagementAggregator()
     df_gold = aggregator.aggregate(df_profiles, df_posts, df_reels, run_id)
     aggregator.write(df_gold, f"{gold_base}governor_engagement")
+    # Tabela paralela de histórico, mode=append -- ver ADR 0016.
+    aggregator.write(df_gold, f"{gold_base}governor_engagement_history", mode="append")
 
     return {
         "statusCode": 200,

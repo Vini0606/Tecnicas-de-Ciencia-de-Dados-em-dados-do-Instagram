@@ -43,3 +43,36 @@ def test_delta_repository_basic(tmp_path):
     repo = DeltaRepository(gold_dir=gold)
     out = repo.load_profiles()
     assert "% ENGAJAMENTO" in out.columns
+
+
+def test_load_engagement_history_acumula_varias_execucoes(tmp_path):
+    gold = tmp_path
+    history_path = gold / "governor_engagement_history"
+    df_r1 = pd.DataFrame(
+        {
+            "id": ["1"],
+            "username": ["g"],
+            "TOTAL ENGAJAMENTO": [10],
+            "% ENGAJAMENTO": [0.1],
+            "_run_id": ["r1"],
+            "_generated_at": pd.to_datetime(["2026-05-01"], utc=True),
+        }
+    )
+    df_r2 = pd.DataFrame(
+        {
+            "id": ["1"],
+            "username": ["g"],
+            "TOTAL ENGAJAMENTO": [20],
+            "% ENGAJAMENTO": [0.2],
+            "_run_id": ["r2"],
+            "_generated_at": pd.to_datetime(["2026-05-02"], utc=True),
+        }
+    )
+    write_deltalake(str(history_path), df_r1, mode="overwrite")
+    write_deltalake(str(history_path), df_r2, mode="append")
+
+    repo = DeltaRepository(gold_dir=gold)
+    out = repo.load_engagement_history()
+
+    assert len(out) == 2
+    assert set(out["_run_id"]) == {"r1", "r2"}

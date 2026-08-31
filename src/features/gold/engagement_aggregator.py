@@ -76,5 +76,5 @@ class EngagementAggregator:
 
         return df
 
-    def write(self, df_gold: pd.DataFrame, path: Path | str) -> None:
-        write_delta(path, df_gold, GOLD_ENGAGEMENT_SCHEMA)
+    def write(self, df_gold: pd.DataFrame, path: Path | str, mode: str = "overwrite") -> None:
+        write_delta(path, df_gold, GOLD_ENGAGEMENT_SCHEMA, mode=mode)
