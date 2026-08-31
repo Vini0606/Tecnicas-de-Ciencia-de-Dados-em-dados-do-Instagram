@@ -20,13 +20,13 @@ from src.modeling.orchestration import run_deterministic_modeling
 from src.repositories.delta_repository import DeltaRepository
 
 
-def run(run_id: str | None = None) -> str:
+def run(run_id: str | None = None, parent_run_id: str | None = None) -> str:
     repo = DeltaRepository(gold_dir=settings.GOLD_DIR, silver_dir=settings.SILVER_DIR)
     df_reels = repo.load_reels()
     df_comments = repo.load_comments()
 
     result = run_deterministic_modeling(
-        df_reels, df_comments, ModelingConfig(), run_id=run_id
+        df_reels, df_comments, ModelingConfig(), run_id=run_id, parent_run_id=parent_run_id
     )
     return result.run_id
 
@@ -43,9 +43,22 @@ if __name__ == "__main__":
         default=None,
         help="run_id a usar para esta execucao (default: gerado automaticamente).",
     )
+    parser.add_argument(
+        "--parent-run-id",
+        required=True,
+        help=(
+            "run_id da extracao/execucao de pipeline.py que gerou a Silver sendo usada aqui -- "
+            "obrigatorio para rastreabilidade completa (dados -> modelo, ver "
+            "scripts/inspect_runs.py --pipeline). A Silver pode ter dado de multiplas extracoes "
+            "misturadas (overwrite por _run_id mais recente por linha), entao nao da pra inferir "
+            "isso sozinho; se voce nao souber qual foi, rode "
+            "'uv run python scripts/inspect_runs.py' para descobrir o run_id de extracao mais "
+            "recente antes de rodar este script."
+        ),
+    )
     args = parser.parse_args()
 
-    run_id = run(run_id=args.run_id)
+    run_id = run(run_id=args.run_id, parent_run_id=args.parent_run_id)
     # Sem emoji: o console padrao do Windows usa cp1252 e levanta
     # UnicodeEncodeError ao imprimi-los.
     print(f"[OK] Modelagem deterministica concluida com run_id: {run_id}")

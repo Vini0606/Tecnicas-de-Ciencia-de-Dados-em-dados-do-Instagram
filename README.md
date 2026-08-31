@@ -228,9 +228,11 @@ Passar `force_extract=True` pula direto para a API.
 O notebook 03 não dispara mais nenhuma escrita — só lê Gold/checkpoint para análise (ver [ADR 0003](docs/adr/0003-desacoplar-modelagem-do-notebook-via-scripts-cli-com-checkpoint.md)). Os disparadores são dois scripts em `scripts/`:
 
 ```bash
-uv run python scripts/run_modeling.py                  # estágio determinístico, sobre a Silver existente
-uv run python scripts/refine_topics.py --run-id <ID>    # refinamento manual via Gemini, sobre o checkpoint acima
+uv run python scripts/run_modeling.py --parent-run-id <RUN_ID_DA_EXTRACAO>  # estágio determinístico, sobre a Silver existente
+uv run python scripts/refine_topics.py --run-id <ID>                       # refinamento manual via Gemini, sobre o checkpoint acima
 ```
+
+`--parent-run-id` é obrigatório — é o `run_id` da extração/invocação de `pipeline.py` que gerou a Silver sendo usada aqui, gravado no checkpoint só para rastreabilidade (dados → modelo, ver `scripts/inspect_runs.py --pipeline`); nunca substitui o `run_id` próprio que a modelagem sempre cunha (ADR 0001). Não dá para inferir isso sozinho porque a Silver pode ter dado de múltiplas extrações antigas misturadas — rode `uv run python scripts/inspect_runs.py` primeiro se não souber qual foi.
 
 `run_modeling.py` imprime o `run_id` usado — é esse valor que vai em `--run-id` do `refine_topics.py` (e em `RUN_ID` no notebook 03). Cada chamada de `run_deterministic_modeling` (daqui, do `pipeline.py --run-modeling`, ou do notebook, se alguém ainda chamar diretamente) grava incondicionalmente um checkpoint local em `data/model_checkpoints/<run_id>/` — o `topic_model` do BERTopic, o `df_comments`/`df_reels` provisórios e os modelos de PCA/clustering — porque sem isso o refinamento via Gemini só poderia rodar no mesmo processo que acabou de ajustar o `topic_model`. `refine_topics.py` atualiza esse checkpoint com os rótulos finais depois de refinar.
 
@@ -420,7 +422,7 @@ cp .env.example .env      # editar e preencher APIFY_API_TOKEN
 uv run python pipeline.py
 
 # 5. (opcional) Modelagem — preencher API_GEMINI no .env antes do segundo comando
-uv run python scripts/run_modeling.py
+uv run python scripts/run_modeling.py --parent-run-id <RUN_ID_IMPRESSO_NO_PASSO_4>
 uv run python scripts/refine_topics.py --run-id <ID_IMPRESSO_ACIMA>
 
 # 6. Abrir os dashboards
