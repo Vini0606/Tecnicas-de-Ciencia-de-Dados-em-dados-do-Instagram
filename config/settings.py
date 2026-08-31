@@ -27,6 +27,10 @@ RESULTS_LIMIT = int(os.environ.get("RESULTS_LIMIT", 30))
 N_CLUSTERS_KMEANS = int(os.environ.get("N_CLUSTERS_KMEANS", 5))
 TSNE_PERPLEXITY = int(os.environ.get("TSNE_PERPLEXITY", 30))
 
+# Intervalo de auto-refresh (segundos) da página de monitoramento do
+# dashboard (`pages/03_monitoring.py`) -- ver issue #50 / ADR 0016.
+DASHBOARD_REFRESH_SECONDS = int(os.environ.get("DASHBOARD_REFRESH_SECONDS", 60))
+
 # Colunas frequentemente usadas
 PROFILE_COLUMN = os.environ.get("PROFILE_COLUMN", "@_perfil")
 TEXT_COLUMN = os.environ.get("TEXT_COLUMN", "text")

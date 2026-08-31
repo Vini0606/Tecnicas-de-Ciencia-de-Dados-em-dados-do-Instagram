@@ -61,3 +61,13 @@ def load_profile_clusters_engagement() -> pd.DataFrame:
         return get_delta_repository().load_profile_clusters_engagement()
     except FileNotFoundError:
         return pd.DataFrame()
+
+
+@st.cache_data(ttl=settings.DASHBOARD_REFRESH_SECONDS)
+def load_engagement_history() -> pd.DataFrame:
+    # TTL curto (ao contrário dos loaders acima) para o auto-refresh da
+    # página de monitoramento reler a Delta de verdade a cada rerun.
+    try:
+        return get_delta_repository().load_engagement_history()
+    except FileNotFoundError:
+        return pd.DataFrame()

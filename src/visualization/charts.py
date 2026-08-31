@@ -69,3 +69,22 @@ def plot_scatter(
 ) -> go.Figure:
     """Gráfico de dispersão interativo."""
     return px.scatter(df, x=x, y=y, hover_data=df.columns, height=height, width=width)
+
+
+def plot_engagement_trend(
+    df_history: pd.DataFrame,
+    y_col: str,
+    label_col: str = "username",
+    title: str | None = None,
+) -> go.Figure:
+    """Tendência de `y_col` ao longo de `_generated_at`, uma linha por `label_col`."""
+    if df_history.empty:
+        return go.Figure()
+    return px.line(
+        df_history.sort_values("_generated_at"),
+        x="_generated_at",
+        y=y_col,
+        color=label_col,
+        title=title,
+        markers=True,
+    )
