@@ -26,6 +26,7 @@ class DeterministicCheckpoint:
     cluster_score: float
     cluster_algo_name: str | None
     embedding_model_name: str
+    parent_run_id: str | None = None
 
 
 def save_checkpoint(
@@ -42,6 +43,7 @@ def save_checkpoint(
     cluster_algo_name: str | None,
     embedding_model_name: str,
     checkpoints_dir: Path | None = None,
+    parent_run_id: str | None = None,
 ) -> Path:
     """Grava o checkpoint de `run_id` em `<checkpoints_dir>/<run_id>/`.
 
@@ -54,7 +56,14 @@ def save_checkpoint(
     O modelo de embedding não é reserializado junto do `topic_model`
     (`save_embedding_model=False`) — é grande, compartilhado entre execuções
     e já reproduzível a partir do nome (`embedding_model_name`), então
-    duplicá-lo a cada checkpoint só desperdiçaria disco."""
+    duplicá-lo a cada checkpoint só desperdiçaria disco.
+
+    `parent_run_id`, se informado, é o `run_id` da execução (extração ou
+    invocação de `pipeline.py`) que disparou esta modelagem -- puramente
+    informativo, gravado só em `metadata.json`. Não substitui nem se mistura
+    com o `run_id` da própria modelagem (ADR 0001: cada estágio mantém seu
+    `run_id` imutável); serve só pra reconstruir depois qual pipeline
+    completo gerou qual checkpoint (ver `scripts/inspect_runs.py`)."""
     checkpoint_dir = (checkpoints_dir or settings.MODEL_CHECKPOINTS_DIR) / run_id
     checkpoint_dir.mkdir(parents=True, exist_ok=True)
 
@@ -79,6 +88,7 @@ def save_checkpoint(
         "cluster_algo_name": cluster_algo_name,
         "embedding_model_name": embedding_model_name,
         "pca_feature_columns": pca_feature_columns,
+        "parent_run_id": parent_run_id,
     }
     (checkpoint_dir / "metadata.json").write_text(
         json.dumps(metadata, ensure_ascii=False, indent=2), encoding="utf-8"
@@ -121,4 +131,7 @@ def load_checkpoint(
         cluster_score=metadata["cluster_score"],
         cluster_algo_name=metadata["cluster_algo_name"],
         embedding_model_name=metadata["embedding_model_name"],
+        # .get() -- checkpoints gravados antes deste campo existir nao tem
+        # a chave no metadata.json.
+        parent_run_id=metadata.get("parent_run_id"),
     )
