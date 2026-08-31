@@ -1,3 +1,4 @@
+import json
 from unittest.mock import MagicMock
 
 import numpy as np
@@ -90,6 +91,44 @@ def test_run_deterministic_modeling_grava_clusters_e_sentimento_com_mesmo_run_id
     assert (checkpoint_dir / "df_comments.parquet").exists()
     assert (checkpoint_dir / "pca_model.joblib").exists()
     assert (checkpoint_dir / "cluster_model.joblib").exists()
+
+
+def test_run_deterministic_modeling_grava_parent_run_id_como_primeira_linha_do_log(
+    monkeypatch, tmp_path
+):
+    """Rastreabilidade completa (dados -> modelo, pedido do usuario) exige
+    que quem abrir so o arquivo de log da modelagem, sem checar o
+    checkpoint, ja saiba de qual execucao ela veio."""
+    monkeypatch.setattr(
+        "src.modeling.orchestration.analyze_sentiment", _fake_analyze_sentiment
+    )
+    monkeypatch.setattr(
+        "src.modeling.orchestration.model_topics",
+        _make_fake_model_topics("0_provisorio", "0_refinado"),
+    )
+
+    config = ModelingConfig(
+        cluster=ClusterConfig(max_evals_per_algo=10, random_state=42, max_n_clusters=5),
+        gold_clusters_path=tmp_path / "governor_clusters",
+        gold_sentiment_path=tmp_path / "governor_sentiment",
+        checkpoints_dir=tmp_path / "checkpoints",
+        logs_dir=tmp_path / "logs",
+    )
+
+    result = run_deterministic_modeling(
+        _df_reels(), _df_comments(), config, parent_run_id="run_extracao_pai"
+    )
+
+    assert result.parent_run_id == "run_extracao_pai"
+
+    log_path = config.logs_dir / result.run_id / "pipeline.log"
+    primeira_linha = log_path.read_text(encoding="utf-8").splitlines()[0]
+    assert "parent_run_id: run_extracao_pai" in primeira_linha
+
+    metadata = json.loads(
+        (config.checkpoints_dir / result.run_id / "metadata.json").read_text(encoding="utf-8")
+    )
+    assert metadata["parent_run_id"] == "run_extracao_pai"
 
 
 def test_refine_topics_with_gemini_so_reescreve_sentimento_com_run_id_novo(

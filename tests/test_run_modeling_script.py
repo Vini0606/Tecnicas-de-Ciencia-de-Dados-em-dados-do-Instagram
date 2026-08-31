@@ -27,6 +27,25 @@ def test_run_le_silver_e_chama_run_deterministic_modeling(monkeypatch):
     assert kwargs["run_id"] == "run_fixo"
 
 
+def test_run_repassa_parent_run_id_para_o_orquestrador(monkeypatch):
+    import scripts.run_modeling as run_modeling_script
+
+    fake_repo = MagicMock()
+    fake_repo.load_reels.return_value = pd.DataFrame({"id": ["r1"]})
+    fake_repo.load_comments.return_value = pd.DataFrame({"text": ["oi"]})
+    monkeypatch.setattr("scripts.run_modeling.DeltaRepository", lambda **kwargs: fake_repo)
+
+    fake_run_deterministic_modeling = MagicMock(return_value=MagicMock(run_id="run_abc"))
+    monkeypatch.setattr(
+        "scripts.run_modeling.run_deterministic_modeling", fake_run_deterministic_modeling
+    )
+
+    run_modeling_script.run(run_id="run_fixo", parent_run_id="run_extracao_pai")
+
+    kwargs = fake_run_deterministic_modeling.call_args.kwargs
+    assert kwargs["parent_run_id"] == "run_extracao_pai"
+
+
 def test_run_sem_run_id_deixa_orquestrador_gerar_um_novo(monkeypatch):
     import scripts.run_modeling as run_modeling_script
 

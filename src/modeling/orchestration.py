@@ -68,6 +68,11 @@ def run_deterministic_modeling(
     # Handler de arquivo trocado aqui, não em pipeline.py -- este é o ponto
     # onde o run_id da modelagem é de fato cunhado (ADR 0015, decisão 5).
     attach_run_log_handler(run_id, config.logs_dir)
+    # Primeira linha do log da modelagem, sempre -- rastreabilidade completa
+    # (dados -> modelo) exige que quem abrir só este arquivo, sem checar o
+    # checkpoint, já saiba de qual execução esta modelagem veio (ou que não
+    # tem uma, se parent_run_id não foi informado).
+    logger.debug("parent_run_id: %s", parent_run_id or "nenhum (execução standalone)")
 
     logger.info("[PCA] Reduzindo dimensionalidade...")
     df_reels_pca, pca_model = reduce_dimensions(df_reels, config.pca)
