@@ -5,6 +5,25 @@ from src.features.gold.engagement_aggregator import EngagementAggregator
 from src.schemas_delta import GOLD_ENGAGEMENT_SCHEMA
 
 
+def test_write_repassa_mode_para_write_delta(monkeypatch):
+    """A tabela de histórico (ADR 0016) depende de `write` repassar `mode`
+    para `write_delta` -- sem isso, toda escrita seria sempre overwrite,
+    e a tabela _history nunca acumularia mais de uma linha por run."""
+    captured = {}
+
+    def fake_write_delta(path, df, schema, mode="overwrite"):
+        captured["path"] = path
+        captured["mode"] = mode
+
+    monkeypatch.setattr(
+        "src.features.gold.engagement_aggregator.write_delta", fake_write_delta
+    )
+
+    EngagementAggregator().write(pd.DataFrame(), "some/path", mode="append")
+
+    assert captured["mode"] == "append"
+
+
 def _perfis():
     return pd.DataFrame(
         {

@@ -115,6 +115,10 @@ def run_medallion_pipeline(
             df_profiles_silver, df_posts_silver, df_reels_silver, run_id
         )
         aggregator.write(df_gold, settings.GOLD_ENGAGEMENT)
+        # Tabela paralela de histórico, mode=append -- não substitui a
+        # tabela acima, que continua overwrite para os consumidores
+        # existentes (ver ADR 0016).
+        aggregator.write(df_gold, settings.GOLD_ENGAGEMENT_HISTORY, mode="append")
     except Exception as e:
         raise RuntimeError(f"[GOLD] Falha na agregação de métricas: {e}") from e
 

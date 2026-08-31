@@ -63,7 +63,7 @@ def _patch_medallion_dependencies(monkeypatch, df_reels_silver, df_comments_silv
 
     fake_run_deterministic_modeling = MagicMock()
     monkeypatch.setattr("pipeline.run_deterministic_modeling", fake_run_deterministic_modeling)
-    return fake_run_deterministic_modeling
+    return fake_run_deterministic_modeling, aggregator
 
 
 def test_run_medallion_pipeline_nao_roda_modelagem_por_padrao(monkeypatch):
@@ -71,7 +71,9 @@ def test_run_medallion_pipeline_nao_roda_modelagem_por_padrao(monkeypatch):
 
     df_reels_silver = pd.DataFrame({"id": ["1"]})
     df_comments_silver = pd.DataFrame({"text": ["oi"]})
-    fake_modeling = _patch_medallion_dependencies(monkeypatch, df_reels_silver, df_comments_silver)
+    fake_modeling, _aggregator = _patch_medallion_dependencies(
+        monkeypatch, df_reels_silver, df_comments_silver
+    )
 
     pipeline.run_medallion_pipeline(apify_api_token="token", links=["l"], run_id="r1")
 
@@ -83,7 +85,9 @@ def test_run_medallion_pipeline_com_run_modeling_chama_estagio_deterministico(mo
 
     df_reels_silver = pd.DataFrame({"id": ["1"]})
     df_comments_silver = pd.DataFrame({"text": ["oi"]})
-    fake_modeling = _patch_medallion_dependencies(monkeypatch, df_reels_silver, df_comments_silver)
+    fake_modeling, _aggregator = _patch_medallion_dependencies(
+        monkeypatch, df_reels_silver, df_comments_silver
+    )
 
     pipeline.run_medallion_pipeline(
         apify_api_token="token", links=["l"], run_id="r1", run_modeling=True
@@ -96,6 +100,29 @@ def test_run_medallion_pipeline_com_run_modeling_chama_estagio_deterministico(mo
     # ADR 0001: "um run_id = um estado imutável" -- a modelagem deve gerar o
     # seu próprio run_id, nunca reaproveitar o run_id da ingestão.
     assert kwargs.get("run_id") != "r1"
+
+
+def test_run_medallion_pipeline_grava_tabela_de_historico_em_append(monkeypatch):
+    """ADR 0016: além da tabela `governor_engagement` (overwrite, como
+    sempre), o pipeline agora também grava `governor_engagement_history`
+    em modo append -- sem isso não há como acumular tendência ao longo do
+    tempo."""
+    import pipeline
+    from config import settings
+
+    df_reels_silver = pd.DataFrame({"id": ["1"]})
+    df_comments_silver = pd.DataFrame({"text": ["oi"]})
+    _fake_modeling, aggregator = _patch_medallion_dependencies(
+        monkeypatch, df_reels_silver, df_comments_silver
+    )
+
+    pipeline.run_medallion_pipeline(apify_api_token="token", links=["l"], run_id="r1")
+
+    assert aggregator.write.call_count == 2
+    first_call, second_call = aggregator.write.call_args_list
+    assert first_call.args[1] == settings.GOLD_ENGAGEMENT
+    assert second_call.args[1] == settings.GOLD_ENGAGEMENT_HISTORY
+    assert second_call.kwargs.get("mode") == "append"
 
 
 def test_run_medallion_pipeline_nunca_chama_refinamento_via_gemini(monkeypatch):

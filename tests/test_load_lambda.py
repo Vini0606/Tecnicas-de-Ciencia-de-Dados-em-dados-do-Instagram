@@ -69,9 +69,12 @@ def test_load_handler(monkeypatch):
 
     monkeypatch.setattr("deltalake.DeltaTable", DummyDT)
 
-    # Stub gold writer to avoid real Delta writes
+    # Stub gold writer to avoid real Delta writes, capturing calls so we can
+    # assert the history table (ADR 0016) also gets written, in append mode.
+    write_calls = []
     monkeypatch.setattr(
-        "src.features.gold.engagement_aggregator.write_delta", lambda *a, **k: None
+        "src.features.gold.engagement_aggregator.write_delta",
+        lambda path, df, schema, mode="overwrite": write_calls.append((path, mode)),
     )
 
     from lambdas.load import handler as load_handler
@@ -81,6 +84,13 @@ def test_load_handler(monkeypatch):
     body = json.loads(resp["body"])
     assert body.get("run_id") == "test-run"
     assert body.get("status") == "gold_complete"
+
+    assert len(write_calls) == 2
+    assert write_calls[0] == ("s3://dummy-bucket/gold/governor_engagement", "overwrite")
+    assert write_calls[1] == (
+        "s3://dummy-bucket/gold/governor_engagement_history",
+        "append",
+    )
 
 
 def test_load_handler_missing_bucket(monkeypatch):

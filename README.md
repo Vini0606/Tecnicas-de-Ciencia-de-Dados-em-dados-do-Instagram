@@ -197,7 +197,13 @@ flowchart LR
 |---|---|---|---|---|
 | **Bronze** | `data/bronze/` | `instagram_profiles`, `instagram_posts`, `instagram_reels` | `src/data_extract/bronze_writer.py` | Imutabilidade — append-only, nada é sobrescrito |
 | **Silver** | `data/silver/` | `profiles_clean`, `posts_clean`, `reels_clean`, `comments_clean` | `src/features/silver/*_cleaner.py` | Conformidade — tipos, deduplicação, comentários explodidos |
-| **Gold** | `data/gold/` | `governor_engagement`, `governor_sentiment`, `governor_clusters` | `src/features/gold/*` | Prontidão — métricas agregadas, resultados de modelagem |
+| **Gold** | `data/gold/` | `governor_engagement`, `governor_engagement_history`, `governor_sentiment`, `governor_clusters` | `src/features/gold/*` | Prontidão — métricas agregadas, resultados de modelagem |
+
+`governor_engagement_history` é uma tabela paralela ao `governor_engagement`, mesmo schema, escrita
+em modo `append` a cada execução (`governor_engagement` continua em `overwrite`, sem mudança para os
+consumidores existentes) — acumula uma linha por governador por execução, a base para mostrar
+tendência de engajamento ao longo do tempo. Sentimento e clusters ainda não têm tabela de histórico
+equivalente (ver [ADR 0016](docs/adr/0016-dashboard-auto-refresh-historico-gold-e-agendamento-alternavel-antes-da-aws.md)).
 
 ### Leitura dos dados
 
@@ -475,9 +481,13 @@ Esta seção registra honestamente o que ainda não está fechado.
 
 **Pendências de documentação.** Os capítulos 6 (Resultados) e 7 (Conclusões) do TCC ainda estão no texto-modelo, embora os resultados já existam e estejam redigidos no capítulo 5.
 
+**Dashboard ainda é estático — histórico em Gold existe, mas nada o lê de volta ainda.** `governor_engagement_history` (ver seção 3 acima) acumula uma linha por governador a cada execução do pipeline desde esta versão, mas `app.py`/`pages/01_exploratory.py` continuam lendo a Gold uma única vez ao abrir, sem auto-refresh nem gráfico de tendência. Agendamento automático das Lambdas (EventBridge/cron) também segue pendente, com um gate de custo alternável planejado mas não implementado. Ver [ADR 0016](docs/adr/0016-dashboard-auto-refresh-historico-gold-e-agendamento-alternavel-antes-da-aws.md) para o desenho completo e o que falta.
+
 ### Próximos passos
 
 1. Completar os capítulos 6 (Resultados) e 7 (Conclusões) do TCC
+2. Auto-refresh no dashboard consumindo `governor_engagement_history` (ADR 0016)
+3. Toggle de confirmação automática + regra EventBridge para o regime incremental/diário (ADR 0016)
 
 ---
 
