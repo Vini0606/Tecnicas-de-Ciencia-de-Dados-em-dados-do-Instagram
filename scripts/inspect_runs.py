@@ -138,16 +138,19 @@ def collect() -> dict[str, dict]:
         is_modeling = run_id in checkpoint_ids or bool(GOLD_MODELING_TABLES & gold.keys())
         is_etl_recalculado = bool(silver) or "governor_engagement" in gold
 
-        # Sem acento de proposito -- console do Windows (cp1252) engasga com
-        # caracteres acentuados em print() nao protegido.
+        # Curto de proposito -- ver LEGENDA_TIPOS, impressa junto da tabela
+        # (uma string longa aqui estoura a largura da coluna e desalinha
+        # tudo depois dela). Sem acento tambem de proposito -- console do
+        # Windows (cp1252) engasga com caracteres acentuados em print() nao
+        # protegido.
         if is_extraction and is_modeling:
-            tipo = "extracao+modelagem (!)"
+            tipo = "extracao+modelagem(!)"
         elif is_extraction:
             tipo = "extracao"
         elif is_modeling:
             tipo = "modelagem"
         elif is_etl_recalculado:
-            tipo = "etl (cache-hit, sem extracao nova)"
+            tipo = "etl-cache-hit"
         else:
             tipo = "desconhecido"
 
@@ -165,26 +168,58 @@ def collect() -> dict[str, dict]:
     return records
 
 
+LEGENDA_TIPOS = {
+    "etl-cache-hit": "Silver/governor_engagement recalculados via cache-hit, sem extracao nova",
+    "extracao+modelagem(!)": "mesmo run_id com sinal de extracao E de modelagem -- nao deveria acontecer (ADR 0001), investigar",
+}
+
+_COLUNAS = ["run_id", "tipo", "quando", "landing", "logs", "ckpt", "bronze", "silver", "gold"]
+
+
+def _linha(r: dict) -> list[str]:
+    return [
+        r["tipo"],
+        r["quando"],
+        "sim" if r["landing"] else "-",
+        "sim" if r["logs"] else "-",
+        "sim" if r["checkpoint"] else "-",
+        str(sum(r["bronze"].values()) or "-"),
+        str(sum(r["silver"].values()) or "-"),
+        str(sum(r["gold"].values()) or "-"),
+    ]
+
+
 def print_list(records: dict[str, dict]) -> None:
     if not records:
         print("Nenhum run_id encontrado em data/.")
         return
 
-    header = (
-        f"{'run_id':<38} {'tipo':<24} {'quando':<20} "
-        f"{'landing':<8} {'logs':<6} {'ckpt':<6} {'bronze':<8} {'silver':<8} {'gold':<8}"
-    )
-    print(header)
-    print("-" * len(header))
-    for run_id, r in sorted(records.items(), key=lambda kv: kv[1]["quando"]):
-        print(
-            f"{run_id:<38} {r['tipo']:<24} {r['quando']:<20} "
-            f"{'sim' if r['landing'] else '-':<8} {'sim' if r['logs'] else '-':<6} "
-            f"{'sim' if r['checkpoint'] else '-':<6} "
-            f"{sum(r['bronze'].values()) or '-':<8} "
-            f"{sum(r['silver'].values()) or '-':<8} "
-            f"{sum(r['gold'].values()) or '-':<8}"
-        )
+    ordenados = sorted(records.items(), key=lambda kv: kv[1]["quando"])
+    linhas = [[run_id, *_linha(r)] for run_id, r in ordenados]
+
+    # Largura por coluna calculada a partir do conteudo real (nao um chute
+    # fixo) -- um valor mais longo que o esperado (ex: "extracao+modelagem(!)")
+    # so alarga a coluna dele, nunca desalinha as outras.
+    larguras = [
+        max(len(_COLUNAS[i]), max((len(linha[i]) for linha in linhas), default=0))
+        for i in range(len(_COLUNAS))
+    ]
+
+    def _formata(valores: list[str]) -> str:
+        return "  ".join(v.ljust(w) for v, w in zip(valores, larguras))
+
+    cabecalho = _formata(_COLUNAS)
+    print(cabecalho)
+    print("-" * len(cabecalho))
+    for linha in linhas:
+        print(_formata(linha))
+
+    tipos_presentes = {r["tipo"] for r in records.values()}
+    legenda_relevante = {t: LEGENDA_TIPOS[t] for t in tipos_presentes if t in LEGENDA_TIPOS}
+    if legenda_relevante:
+        print()
+        for tipo, explicacao in legenda_relevante.items():
+            print(f"{tipo} = {explicacao}")
 
 
 def print_detail(run_id: str, records: dict[str, dict]) -> None:

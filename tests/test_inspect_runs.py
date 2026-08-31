@@ -124,7 +124,47 @@ def test_collect_run_recalculado_via_cache_hit_nao_e_classificado_como_modelagem
 
     records = collect()
 
-    assert records["run_cache_hit"]["tipo"] == "etl (cache-hit, sem extracao nova)"
+    assert records["run_cache_hit"]["tipo"] == "etl-cache-hit"
+
+
+def test_print_list_mantem_colunas_alinhadas_com_tipo_longo(capsys):
+    """Um valor de "tipo" mais longo que os outros (ex: etl-cache-hit) nao
+    pode desalinhar as colunas seguintes -- a largura de cada coluna e
+    calculada a partir do conteudo real, nao um chute fixo."""
+    records = {
+        "run_curto": {
+            "tipo": "modelagem",
+            "quando": "2026-08-30 19:01:46",
+            "landing": False,
+            "logs": True,
+            "checkpoint": True,
+            "backfill_report": None,
+            "bronze": {},
+            "silver": {},
+            "gold": {"governor_sentiment": 10},
+        },
+        "run_tipo_longo": {
+            "tipo": "etl-cache-hit",
+            "quando": "2026-08-31 00:03:00",
+            "landing": False,
+            "logs": True,
+            "checkpoint": False,
+            "backfill_report": None,
+            "bronze": {},
+            "silver": {"profiles_clean": 5},
+            "gold": {"governor_engagement": 3},
+        },
+    }
+
+    print_list(records)
+
+    linhas_tabela = [
+        linha
+        for linha in capsys.readouterr().out.splitlines()
+        if linha and not linha.startswith("-") and "=" not in linha
+    ]
+    larguras = {len(linha) for linha in linhas_tabela}
+    assert len(larguras) == 1, f"linhas com larguras diferentes: {linhas_tabela}"
 
 
 def test_print_list_sem_registros_nao_quebra(capsys):
