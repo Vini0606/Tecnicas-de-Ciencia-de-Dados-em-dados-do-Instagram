@@ -11,9 +11,16 @@ loga, ver ADR 0015).
 `run_apify_calibration_test.py` nao tem `run_id` nenhum, so um
 timestamp solto (`stamp`) -- nao ha o que correlacionar.
 
+O `run_id` de modelagem nunca reaproveita o `run_id` da extracao/invocacao de
+`pipeline.py` que a disparou (ADR 0001) -- mas `run_deterministic_modeling`
+grava esse `run_id` de origem como `parent_run_id`, so em `metadata.json`
+do checkpoint, puramente informativo. E o que permite ligar as duas pontas
+aqui e no modo `--pipeline`.
+
 Uso:
-    uv run python scripts/inspect_runs.py                # lista todos os run_id conhecidos
-    uv run python scripts/inspect_runs.py --run-id <ID>   # detalhe de um run_id especifico
+    uv run python scripts/inspect_runs.py                    # lista todos os run_id conhecidos
+    uv run python scripts/inspect_runs.py --run-id <ID>       # detalhe de um run_id especifico
+    uv run python scripts/inspect_runs.py --pipeline <ID>     # extracao <ID> + toda modelagem que ela disparou
 """
 
 import argparse
@@ -74,6 +81,25 @@ def _dir_run_ids(base: Path) -> set[str]:
     return {p.name for p in base.iterdir() if p.is_dir()}
 
 
+def _checkpoint_parent_ids(base: Path) -> dict[str, str | None]:
+    """run_id de modelagem -> parent_run_id lido de dentro do metadata.json
+    do checkpoint. None se o checkpoint foi gravado antes desse campo
+    existir, ou se metadata.json esta ausente/corrompido."""
+    result: dict[str, str | None] = {}
+    if not base.exists():
+        return result
+    for checkpoint_dir in base.iterdir():
+        if not checkpoint_dir.is_dir():
+            continue
+        try:
+            data = json.loads((checkpoint_dir / "metadata.json").read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            result[checkpoint_dir.name] = None
+            continue
+        result[checkpoint_dir.name] = data.get("parent_run_id")
+    return result
+
+
 def _backfill_report_run_ids() -> dict[str, Path]:
     """run_id -> caminho do relatorio. O nome do arquivo so tem a janela e
     um timestamp; o run_id de verdade so existe dentro do JSON."""
@@ -112,6 +138,7 @@ def collect() -> dict[str, dict]:
     logs_ids = _dir_run_ids(settings.LOGS_DIR)
     checkpoint_ids = _dir_run_ids(settings.MODEL_CHECKPOINTS_DIR)
     backfill_reports = _backfill_report_run_ids()
+    checkpoint_parents = _checkpoint_parent_ids(settings.MODEL_CHECKPOINTS_DIR)
 
     bronze_counts = {name: _delta_run_id_counts(path) for name, path in BRONZE_TABLES.items()}
     silver_counts = {name: _delta_run_id_counts(path) for name, path in SILVER_TABLES.items()}
@@ -164,6 +191,7 @@ def collect() -> dict[str, dict]:
             "bronze": bronze,
             "silver": silver,
             "gold": gold,
+            "parent_run_id": checkpoint_parents.get(run_id),
         }
     return records
 
@@ -173,13 +201,16 @@ LEGENDA_TIPOS = {
     "extracao+modelagem(!)": "mesmo run_id com sinal de extracao E de modelagem -- nao deveria acontecer (ADR 0001), investigar",
 }
 
-_COLUNAS = ["run_id", "tipo", "quando", "landing", "logs", "ckpt", "bronze", "silver", "gold"]
+_COLUNAS = [
+    "run_id", "tipo", "quando", "pai", "landing", "logs", "ckpt", "bronze", "silver", "gold"
+]
 
 
 def _linha(r: dict) -> list[str]:
     return [
         r["tipo"],
         r["quando"],
+        r["parent_run_id"] or "-",
         "sim" if r["landing"] else "-",
         "sim" if r["logs"] else "-",
         "sim" if r["checkpoint"] else "-",
@@ -233,6 +264,10 @@ def print_detail(run_id: str, records: dict[str, dict]) -> None:
     print(f"run_id: {run_id}")
     print(f"  tipo: {r['tipo']}")
     print(f"  quando (se codificado no run_id): {r['quando']}")
+    print(
+        f"  run_id pai (extracao/pipeline que disparou esta modelagem): "
+        f"{r['parent_run_id'] or 'desconhecido (checkpoint sem o campo, ou nao e modelagem)'}"
+    )
     print(f"  landing zone: {settings.LANDING_DIR / run_id if r['landing'] else 'nao'}")
     print(f"  log: {settings.LOGS_DIR / run_id / 'pipeline.log' if r['logs'] else 'nao'}")
     print(f"  checkpoint de modelagem: {settings.MODEL_CHECKPOINTS_DIR / run_id if r['checkpoint'] else 'nao'}")
@@ -242,6 +277,34 @@ def print_detail(run_id: str, records: dict[str, dict]) -> None:
     print(f"  Gold: {r['gold'] or 'nenhuma linha'}")
 
 
+def print_pipeline(run_id: str, records: dict[str, dict]) -> None:
+    """Mostra `run_id` (extracao/invocacao de pipeline.py) e toda modelagem
+    cujo parent_run_id aponta pra ele -- a visao de "o que rodou nessa
+    execucao completa do pipeline"."""
+    if run_id not in records:
+        print(f"run_id '{run_id}' nao encontrado em nenhuma fonte conhecida.")
+        return
+
+    filhos = [
+        filho_id
+        for filho_id, r in records.items()
+        if r["parent_run_id"] == run_id
+    ]
+
+    print(f"=== {run_id} (extracao/pipeline) ===")
+    print_detail(run_id, records)
+
+    if not filhos:
+        print()
+        print("Nenhuma modelagem encontrada com este run_id como pai (checkpoints antigos, sem o campo, tambem nao aparecem aqui).")
+        return
+
+    for filho_id in sorted(filhos, key=lambda fid: records[fid]["quando"]):
+        print()
+        print(f"=== {filho_id} (modelagem disparada por {run_id}) ===")
+        print_detail(filho_id, records)
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Inspeciona os run_id espalhados por data/ (landing, logs, checkpoints, backfill, Bronze/Silver/Gold)."
@@ -249,10 +312,18 @@ if __name__ == "__main__":
     parser.add_argument(
         "--run-id", default=None, help="Mostra o detalhe de um run_id específico em vez da lista completa."
     )
+    parser.add_argument(
+        "--pipeline",
+        default=None,
+        metavar="RUN_ID",
+        help="Mostra RUN_ID (extração/invocação de pipeline.py) e toda modelagem disparada por ele (parent_run_id).",
+    )
     args = parser.parse_args()
 
     all_records = collect()
-    if args.run_id:
+    if args.pipeline:
+        print_pipeline(args.pipeline, all_records)
+    elif args.run_id:
         print_detail(args.run_id, all_records)
     else:
         print_list(all_records)

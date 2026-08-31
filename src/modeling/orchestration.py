@@ -35,6 +35,7 @@ class DeterministicModelingResult:
     cluster_algo_name: str | None
     docs: list[str]
     run_id: str
+    parent_run_id: str | None = None
 
 
 def _merge_topic_info(df_comments: pd.DataFrame, document_info: pd.DataFrame) -> pd.DataFrame:
@@ -52,11 +53,17 @@ def run_deterministic_modeling(
     df_comments: pd.DataFrame,
     config: ModelingConfig,
     run_id: str | None = None,
+    parent_run_id: str | None = None,
 ) -> DeterministicModelingResult:
     """Estágio 100% automatizável: PCA -> clustering -> sentimento -> tópicos
     (representação determinística via KeyBERTInspired, não via Gemini).
     Escreve as duas tabelas Gold (clusters e sentimento/tópicos provisórios)
-    sob um único `run_id` novo."""
+    sob um único `run_id` novo.
+
+    `parent_run_id`, se informado, é só rastreabilidade -- o `run_id` da
+    extração/invocação de `pipeline.py` que disparou esta chamada, gravado
+    no checkpoint (ver `save_checkpoint`). Nunca substitui o `run_id` novo
+    que esta função sempre cunha para a modelagem (ADR 0001)."""
     run_id = build_run_id(run_id)
     # Handler de arquivo trocado aqui, não em pipeline.py -- este é o ponto
     # onde o run_id da modelagem é de fato cunhado (ADR 0015, decisão 5).
@@ -101,6 +108,7 @@ def run_deterministic_modeling(
         cluster_algo_name=cluster_algo_name,
         embedding_model_name=config.topics.embedding_model,
         checkpoints_dir=config.checkpoints_dir,
+        parent_run_id=parent_run_id,
     )
 
     return DeterministicModelingResult(
@@ -114,6 +122,7 @@ def run_deterministic_modeling(
         cluster_algo_name=cluster_algo_name,
         docs=docs,
         run_id=run_id,
+        parent_run_id=parent_run_id,
     )
 
 

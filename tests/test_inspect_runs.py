@@ -4,11 +4,13 @@ import pandas as pd
 
 from scripts.inspect_runs import (
     _backfill_report_run_ids,
+    _checkpoint_parent_ids,
     _dir_run_ids,
     _parse_timestamp_from_run_id,
     collect,
     print_detail,
     print_list,
+    print_pipeline,
 )
 
 
@@ -142,6 +144,7 @@ def test_print_list_mantem_colunas_alinhadas_com_tipo_longo(capsys):
             "bronze": {},
             "silver": {},
             "gold": {"governor_sentiment": 10},
+            "parent_run_id": None,
         },
         "run_tipo_longo": {
             "tipo": "etl-cache-hit",
@@ -153,6 +156,7 @@ def test_print_list_mantem_colunas_alinhadas_com_tipo_longo(capsys):
             "bronze": {},
             "silver": {"profiles_clean": 5},
             "gold": {"governor_engagement": 3},
+            "parent_run_id": None,
         },
     }
 
@@ -194,6 +198,7 @@ def test_print_detail_run_id_encontrado_mostra_fontes(tmp_path, monkeypatch, cap
             "bronze": {"profiles": 27},
             "silver": {},
             "gold": {},
+            "parent_run_id": None,
         }
     }
 
@@ -203,3 +208,117 @@ def test_print_detail_run_id_encontrado_mostra_fontes(tmp_path, monkeypatch, cap
     assert "run_x" in saida
     assert "extracao" in saida
     assert "profiles" in saida
+
+
+def test_checkpoint_parent_ids_le_de_dentro_do_metadata(tmp_path):
+    checkpoint_dir = tmp_path / "run_modelagem"
+    checkpoint_dir.mkdir()
+    (checkpoint_dir / "metadata.json").write_text(
+        json.dumps({"parent_run_id": "run_extracao", "cluster_score": 0.5})
+    )
+    (tmp_path / "run_sem_campo").mkdir()
+    (tmp_path / "run_sem_campo" / "metadata.json").write_text(json.dumps({"cluster_score": 0.1}))
+    (tmp_path / "run_corrompido").mkdir()
+    (tmp_path / "run_corrompido" / "metadata.json").write_text("{nao e json valido")
+
+    result = _checkpoint_parent_ids(tmp_path)
+
+    assert result["run_modelagem"] == "run_extracao"
+    assert result["run_sem_campo"] is None
+    assert result["run_corrompido"] is None
+
+
+def test_collect_liga_modelagem_ao_run_id_pai_via_checkpoint(tmp_path, monkeypatch):
+    checkpoints_dir = tmp_path / "checkpoints"
+    (checkpoints_dir / "run_modelagem").mkdir(parents=True)
+    (checkpoints_dir / "run_modelagem" / "metadata.json").write_text(
+        json.dumps({"parent_run_id": "run_extracao_pai"})
+    )
+
+    monkeypatch.setattr("scripts.inspect_runs.settings.DATA_DIR", tmp_path)
+    monkeypatch.setattr("scripts.inspect_runs.settings.LANDING_DIR", tmp_path / "landing")
+    monkeypatch.setattr("scripts.inspect_runs.settings.LOGS_DIR", tmp_path / "logs")
+    monkeypatch.setattr("scripts.inspect_runs.settings.MODEL_CHECKPOINTS_DIR", checkpoints_dir)
+    monkeypatch.setattr("scripts.inspect_runs.BRONZE_TABLES", {})
+    monkeypatch.setattr("scripts.inspect_runs.SILVER_TABLES", {})
+    monkeypatch.setattr("scripts.inspect_runs.GOLD_TABLES", {})
+
+    records = collect()
+
+    assert records["run_modelagem"]["parent_run_id"] == "run_extracao_pai"
+
+
+def test_print_pipeline_agrupa_extracao_e_modelagem_filha(capsys):
+    records = {
+        "run_pai": {
+            "tipo": "extracao",
+            "quando": "2026-08-30 19:00:00",
+            "landing": True,
+            "logs": False,
+            "checkpoint": False,
+            "backfill_report": None,
+            "bronze": {"profiles": 27},
+            "silver": {},
+            "gold": {},
+            "parent_run_id": None,
+        },
+        "run_filho": {
+            "tipo": "modelagem",
+            "quando": "2026-08-30 19:05:00",
+            "landing": False,
+            "logs": False,
+            "checkpoint": True,
+            "backfill_report": None,
+            "bronze": {},
+            "silver": {},
+            "gold": {"governor_sentiment": 100},
+            "parent_run_id": "run_pai",
+        },
+        "run_nao_relacionado": {
+            "tipo": "modelagem",
+            "quando": "2026-08-29 10:00:00",
+            "landing": False,
+            "logs": False,
+            "checkpoint": True,
+            "backfill_report": None,
+            "bronze": {},
+            "silver": {},
+            "gold": {"governor_sentiment": 5},
+            "parent_run_id": "outro_run_qualquer",
+        },
+    }
+
+    print_pipeline("run_pai", records)
+
+    saida = capsys.readouterr().out
+    assert "run_pai" in saida
+    assert "run_filho" in saida
+    assert "run_nao_relacionado" not in saida
+
+
+def test_print_pipeline_sem_filhos_avisa_mas_nao_quebra(capsys):
+    records = {
+        "run_sozinho": {
+            "tipo": "extracao",
+            "quando": "2026-08-30 19:00:00",
+            "landing": True,
+            "logs": False,
+            "checkpoint": False,
+            "backfill_report": None,
+            "bronze": {"profiles": 27},
+            "silver": {},
+            "gold": {},
+            "parent_run_id": None,
+        }
+    }
+
+    print_pipeline("run_sozinho", records)
+
+    saida = capsys.readouterr().out
+    assert "run_sozinho" in saida
+    assert "Nenhuma modelagem encontrada" in saida
+
+
+def test_print_pipeline_run_id_nao_encontrado(capsys):
+    print_pipeline("run_inexistente", {})
+    assert "nao encontrado" in capsys.readouterr().out
