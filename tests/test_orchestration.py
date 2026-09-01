@@ -126,6 +126,9 @@ def test_run_deterministic_modeling_grava_sentimento_tambem_no_historico_em_appe
     assert (sentiment_out["_run_id"] == result.run_id).all()
     assert (history_out["_run_id"] == result.run_id).all()
     assert len(history_out) == len(sentiment_out)
+    # Mesma execução -- as duas tabelas precisam do mesmo _generated_at, não
+    # dois `datetime.now()` levemente diferentes (ver test_model_enricher.py).
+    assert (sentiment_out["_generated_at"] == history_out["_generated_at"].iloc[0]).all()
 
 
 def test_refine_topics_with_gemini_nao_grava_no_historico_de_sentimento(monkeypatch, tmp_path):

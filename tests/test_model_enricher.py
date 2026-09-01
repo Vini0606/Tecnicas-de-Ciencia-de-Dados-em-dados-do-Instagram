@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 import pandas as pd
 import pytest
 from deltalake import DeltaTable
@@ -63,6 +65,35 @@ def test_write_sentiment_repassa_mode_para_write_delta(monkeypatch):
     )
 
     assert captured["mode"] == "append"
+
+
+def test_write_sentiment_aceita_generated_at_explicito_para_manter_consistencia(tmp_path):
+    """`governor_sentiment` e `governor_sentiment_history` (issue #52) são
+    escritos em duas chamadas separadas para o mesmo run -- sem um
+    `generated_at` explícito compartilhado, cada chamada carimbaria
+    `datetime.now()` na hora em que rodou, fazendo as duas tabelas
+    registrarem timestamps ligeiramente diferentes para a mesma execução
+    (como se fossem gerações distintas). Mesmo raciocínio de
+    `EngagementAggregator.aggregate()`, que carimba `_generated_at` uma
+    única vez antes de qualquer escrita."""
+    generated_at = datetime(2026, 5, 1, tzinfo=timezone.utc)
+    path_a = tmp_path / "governor_sentiment"
+    path_b = tmp_path / "governor_sentiment_history"
+
+    ModelEnricher().write_sentiment(
+        _comentarios_com_sentimento(), path_a, run_id="r1", generated_at=generated_at
+    )
+    ModelEnricher().write_sentiment(
+        _comentarios_com_sentimento(),
+        path_b,
+        run_id="r1",
+        mode="append",
+        generated_at=generated_at,
+    )
+
+    out_a = DeltaTable(str(path_a)).to_pandas()
+    out_b = DeltaTable(str(path_b)).to_pandas()
+    assert out_a.loc[0, "_generated_at"] == out_b.loc[0, "_generated_at"] == generated_at
 
 
 def test_write_clusters_usa_granularidade_de_reel(tmp_path):
