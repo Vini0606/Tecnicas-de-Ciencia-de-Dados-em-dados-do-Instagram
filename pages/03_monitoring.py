@@ -10,6 +10,13 @@ if ROOT_DIR not in sys.path:
     sys.path.insert(0, ROOT_DIR)
 
 from config import settings
+from src.dashboard.filters import (
+    TODOS_GOVERNADORES,
+    build_governor_directory,
+    enrich_with_governor_metadata,
+    render_governor_selector,
+    select_governor_rows,
+)
 from src.dashboard.loaders import load_engagement_history
 from src.visualization.charts import plot_engagement_trend
 
@@ -27,6 +34,30 @@ st.markdown(
     "precisar reiniciar o app — ver ADR 0016."
 )
 st.markdown("---")
+
+# Seletor global (issue #54 / ADR 0017): mesmo widget/`session_state`
+# compartilhado com `02_modeling.py` -- selecionar um governador em qualquer
+# página persiste ao navegar para esta. Precisa ficar FORA do
+# `st.fragment` abaixo -- o Streamlit não permite um widget de `st.sidebar`
+# criado de dentro de um fragment escrever num container fora dele
+# (`StreamlitFragmentWidgetsNotAllowedOutsideError`). `df_history` é
+# recarregado de novo dentro do fragment (cache-hit via `st.cache_data`,
+# barato) para que o corpo dos gráficos continue re-checando frescor a cada
+# tick, independente deste carregamento aqui só para montar o universo do
+# seletor.
+df_history_para_seletor = load_engagement_history()
+if df_history_para_seletor.empty:
+    governador_selecionado = TODOS_GOVERNADORES
+else:
+    governor_universe = df_history_para_seletor[["inputUrl"]].dropna().drop_duplicates()
+    governor_universe_enriched = enrich_with_governor_metadata(governor_universe)
+    governador_selecionado = render_governor_selector(
+        governor_universe_enriched,
+        directory_exists=not build_governor_directory().empty,
+        fallback_urls=df_history_para_seletor["inputUrl"].dropna().unique().tolist(),
+    )
+    if governador_selecionado is None:
+        governador_selecionado = TODOS_GOVERNADORES
 
 
 @st.fragment(run_every=f"{settings.DASHBOARD_REFRESH_SECONDS}s")
@@ -46,16 +77,11 @@ def render_monitoring() -> None:
         f"(run_id: `{ultima_execucao['_run_id']}`)"
     )
 
-    governadores_disponiveis = sorted(df_history["username"].dropna().unique())
-    governadores_selecionados = st.multiselect(
-        "Governadores",
-        options=governadores_disponiveis,
-        default=governadores_disponiveis,
-    )
-    df_filtrado = df_history[df_history["username"].isin(governadores_selecionados)]
+    universo_urls = df_history["inputUrl"].dropna().unique().tolist()
+    df_filtrado = select_governor_rows(df_history, governador_selecionado, universo_urls)
 
     if df_filtrado.empty:
-        st.warning("Nenhum governador selecionado.")
+        st.warning("Nenhum dado para o governador selecionado.")
         return
 
     st.plotly_chart(

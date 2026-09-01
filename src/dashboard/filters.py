@@ -1,7 +1,9 @@
 """
 Filtros de grupo (região/partido/cluster) e seletor individual de governador,
-compartilhados entre as páginas `exploratory` e `modeling` via `st.session_state`
-(através das `key=` dos widgets abaixo).
+compartilhados via `st.session_state` (através das `key=` dos widgets abaixo).
+Os filtros de grupo valem para `exploratory`/`modeling`; o seletor individual
+(`render_governor_selector`, issue #54 / ADR 0017) é global -- qualquer página
+que o chame (hoje `modeling` e `monitoring`) lê/escreve a mesma seleção.
 
 Decisões de design (sessão de grilling de 2026-08-29, ver handoff):
 - Região/partido/nome vêm de `governors_metadata` (Silver, ingerida de
@@ -34,6 +36,11 @@ from src.dashboard.loaders import (
 )
 
 TODOS_GOVERNADORES = "__todos_governadores__"
+
+# key= compartilhada entre páginas (issue #54 / ADR 0017) -- widgets com a
+# mesma `key` lêem/escrevem a mesma entrada de `st.session_state`, então a
+# seleção feita em uma página persiste ao navegar para outra.
+GLOBAL_GOVERNOR_SELECTOR_KEY = "global_governor_selector"
 
 UF_PARA_REGIAO: dict[str, str] = {
     "Acre": "Norte",
@@ -333,10 +340,12 @@ def render_governor_selector(
     directory_exists: bool,
     fallback_urls: list[str] | None = None,
 ) -> str | None:
-    """Seletor individual de governador (por nome), exclusivo de `modeling`,
-    em cascata com os filtros de grupo (`directory_filtered` já vem filtrado).
-    Sempre oferece "Todos os Governadores" (`TODOS_GOVERNADORES`) como primeira
-    opção, além dos governadores individuais.
+    """Seletor individual de governador (por nome), global e persistente entre
+    páginas via `GLOBAL_GOVERNOR_SELECTOR_KEY` (issue #54 / ADR 0017), em
+    cascata com os filtros de grupo quando o chamador os aplica antes de
+    montar `directory_filtered` (ex: `02_modeling.py`). Sempre oferece
+    "Todos os Governadores" (`TODOS_GOVERNADORES`) como primeira opção, além
+    dos governadores individuais.
 
     Se `governors_metadata` ainda não existir, cai para uma lista de URLs
     brutas (`fallback_urls`, tipicamente `df_comments["inputUrl"].unique()`)
@@ -379,6 +388,21 @@ def render_governor_selector(
         st.sidebar.warning("Nenhum governador disponível.")
         return None
 
+    # Guard contra seleção obsoleta (issue #54): a `key` é compartilhada
+    # entre páginas com universos de governador diferentes (ex: filtro de
+    # grupo ativo em `02_modeling.py` vs. universo cheio em
+    # `03_monitoring.py`) -- sem isso, navegar para uma página onde a
+    # seleção persistida não está mais em `options` levanta
+    # `StreamlitAPIException` em vez de degradar para "Todos".
+    if (
+        GLOBAL_GOVERNOR_SELECTOR_KEY in st.session_state
+        and st.session_state[GLOBAL_GOVERNOR_SELECTOR_KEY] not in options
+    ):
+        st.session_state[GLOBAL_GOVERNOR_SELECTOR_KEY] = TODOS_GOVERNADORES
+
     return st.sidebar.selectbox(
-        "Selecione o Governador:", options=options, format_func=format_func
+        "Selecione o Governador:",
+        options=options,
+        format_func=format_func,
+        key=GLOBAL_GOVERNOR_SELECTOR_KEY,
     )
