@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 from deltalake import DeltaTable
 
+from src.features.gold.model_enricher import ModelEnricher
 from src.modeling.config import ClusterConfig, GeminiRefinerConfig, ModelingConfig
 from src.modeling.orchestration import run_deterministic_modeling, refine_topics_with_gemini
 
@@ -91,6 +92,88 @@ def test_run_deterministic_modeling_grava_clusters_e_sentimento_com_mesmo_run_id
     assert (checkpoint_dir / "df_comments.parquet").exists()
     assert (checkpoint_dir / "pca_model.joblib").exists()
     assert (checkpoint_dir / "cluster_model.joblib").exists()
+
+
+def test_run_deterministic_modeling_grava_sentimento_tambem_no_historico_em_append(
+    monkeypatch, tmp_path
+):
+    """Issue #52: além de `governor_sentiment` (overwrite, como sempre), a
+    modelagem determinística agora também grava `governor_sentiment_history`
+    em modo append -- sem isso não há como acumular tendência de sentimento
+    ao longo do tempo (mesmo raciocínio do PR #49 para engajamento)."""
+    monkeypatch.setattr(
+        "src.modeling.orchestration.analyze_sentiment", _fake_analyze_sentiment
+    )
+    monkeypatch.setattr(
+        "src.modeling.orchestration.model_topics",
+        _make_fake_model_topics("0_provisorio", "0_refinado"),
+    )
+
+    config = ModelingConfig(
+        cluster=ClusterConfig(max_evals_per_algo=10, random_state=42, max_n_clusters=5),
+        gold_clusters_path=tmp_path / "governor_clusters",
+        gold_sentiment_path=tmp_path / "governor_sentiment",
+        gold_sentiment_history_path=tmp_path / "governor_sentiment_history",
+        checkpoints_dir=tmp_path / "checkpoints",
+        logs_dir=tmp_path / "logs",
+    )
+
+    result = run_deterministic_modeling(_df_reels(), _df_comments(), config)
+
+    sentiment_out = DeltaTable(str(config.gold_sentiment_path)).to_pandas()
+    history_out = DeltaTable(str(config.gold_sentiment_history_path)).to_pandas()
+
+    assert (sentiment_out["_run_id"] == result.run_id).all()
+    assert (history_out["_run_id"] == result.run_id).all()
+    assert len(history_out) == len(sentiment_out)
+
+
+def test_refine_topics_with_gemini_nao_grava_no_historico_de_sentimento(monkeypatch, tmp_path):
+    """Issue #52: o refinamento via Gemini reescreve só `Topic`/`Name` sob um
+    `run_id` novo, sem gerar uma nova medição de sentimento -- gravar no
+    histórico duplicaria pontos próximos no tempo com o mesmo
+    sentiment_label/score, distorcendo qualquer gráfico de tendência."""
+    monkeypatch.setattr(
+        "src.modeling.orchestration.analyze_sentiment", _fake_analyze_sentiment
+    )
+    monkeypatch.setattr(
+        "src.modeling.orchestration.model_topics",
+        _make_fake_model_topics("0_provisorio", "0_refinado"),
+    )
+    monkeypatch.setattr(
+        "src.modeling.orchestration.apply_gemini_refinement", _fake_apply_gemini_refinement
+    )
+
+    config = ModelingConfig(
+        cluster=ClusterConfig(max_evals_per_algo=10, random_state=42, max_n_clusters=5),
+        gold_clusters_path=tmp_path / "governor_clusters",
+        gold_sentiment_path=tmp_path / "governor_sentiment",
+        gold_sentiment_history_path=tmp_path / "governor_sentiment_history",
+        checkpoints_dir=tmp_path / "checkpoints",
+        logs_dir=tmp_path / "logs",
+    )
+    result = run_deterministic_modeling(_df_reels(), _df_comments(), config)
+
+    calls = []
+    original_write_sentiment = ModelEnricher.write_sentiment
+
+    def spy_write_sentiment(self, df, path, run_id, mode="overwrite"):
+        calls.append((str(path), mode))
+        return original_write_sentiment(self, df, path, run_id, mode=mode)
+
+    monkeypatch.setattr(ModelEnricher, "write_sentiment", spy_write_sentiment)
+
+    gemini_config = GeminiRefinerConfig(
+        api_key="fake-key", gold_sentiment_path=tmp_path / "governor_sentiment"
+    )
+    refine_topics_with_gemini(result.topic_model, result.docs, result.df_comments, gemini_config)
+
+    assert calls == [(str(gemini_config.gold_sentiment_path), "overwrite")]
+
+    # Histórico continua só com a linha da modelagem determinística original
+    # -- o refinamento não acrescentou nada a ele.
+    history_out = DeltaTable(str(config.gold_sentiment_history_path)).to_pandas()
+    assert (history_out["_run_id"] == result.run_id).all()
 
 
 def test_run_deterministic_modeling_grava_parent_run_id_como_primeira_linha_do_log(

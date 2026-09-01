@@ -19,12 +19,16 @@ from src.schemas_delta import (
 
 class ModelEnricher:
     def write_sentiment(
-        self, df_comments_with_sentiment: pd.DataFrame, path: Path | str, run_id: str
+        self,
+        df_comments_with_sentiment: pd.DataFrame,
+        path: Path | str,
+        run_id: str,
+        mode: str = "overwrite",
     ) -> None:
         df = df_comments_with_sentiment.copy()
         df["_run_id"] = run_id
         df["_generated_at"] = datetime.now(timezone.utc)
-        write_delta(path, df, GOLD_SENTIMENT_SCHEMA)
+        write_delta(path, df, GOLD_SENTIMENT_SCHEMA, mode=mode)
 
     def write_clusters(
         self,

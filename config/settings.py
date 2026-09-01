@@ -62,6 +62,10 @@ GOLD_ENGAGEMENT = GOLD_DIR / "governor_engagement"
 # overwrite, inalterada para os consumidores existentes.
 GOLD_ENGAGEMENT_HISTORY = GOLD_DIR / "governor_engagement_history"
 GOLD_SENTIMENT = GOLD_DIR / "governor_sentiment"
+# Tabela paralela de histórico (mesmo schema, modo append) -- ver issue #52 /
+# ADR 0017. `governor_sentiment` continua em overwrite, inalterada para os
+# consumidores existentes.
+GOLD_SENTIMENT_HISTORY = GOLD_DIR / "governor_sentiment_history"
 GOLD_CLUSTERS = GOLD_DIR / "governor_clusters"
 GOLD_PROFILE_CLUSTERS_ENGAGEMENT = GOLD_DIR / "governor_profile_clusters_engagement"
 

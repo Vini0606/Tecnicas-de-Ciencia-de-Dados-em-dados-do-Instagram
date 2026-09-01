@@ -45,6 +45,26 @@ def test_write_sentiment_grava_topico_junto_do_sentimento(tmp_path):
     assert out.loc[0, "Topic"] == 3
 
 
+def test_write_sentiment_repassa_mode_para_write_delta(monkeypatch):
+    """`governor_sentiment_history` (issue #52) depende de `write_sentiment`
+    repassar `mode` para `write_delta` -- sem isso, toda escrita seria
+    sempre overwrite, e o histórico nunca acumularia mais de uma linha por
+    execução de modelagem (mesmo raciocínio do PR #49 para engajamento)."""
+    captured = {}
+
+    def fake_write_delta(path, df, schema, mode="overwrite"):
+        captured["path"] = path
+        captured["mode"] = mode
+
+    monkeypatch.setattr("src.features.gold.model_enricher.write_delta", fake_write_delta)
+
+    ModelEnricher().write_sentiment(
+        _comentarios_com_sentimento(), "some/path", run_id="r1", mode="append"
+    )
+
+    assert captured["mode"] == "append"
+
+
 def test_write_clusters_usa_granularidade_de_reel(tmp_path):
     """
     `write_clusters` é especificamente para a clusterização de reel do

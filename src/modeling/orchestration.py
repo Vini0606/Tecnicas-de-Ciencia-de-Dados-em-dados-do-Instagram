@@ -95,6 +95,15 @@ def run_deterministic_modeling(
     enricher = ModelEnricher()
     enricher.write_clusters(df_reels_clustered, config.gold_clusters_path, run_id)
     enricher.write_sentiment(df_comments_final, config.gold_sentiment_path, run_id)
+    # Tabela paralela de histórico, mode=append -- não substitui a tabela
+    # acima, que continua overwrite para os consumidores existentes (ver
+    # issue #52 / ADR 0017). Deliberadamente não replicado em
+    # `refine_topics_with_gemini`: o refinamento só reescreve Topic/Name,
+    # sem gerar uma nova medição de sentimento -- gravá-lo no histórico
+    # duplicaria pontos próximos no tempo com o mesmo sentiment_label/score.
+    enricher.write_sentiment(
+        df_comments_final, config.gold_sentiment_history_path, run_id, mode="append"
+    )
 
     # Checkpoint incondicional (ver ADR 0003): sem ele, o refinamento via
     # Gemini só poderia rodar no mesmo processo que acabou de ajustar o

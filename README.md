@@ -197,13 +197,17 @@ flowchart LR
 |---|---|---|---|---|
 | **Bronze** | `data/bronze/` | `instagram_profiles`, `instagram_posts`, `instagram_reels` | `src/data_extract/bronze_writer.py` | Imutabilidade — append-only, nada é sobrescrito |
 | **Silver** | `data/silver/` | `profiles_clean`, `posts_clean`, `reels_clean`, `comments_clean` | `src/features/silver/*_cleaner.py` | Conformidade — tipos, deduplicação, comentários explodidos |
-| **Gold** | `data/gold/` | `governor_engagement`, `governor_engagement_history`, `governor_sentiment`, `governor_clusters` | `src/features/gold/*` | Prontidão — métricas agregadas, resultados de modelagem |
+| **Gold** | `data/gold/` | `governor_engagement`, `governor_engagement_history`, `governor_sentiment`, `governor_sentiment_history`, `governor_clusters` | `src/features/gold/*` | Prontidão — métricas agregadas, resultados de modelagem |
 
-`governor_engagement_history` é uma tabela paralela ao `governor_engagement`, mesmo schema, escrita
-em modo `append` a cada execução (`governor_engagement` continua em `overwrite`, sem mudança para os
-consumidores existentes) — acumula uma linha por governador por execução, a base para mostrar
-tendência de engajamento ao longo do tempo. Sentimento e clusters ainda não têm tabela de histórico
-equivalente (ver [ADR 0016](docs/adr/0016-dashboard-auto-refresh-historico-gold-e-agendamento-alternavel-antes-da-aws.md)).
+`governor_engagement_history` e `governor_sentiment_history` são tabelas paralelas a
+`governor_engagement`/`governor_sentiment`, mesmo schema, escritas em modo `append` a cada execução
+(as tabelas originais continuam em `overwrite`, sem mudança para os consumidores existentes) — a base
+para mostrar tendência de engajamento e sentimento ao longo do tempo (ver
+[ADR 0016](docs/adr/0016-dashboard-auto-refresh-historico-gold-e-agendamento-alternavel-antes-da-aws.md)
+e [ADR 0017](docs/adr/0017-reestruturacao-do-dashboard-para-produto-externo.md)). O refinamento de
+tópicos via Gemini (`scripts/refine_topics.py`) reescreve `governor_sentiment` mas **não** grava no
+histórico — não gera uma nova medição de sentimento, só reescreve rótulos de tópico. Clusters ainda
+não têm tabela de histórico equivalente.
 
 ### Leitura dos dados
 
