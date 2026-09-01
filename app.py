@@ -67,7 +67,12 @@ with nav3:
 
 st.markdown("---")
 
-with st.expander("Como isso funciona"):
+st.markdown(
+    "Por trás dos números: um pipeline de NLP combina PCA, clusterização, "
+    "análise de sentimento e modelagem de tópicos (BERTopic) para chegar "
+    "nessas métricas."
+)
+with st.expander("Como isso funciona", expanded=False):
     st.markdown(
         """
 O pipeline aplica quatro técnicas em sequência, cada uma alimentando a seguinte:
