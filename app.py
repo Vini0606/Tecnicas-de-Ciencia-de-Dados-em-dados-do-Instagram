@@ -19,10 +19,9 @@ st.set_page_config(
 
 st.title("📊 Instagram Analytics — Governadores do Brasil")
 st.markdown(
-    "TCC de Ciência de Dados e Inteligência Artificial (IESB) que propõe e valida uma "
-    "**metodologia híbrida de NLP** — sentimento, modelagem de tópicos (BERTopic) e "
-    "clusterização integrados, em vez de aplicados isoladamente — sobre os perfis de "
-    "Instagram dos **27 governadores do Brasil**."
+    "Acompanhe engajamento, sentimento e tópicos discutidos nos perfis de Instagram dos "
+    "**27 governadores do Brasil** — uma visão consolidada pra quem acompanha comunicação "
+    "e métricas de redes sociais no setor público."
 )
 
 df_profiles = load_profiles()
@@ -45,27 +44,6 @@ with col4:
 
 st.markdown("---")
 
-st.markdown(
-    """
-### Metodologia
-
-O pipeline aplica quatro técnicas em sequência, cada uma alimentando a seguinte:
-
-1. **PCA** reduz as métricas de engajamento e duração dos reels a dois componentes.
-2. **`AutoClusterHPO`** (peça original do trabalho) testa KMeans, DBSCAN e
-   Agglomerative Clustering automaticamente, escolhendo o melhor via um score
-   CVI combinado (Silhouette + Calinski-Harabasz + Davies-Bouldin).
-3. **Análise de sentimento** classifica os comentários em positivo, neutro ou
-   negativo (`cardiffnlp/twitter-xlm-roberta-base-sentiment`).
-4. **BERTopic** extrai os temas discutidos nos comentários.
-
-O achado central do trabalho, em uma frase: **o conteúdo padrão é aprovado, o
-viral é debatido, e o longo é ignorado** — uma leitura que nenhuma das três
-técnicas produz isoladamente. A metodologia completa e os resultados
-detalhados estão no `README.md` do repositório.
-"""
-)
-
 st.markdown("### Navegue pelas análises")
 nav1, nav2, nav3 = st.columns(3)
 with nav1:
@@ -85,4 +63,27 @@ with nav3:
         "pages/03_monitoring.py",
         label="Monitoramento — tendência de engajamento ao longo do tempo",
         icon="📡",
+    )
+
+st.markdown("---")
+
+with st.expander("Como isso funciona"):
+    st.markdown(
+        """
+O pipeline aplica quatro técnicas em sequência, cada uma alimentando a seguinte:
+
+1. **PCA** reduz as métricas de engajamento e duração dos reels a dois componentes.
+2. **`AutoClusterHPO`** (peça original do trabalho) testa KMeans, DBSCAN e
+   Agglomerative Clustering automaticamente, escolhendo o melhor via um score
+   CVI combinado (Silhouette + Calinski-Harabasz + Davies-Bouldin).
+3. **Análise de sentimento** classifica os comentários em positivo, neutro ou
+   negativo (`cardiffnlp/twitter-xlm-roberta-base-sentiment`).
+4. **BERTopic** extrai os temas discutidos nos comentários.
+
+O achado central, em uma frase: **o conteúdo padrão é aprovado, o viral é
+debatido, e o longo é ignorado** — uma leitura que nenhuma das três técnicas
+produz isoladamente. A metodologia completa e os resultados detalhados estão
+no `README.md` do repositório (TCC de Ciência de Dados e Inteligência
+Artificial, IESB).
+"""
     )
