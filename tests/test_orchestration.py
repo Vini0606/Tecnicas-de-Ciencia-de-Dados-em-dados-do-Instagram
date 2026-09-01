@@ -72,6 +72,7 @@ def test_run_deterministic_modeling_grava_clusters_e_sentimento_com_mesmo_run_id
         cluster=ClusterConfig(max_evals_per_algo=10, random_state=42, max_n_clusters=5),
         gold_clusters_path=tmp_path / "governor_clusters",
         gold_sentiment_path=tmp_path / "governor_sentiment",
+        gold_sentiment_history_path=tmp_path / "governor_sentiment_history",
         checkpoints_dir=tmp_path / "checkpoints",
         logs_dir=tmp_path / "logs",
     )
@@ -197,6 +198,7 @@ def test_run_deterministic_modeling_grava_parent_run_id_como_primeira_linha_do_l
         cluster=ClusterConfig(max_evals_per_algo=10, random_state=42, max_n_clusters=5),
         gold_clusters_path=tmp_path / "governor_clusters",
         gold_sentiment_path=tmp_path / "governor_sentiment",
+        gold_sentiment_history_path=tmp_path / "governor_sentiment_history",
         checkpoints_dir=tmp_path / "checkpoints",
         logs_dir=tmp_path / "logs",
     )
@@ -235,6 +237,7 @@ def test_refine_topics_with_gemini_so_reescreve_sentimento_com_run_id_novo(
         cluster=ClusterConfig(max_evals_per_algo=10, random_state=42, max_n_clusters=5),
         gold_clusters_path=tmp_path / "governor_clusters",
         gold_sentiment_path=tmp_path / "governor_sentiment",
+        gold_sentiment_history_path=tmp_path / "governor_sentiment_history",
         checkpoints_dir=tmp_path / "checkpoints",
         logs_dir=tmp_path / "logs",
     )
