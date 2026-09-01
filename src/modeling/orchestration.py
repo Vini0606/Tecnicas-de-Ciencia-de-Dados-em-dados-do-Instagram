@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
+from datetime import datetime, timezone
 
 import pandas as pd
 from bertopic import BERTopic
@@ -94,7 +95,28 @@ def run_deterministic_modeling(
 
     enricher = ModelEnricher()
     enricher.write_clusters(df_reels_clustered, config.gold_clusters_path, run_id)
-    enricher.write_sentiment(df_comments_final, config.gold_sentiment_path, run_id)
+    # `generated_at` calculado uma vez e repassado às duas escritas de
+    # sentimento abaixo, para que governor_sentiment e
+    # governor_sentiment_history carimbem o mesmo timestamp -- mesmo
+    # raciocínio de EngagementAggregator.aggregate(), que carimba
+    # `_generated_at` uma única vez antes de qualquer escrita.
+    generated_at = datetime.now(timezone.utc)
+    enricher.write_sentiment(
+        df_comments_final, config.gold_sentiment_path, run_id, generated_at=generated_at
+    )
+    # Tabela paralela de histórico, mode=append -- não substitui a tabela
+    # acima, que continua overwrite para os consumidores existentes (ver
+    # issue #52 / ADR 0017). Deliberadamente não replicado em
+    # `refine_topics_with_gemini`: o refinamento só reescreve Topic/Name,
+    # sem gerar uma nova medição de sentimento -- gravá-lo no histórico
+    # duplicaria pontos próximos no tempo com o mesmo sentiment_label/score.
+    enricher.write_sentiment(
+        df_comments_final,
+        config.gold_sentiment_history_path,
+        run_id,
+        mode="append",
+        generated_at=generated_at,
+    )
 
     # Checkpoint incondicional (ver ADR 0003): sem ele, o refinamento via
     # Gemini só poderia rodar no mesmo processo que acabou de ajustar o

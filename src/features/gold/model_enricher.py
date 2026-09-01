@@ -19,12 +19,21 @@ from src.schemas_delta import (
 
 class ModelEnricher:
     def write_sentiment(
-        self, df_comments_with_sentiment: pd.DataFrame, path: Path | str, run_id: str
+        self,
+        df_comments_with_sentiment: pd.DataFrame,
+        path: Path | str,
+        run_id: str,
+        mode: str = "overwrite",
+        generated_at: datetime | None = None,
     ) -> None:
         df = df_comments_with_sentiment.copy()
         df["_run_id"] = run_id
-        df["_generated_at"] = datetime.now(timezone.utc)
-        write_delta(path, df, GOLD_SENTIMENT_SCHEMA)
+        # `generated_at` explícito (issue #52) para que duas chamadas desta
+        # função para o mesmo run -- governor_sentiment e
+        # governor_sentiment_history -- carimbem o mesmo timestamp, em vez
+        # de dois `datetime.now()` levemente diferentes.
+        df["_generated_at"] = generated_at or datetime.now(timezone.utc)
+        write_delta(path, df, GOLD_SENTIMENT_SCHEMA, mode=mode)
 
     def write_clusters(
         self,

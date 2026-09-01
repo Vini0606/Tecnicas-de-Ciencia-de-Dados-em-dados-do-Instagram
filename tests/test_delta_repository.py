@@ -76,3 +76,34 @@ def test_load_engagement_history_acumula_varias_execucoes(tmp_path):
 
     assert len(out) == 2
     assert set(out["_run_id"]) == {"r1", "r2"}
+
+
+def test_load_sentiment_history_acumula_varias_execucoes(tmp_path):
+    gold = tmp_path
+    history_path = gold / "governor_sentiment_history"
+    df_r1 = pd.DataFrame(
+        {
+            "id_comment": ["c1"],
+            "sentiment_label": ["Positive"],
+            "sentiment_score": [0.9],
+            "_run_id": ["r1"],
+            "_generated_at": pd.to_datetime(["2026-05-01"], utc=True),
+        }
+    )
+    df_r2 = pd.DataFrame(
+        {
+            "id_comment": ["c2"],
+            "sentiment_label": ["Negative"],
+            "sentiment_score": [0.7],
+            "_run_id": ["r2"],
+            "_generated_at": pd.to_datetime(["2026-05-08"], utc=True),
+        }
+    )
+    write_deltalake(str(history_path), df_r1, mode="overwrite")
+    write_deltalake(str(history_path), df_r2, mode="append")
+
+    repo = DeltaRepository(gold_dir=gold)
+    out = repo.load_sentiment_history()
+
+    assert len(out) == 2
+    assert set(out["_run_id"]) == {"r1", "r2"}

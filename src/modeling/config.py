@@ -81,6 +81,8 @@ class ModelingConfig:
     topics: TopicModelConfig = field(default_factory=TopicModelConfig)
     gold_clusters_path: Path = settings.GOLD_CLUSTERS
     gold_sentiment_path: Path = settings.GOLD_SENTIMENT
+    # Tabela paralela de histórico (mode append) -- ver issue #52 / ADR 0017.
+    gold_sentiment_history_path: Path = settings.GOLD_SENTIMENT_HISTORY
     checkpoints_dir: Path = settings.MODEL_CHECKPOINTS_DIR
     logs_dir: Path = settings.LOGS_DIR
 

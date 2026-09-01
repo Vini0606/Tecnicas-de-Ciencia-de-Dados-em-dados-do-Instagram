@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 import pandas as pd
 import pytest
 from deltalake import DeltaTable
@@ -43,6 +45,55 @@ def test_write_sentiment_grava_topico_junto_do_sentimento(tmp_path):
     assert len(out) == 1
     assert out.loc[0, "sentiment_label"] == "Positive"
     assert out.loc[0, "Topic"] == 3
+
+
+def test_write_sentiment_repassa_mode_para_write_delta(monkeypatch):
+    """`governor_sentiment_history` (issue #52) depende de `write_sentiment`
+    repassar `mode` para `write_delta` -- sem isso, toda escrita seria
+    sempre overwrite, e o histórico nunca acumularia mais de uma linha por
+    execução de modelagem (mesmo raciocínio do PR #49 para engajamento)."""
+    captured = {}
+
+    def fake_write_delta(path, df, schema, mode="overwrite"):
+        captured["path"] = path
+        captured["mode"] = mode
+
+    monkeypatch.setattr("src.features.gold.model_enricher.write_delta", fake_write_delta)
+
+    ModelEnricher().write_sentiment(
+        _comentarios_com_sentimento(), "some/path", run_id="r1", mode="append"
+    )
+
+    assert captured["mode"] == "append"
+
+
+def test_write_sentiment_aceita_generated_at_explicito_para_manter_consistencia(tmp_path):
+    """`governor_sentiment` e `governor_sentiment_history` (issue #52) são
+    escritos em duas chamadas separadas para o mesmo run -- sem um
+    `generated_at` explícito compartilhado, cada chamada carimbaria
+    `datetime.now()` na hora em que rodou, fazendo as duas tabelas
+    registrarem timestamps ligeiramente diferentes para a mesma execução
+    (como se fossem gerações distintas). Mesmo raciocínio de
+    `EngagementAggregator.aggregate()`, que carimba `_generated_at` uma
+    única vez antes de qualquer escrita."""
+    generated_at = datetime(2026, 5, 1, tzinfo=timezone.utc)
+    path_a = tmp_path / "governor_sentiment"
+    path_b = tmp_path / "governor_sentiment_history"
+
+    ModelEnricher().write_sentiment(
+        _comentarios_com_sentimento(), path_a, run_id="r1", generated_at=generated_at
+    )
+    ModelEnricher().write_sentiment(
+        _comentarios_com_sentimento(),
+        path_b,
+        run_id="r1",
+        mode="append",
+        generated_at=generated_at,
+    )
+
+    out_a = DeltaTable(str(path_a)).to_pandas()
+    out_b = DeltaTable(str(path_b)).to_pandas()
+    assert out_a.loc[0, "_generated_at"] == out_b.loc[0, "_generated_at"] == generated_at
 
 
 def test_write_clusters_usa_granularidade_de_reel(tmp_path):

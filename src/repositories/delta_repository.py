@@ -63,6 +63,13 @@ class DeltaRepository(DataRepository):
                 raise
             return self._load(_join(self._silver_dir, "comments_clean"))
 
+    def load_sentiment_history(self) -> pd.DataFrame:
+        """Histórico de sentimento (mode append, uma linha por comentário por
+        execução de modelagem) -- ver issue #52 / ADR 0017. Separada de
+        `load_comments` porque tem granularidade temporal diferente (várias
+        execuções acumuladas, não só a última)."""
+        return self._load(_join(self._gold_dir, "governor_sentiment_history"))
+
     def load_clusters(self) -> pd.DataFrame:
         return self._load(_join(self._gold_dir, "governor_clusters"))
 
