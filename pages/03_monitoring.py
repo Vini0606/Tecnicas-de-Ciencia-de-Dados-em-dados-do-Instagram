@@ -11,7 +11,6 @@ if ROOT_DIR not in sys.path:
 
 from config import settings
 from src.dashboard.filters import (
-    TODOS_GOVERNADORES,
     build_governor_directory,
     enrich_with_governor_metadata,
     render_governor_selector,
@@ -35,6 +34,11 @@ st.markdown(
 )
 st.markdown("---")
 
+HISTORICO_VAZIO_MSG = (
+    "`governor_engagement_history` ainda não tem dados. Rode o pipeline "
+    "(`uv run python pipeline.py`) para começar a acumular histórico."
+)
+
 # Seletor global (issue #54 / ADR 0017): mesmo widget/`session_state`
 # compartilhado com `02_modeling.py` -- selecionar um governador em qualquer
 # página persiste ao navegar para esta. Precisa ficar FORA do
@@ -47,17 +51,22 @@ st.markdown("---")
 # seletor.
 df_history_para_seletor = load_engagement_history()
 if df_history_para_seletor.empty:
-    governador_selecionado = TODOS_GOVERNADORES
-else:
-    governor_universe = df_history_para_seletor[["inputUrl"]].dropna().drop_duplicates()
-    governor_universe_enriched = enrich_with_governor_metadata(governor_universe)
-    governador_selecionado = render_governor_selector(
-        governor_universe_enriched,
-        directory_exists=not build_governor_directory().empty,
-        fallback_urls=df_history_para_seletor["inputUrl"].dropna().unique().tolist(),
-    )
-    if governador_selecionado is None:
-        governador_selecionado = TODOS_GOVERNADORES
+    st.info(HISTORICO_VAZIO_MSG)
+    st.stop()
+
+governor_universe = df_history_para_seletor[["inputUrl"]].dropna().drop_duplicates()
+governor_universe_enriched = enrich_with_governor_metadata(governor_universe)
+governador_selecionado = render_governor_selector(
+    governor_universe_enriched,
+    directory_exists=not build_governor_directory().empty,
+    fallback_urls=df_history_para_seletor["inputUrl"].dropna().unique().tolist(),
+)
+# Contrato de render_governor_selector (ver docstring): None = "pare a
+# página", mesmo tratamento de 02_modeling.py -- não substituir por um
+# default silencioso aqui esconderia um estado de erro real atrás de um
+# "Todos os Governadores" que nunca foi de fato selecionado.
+if governador_selecionado is None:
+    st.stop()
 
 
 @st.fragment(run_every=f"{settings.DASHBOARD_REFRESH_SECONDS}s")
@@ -65,10 +74,7 @@ def render_monitoring() -> None:
     df_history = load_engagement_history()
 
     if df_history.empty:
-        st.info(
-            "`governor_engagement_history` ainda não tem dados. Rode o pipeline "
-            "(`uv run python pipeline.py`) para começar a acumular histórico."
-        )
+        st.info(HISTORICO_VAZIO_MSG)
         return
 
     ultima_execucao = df_history.loc[df_history["_generated_at"].idxmax()]
