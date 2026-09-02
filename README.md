@@ -485,7 +485,7 @@ Esta seção registra honestamente o que ainda não está fechado.
 
 **Pendências de documentação.** Os capítulos 6 (Resultados) e 7 (Conclusões) do TCC ainda estão no texto-modelo, embora os resultados já existam e estejam redigidos no capítulo 5.
 
-**Dashboard ainda é estático — histórico em Gold existe, mas nada o lê de volta ainda.** `governor_engagement_history` (ver seção 3 acima) acumula uma linha por governador a cada execução do pipeline desde esta versão, mas `app.py`/`pages/01_exploratory.py` continuam lendo a Gold uma única vez ao abrir, sem auto-refresh nem gráfico de tendência. Agendamento automático das Lambdas (EventBridge/cron) também segue pendente, com um gate de custo alternável planejado mas não implementado. Ver [ADR 0016](docs/adr/0016-dashboard-auto-refresh-historico-gold-e-agendamento-alternavel-antes-da-aws.md) para o desenho completo e o que falta.
+**Agendamento automático das Lambdas ainda pendente.** EventBridge/cron para disparar o regime incremental/diário segue não implementado, com um gate de custo alternável planejado (`AUTO_CONFIRM_DAILY_EXTRACTION`) mas não escrito. Ver [ADR 0016](docs/adr/0016-dashboard-auto-refresh-historico-gold-e-agendamento-alternavel-antes-da-aws.md) para o desenho completo — a parte de auto-refresh do dashboard já foi implementada (`pages/03_performance.py`).
 
 ### Próximos passos
 
