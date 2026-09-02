@@ -28,7 +28,7 @@ N_CLUSTERS_KMEANS = int(os.environ.get("N_CLUSTERS_KMEANS", 5))
 TSNE_PERPLEXITY = int(os.environ.get("TSNE_PERPLEXITY", 30))
 
 # Intervalo de auto-refresh (segundos) da página de monitoramento do
-# dashboard (`pages/03_monitoring.py`) -- ver issue #50 / ADR 0016.
+# dashboard (`pages/03_performance.py`) -- ver issue #50 / ADR 0016.
 DASHBOARD_REFRESH_SECONDS = int(os.environ.get("DASHBOARD_REFRESH_SECONDS", 60))
 
 # Colunas frequentemente usadas

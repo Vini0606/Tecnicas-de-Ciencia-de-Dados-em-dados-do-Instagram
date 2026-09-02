@@ -391,7 +391,7 @@ def render_governor_selector(
     # Guard contra seleção obsoleta (issue #54): a `key` é compartilhada
     # entre páginas com universos de governador diferentes (ex: filtro de
     # grupo ativo em `02_modeling.py` vs. universo cheio em
-    # `03_monitoring.py`) -- sem isso, navegar para uma página onde a
+    # `03_performance.py`) -- sem isso, navegar para uma página onde a
     # seleção persistida não está mais em `options` levanta
     # `StreamlitAPIException` em vez de degradar para "Todos".
     if (
