@@ -93,7 +93,14 @@ if governador_selecionado != TODOS_GOVERNADORES:
     if df_comparacao.empty:
         st.info("Sem dado suficiente para comparar este governador com os demais ainda.")
     else:
-        linhas_de_metricas = [df_comparacao.iloc[0:5], df_comparacao.iloc[5:10]]
+        # Grade de 5 colunas por linha -- calculado a partir do tamanho real
+        # de df_comparacao (não hardcoded em 2 linhas de 5), para não
+        # silenciosamente cortar métricas se METRICAS_COMPARACAO crescer.
+        METRICAS_POR_LINHA = 5
+        linhas_de_metricas = [
+            df_comparacao.iloc[i : i + METRICAS_POR_LINHA]
+            for i in range(0, len(df_comparacao), METRICAS_POR_LINHA)
+        ]
         for linha_de_metricas in linhas_de_metricas:
             cols = st.columns(len(linha_de_metricas))
             for col, (_, metrica) in zip(cols, linha_de_metricas.iterrows()):
