@@ -88,3 +88,28 @@ def plot_engagement_trend(
         title=title,
         markers=True,
     )
+
+
+def plot_sentiment_trend(df_sentiment_history: pd.DataFrame, title: str | None = None) -> go.Figure:
+    """% de comentários com `sentiment_label == "positive"` por execução de
+    modelagem (`_run_id`), ao longo de `_generated_at`. Espera
+    `df_sentiment_history` já filtrado para um único governador (issue #61 --
+    tendência de sentimento é narrativa por governador, não comparação entre
+    pares, então uma única linha, sem `color=`, diferente de
+    `plot_engagement_trend`)."""
+    if df_sentiment_history.empty:
+        return go.Figure()
+
+    agrupado = (
+        df_sentiment_history.groupby(["_run_id", "_generated_at"])["sentiment_label"]
+        .apply(lambda serie: (serie == "positive").mean() * 100)
+        .reset_index(name="% Positivo")
+        .sort_values("_generated_at")
+    )
+    return px.line(
+        agrupado,
+        x="_generated_at",
+        y="% Positivo",
+        title=title,
+        markers=True,
+    )

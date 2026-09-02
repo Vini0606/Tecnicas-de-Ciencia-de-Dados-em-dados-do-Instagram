@@ -60,7 +60,7 @@ METRICAS_COMPARACAO = [
 ]
 
 # Seletor global (issue #54 / ADR 0017): mesmo widget/`session_state`
-# compartilhado com `02_modeling.py` -- selecionar um governador em qualquer
+# compartilhado com `02_insights.py` -- selecionar um governador em qualquer
 # página persiste ao navegar para esta. Construído sobre `governor_engagement`
 # (snapshot mais recente, sempre existe se o pipeline já rodou uma vez),não
 # sobre o histórico -- não depende de haver mais de uma execução acumulada
@@ -81,7 +81,7 @@ governador_selecionado = render_governor_selector(
     fallback_urls=df_engagement["inputUrl"].dropna().unique().tolist(),
 )
 # Contrato de render_governor_selector (ver docstring): None = "pare a
-# página", mesmo tratamento de 02_modeling.py.
+# página", mesmo tratamento de 02_insights.py.
 if governador_selecionado is None:
     st.stop()
 

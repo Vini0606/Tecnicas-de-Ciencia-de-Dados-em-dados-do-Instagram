@@ -99,3 +99,42 @@ def test_load_engagement_history_returns_empty_dataframe_when_missing(tmp_path, 
     assert isinstance(out, pd.DataFrame)
     assert out.empty
     _clear_caches()
+
+
+def test_load_sentiment_history_returns_delta_table(tmp_path, monkeypatch):
+    _point_settings_at(monkeypatch, tmp_path)
+    history_path = settings.GOLD_DIR / "governor_sentiment_history"
+    df_r1 = pd.DataFrame(
+        {
+            "id_comment": ["c1"],
+            "sentiment_label": ["positive"],
+            "_run_id": ["r1"],
+            "_generated_at": pd.to_datetime(["2026-05-01"], utc=True),
+        }
+    )
+    df_r2 = pd.DataFrame(
+        {
+            "id_comment": ["c2"],
+            "sentiment_label": ["negative"],
+            "_run_id": ["r2"],
+            "_generated_at": pd.to_datetime(["2026-05-08"], utc=True),
+        }
+    )
+    write_deltalake(str(history_path), df_r1, mode="overwrite")
+    write_deltalake(str(history_path), df_r2, mode="append")
+
+    out = loaders.load_sentiment_history()
+
+    assert len(out) == 2
+    assert set(out["_run_id"]) == {"r1", "r2"}
+    _clear_caches()
+
+
+def test_load_sentiment_history_returns_empty_dataframe_when_missing(tmp_path, monkeypatch):
+    _point_settings_at(monkeypatch, tmp_path)
+
+    out = loaders.load_sentiment_history()
+
+    assert isinstance(out, pd.DataFrame)
+    assert out.empty
+    _clear_caches()

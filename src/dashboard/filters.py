@@ -343,7 +343,7 @@ def render_governor_selector(
     """Seletor individual de governador (por nome), global e persistente entre
     páginas via `GLOBAL_GOVERNOR_SELECTOR_KEY` (issue #54 / ADR 0017), em
     cascata com os filtros de grupo quando o chamador os aplica antes de
-    montar `directory_filtered` (ex: `02_modeling.py`). Sempre oferece
+    montar `directory_filtered` (ex: `02_insights.py`). Sempre oferece
     "Todos os Governadores" (`TODOS_GOVERNADORES`) como primeira opção, além
     dos governadores individuais.
 
@@ -390,7 +390,7 @@ def render_governor_selector(
 
     # Guard contra seleção obsoleta (issue #54): a `key` é compartilhada
     # entre páginas com universos de governador diferentes (ex: filtro de
-    # grupo ativo em `02_modeling.py` vs. universo cheio em
+    # grupo ativo em `02_insights.py` vs. universo cheio em
     # `03_performance.py`) -- sem isso, navegar para uma página onde a
     # seleção persistida não está mais em `options` levanta
     # `StreamlitAPIException` em vez de degradar para "Todos".
