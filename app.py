@@ -45,7 +45,7 @@ with col4:
 st.markdown("---")
 
 st.markdown("### Navegue pelas análises")
-nav1, nav2, nav3 = st.columns(3)
+nav1, nav2, nav3, nav4 = st.columns(4)
 with nav1:
     st.page_link(
         "pages/01_explorar.py",
@@ -63,6 +63,12 @@ with nav3:
         "pages/03_performance.py",
         label="Performance — como você está indo vs. seus pares",
         icon="🎯",
+    )
+with nav4:
+    st.page_link(
+        "pages/04_recommendations.py",
+        label="Recommendations — recomendações para este governador",
+        icon="✅",
     )
 
 st.markdown("---")
