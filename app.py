@@ -60,9 +60,9 @@ with nav2:
     )
 with nav3:
     st.page_link(
-        "pages/03_monitoring.py",
-        label="Monitoramento — tendência de engajamento ao longo do tempo",
-        icon="📡",
+        "pages/03_performance.py",
+        label="Performance — como você está indo vs. seus pares",
+        icon="🎯",
     )
 
 st.markdown("---")
