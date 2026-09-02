@@ -48,9 +48,9 @@ st.markdown("### Navegue pelas análises")
 nav1, nav2, nav3 = st.columns(3)
 with nav1:
     st.page_link(
-        "pages/01_exploratory.py",
-        label="Exploratório — perfis, engajamento e correlações",
-        icon="📊",
+        "pages/01_explorar.py",
+        label="Explorar — correlações entre métricas",
+        icon="🔍",
     )
 with nav2:
     st.page_link(
