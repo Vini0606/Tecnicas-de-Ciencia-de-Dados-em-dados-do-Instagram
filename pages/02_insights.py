@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import os
 import sys
@@ -23,13 +23,18 @@ from src.dashboard.filters import (
     render_unmatched_warning,
     select_governor_rows,
 )
-from src.dashboard.loaders import load_clusters, load_comments, load_reels
-from src.visualization.charts import plot_top_n_bar, plot_value_counts
+from src.dashboard.loaders import (
+    load_clusters,
+    load_comments,
+    load_reels,
+    load_sentiment_history,
+)
+from src.visualization.charts import plot_sentiment_trend, plot_top_n_bar, plot_value_counts
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(
-    page_title="Instagram Analytics — Modelagem",
-    page_icon="📈",
+    page_title="Instagram Analytics — Insights",
+    page_icon="💡",
     layout="wide",
 )
 
@@ -80,7 +85,7 @@ df_filtrado_comments = select_governor_rows(df_comments, governador_selecionado,
 df_filtrado_reels = select_governor_rows(df_reels, governador_selecionado, universo_ativo)
 
 # --- PÁGINA PRINCIPAL ---
-st.title("📊 Comentários dos Governadores do Brasil")
+st.title("💡 Insights — Governadores do Brasil")
 st.markdown("---")
 
 if df_filtrado_comments.empty:
@@ -152,6 +157,31 @@ else:
                 "Rode `scripts/run_modeling.py` para popular `governor_sentiment`."
             )
 
+    # Tendência de sentimento (issue #61 / issue #52): narrativa por
+    # governador ("o sentimento sobre você está melhorando"), não comparação
+    # entre pares -- por isso só aparece com um governador específico
+    # selecionado, mesmo raciocínio já usado nos cards da Performance.
+    if governador_selecionado != TODOS_GOVERNADORES:
+        st.markdown("#### Tendência de sentimento")
+        df_sentiment_history = load_sentiment_history()
+        df_sentiment_history_filtrado = select_governor_rows(
+            df_sentiment_history, governador_selecionado, universo_ativo
+        )
+        if df_sentiment_history_filtrado.empty:
+            st.info(
+                "Ainda não há histórico de sentimento suficiente para este "
+                "governador. Cada execução de `scripts/run_modeling.py` "
+                "acrescenta um ponto novo."
+            )
+        else:
+            st.plotly_chart(
+                plot_sentiment_trend(
+                    df_sentiment_history_filtrado,
+                    title="% de comentários positivos ao longo do tempo",
+                ),
+                width="stretch",
+            )
+
     st.markdown("#### Tópicos mais frequentes")
     if tem_modelagem and "Name" in df_filtrado_comments.columns:
         df_topicos = (
@@ -171,7 +201,10 @@ else:
             "--run-id <ID>` para refinar os rótulos) para popular `governor_sentiment`."
         )
 
-    st.markdown("#### Clusters dos reels (AutoClusterHPO)")
+    st.markdown(
+        "#### Padrões de conteúdo dos reels",
+        help="Clusterização automática (AutoClusterHPO) por engajamento e duração do reel.",
+    )
     if df_clusters.empty:
         st.info(
             "`governor_clusters` ainda não existe. "
@@ -190,7 +223,7 @@ else:
                 .reset_index()
             )
 
-    st.markdown("#### Cluster de Perfil por Engajamento (Fase 2)")
+    st.markdown("#### Perfil de comportamento do governador")
     if profile_cluster_directory.empty:
         st.info(
             "`governor_profile_clusters_engagement` ainda não existe. "

@@ -54,9 +54,9 @@ with nav1:
     )
 with nav2:
     st.page_link(
-        "pages/02_modeling.py",
-        label="Modelagem — sentimento, tópicos e clusters",
-        icon="📈",
+        "pages/02_insights.py",
+        label="Insights — sentimento e tópicos dos comentários",
+        icon="💡",
     )
 with nav3:
     st.page_link(
