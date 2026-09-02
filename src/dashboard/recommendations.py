@@ -30,12 +30,29 @@ def _peer_urls(df_profile_clusters: pd.DataFrame, governor_url: str) -> list[str
     if pd.isna(cluster_governador):
         return None
 
-    pares = df_profile_clusters[
-        (df_profile_clusters["cluster_perfil_engajamento"] == cluster_governador)
-        & (~df_profile_clusters.index.isin(linha_governador.index))
+    mesmo_cluster = df_profile_clusters[
+        df_profile_clusters["cluster_perfil_engajamento"] == cluster_governador
     ]
+    # Exclui o próprio governador por índice -- mesmo idioma de
+    # `comparisons.py::compute_governor_comparison` (`.drop(..., errors="ignore")`)
+    # pro mesmo conceito ("tira a própria linha da comparação com pares").
+    pares = mesmo_cluster.drop(linha_governador.index, errors="ignore")
     urls = pares["inputUrl"].dropna().unique().tolist()
     return urls or None
+
+
+def _pct_diff_vs_peers(valor_proprio: float, valores_pares: pd.Series) -> float | None:
+    """% de diferença entre `valor_proprio` e a média de `valores_pares`
+    (positivo = próprio maior que a média dos pares). `None` se não houver
+    pares com valor válido, ou se a média dos pares for <= 0 (divisão sem
+    sentido)."""
+    valores_pares = valores_pares.dropna()
+    if valores_pares.empty:
+        return None
+    media_pares = valores_pares.mean()
+    if media_pares <= 0:
+        return None
+    return (valor_proprio - media_pares) / media_pares * 100
 
 
 def check_engagement_drop(
@@ -172,18 +189,11 @@ def check_shorter_or_longer_reels_than_peers(
     if duracao_propria.empty:
         return None
 
-    reels_pares = df_reels[df_reels["inputUrl"].isin(pares_urls)]
-    duracao_pares = pd.to_numeric(reels_pares["videoDuration"], errors="coerce").dropna()
-    if duracao_pares.empty:
-        return None
-
-    media_propria = duracao_propria.mean()
-    media_pares = duracao_pares.mean()
-    if media_pares <= 0:
-        return None
-
-    diff_pct = (media_propria - media_pares) / media_pares * 100
-    if abs(diff_pct) >= limiar_pct:
+    duracao_pares = pd.to_numeric(
+        df_reels.loc[df_reels["inputUrl"].isin(pares_urls), "videoDuration"], errors="coerce"
+    )
+    diff_pct = _pct_diff_vs_peers(duracao_propria.mean(), duracao_pares)
+    if diff_pct is not None and abs(diff_pct) >= limiar_pct:
         direcao = "mais curtos" if diff_pct < 0 else "mais longos"
         return (
             f"Seus reels são {direcao} que os dos seus pares de cluster "
@@ -219,18 +229,14 @@ def check_frequency_below_cluster_peers(
     freq_pares = pd.to_numeric(
         df_engagement.loc[df_engagement["inputUrl"].isin(pares_urls), "FREQUENCIA"],
         errors="coerce",
-    ).dropna()
-    if freq_pares.empty:
-        return None
-
-    media_pares = freq_pares.mean()
-    if media_pares <= 0:
-        return None
-
-    diff_pct = (media_pares - freq_propria) / media_pares * 100
-    if diff_pct >= limiar_pct:
+    )
+    # _pct_diff_vs_peers é "próprio vs. pares" (positivo = próprio maior) --
+    # "abaixo dos pares" é o lado negativo dessa mesma convenção, por isso o
+    # limiar aqui é <= -limiar_pct, não >= limiar_pct.
+    diff_pct = _pct_diff_vs_peers(freq_propria, freq_pares)
+    if diff_pct is not None and diff_pct <= -limiar_pct:
         return (
-            f"Sua frequência de postagem está {diff_pct:.0f}% abaixo da média "
+            f"Sua frequência de postagem está {abs(diff_pct):.0f}% abaixo da média "
             f"dos seus pares de cluster."
         )
     return None
