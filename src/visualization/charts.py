@@ -101,8 +101,10 @@ def plot_sentiment_trend(df_sentiment_history: pd.DataFrame, title: str | None =
         return go.Figure()
 
     agrupado = (
-        df_sentiment_history.groupby(["_run_id", "_generated_at"])["sentiment_label"]
-        .apply(lambda serie: (serie == "positive").mean() * 100)
+        df_sentiment_history.assign(_positivo=df_sentiment_history["sentiment_label"] == "positive")
+        .groupby(["_run_id", "_generated_at"])["_positivo"]
+        .mean()
+        .mul(100)
         .reset_index(name="% Positivo")
         .sort_values("_generated_at")
     )
