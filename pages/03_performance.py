@@ -19,7 +19,10 @@ from src.dashboard.filters import (
     select_governor_rows,
 )
 from src.dashboard.loaders import load_engagement_history, load_profiles
-from src.visualization.charts import plot_engagement_trend
+from src.visualization.charts import (
+    plot_engagement_group_summary_trend,
+    plot_engagement_trend_with_group_context,
+)
 
 st.set_page_config(
     page_title="Instagram Analytics — Performance",
@@ -85,6 +88,19 @@ governador_selecionado = render_governor_selector(
 if governador_selecionado is None:
     st.stop()
 
+# Nome de exibição do governador selecionado (issue #68) -- mesmo padrão de
+# fallback de `render_governor_selector`: usa a URL crua se não houver nome
+# cadastrado em `governors_metadata`. `governador_selecionado` vem das
+# próprias opções de `governor_universe_enriched`, então a comparação exata
+# (sem normalização de URL) é segura aqui -- é a mesma tabela, não um
+# cruzamento entre tabelas diferentes.
+nome_por_url = dict(zip(governor_universe_enriched["inputUrl"], governor_universe_enriched["nome"]))
+_nome_bruto = nome_por_url.get(governador_selecionado)
+# `.get` pode devolver NaN (float, não string) pra URL sem match em
+# governors_metadata -- `NaN or fallback` NÃO cairia no fallback (NaN é
+# truthy em Python), por isso o check explícito de tipo em vez de `or`.
+nome_governador_selecionado = _nome_bruto if isinstance(_nome_bruto, str) else governador_selecionado
+
 if governador_selecionado != TODOS_GOVERNADORES:
     st.markdown("### Como você está indo vs. seus pares")
     df_comparacao = compute_governor_comparison(
@@ -136,6 +152,28 @@ def render_performance_trend() -> None:
         f"(run_id: `{ultima_execucao['_run_id']}`)"
     )
 
+    if governador_selecionado == TODOS_GOVERNADORES:
+        # Issue #68: uma linha por governador (até 27 séries/cores no mesmo
+        # gráfico) estoura o teto categórico da paleta e fica ilegível --
+        # agrega em Média/Mediana do grupo em vez de plotar todo mundo.
+        st.plotly_chart(
+            plot_engagement_group_summary_trend(
+                df_history,
+                y_col="TOTAL ENGAJAMENTO",
+                title="Tendência de Engajamento Total — Média/Mediana do grupo",
+            ),
+            width="stretch",
+        )
+        st.plotly_chart(
+            plot_engagement_group_summary_trend(
+                df_history,
+                y_col="% ENGAJAMENTO",
+                title="Tendência de % de Engajamento — Média/Mediana do grupo",
+            ),
+            width="stretch",
+        )
+        return
+
     universo_urls = df_history["inputUrl"].dropna().unique().tolist()
     df_filtrado = select_governor_rows(df_history, governador_selecionado, universo_urls)
 
@@ -144,17 +182,21 @@ def render_performance_trend() -> None:
         return
 
     st.plotly_chart(
-        plot_engagement_trend(
+        plot_engagement_trend_with_group_context(
             df_filtrado,
+            df_history,
             y_col="TOTAL ENGAJAMENTO",
+            governor_label=nome_governador_selecionado,
             title="Tendência de Engajamento Total",
         ),
         width="stretch",
     )
     st.plotly_chart(
-        plot_engagement_trend(
+        plot_engagement_trend_with_group_context(
             df_filtrado,
+            df_history,
             y_col="% ENGAJAMENTO",
+            governor_label=nome_governador_selecionado,
             title="Tendência de % de Engajamento",
         ),
         width="stretch",
