@@ -3,6 +3,27 @@ import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
+# Paleta de fallback da skill /dataviz (references/palette.md) -- usada sempre
+# que a tentativa de puxar hex da identidade visual da IESB reprova o
+# validador (scripts/validate_palette.js). Ver issues #67/#68: o par
+# diverging vermelho/azul da IESB reprova banda de luminosidade + contraste
+# no modo escuro, e o par categórico dourado/verde reprova separação sob
+# daltonismo (ΔE 1.0 sob protanopia) nos dois modos -- por isso os dois
+# gráficos abaixo caem pro par genérico documentado, não pras cores da marca.
+_DIVERGING_NEGATIVE_COLOR = "#e34948"
+_DIVERGING_POSITIVE_COLOR = "#2a78d6"
+_DIVERGING_NEUTRAL_COLOR = "#f0efec"
+_CATEGORICAL_SLOT_1 = "#2a78d6"
+_CATEGORICAL_SLOT_2 = "#eb6834"
+_MUTED_CONTEXT_COLOR = "#898781"
+
+# Abaixo desse percentual, o rótulo "XX%" não cabe com respiro dentro do
+# segmento (issue #67: "medir antes de renderizar... nunca usar overflow:
+# hidden pra cortar"). Plotly não expõe medição de texto pré-render, então
+# isso é um proxy pragmático -- segmento menor que isso conta só com
+# legenda/tooltip, não rótulo direto.
+_MIN_SEGMENT_PCT_FOR_LABEL = 6.0
+
 
 def plot_top_n_bar(
     df: pd.DataFrame,
@@ -57,11 +78,48 @@ def plot_correlation_heatmap(df: pd.DataFrame, method: str = "pearson") -> go.Fi
     )
 
 
-def plot_value_counts(df: pd.DataFrame, column: str, title: str) -> go.Figure:
-    """Gráfico de pizza com a contagem de valores de uma coluna categórica."""
-    counts = df[column].value_counts().reset_index(name="count")
-    counts.columns = [column, "count"]
-    return px.pie(counts, names=column, values="count", title=title)
+def plot_sentiment_diverging_bar(
+    df: pd.DataFrame, column: str = "sentiment_label", title: str | None = None
+) -> go.Figure:
+    """Distribuição de sentimento (negativo/neutro/positivo) como uma diverging
+    stacked bar centrada no zero -- sentimento é uma escala ordenada (Likert),
+    não categorias nominais soltas, então o segmento neutro fica metade à
+    esquerda e metade à direita do zero, negativo cresce pra esquerda a partir
+    daí e positivo pra direita (issue #67). Substitui a pizza de
+    `plot_value_counts` (removida -- essa era a única chamadora)."""
+    serie = df[column].dropna()
+    if serie.empty:
+        return go.Figure()
+
+    neg_pct = (serie == "negative").mean() * 100
+    neu_pct = (serie == "neutral").mean() * 100
+    pos_pct = (serie == "positive").mean() * 100
+
+    segmentos = [
+        ("Negativo", -(neg_pct + neu_pct / 2), neg_pct, _DIVERGING_NEGATIVE_COLOR, "white"),
+        ("Neutro", -neu_pct / 2, neu_pct, _DIVERGING_NEUTRAL_COLOR, "#52514e"),
+        ("Positivo", neu_pct / 2, pos_pct, _DIVERGING_POSITIVE_COLOR, "white"),
+    ]
+
+    fig = go.Figure()
+    for nome, base, valor, cor, cor_texto in segmentos:
+        fig.add_trace(
+            go.Bar(
+                y=["Sentimento"],
+                x=[valor],
+                base=[base],
+                orientation="h",
+                name=nome,
+                marker_color=cor,
+                text=f"{valor:.0f}%" if valor >= _MIN_SEGMENT_PCT_FOR_LABEL else None,
+                textposition="auto",
+                textfont={"color": cor_texto},
+            )
+        )
+    fig.update_layout(barmode="overlay", title=title, showlegend=True)
+    fig.update_xaxes(showticklabels=False, zeroline=False, showgrid=False)
+    fig.update_yaxes(showticklabels=False)
+    return fig
 
 
 def plot_scatter(
@@ -115,3 +173,90 @@ def plot_sentiment_trend(df_sentiment_history: pd.DataFrame, title: str | None =
         title=title,
         markers=True,
     )
+
+
+def plot_engagement_group_summary_trend(
+    df_history: pd.DataFrame, y_col: str, title: str | None = None
+) -> go.Figure:
+    """Média e mediana de `y_col` por execução (`_run_id`/`_generated_at`)
+    entre todos os governadores de `df_history` -- usada no lugar de 1 linha
+    por governador (`plot_engagement_trend`) quando "Todos os Governadores"
+    está selecionado em Performance: até 27 séries/cores no mesmo gráfico
+    estoura o teto categórico da paleta e fica ilegível (issue #68)."""
+    if df_history.empty:
+        return go.Figure()
+
+    agrupado = (
+        df_history.groupby(["_run_id", "_generated_at"])[y_col]
+        .agg(["mean", "median"])
+        .reset_index()
+        .sort_values("_generated_at")
+    )
+
+    fig = go.Figure()
+    fig.add_trace(
+        go.Scatter(
+            x=agrupado["_generated_at"],
+            y=agrupado["mean"],
+            name="Média",
+            mode="lines+markers",
+            line={"color": _CATEGORICAL_SLOT_1},
+        )
+    )
+    fig.add_trace(
+        go.Scatter(
+            x=agrupado["_generated_at"],
+            y=agrupado["median"],
+            name="Mediana",
+            mode="lines+markers",
+            line={"color": _CATEGORICAL_SLOT_2},
+        )
+    )
+    fig.update_layout(title=title)
+    return fig
+
+
+def plot_engagement_trend_with_group_context(
+    df_governador: pd.DataFrame,
+    df_grupo: pd.DataFrame,
+    y_col: str,
+    governor_label: str,
+    title: str | None = None,
+) -> go.Figure:
+    """Linha do governador selecionado em destaque + média de `y_col` do grupo
+    inteiro (`df_grupo`, não filtrado por governador) como linha de contexto
+    cinza atrás dela -- padrão "emphasis" da `/dataviz`: 1 série é o ponto, o
+    resto é contexto. Dá à tendência ao longo do tempo a mesma leitura "vs.
+    pares" que os cards de comparação já dão em texto (issue #68)."""
+    df_governador_ordenado = df_governador.sort_values("_generated_at")
+
+    fig = go.Figure()
+    fig.add_trace(
+        go.Scatter(
+            x=df_governador_ordenado["_generated_at"],
+            y=df_governador_ordenado[y_col],
+            name=governor_label,
+            mode="lines+markers",
+            line={"color": _CATEGORICAL_SLOT_1},
+        )
+    )
+
+    if not df_grupo.empty:
+        media_grupo = (
+            df_grupo.groupby(["_run_id", "_generated_at"])[y_col]
+            .mean()
+            .reset_index(name=y_col)
+            .sort_values("_generated_at")
+        )
+        fig.add_trace(
+            go.Scatter(
+                x=media_grupo["_generated_at"],
+                y=media_grupo[y_col],
+                name="Média do grupo",
+                mode="lines",
+                line={"color": _MUTED_CONTEXT_COLOR},
+            )
+        )
+
+    fig.update_layout(title=title)
+    return fig

@@ -206,6 +206,17 @@ def enrich_with_governor_metadata(df: pd.DataFrame, url_col: str = "inputUrl") -
     return merged
 
 
+def build_governor_label_map(directory: pd.DataFrame) -> dict[str, str]:
+    """`inputUrl -> nome de exibição`, caindo pra própria URL onde `nome` for
+    nulo (governador sem match em `governors_metadata`) -- helper compartilhado
+    entre `render_governor_selector` (mapa completo, pro `format_func` do
+    seletor) e qualquer chamador que só precise resolver 1 nome (ex:
+    `03_performance.py`, rótulo da linha em destaque no gráfico de tendência)."""
+    if directory.empty or "nome" not in directory.columns:
+        return {}
+    return dict(zip(directory["inputUrl"], directory["nome"].fillna(directory["inputUrl"])))
+
+
 def render_unmatched_warning(df_enriched: pd.DataFrame, url_col: str = "inputUrl") -> None:
     """Mostra um `st.warning` visível se alguma linha de `df_enriched` (já
     passado por `enrich_with_governor_metadata`) não casou com `governadores.xlsx`
@@ -361,12 +372,7 @@ def render_governor_selector(
                 "Nenhum governador corresponde aos filtros de grupo selecionados."
             )
             return None
-        label_by_url = dict(
-            zip(
-                directory_filtered["inputUrl"],
-                directory_filtered["nome"].fillna(directory_filtered["inputUrl"]),
-            )
-        )
+        label_by_url = build_governor_label_map(directory_filtered)
         label_by_url[TODOS_GOVERNADORES] = "Todos os Governadores"
         options = [TODOS_GOVERNADORES] + directory_filtered["inputUrl"].dropna().unique().tolist()
 

@@ -29,7 +29,11 @@ from src.dashboard.loaders import (
     load_reels,
     load_sentiment_history,
 )
-from src.visualization.charts import plot_sentiment_trend, plot_top_n_bar, plot_value_counts
+from src.visualization.charts import (
+    plot_sentiment_diverging_bar,
+    plot_sentiment_trend,
+    plot_top_n_bar,
+)
 
 # --- CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(
@@ -144,7 +148,7 @@ else:
         st.markdown("#### Distribuição de Sentimento")
         if tem_modelagem:
             st.plotly_chart(
-                plot_value_counts(
+                plot_sentiment_diverging_bar(
                     df_filtrado_comments,
                     column="sentiment_label",
                     title="Sentimento dos comentários",
