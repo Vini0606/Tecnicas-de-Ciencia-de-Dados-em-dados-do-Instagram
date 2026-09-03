@@ -17,6 +17,13 @@ _CATEGORICAL_SLOT_1 = "#2a78d6"
 _CATEGORICAL_SLOT_2 = "#eb6834"
 _MUTED_CONTEXT_COLOR = "#898781"
 
+# Abaixo desse percentual, o rótulo "XX%" não cabe com respiro dentro do
+# segmento (issue #67: "medir antes de renderizar... nunca usar overflow:
+# hidden pra cortar"). Plotly não expõe medição de texto pré-render, então
+# isso é um proxy pragmático -- segmento menor que isso conta só com
+# legenda/tooltip, não rótulo direto.
+_MIN_SEGMENT_PCT_FOR_LABEL = 6.0
+
 
 def plot_top_n_bar(
     df: pd.DataFrame,
@@ -104,7 +111,7 @@ def plot_sentiment_diverging_bar(
                 orientation="h",
                 name=nome,
                 marker_color=cor,
-                text=f"{valor:.0f}%" if valor > 0 else None,
+                text=f"{valor:.0f}%" if valor >= _MIN_SEGMENT_PCT_FOR_LABEL else None,
                 textposition="auto",
                 textfont={"color": cor_texto},
             )

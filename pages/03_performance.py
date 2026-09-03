@@ -14,6 +14,7 @@ from src.dashboard.comparisons import compute_governor_comparison
 from src.dashboard.filters import (
     TODOS_GOVERNADORES,
     build_governor_directory,
+    build_governor_label_map,
     enrich_with_governor_metadata,
     render_governor_selector,
     select_governor_rows,
@@ -88,18 +89,12 @@ governador_selecionado = render_governor_selector(
 if governador_selecionado is None:
     st.stop()
 
-# Nome de exibição do governador selecionado (issue #68) -- mesmo padrão de
-# fallback de `render_governor_selector`: usa a URL crua se não houver nome
-# cadastrado em `governors_metadata`. `governador_selecionado` vem das
-# próprias opções de `governor_universe_enriched`, então a comparação exata
-# (sem normalização de URL) é segura aqui -- é a mesma tabela, não um
-# cruzamento entre tabelas diferentes.
-nome_por_url = dict(zip(governor_universe_enriched["inputUrl"], governor_universe_enriched["nome"]))
-_nome_bruto = nome_por_url.get(governador_selecionado)
-# `.get` pode devolver NaN (float, não string) pra URL sem match em
-# governors_metadata -- `NaN or fallback` NÃO cairia no fallback (NaN é
-# truthy em Python), por isso o check explícito de tipo em vez de `or`.
-nome_governador_selecionado = _nome_bruto if isinstance(_nome_bruto, str) else governador_selecionado
+# Nome de exibição do governador selecionado (issue #68), rótulo da linha em
+# destaque no gráfico de tendência -- mesmo helper de resolução de nome
+# usado por `render_governor_selector`, não uma segunda implementação.
+nome_governador_selecionado = build_governor_label_map(governor_universe_enriched).get(
+    governador_selecionado, governador_selecionado
+)
 
 if governador_selecionado != TODOS_GOVERNADORES:
     st.markdown("### Como você está indo vs. seus pares")

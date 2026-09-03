@@ -108,6 +108,19 @@ def test_plot_sentiment_diverging_bar_nao_levanta_com_dataframe_vazio():
     assert len(fig.data) == 0
 
 
+def test_plot_sentiment_diverging_bar_esconde_rotulo_de_segmento_muito_pequeno():
+    # 100 linhas: 3% negativo, 2% neutro, 95% positivo -- os dois primeiros
+    # ficam abaixo do limiar de "cabe o rótulo com respiro" (issue #67).
+    df = pd.DataFrame(
+        {"sentiment_label": ["negative"] * 3 + ["neutral"] * 2 + ["positive"] * 95}
+    )
+    fig = plot_sentiment_diverging_bar(df)
+    texto_por_nome = {trace.name: trace.text for trace in fig.data}
+    assert texto_por_nome["Negativo"] is None
+    assert texto_por_nome["Neutro"] is None
+    assert texto_por_nome["Positivo"] is not None
+
+
 def test_plot_sentiment_diverging_bar_categoria_ausente_nao_quebra():
     df_sem_negativo = pd.DataFrame({"sentiment_label": ["neutral", "positive"]})
     fig = plot_sentiment_diverging_bar(df_sem_negativo)
