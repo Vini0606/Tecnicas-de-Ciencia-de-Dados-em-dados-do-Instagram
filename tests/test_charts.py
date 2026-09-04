@@ -4,6 +4,7 @@ import pytest
 
 from src.visualization.charts import (
     plot_engagement_group_summary_trend,
+    plot_engagement_quadrant_matrix,
     plot_engagement_trend,
     plot_engagement_trend_with_group_context,
     plot_sentiment_diverging_bar,
@@ -217,3 +218,54 @@ def test_plot_engagement_trend_with_group_context_governador_vazio_nao_levanta()
     assert isinstance(fig, go.Figure)
     trace_names = {trace.name for trace in fig.data}
     assert trace_names == {"Fulano", "Média do grupo"}
+
+
+def _df_quadrantes():
+    return pd.DataFrame(
+        {
+            "inputUrl": [
+                "https://www.instagram.com/gov_a/",
+                "https://www.instagram.com/gov_b/",
+                "https://www.instagram.com/gov_c/",
+            ],
+            "followersCount": [100, 900, 500],
+            "% ENGAJAMENTO": [0.01, 0.30, 0.05],
+            "quadrante": ["Inexpressivo", "Superstar", "Inexpressivo"],
+            "mediana_followers": [500, 500, 500],
+            "mediana_engajamento": [0.05, 0.05, 0.05],
+        }
+    )
+
+
+def test_plot_engagement_quadrant_matrix_returns_figure():
+    fig = plot_engagement_quadrant_matrix(_df_quadrantes())
+    assert isinstance(fig, go.Figure)
+
+
+def test_plot_engagement_quadrant_matrix_nao_levanta_com_dataframe_vazio():
+    fig = plot_engagement_quadrant_matrix(pd.DataFrame())
+    assert isinstance(fig, go.Figure)
+    assert len(fig.data) == 0
+
+
+def test_plot_engagement_quadrant_matrix_sem_governador_selecionado_um_trace_so():
+    fig = plot_engagement_quadrant_matrix(_df_quadrantes(), governor_url=None)
+    assert len(fig.data) == 1
+    assert len(fig.data[0].x) == 3
+
+
+def test_plot_engagement_quadrant_matrix_destaca_governador_selecionado():
+    fig = plot_engagement_quadrant_matrix(
+        _df_quadrantes(),
+        governor_url="https://www.instagram.com/gov_b/",
+        governor_label="Governador B",
+    )
+    trace_names = {trace.name for trace in fig.data}
+    assert "Governador B" in trace_names
+
+    trace_destacado = next(trace for trace in fig.data if trace.name == "Governador B")
+    assert list(trace_destacado.x) == [900]
+    assert list(trace_destacado.y) == [0.30]
+
+    trace_contexto = next(trace for trace in fig.data if trace.name != "Governador B")
+    assert len(trace_contexto.x) == 2  # gov_a e gov_c, sem o destacado

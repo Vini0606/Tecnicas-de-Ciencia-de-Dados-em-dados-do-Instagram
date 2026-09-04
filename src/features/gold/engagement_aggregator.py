@@ -50,9 +50,20 @@ class EngagementAggregator:
 
         df["TOTAL ENGAJAMENTO"] = (df["commentsSum"] + df["likesSum"]).astype("int64")
 
+        # ADR 0018: curtida e comentário não custam a mesma atenção -- Wc pesa
+        # comentário mais que curtida, calibrado pela própria base (razão
+        # curtidas/comentários da execução inteira) em vez de arbitrado. Sem
+        # comentário nenhum na execução, Wc cairia em divisão por zero; 1.0
+        # degrada para o mesmo peso curtida=comentário de antes.
+        total_likes = df["likesSum"].sum()
+        total_comments = df["commentsSum"].sum()
+        wc_comentario = float(total_likes) / total_comments if total_comments > 0 else 1.0
+        df["_WC_COMENTARIO"] = wc_comentario
+
         followers = pd.to_numeric(df["followersCount"], errors="coerce").astype("float64")
+        engajamento_ponderado = df["likesSum"] + df["commentsSum"] * wc_comentario
         df["% ENGAJAMENTO"] = (
-            df["TOTAL ENGAJAMENTO"].div(followers.where(followers > 0)).fillna(0.0)
+            engajamento_ponderado.div(followers.where(followers > 0)).fillna(0.0)
         )
 
         if "maxData" in df.columns:

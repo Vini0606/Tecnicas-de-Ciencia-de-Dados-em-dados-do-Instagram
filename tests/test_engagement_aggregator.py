@@ -1,4 +1,5 @@
 import pandas as pd
+import pytest
 
 from src.delta_io import conform_to_schema
 from src.features.gold.engagement_aggregator import EngagementAggregator
@@ -99,3 +100,41 @@ def test_colunas_de_perfil_sobrevivem_ate_a_gold():
     df = EngagementAggregator().aggregate(_perfis(), _publicacoes(), pd.DataFrame(), "r1")
     table = conform_to_schema(df, GOLD_ENGAGEMENT_SCHEMA)
     assert {"followsCount", "postsCount"} <= set(table.column_names)
+
+
+def test_engajamento_pondera_comentario_mais_que_curtida():
+    """ADR 0018: `% ENGAJAMENTO` deixa de ser TOTAL/seguidores (curtida e
+    comentário pesando igual) e passa a ser (curtidas + comentários * Wc) /
+    seguidores, com Wc = soma(curtidas) / soma(comentários) da execução
+    inteira. Em `_publicacoes()`, só "ativo" tem posts: likesSum=300,
+    commentsSum=30 -- únicos valores não-zero do dataset -- então
+    Wc = 300/30 = 10.0, e % ENGAJAMENTO(ativo) = (300 + 30*10) / 1000 = 0.6
+    (bem diferente do 0.33 que a fórmula antiga, TOTAL/seguidores, dava)."""
+    df = EngagementAggregator().aggregate(_perfis(), _publicacoes(), pd.DataFrame(), "r1")
+
+    ativo = df.loc[df["username"] == "ativo"].iloc[0]
+    assert ativo["_WC_COMENTARIO"] == pytest.approx(10.0)
+    assert ativo["% ENGAJAMENTO"] == pytest.approx(0.6)
+    # TOTAL ENGAJAMENTO continua a soma bruta (sem peso) -- não muda com o Wc.
+    assert ativo["TOTAL ENGAJAMENTO"] == 330
+
+
+def test_wc_cai_para_1_quando_nao_ha_comentarios_na_execucao():
+    """Sem nenhum comentário na base inteira, Wc = soma(curtidas)/0 dividiria
+    por zero -- precisa degradar para 1.0 (mesmo comportamento da fórmula
+    antiga, curtida e comentário pesando igual) em vez de levantar exceção."""
+    publicacoes_sem_comentarios = _publicacoes().assign(commentsCount=0)
+    df = EngagementAggregator().aggregate(
+        _perfis(), publicacoes_sem_comentarios, pd.DataFrame(), "r1"
+    )
+
+    assert (df["_WC_COMENTARIO"] == 1.0).all()
+    ativo = df.loc[df["username"] == "ativo"].iloc[0]
+    assert ativo["% ENGAJAMENTO"] == pytest.approx(300 / 1000)
+
+
+def test_wc_e_o_mesmo_para_todas_as_linhas_da_execucao():
+    """Wc é calibrado sobre a base inteira, não por perfil -- toda linha da
+    mesma execução carrega o mesmo valor."""
+    df = EngagementAggregator().aggregate(_perfis(), _publicacoes(), pd.DataFrame(), "r1")
+    assert df["_WC_COMENTARIO"].nunique() == 1

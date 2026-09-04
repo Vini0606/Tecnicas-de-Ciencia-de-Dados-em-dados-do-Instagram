@@ -260,3 +260,104 @@ def plot_engagement_trend_with_group_context(
 
     fig.update_layout(title=title)
     return fig
+
+
+def plot_engagement_quadrant_matrix(
+    df_quadrantes: pd.DataFrame,
+    governor_url: str | None = None,
+    governor_label: str | None = None,
+    title: str | None = None,
+) -> go.Figure:
+    """Matriz de quadrantes (ADR 0018): `followersCount` × `% ENGAJAMENTO`,
+    com linhas de corte na mediana de cada eixo e um rótulo por quadrante nos
+    4 cantos. Espera `df_quadrantes` no formato de saída de
+    `compute_engagement_quadrants` (colunas `inputUrl`, `followersCount`,
+    `% ENGAJAMENTO`, `quadrante`, `mediana_followers`, `mediana_engajamento`).
+
+    Identidade de quadrante não é carregada por cor nos pontos -- a paleta
+    categórica de fallback deste projeto (skill /dataviz, issues #67/#68) só
+    valida "all-pairs" (necessário em scatter, onde qualquer par de pontos
+    pode ficar lado a lado) para os 3 primeiros slots; o 4º já falha contra o
+    3º. O quadrante é uma região geométrica definida pelas linhas de
+    mediana + rótulo de canto, não uma cor de série; pontos usam só destaque
+    (`governor_url`) vs. contexto, mesmo padrão "emphasis" de
+    `plot_engagement_trend_with_group_context`.
+
+    `governor_url` opcional -- `None` (ex.: "Todos os Governadores"
+    selecionado) deixa todos os pontos no mesmo nível de contexto, sem
+    destaque."""
+    if df_quadrantes.empty:
+        return go.Figure()
+
+    mediana_followers = df_quadrantes["mediana_followers"].iloc[0]
+    mediana_engajamento = df_quadrantes["mediana_engajamento"].iloc[0]
+
+    destaque = (
+        df_quadrantes["inputUrl"] == governor_url
+        if governor_url is not None
+        else pd.Series(False, index=df_quadrantes.index)
+    )
+
+    hovertemplate = (
+        "Seguidores: %{x:,.0f}<br>% Engajamento: %{y:.4f}"
+        "<br>Quadrante: %{customdata}<extra></extra>"
+    )
+
+    fig = go.Figure()
+
+    contexto = df_quadrantes.loc[~destaque]
+    fig.add_trace(
+        go.Scatter(
+            x=contexto["followersCount"],
+            y=contexto["% ENGAJAMENTO"],
+            mode="markers",
+            name="Demais governadores" if destaque.any() else "Governadores",
+            marker={"color": _MUTED_CONTEXT_COLOR, "size": 9},
+            customdata=contexto["quadrante"],
+            hovertemplate=hovertemplate,
+        )
+    )
+
+    if destaque.any():
+        selecionado = df_quadrantes.loc[destaque]
+        fig.add_trace(
+            go.Scatter(
+                x=selecionado["followersCount"],
+                y=selecionado["% ENGAJAMENTO"],
+                mode="markers",
+                name=governor_label or "Selecionado",
+                marker={
+                    "color": _CATEGORICAL_SLOT_1,
+                    "size": 14,
+                    "line": {"color": "white", "width": 1},
+                },
+                customdata=selecionado["quadrante"],
+                hovertemplate=hovertemplate,
+            )
+        )
+
+    fig.add_vline(x=mediana_followers, line_dash="dash", line_color=_MUTED_CONTEXT_COLOR)
+    fig.add_hline(y=mediana_engajamento, line_dash="dash", line_color=_MUTED_CONTEXT_COLOR)
+
+    for texto, x_paper, y_paper in [
+        ("Nicho", 0.02, 0.98),
+        ("Superstar", 0.98, 0.98),
+        ("Inexpressivo", 0.02, 0.02),
+        ("Gigante Adormecido", 0.98, 0.02),
+    ]:
+        fig.add_annotation(
+            x=x_paper,
+            y=y_paper,
+            xref="paper",
+            yref="paper",
+            text=texto,
+            showarrow=False,
+            font={"color": _MUTED_CONTEXT_COLOR, "size": 11},
+        )
+
+    fig.update_layout(
+        title=title,
+        xaxis_title="Seguidores",
+        yaxis_title="% Engajamento",
+    )
+    return fig

@@ -177,6 +177,7 @@ GOLD_ENGAGEMENT_SCHEMA = pa.schema(
         pa.field("postsCount", pa.int32(), nullable=False),
         pa.field("TOTAL ENGAJAMENTO", pa.int64(), nullable=False),
         pa.field("% ENGAJAMENTO", pa.float64(), nullable=False),
+        pa.field("_WC_COMENTARIO", pa.float64(), nullable=False),
         pa.field("RECENCIA", pa.float64(), nullable=False),
         pa.field("FREQUENCIA", pa.float64(), nullable=False),
         pa.field("commentsSum", pa.int64(), nullable=False),
