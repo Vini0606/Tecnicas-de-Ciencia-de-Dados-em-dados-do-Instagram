@@ -15,7 +15,6 @@ from src.schemas_delta import SILVER_POSTS_SCHEMA, SILVER_REELS_SCHEMA
 
 class PostCleaner:
     POSTS_COLUMNS_TO_DROP: ClassVar[list[str]] = [
-        "hashtags",
         "mentions",
         "images",
         "childPosts",
@@ -29,6 +28,7 @@ class PostCleaner:
         df = self._drop_null_id(df)
         df = deduplicate_latest(df, id_col="id")
         df = self._parse_timestamp(df)
+        df = self._preserve_type_raw(df)
         df["Tipo"] = "FEED"
         df = self._cast_numerics(df)
         df = self._drop_noise_columns(df)
@@ -40,6 +40,7 @@ class PostCleaner:
         df = self._drop_null_id(df)
         df = deduplicate_latest(df, id_col="id")
         df = self._parse_timestamp(df)
+        df = self._preserve_type_raw(df)
         df["Tipo"] = "REELS"
         df["Total de Engajamento"] = (
             df.get("commentsCount", pd.Series(dtype="int64")).fillna(0)
@@ -63,6 +64,17 @@ class PostCleaner:
 
     def write_reels(self, df_silver: pd.DataFrame, path: Path | str) -> None:
         write_delta(path, df_silver, SILVER_REELS_SCHEMA)
+
+    def _preserve_type_raw(self, df: pd.DataFrame) -> pd.DataFrame:
+        # Preserva o campo bruto `type` do Apify (Image/Video/Sidecar) como
+        # `type_raw`, antes de `Tipo` (FEED/REELS) ser atribuído logo abaixo
+        # -- sem isso, a granularidade original se perde (ADR 0019, parte A:
+        # é o preditor de Formato da regressão de performance-por-post). Se
+        # `type` não vier no Bronze, o método não cria `type_raw` -- quem
+        # preenche o nulo na escrita é `conform_to_schema`.
+        if "type" in df.columns:
+            df = df.rename(columns={"type": "type_raw"})
+        return df
 
     def _parse_timestamp(self, df: pd.DataFrame) -> pd.DataFrame:
         if "timestamp" in df.columns:
