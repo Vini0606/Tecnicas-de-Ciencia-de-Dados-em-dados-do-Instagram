@@ -104,8 +104,16 @@ SILVER_POSTS_SCHEMA = pa.schema(
         pa.field("likesCount", pa.int64(), nullable=False),
         pa.field("data_hora", pa.timestamp("us"), nullable=False),
         pa.field("Tipo", pa.string(), nullable=False),
+        # Campo bruto do Apify (Image/Video/Sidecar), preservado à parte de
+        # `Tipo` (FEED/REELS) -- ADR 0019 (parte A): preditor de Formato da
+        # regressão de performance-por-post.
+        pa.field("type_raw", pa.string(), nullable=True),
         pa.field("shortCode", pa.string(), nullable=True),
         pa.field("caption", pa.string(), nullable=True),
+        # ADR 0019 (parte A): dado já coletado no Bronze, antes descartado em
+        # POSTS_COLUMNS_TO_DROP -- alimenta o BERTopic de tema sobre captions
+        # (parte B).
+        pa.field("hashtags", pa.string(), nullable=True),
         pa.field("videoPlayCount", pa.int64(), nullable=True),
         pa.field("videoDuration", pa.float64(), nullable=True),
         pa.field("_ingested_at", pa.timestamp("us", tz="UTC"), nullable=False),
@@ -126,6 +134,10 @@ SILVER_REELS_SCHEMA = pa.schema(
         pa.field("videoDuration", pa.float64(), nullable=True),
         pa.field("data_hora", pa.timestamp("us"), nullable=False),
         pa.field("Tipo", pa.string(), nullable=False),
+        # Mesmo campo bruto de SILVER_POSTS_SCHEMA -- reels são inerentemente
+        # vídeo hoje, mas preserva a granularidade original por consistência
+        # (ADR 0019, parte A).
+        pa.field("type_raw", pa.string(), nullable=True),
         pa.field("shortCode", pa.string(), nullable=True),
         pa.field("isSponsored", pa.bool_(), nullable=True),
         pa.field("isCommentsDisabled", pa.bool_(), nullable=True),
