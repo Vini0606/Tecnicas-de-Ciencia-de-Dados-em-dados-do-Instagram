@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from src.dashboard.comparisons import compute_governor_comparison
+from src.dashboard.comparisons import compute_engagement_quadrants, compute_governor_comparison
 
 METRICS = ["followersCount", "TOTAL ENGAJAMENTO", "% ENGAJAMENTO"]
 
@@ -95,3 +95,100 @@ def test_valores_nulos_na_metrica_nao_entram_no_peer_mean_nem_no_total():
     # governador_a (NaN) fica de fora tanto do total quanto do peer_mean.
     assert linha["total"] == 3
     assert linha["peer_mean"] == pytest.approx((2.0 + 4.0) / 2)
+
+
+# --- compute_engagement_quadrants (ADR 0018) ---
+
+
+def _df_quadrantes():
+    """5 governadores desenhados para cair um em cada quadrante, mais um
+    exatamente na mediana dos dois eixos (gov_mediano) -- mediana de
+    followersCount é 500 (gov_mediano), de % ENGAJAMENTO é 0.05 (também
+    gov_mediano). "Alto"/"alta" é estritamente > mediana, então o próprio
+    ponto da mediana cai do lado "baixo" nos dois eixos."""
+    return pd.DataFrame(
+        {
+            "inputUrl": [
+                "https://www.instagram.com/gov_inexpressivo/",
+                "https://www.instagram.com/gov_gigante/",
+                "https://www.instagram.com/gov_mediano/",
+                "https://www.instagram.com/gov_nicho/",
+                "https://www.instagram.com/gov_superstar/",
+            ],
+            "followersCount": [100, 900, 500, 200, 800],
+            "% ENGAJAMENTO": [0.01, 0.02, 0.05, 0.20, 0.30],
+        }
+    )
+
+
+def _quadrante_de(out: pd.DataFrame, url: str) -> str:
+    return out.set_index("inputUrl").loc[url, "quadrante"]
+
+
+def test_baixa_audiencia_baixo_engajamento_e_inexpressivo():
+    out = compute_engagement_quadrants(_df_quadrantes())
+    assert _quadrante_de(out, "https://www.instagram.com/gov_inexpressivo/") == "Inexpressivo"
+
+
+def test_alta_audiencia_baixo_engajamento_e_gigante_adormecido():
+    out = compute_engagement_quadrants(_df_quadrantes())
+    assert _quadrante_de(out, "https://www.instagram.com/gov_gigante/") == "Gigante Adormecido"
+
+
+def test_baixa_audiencia_alto_engajamento_e_nicho():
+    out = compute_engagement_quadrants(_df_quadrantes())
+    assert _quadrante_de(out, "https://www.instagram.com/gov_nicho/") == "Nicho"
+
+
+def test_alta_audiencia_alto_engajamento_e_superstar():
+    out = compute_engagement_quadrants(_df_quadrantes())
+    assert _quadrante_de(out, "https://www.instagram.com/gov_superstar/") == "Superstar"
+
+
+def test_governador_exatamente_na_mediana_cai_do_lado_baixo():
+    """"Alto"/"alta" é estritamente > mediana -- o próprio ponto que define a
+    mediana não pode ficar "acima de si mesmo", então cai em Inexpressivo."""
+    out = compute_engagement_quadrants(_df_quadrantes())
+    assert _quadrante_de(out, "https://www.instagram.com/gov_mediano/") == "Inexpressivo"
+
+
+def test_medianas_calculadas_aparecem_como_colunas_de_contexto():
+    out = compute_engagement_quadrants(_df_quadrantes())
+    assert (out["mediana_followers"] == 500).all()
+    assert out["mediana_engajamento"].unique() == pytest.approx([0.05])
+
+
+def test_quadrantes_dataframe_vazio_retorna_vazio_sem_quebrar():
+    out = compute_engagement_quadrants(pd.DataFrame(columns=["inputUrl", "followersCount", "% ENGAJAMENTO"]))
+    assert out.empty
+    assert list(out.columns) == [
+        "inputUrl",
+        "followersCount",
+        "% ENGAJAMENTO",
+        "quadrante",
+        "mediana_followers",
+        "mediana_engajamento",
+    ]
+
+
+def test_quadrantes_uma_linha_so_retorna_vazio_mediana_sem_sentido():
+    df = _df_quadrantes().iloc[[0]]
+    out = compute_engagement_quadrants(df)
+    assert out.empty
+
+
+def test_quadrantes_sem_colunas_necessarias_retorna_vazio_sem_quebrar():
+    """Chamadores como `check_engagement_quadrant` (recommendations.py)
+    recebem `df_engagement` com um subconjunto de colunas diferente por
+    teste -- ausência de followersCount/% ENGAJAMENTO degrada, não quebra."""
+    df = pd.DataFrame({"inputUrl": ["a", "b"], "FREQUENCIA": [1.0, 2.0]})
+    out = compute_engagement_quadrants(df)
+    assert out.empty
+
+
+def test_quadrantes_ignora_linhas_com_valor_nulo():
+    df = _df_quadrantes()
+    df.loc[df["inputUrl"] == "https://www.instagram.com/gov_mediano/", "followersCount"] = np.nan
+    out = compute_engagement_quadrants(df)
+    assert "https://www.instagram.com/gov_mediano/" not in out["inputUrl"].values
+    assert len(out) == 4

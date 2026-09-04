@@ -13,7 +13,27 @@ from __future__ import annotations
 
 import pandas as pd
 
+from src.dashboard.comparisons import (
+    GIGANTE_ADORMECIDO,
+    INEXPRESSIVO,
+    NICHO,
+    SUPERSTAR,
+    compute_engagement_quadrants,
+)
 from src.dashboard.filters import select_governor_rows
+
+# Chaveado pelas mesmas constantes que `compute_engagement_quadrants` usa
+# para classificar (não strings soltas) -- um desalinhamento entre os dois
+# levantaria KeyError aqui, quebrando o contrato "nunca levanta exceção" que
+# toda `check_*` deste módulo segue.
+_QUADRANT_DESCRIPTIONS = {
+    INEXPRESSIVO: "audiência e engajamento honesto abaixo da mediana do grupo.",
+    GIGANTE_ADORMECIDO: (
+        "audiência acima da mediana, mas engajamento honesto abaixo da mediana do grupo."
+    ),
+    NICHO: "audiência abaixo da mediana, mas engajamento honesto acima da mediana do grupo.",
+    SUPERSTAR: "audiência e engajamento honesto acima da mediana do grupo.",
+}
 
 
 def _peer_urls(df_profile_clusters: pd.DataFrame, governor_url: str) -> list[str] | None:
@@ -242,6 +262,31 @@ def check_frequency_below_cluster_peers(
     return None
 
 
+def check_engagement_quadrant(
+    df_engagement: pd.DataFrame,
+    governor_url: str,
+) -> str | None:
+    """Classifica o governador num dos 4 quadrantes da matriz audiência ×
+    engajamento (ADR 0018, `compute_engagement_quadrants`) e devolve uma
+    frase com o que aquele quadrante significa. Diferente das outras
+    `check_*`, não é um alerta condicional a um limiar -- é um achado
+    informativo de posicionamento, dispara sempre que houver classificação
+    disponível. `None` se não houver dado suficiente para classificar (ver
+    `compute_engagement_quadrants`: DataFrame vazio, colunas ausentes, ou
+    menos de 2 governadores com followersCount/% ENGAJAMENTO válidos) ou se
+    o governador não tiver linha correspondente."""
+    quadrantes = compute_engagement_quadrants(df_engagement)
+    if quadrantes.empty:
+        return None
+    universo = quadrantes["inputUrl"].dropna().unique().tolist()
+    linha_governador = select_governor_rows(quadrantes, governor_url, universo)
+    if linha_governador.empty:
+        return None
+
+    quadrante = linha_governador["quadrante"].iloc[0]
+    return f"Você está no quadrante {quadrante}: {_QUADRANT_DESCRIPTIONS[quadrante]}"
+
+
 def compute_recommendations(
     governor_url: str,
     df_engagement: pd.DataFrame,
@@ -251,7 +296,7 @@ def compute_recommendations(
     df_reels: pd.DataFrame,
     df_profile_clusters: pd.DataFrame,
 ) -> list[str]:
-    """Roda as 5 regras na ordem definida, retorna as mensagens disparadas
+    """Roda as 6 regras na ordem definida, retorna as mensagens disparadas
     (lista vazia se nenhuma regra disparou)."""
     checagens = [
         check_engagement_drop(df_engagement_history, governor_url),
@@ -259,5 +304,6 @@ def compute_recommendations(
         check_negative_sentiment_topic(df_sentiment, governor_url),
         check_shorter_or_longer_reels_than_peers(df_reels, df_profile_clusters, governor_url),
         check_frequency_below_cluster_peers(df_engagement, df_profile_clusters, governor_url),
+        check_engagement_quadrant(df_engagement, governor_url),
     ]
     return [mensagem for mensagem in checagens if mensagem is not None]

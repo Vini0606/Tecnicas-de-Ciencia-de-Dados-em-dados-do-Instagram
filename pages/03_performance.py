@@ -10,7 +10,7 @@ if ROOT_DIR not in sys.path:
     sys.path.insert(0, ROOT_DIR)
 
 from config import settings
-from src.dashboard.comparisons import compute_governor_comparison
+from src.dashboard.comparisons import compute_engagement_quadrants, compute_governor_comparison
 from src.dashboard.filters import (
     TODOS_GOVERNADORES,
     build_governor_directory,
@@ -22,6 +22,7 @@ from src.dashboard.filters import (
 from src.dashboard.loaders import load_engagement_history, load_profiles
 from src.visualization.charts import (
     plot_engagement_group_summary_trend,
+    plot_engagement_quadrant_matrix,
     plot_engagement_trend_with_group_context,
 )
 
@@ -131,6 +132,27 @@ if governador_selecionado != TODOS_GOVERNADORES:
                         delta=f"{delta_fmt} vs. média (#{metrica['rank']} de {metrica['total']})",
                     )
     st.markdown("---")
+
+# Matriz de quadrantes (ADR 0018): fora do `if` acima -- ao contrário da
+# comparação com pares, faz sentido para "Todos os Governadores" também
+# (user story 7), só sem destaque de nenhum ponto nesse caso.
+st.markdown("### Matriz de Quadrantes — Audiência × Engajamento")
+df_quadrantes = compute_engagement_quadrants(df_engagement)
+if df_quadrantes.empty:
+    st.info("Dado insuficiente para montar a matriz de quadrantes ainda (mínimo 2 governadores).")
+else:
+    governor_url_destaque = (
+        None if governador_selecionado == TODOS_GOVERNADORES else governador_selecionado
+    )
+    st.plotly_chart(
+        plot_engagement_quadrant_matrix(
+            df_quadrantes,
+            governor_url=governor_url_destaque,
+            governor_label=nome_governador_selecionado if governor_url_destaque else None,
+        ),
+        width="stretch",
+    )
+st.markdown("---")
 
 
 @st.fragment(run_every=f"{settings.DASHBOARD_REFRESH_SECONDS}s")

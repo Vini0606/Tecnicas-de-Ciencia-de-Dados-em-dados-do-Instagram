@@ -2,6 +2,7 @@ import pandas as pd
 
 from src.dashboard.recommendations import (
     check_engagement_drop,
+    check_engagement_quadrant,
     check_frequency_below_cluster_peers,
     check_negative_sentiment_topic,
     check_sentiment_trend_drop,
@@ -12,6 +13,7 @@ from src.dashboard.recommendations import (
 GOV_A = "https://www.instagram.com/governador_a/"
 GOV_B = "https://www.instagram.com/governador_b/"
 GOV_C = "https://www.instagram.com/governador_c/"
+GOV_D = "https://www.instagram.com/governador_d/"
 
 
 # --- check_engagement_drop ---
@@ -248,6 +250,63 @@ def test_frequency_below_peers_nao_dispara_com_dataframe_vazio():
     assert check_frequency_below_cluster_peers(df_engagement, _df_profile_clusters(), GOV_A) is None
 
 
+# --- check_engagement_quadrant (ADR 0018) ---
+
+
+def _df_quadrantes_engagement():
+    """Mesma configuração de test_comparisons.py::_df_quadrantes -- um
+    governador em cada quadrante, mais um exatamente na mediana dos dois
+    eixos (mediana de followersCount é 500, de % ENGAJAMENTO é 0.05)."""
+    return pd.DataFrame(
+        {
+            "inputUrl": [GOV_A, GOV_B, "https://www.instagram.com/mediano/", GOV_C, GOV_D],
+            "followersCount": [100, 900, 500, 200, 800],
+            "% ENGAJAMENTO": [0.01, 0.02, 0.05, 0.20, 0.30],
+        }
+    )
+
+
+def test_engagement_quadrant_inexpressivo():
+    msg = check_engagement_quadrant(_df_quadrantes_engagement(), GOV_A)
+    assert msg is not None
+    assert "Inexpressivo" in msg
+
+
+def test_engagement_quadrant_gigante_adormecido():
+    msg = check_engagement_quadrant(_df_quadrantes_engagement(), GOV_B)
+    assert msg is not None
+    assert "Gigante Adormecido" in msg
+
+
+def test_engagement_quadrant_nicho():
+    msg = check_engagement_quadrant(_df_quadrantes_engagement(), GOV_C)
+    assert msg is not None
+    assert "Nicho" in msg
+
+
+def test_engagement_quadrant_superstar():
+    msg = check_engagement_quadrant(_df_quadrantes_engagement(), GOV_D)
+    assert msg is not None
+    assert "Superstar" in msg
+
+
+def test_engagement_quadrant_dado_insuficiente_retorna_none():
+    df = pd.DataFrame({"inputUrl": [GOV_A], "followersCount": [100], "% ENGAJAMENTO": [0.01]})
+    assert check_engagement_quadrant(df, GOV_A) is None
+
+
+def test_engagement_quadrant_sem_colunas_necessarias_retorna_none():
+    df = pd.DataFrame({"inputUrl": [GOV_A, GOV_B], "FREQUENCIA": [1.0, 2.0]})
+    assert check_engagement_quadrant(df, GOV_A) is None
+
+
+def test_engagement_quadrant_governador_nao_encontrado_retorna_none():
+    msg = check_engagement_quadrant(
+        _df_quadrantes_engagement(), "https://www.instagram.com/nao_existe/"
+    )
+    assert msg is None
+
+
 # --- compute_recommendations ---
 
 
@@ -280,6 +339,31 @@ def test_compute_recommendations_agrega_regras_disparadas_na_ordem():
     assert len(achados) == 2
     assert "caiu" in achados[0]
     assert "abaixo da média" in achados[1]
+
+
+def test_compute_recommendations_inclui_achado_de_quadrante_quando_ha_dado():
+    """check_engagement_quadrant é a 6ª regra da lista -- com followersCount/
+    % ENGAJAMENTO suficientes em df_engagement, o achado de quadrante entra
+    junto dos demais."""
+    df_engagement = _df_quadrantes_engagement().assign(FREQUENCIA=1.0)
+    df_engagement_history = pd.DataFrame(columns=["inputUrl", "% ENGAJAMENTO", "_generated_at"])
+    df_sentiment = pd.DataFrame(columns=["inputUrl", "Name", "sentiment_label"])
+    df_sentiment_history = pd.DataFrame(
+        columns=["inputUrl", "sentiment_label", "_run_id", "_generated_at"]
+    )
+    df_reels = pd.DataFrame(columns=["inputUrl", "videoDuration"])
+    df_profile_clusters = pd.DataFrame(columns=["inputUrl", "cluster_perfil_engajamento"])
+
+    achados = compute_recommendations(
+        GOV_A,
+        df_engagement,
+        df_engagement_history,
+        df_sentiment,
+        df_sentiment_history,
+        df_reels,
+        df_profile_clusters,
+    )
+    assert any("Inexpressivo" in achado for achado in achados)
 
 
 def test_compute_recommendations_retorna_lista_vazia_sem_nenhum_disparo():

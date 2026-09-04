@@ -61,3 +61,75 @@ def compute_governor_comparison(
         )
 
     return pd.DataFrame(rows, columns=_COLUMNS)
+
+
+INEXPRESSIVO = "Inexpressivo"
+GIGANTE_ADORMECIDO = "Gigante Adormecido"
+NICHO = "Nicho"
+SUPERSTAR = "Superstar"
+
+_QUADRANT_COLUMNS = [
+    "inputUrl",
+    "followersCount",
+    "% ENGAJAMENTO",
+    "quadrante",
+    "mediana_followers",
+    "mediana_engajamento",
+]
+
+
+def compute_engagement_quadrants(df_engagement: pd.DataFrame) -> pd.DataFrame:
+    """Classifica cada governador em um dos 4 quadrantes da matriz
+    audiência × engajamento da VHL (ADR 0018): corte pela mediana de
+    `followersCount` e de `% ENGAJAMENTO` sobre o `df_engagement` recebido.
+
+    - baixa audiência + baixo engajamento -> Inexpressivo
+    - alta audiência + baixo engajamento -> Gigante Adormecido
+    - baixa audiência + alto engajamento -> Nicho
+    - alta audiência + alto engajamento -> Superstar
+
+    "Alta"/"alto" é estritamente acima da mediana -- o próprio ponto que
+    define a mediana cai do lado "baixo" nos dois eixos, não fica "acima de
+    si mesmo". Retorna DataFrame vazio (mesmas colunas) se `df_engagement`
+    não tiver pelo menos 2 linhas com `followersCount`/`% ENGAJAMENTO`
+    válidos -- mediana sem sentido com 1 ponto ou menos -- mesmo padrão de
+    degradação graciosa de `compute_governor_comparison`. Também retorna
+    vazio se `df_engagement` não tiver `followersCount`/`% ENGAJAMENTO`
+    (chamadores como `check_engagement_quadrant`, em `recommendations.py`,
+    recebem o mesmo `df_engagement` que outras regras usam com um
+    subconjunto de colunas diferente -- sem esse guard, a ausência de
+    qualquer uma das duas levantaria `KeyError` em vez de degradar)."""
+    if df_engagement.empty or not {"followersCount", "% ENGAJAMENTO"} <= set(
+        df_engagement.columns
+    ):
+        return pd.DataFrame(columns=_QUADRANT_COLUMNS)
+
+    followers = pd.to_numeric(df_engagement["followersCount"], errors="coerce")
+    engajamento = pd.to_numeric(df_engagement["% ENGAJAMENTO"], errors="coerce")
+    validos = followers.notna() & engajamento.notna()
+    if validos.sum() < 2:
+        return pd.DataFrame(columns=_QUADRANT_COLUMNS)
+
+    mediana_followers = followers[validos].median()
+    mediana_engajamento = engajamento[validos].median()
+
+    out = pd.DataFrame(
+        {
+            "inputUrl": df_engagement.loc[validos, "inputUrl"].values,
+            "followersCount": followers[validos].values,
+            "% ENGAJAMENTO": engajamento[validos].values,
+        }
+    )
+
+    audiencia_alta = out["followersCount"] > mediana_followers
+    engajamento_alto = out["% ENGAJAMENTO"] > mediana_engajamento
+
+    out["quadrante"] = INEXPRESSIVO
+    out.loc[audiencia_alta & ~engajamento_alto, "quadrante"] = GIGANTE_ADORMECIDO
+    out.loc[~audiencia_alta & engajamento_alto, "quadrante"] = NICHO
+    out.loc[audiencia_alta & engajamento_alto, "quadrante"] = SUPERSTAR
+
+    out["mediana_followers"] = mediana_followers
+    out["mediana_engajamento"] = mediana_engajamento
+
+    return out
