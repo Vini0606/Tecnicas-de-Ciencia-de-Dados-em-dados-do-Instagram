@@ -180,6 +180,23 @@ def select_holdout_governors(
     return set(holdout)
 
 
+def _previsoes_de(df: pd.DataFrame, y_previsto: np.ndarray, conjunto: str) -> pd.DataFrame:
+    """Monta o bloco de previsões de um conjunto (`"treino"`/`"holdout"`) --
+    `conjunto` deixa explícito de onde cada linha veio (issue #76 precisa
+    filtrar só os resíduos de holdout pros testes de pressupostos do modelo
+    linear); não faz parte do schema Gold de previsões, que descarta colunas
+    não declaradas na escrita (ver `write_post_performance_predictions`)."""
+    return pd.DataFrame(
+        {
+            "id": df["id"].to_numpy(),
+            "inputUrl": df["inputUrl"].to_numpy(),
+            "y_real": df["y"].to_numpy(),
+            "y_previsto": y_previsto,
+            "conjunto": conjunto,
+        }
+    )
+
+
 def train_evaluate_group(
     df: pd.DataFrame,
     grupo: str,
@@ -192,7 +209,7 @@ def train_evaluate_group(
     governadores em `holdout_governors`, com `StandardScaler` nos
     preditores numéricos e one-hot nos categóricos. Retorna coeficientes
     por preditor, R² de treino/holdout, e previsão/resíduo por post
-    (treino e holdout juntos)."""
+    (treino e holdout juntos, marcados pela coluna `conjunto`)."""
     em_holdout = df["ownerId"].isin(holdout_governors)
     df_treino = df.loc[~em_holdout]
     df_holdout = df.loc[em_holdout]
@@ -229,32 +246,14 @@ def train_evaluate_group(
     y_treino_previsto = modelo.predict(X_treino)
     r2_treino = r2_score(y_treino, y_treino_previsto)
 
-    previsoes_partes = [
-        pd.DataFrame(
-            {
-                "id": df_treino["id"].to_numpy(),
-                "inputUrl": df_treino["inputUrl"].to_numpy(),
-                "y_real": y_treino.to_numpy(),
-                "y_previsto": y_treino_previsto,
-            }
-        )
-    ]
+    previsoes_partes = [_previsoes_de(df_treino, y_treino_previsto, "treino")]
 
     if len(df_holdout) > 0:
         X_holdout = df_holdout[colunas_preditoras]
         y_holdout = df_holdout["y"]
         y_holdout_previsto = modelo.predict(X_holdout)
         r2_holdout = r2_score(y_holdout, y_holdout_previsto)
-        previsoes_partes.append(
-            pd.DataFrame(
-                {
-                    "id": df_holdout["id"].to_numpy(),
-                    "inputUrl": df_holdout["inputUrl"].to_numpy(),
-                    "y_real": y_holdout.to_numpy(),
-                    "y_previsto": y_holdout_previsto,
-                }
-            )
-        )
+        previsoes_partes.append(_previsoes_de(df_holdout, y_holdout_previsto, "holdout"))
     else:
         # Amostra pequena demais/holdout sem posts deste grupo -- degrada
         # para NaN em vez de dividir por zero postos em holdout.

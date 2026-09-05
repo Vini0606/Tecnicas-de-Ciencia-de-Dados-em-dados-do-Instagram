@@ -190,6 +190,15 @@ def test_train_evaluate_group_isola_governador_do_holdout_de_um_lado_so():
     assert isinstance(resultado.r2_treino, float)
     assert isinstance(resultado.r2_holdout, float)
 
+    # issue #76: os notebooks de diagnóstico precisam filtrar só os
+    # resíduos de holdout -- a coluna `conjunto` é o que permite isso sem
+    # reimplementar o split aqui.
+    previsoes_por_conjunto = resultado.previsoes.set_index("id")["conjunto"]
+    ids_marcados_holdout = set(previsoes_por_conjunto[previsoes_por_conjunto == "holdout"].index)
+    ids_marcados_treino = set(previsoes_por_conjunto[previsoes_por_conjunto == "treino"].index)
+    assert ids_marcados_holdout == ids_holdout_esperados
+    assert ids_marcados_treino == ids_treino_esperados
+
 
 def test_train_evaluate_group_produz_coeficientes_por_preditor():
     df_engagement = _df_engagement()

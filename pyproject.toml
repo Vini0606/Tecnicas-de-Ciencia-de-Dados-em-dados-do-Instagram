@@ -29,6 +29,7 @@ dependencies = [
     "pyarrow>=15.0",
     "plotly>=5.0",
     "boto3>=1.34",
+    "statsmodels>=0.14",
 ]
 
 [project.optional-dependencies]
