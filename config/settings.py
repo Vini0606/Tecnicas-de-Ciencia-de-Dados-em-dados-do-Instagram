@@ -68,6 +68,11 @@ GOLD_SENTIMENT = GOLD_DIR / "governor_sentiment"
 GOLD_SENTIMENT_HISTORY = GOLD_DIR / "governor_sentiment_history"
 GOLD_CLUSTERS = GOLD_DIR / "governor_clusters"
 GOLD_PROFILE_CLUSTERS_ENGAGEMENT = GOLD_DIR / "governor_profile_clusters_engagement"
+# ADR 0019 (parte C): regressão de performance-por-post, uma tabela por
+# conceito (coeficientes+R² e previsão/resíduo por post), `grupo`
+# (vídeo/estático) como dimensão em vez de duas tabelas quase idênticas.
+GOLD_POST_PERFORMANCE_COEFFICIENTS = GOLD_DIR / "post_performance_coefficients"
+GOLD_POST_PERFORMANCE_PREDICTIONS = GOLD_DIR / "post_performance_predictions"
 
 # Checkpoints locais do estágio determinístico de modelagem (ver ADR 0003) —
 # não são Delta, ficam fora do git.

@@ -248,3 +248,40 @@ GOLD_PROFILE_CLUSTERS_ENGAGEMENT_SCHEMA = pa.schema(
         pa.field("_generated_at", pa.timestamp("us", tz="UTC"), nullable=False),
     ]
 )
+
+# ADR 0019 (parte C): regressão de performance-por-post -- formato longo, uma
+# linha por preditor por grupo por execução. Uma tabela por conceito, com
+# `grupo` (vídeo/estático) como dimensão, em vez de duplicar dois schemas
+# quase idênticos para cada grupo.
+GOLD_POST_PERFORMANCE_COEFFICIENTS_SCHEMA = pa.schema(
+    [
+        pa.field("grupo", pa.string(), nullable=False),
+        pa.field("preditor", pa.string(), nullable=False),
+        pa.field("coeficiente", pa.float64(), nullable=False),
+        pa.field("r2_treino", pa.float64(), nullable=False),
+        # Nulo só no caso degenerado de um grupo sem nenhum governador em
+        # holdout (amostra pequena demais) -- ver `train_evaluate_group`.
+        pa.field("r2_holdout", pa.float64(), nullable=True),
+        pa.field("n_treino", pa.int64(), nullable=False),
+        pa.field("n_holdout", pa.int64(), nullable=False),
+        pa.field("alpha", pa.float64(), nullable=False),
+        pa.field("_run_id", pa.string(), nullable=False),
+        pa.field("_generated_at", pa.timestamp("us", tz="UTC"), nullable=False),
+    ]
+)
+
+# Granularidade de post individual -- previsão/resíduo, treino e holdout
+# juntos (ver ADR 0019, decisão 9: habilita a "lacuna de execução" do
+# dashboard, issue E, sem exigir uma tabela extra só para holdout).
+GOLD_POST_PERFORMANCE_PREDICTIONS_SCHEMA = pa.schema(
+    [
+        pa.field("id", pa.string(), nullable=False),
+        pa.field("inputUrl", pa.string(), nullable=True),
+        pa.field("grupo", pa.string(), nullable=False),
+        pa.field("y_real", pa.float64(), nullable=False),
+        pa.field("y_previsto", pa.float64(), nullable=False),
+        pa.field("residuo", pa.float64(), nullable=False),
+        pa.field("_run_id", pa.string(), nullable=False),
+        pa.field("_generated_at", pa.timestamp("us", tz="UTC"), nullable=False),
+    ]
+)

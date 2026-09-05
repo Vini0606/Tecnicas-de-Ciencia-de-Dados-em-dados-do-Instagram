@@ -87,16 +87,59 @@ class PostTopicModelConfig(TopicModelConfig):
 
 
 @dataclass
+class PostPerformanceConfig:
+    """Config do estágio de regressão de performance-por-post (ADR 0019,
+    parte C) -- dois grupos (vídeo=Reels, estático=Posts), holdout de
+    governadores compartilhado entre os dois grupos, Lasso com alpha
+    escolhido por validação cruzada (`LassoCV`)."""
+
+    holdout_governors_count: int = 7
+    random_state: int = 42
+    lasso_cv_folds: int = 5
+    lasso_max_iter: int = 10_000
+    circularity_correlation_threshold: float = 0.95
+    # Colunas brutas que compõem Y (`(likesCount + commentsCount*Wc) /
+    # followersCount`) -- nenhum preditor pode ser literalmente uma delas.
+    raw_target_columns: tuple[str, ...] = ("likesCount", "commentsCount")
+    numeric_predictors_comuns: list[str] = field(
+        default_factory=lambda: ["hora_do_dia", "FREQUENCIA", "videoDuration", "tem_duracao"]
+    )
+    categorical_predictors_comuns: list[str] = field(
+        default_factory=lambda: ["type_raw", "dia_da_semana"]
+    )
+    # `videoPlayCount` (controle de alcance, ADR 0019 decisão 2) e
+    # `paidPartnership` (via `isSponsored`) só existem para o grupo vídeo
+    # (Reels) -- `isSponsored` nem existe no Bronze/Silver de posts estáticos.
+    numeric_predictors_video: list[str] = field(
+        default_factory=lambda: ["videoPlayCount", "paidPartnership"]
+    )
+    categorical_predictors_video: list[str] = field(default_factory=list)
+    # `comprimento_legenda`/`Topic` (Tema) só existem para o grupo estático
+    # (Posts) -- Reels não têm campo de caption no Bronze/Silver hoje
+    # (limitação estrutural de dado coletado, não escolha de design; ver
+    # `BRONZE_REELS_SCHEMA`/`SILVER_REELS_SCHEMA`, nenhum dos dois declara
+    # `caption`/`hashtags`).
+    numeric_predictors_estatico: list[str] = field(
+        default_factory=lambda: ["comprimento_legenda"]
+    )
+    categorical_predictors_estatico: list[str] = field(default_factory=lambda: ["Topic"])
+
+
+@dataclass
 class ModelingConfig:
     pca: PCAConfig = field(default_factory=PCAConfig)
     cluster: ClusterConfig = field(default_factory=ClusterConfig)
     sentiment: SentimentConfig = field(default_factory=SentimentConfig)
     preprocessing: PreprocessingConfig = field(default_factory=PreprocessingConfig)
     topics: TopicModelConfig = field(default_factory=TopicModelConfig)
+    post_topics: PostTopicModelConfig = field(default_factory=PostTopicModelConfig)
+    post_performance: PostPerformanceConfig = field(default_factory=PostPerformanceConfig)
     gold_clusters_path: Path = settings.GOLD_CLUSTERS
     gold_sentiment_path: Path = settings.GOLD_SENTIMENT
     # Tabela paralela de histórico (mode append) -- ver issue #52 / ADR 0017.
     gold_sentiment_history_path: Path = settings.GOLD_SENTIMENT_HISTORY
+    gold_post_performance_coefficients_path: Path = settings.GOLD_POST_PERFORMANCE_COEFFICIENTS
+    gold_post_performance_predictions_path: Path = settings.GOLD_POST_PERFORMANCE_PREDICTIONS
     checkpoints_dir: Path = settings.MODEL_CHECKPOINTS_DIR
     logs_dir: Path = settings.LOGS_DIR
 
