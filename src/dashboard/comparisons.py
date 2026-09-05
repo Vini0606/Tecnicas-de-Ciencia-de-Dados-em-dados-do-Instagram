@@ -133,3 +133,37 @@ def compute_engagement_quadrants(df_engagement: pd.DataFrame) -> pd.DataFrame:
     out["mediana_engajamento"] = mediana_engajamento
 
     return out
+
+
+_EXECUTION_GAP_COLUMNS = ["grupo", "residuo_medio", "n_posts"]
+
+
+def compute_execution_gap(df_predictions: pd.DataFrame, governor_url: str) -> pd.DataFrame:
+    """Resíduo médio por grupo (vídeo/estático) do governador selecionado, a
+    partir da tabela de previsões da regressão de performance-por-post
+    (issue #75 / ADR 0019) -- quanto o governador performou acima/abaixo do
+    esperado pelos preditores controlados ("lacuna de execução").
+
+    Uma linha por grupo em que o governador tem pelo menos um post -- nunca
+    inventa uma linha vazia pro grupo sem dado (ex.: sem posts de vídeo
+    ainda), e nunca combina os dois grupos numa métrica única (ADR 0019:
+    escalas de resíduo diferentes entre vídeo e estático).
+
+    Retorna DataFrame vazio (mesmas colunas) se `df_predictions` estiver
+    vazio ou o governador não tiver nenhuma linha correspondente -- nunca
+    levanta exceção, mesmo contrato de degradação de
+    `compute_governor_comparison`."""
+    if df_predictions.empty or "inputUrl" not in df_predictions.columns:
+        return pd.DataFrame(columns=_EXECUTION_GAP_COLUMNS)
+
+    universo_urls = df_predictions["inputUrl"].dropna().unique().tolist()
+    linhas_governador = select_governor_rows(df_predictions, governor_url, universo_urls)
+    if linhas_governador.empty:
+        return pd.DataFrame(columns=_EXECUTION_GAP_COLUMNS)
+
+    agregado = (
+        linhas_governador.groupby("grupo")["residuo"]
+        .agg(residuo_medio="mean", n_posts="count")
+        .reset_index()
+    )
+    return agregado[_EXECUTION_GAP_COLUMNS]

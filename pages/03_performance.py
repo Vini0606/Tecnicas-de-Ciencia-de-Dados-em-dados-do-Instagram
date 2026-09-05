@@ -10,7 +10,11 @@ if ROOT_DIR not in sys.path:
     sys.path.insert(0, ROOT_DIR)
 
 from config import settings
-from src.dashboard.comparisons import compute_engagement_quadrants, compute_governor_comparison
+from src.dashboard.comparisons import (
+    compute_engagement_quadrants,
+    compute_execution_gap,
+    compute_governor_comparison,
+)
 from src.dashboard.filters import (
     TODOS_GOVERNADORES,
     build_governor_directory,
@@ -19,7 +23,11 @@ from src.dashboard.filters import (
     render_governor_selector,
     select_governor_rows,
 )
-from src.dashboard.loaders import load_engagement_history, load_profiles
+from src.dashboard.loaders import (
+    load_engagement_history,
+    load_post_performance_predictions,
+    load_profiles,
+)
 from src.visualization.charts import (
     plot_engagement_group_summary_trend,
     plot_engagement_quadrant_matrix,
@@ -153,6 +161,64 @@ else:
         width="stretch",
     )
 st.markdown("---")
+
+# Lacuna de execução (issue #77 / ADR 0019, parte E): individual, mesmo
+# raciocínio de Recommendations (issue #65) -- não faz sentido agregada
+# para "Todos os Governadores", então fica fora da matriz de quadrantes
+# acima (que já vale para todos), num bloco condicional próprio.
+if governador_selecionado != TODOS_GOVERNADORES:
+    st.markdown("### Lacuna de Execução")
+    df_post_performance = load_post_performance_predictions()
+    df_lacuna = compute_execution_gap(df_post_performance, governador_selecionado)
+    if df_lacuna.empty:
+        st.info(
+            "Sem dado de performance-por-post para este governador ainda -- "
+            "rode o pipeline com o estágio de modelagem "
+            "(`uv run python pipeline.py --run-modeling`) primeiro."
+        )
+    else:
+        cols = st.columns(len(df_lacuna))
+        for col, (_, linha) in zip(cols, df_lacuna.iterrows()):
+            with col:
+                st.metric(
+                    f"Resíduo médio — {linha['grupo']}",
+                    value=f"{linha['residuo_medio']:+.4f}",
+                    help=(
+                        f"{int(linha['n_posts'])} posts neste grupo. Positivo = "
+                        "performou acima do esperado pelos preditores controlados."
+                    ),
+                )
+
+        N_POSTS_DESTAQUE = 3
+        universo_urls = df_post_performance["inputUrl"].dropna().unique().tolist()
+        posts_governador = select_governor_rows(
+            df_post_performance, governador_selecionado, universo_urls
+        )
+        # Um top-N por grupo (não um ranking combinado) -- vídeo e estático
+        # têm escalas de resíduo diferentes (ADR 0019); misturar os dois
+        # numa única classificação deixaria o grupo de escala maior dominar
+        # as duas listas, escondendo o outro grupo por engano.
+        for grupo in df_lacuna["grupo"]:
+            st.markdown(f"**Posts do grupo {grupo}**")
+            posts_do_grupo = posts_governador[posts_governador["grupo"] == grupo]
+            col_acima, col_abaixo = st.columns(2)
+            with col_acima:
+                st.caption("Maior resíduo positivo (acima do esperado)")
+                st.dataframe(
+                    posts_do_grupo.nlargest(N_POSTS_DESTAQUE, "residuo")[
+                        ["id", "y_real", "y_previsto", "residuo"]
+                    ],
+                    hide_index=True,
+                )
+            with col_abaixo:
+                st.caption("Maior resíduo negativo (abaixo do esperado)")
+                st.dataframe(
+                    posts_do_grupo.nsmallest(N_POSTS_DESTAQUE, "residuo")[
+                        ["id", "y_real", "y_previsto", "residuo"]
+                    ],
+                    hide_index=True,
+                )
+    st.markdown("---")
 
 
 @st.fragment(run_every=f"{settings.DASHBOARD_REFRESH_SECONDS}s")

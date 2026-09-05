@@ -138,3 +138,68 @@ def test_load_sentiment_history_returns_empty_dataframe_when_missing(tmp_path, m
     assert isinstance(out, pd.DataFrame)
     assert out.empty
     _clear_caches()
+
+
+def test_load_post_performance_coefficients_returns_delta_table(tmp_path, monkeypatch):
+    _point_settings_at(monkeypatch, tmp_path)
+    path = settings.GOLD_DIR / "post_performance_coefficients"
+    df = pd.DataFrame(
+        {
+            "grupo": ["video"],
+            "preditor": ["hora_do_dia"],
+            "coeficiente": [0.1],
+            "_run_id": ["r1"],
+            "_generated_at": pd.to_datetime(["2026-05-01"], utc=True),
+        }
+    )
+    write_deltalake(str(path), df, mode="overwrite")
+
+    out = loaders.load_post_performance_coefficients()
+
+    assert "coeficiente" in out.columns
+    _clear_caches()
+
+
+def test_load_post_performance_coefficients_returns_empty_dataframe_when_missing(
+    tmp_path, monkeypatch
+):
+    _point_settings_at(monkeypatch, tmp_path)
+
+    out = loaders.load_post_performance_coefficients()
+
+    assert isinstance(out, pd.DataFrame)
+    assert out.empty
+    _clear_caches()
+
+
+def test_load_post_performance_predictions_returns_delta_table(tmp_path, monkeypatch):
+    _point_settings_at(monkeypatch, tmp_path)
+    path = settings.GOLD_DIR / "post_performance_predictions"
+    df = pd.DataFrame(
+        {
+            "id": ["p1"],
+            "inputUrl": ["https://www.instagram.com/governador_a/"],
+            "grupo": ["estatico"],
+            "residuo": [0.05],
+            "_run_id": ["r1"],
+            "_generated_at": pd.to_datetime(["2026-05-01"], utc=True),
+        }
+    )
+    write_deltalake(str(path), df, mode="overwrite")
+
+    out = loaders.load_post_performance_predictions()
+
+    assert "residuo" in out.columns
+    _clear_caches()
+
+
+def test_load_post_performance_predictions_returns_empty_dataframe_when_missing(
+    tmp_path, monkeypatch
+):
+    _point_settings_at(monkeypatch, tmp_path)
+
+    out = loaders.load_post_performance_predictions()
+
+    assert isinstance(out, pd.DataFrame)
+    assert out.empty
+    _clear_caches()

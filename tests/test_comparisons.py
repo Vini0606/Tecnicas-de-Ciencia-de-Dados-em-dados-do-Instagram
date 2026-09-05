@@ -2,7 +2,11 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from src.dashboard.comparisons import compute_engagement_quadrants, compute_governor_comparison
+from src.dashboard.comparisons import (
+    compute_engagement_quadrants,
+    compute_execution_gap,
+    compute_governor_comparison,
+)
 
 METRICS = ["followersCount", "TOTAL ENGAJAMENTO", "% ENGAJAMENTO"]
 
@@ -192,3 +196,60 @@ def test_quadrantes_ignora_linhas_com_valor_nulo():
     out = compute_engagement_quadrants(df)
     assert "https://www.instagram.com/gov_mediano/" not in out["inputUrl"].values
     assert len(out) == 4
+
+
+# --- compute_execution_gap (issue #77 / ADR 0019, parte E) ---
+
+
+def _df_predictions():
+    return pd.DataFrame(
+        {
+            "id": ["p1", "p2", "p3", "r1", "r2"],
+            "inputUrl": [
+                "https://www.instagram.com/governador_a/",
+                "https://www.instagram.com/governador_a/",
+                "https://www.instagram.com/governador_b/",
+                "https://www.instagram.com/governador_a/",
+                "https://www.instagram.com/governador_a/",
+            ],
+            "grupo": ["estatico", "estatico", "estatico", "video", "video"],
+            "y_real": [0.10, 0.20, 0.15, 0.30, 0.40],
+            "y_previsto": [0.12, 0.18, 0.10, 0.25, 0.35],
+            "residuo": [-0.02, 0.02, 0.05, 0.05, 0.05],
+        }
+    )
+
+
+def test_execution_gap_media_correta_por_grupo():
+    out = compute_execution_gap(_df_predictions(), "https://www.instagram.com/governador_a/")
+    out_por_grupo = out.set_index("grupo")
+
+    # estatico: (-0.02 + 0.02) / 2 = 0.0, 2 posts.
+    assert out_por_grupo.loc["estatico", "residuo_medio"] == pytest.approx(0.0)
+    assert out_por_grupo.loc["estatico", "n_posts"] == 2
+    # video: (0.05 + 0.05) / 2 = 0.05, 2 posts.
+    assert out_por_grupo.loc["video", "residuo_medio"] == pytest.approx(0.05)
+    assert out_por_grupo.loc["video", "n_posts"] == 2
+
+
+def test_execution_gap_dataframe_vazio_retorna_vazio_sem_quebrar():
+    out = compute_execution_gap(
+        pd.DataFrame(columns=["id", "inputUrl", "grupo", "residuo"]),
+        "https://www.instagram.com/qualquer/",
+    )
+    assert out.empty
+    assert list(out.columns) == ["grupo", "residuo_medio", "n_posts"]
+
+
+def test_execution_gap_governador_sem_linha_correspondente_retorna_vazio():
+    out = compute_execution_gap(_df_predictions(), "https://www.instagram.com/nao_existe/")
+    assert out.empty
+
+
+def test_execution_gap_governador_sem_posts_de_um_grupo_nao_inventa_linha():
+    """governador_b só tem posts do grupo estático -- não pode aparecer uma
+    linha "video" com resíduo inventado (0, NaN, etc.) pra ele."""
+    out = compute_execution_gap(_df_predictions(), "https://www.instagram.com/governador_b/")
+
+    assert list(out["grupo"]) == ["estatico"]
+    assert out.set_index("grupo").loc["estatico", "residuo_medio"] == pytest.approx(0.05)

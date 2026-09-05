@@ -76,6 +76,12 @@ class DeltaRepository(DataRepository):
     def load_profile_clusters_engagement(self) -> pd.DataFrame:
         return self._load(_join(self._gold_dir, "governor_profile_clusters_engagement"))
 
+    def load_post_performance_coefficients(self) -> pd.DataFrame:
+        return self._load(_join(self._gold_dir, "post_performance_coefficients"))
+
+    def load_post_performance_predictions(self) -> pd.DataFrame:
+        return self._load(_join(self._gold_dir, "post_performance_predictions"))
+
     def load_governors_metadata(self) -> pd.DataFrame:
         if self._silver_dir is None:
             raise ValueError("silver_dir não foi configurado neste repositório.")

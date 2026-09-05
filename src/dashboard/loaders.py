@@ -74,6 +74,22 @@ def load_engagement_history() -> pd.DataFrame:
 
 
 @st.cache_data
+def load_post_performance_coefficients() -> pd.DataFrame:
+    try:
+        return get_delta_repository().load_post_performance_coefficients()
+    except FileNotFoundError:
+        return pd.DataFrame()
+
+
+@st.cache_data
+def load_post_performance_predictions() -> pd.DataFrame:
+    try:
+        return get_delta_repository().load_post_performance_predictions()
+    except FileNotFoundError:
+        return pd.DataFrame()
+
+
+@st.cache_data
 def load_sentiment_history() -> pd.DataFrame:
     # Sem TTL (ao contrário de load_engagement_history) -- modelagem não
     # roda por execução de extração (ADR 0011), não precisa de auto-refresh
