@@ -73,6 +73,20 @@ class TopicModelConfig:
 
 
 @dataclass
+class PostTopicModelConfig(TopicModelConfig):
+    """Config de BERTopic para captions de post (ADR 0019, parte B) --
+    corpus de algumas centenas de documentos (não ~13,5 mil como
+    comentários), então `nr_topics`/HDBSCAN bem menores que
+    `TopicModelConfig` evitam fragmentar demais o preditor de Tema. Valores
+    ainda placeholders (issue explicitamente deixa "a calibrar" contra o
+    volume real de posts coletados), não derivados de dados reais."""
+
+    hdbscan_min_cluster_size: int = 5
+    hdbscan_min_samples: int = 2
+    nr_topics: int = 15
+
+
+@dataclass
 class ModelingConfig:
     pca: PCAConfig = field(default_factory=PCAConfig)
     cluster: ClusterConfig = field(default_factory=ClusterConfig)
