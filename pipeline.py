@@ -133,7 +133,12 @@ def run_medallion_pipeline(
                 "(PCA -> clustering -> sentimento -> tópicos)..."
             )
             result = run_deterministic_modeling(
-                df_reels_silver, df_comments_silver, ModelingConfig(), parent_run_id=run_id
+                df_reels_silver,
+                df_comments_silver,
+                df_posts_silver,
+                df_gold,
+                ModelingConfig(),
+                parent_run_id=run_id,
             )
             logger.info(f"[MODELAGEM] Concluída com run_id: {result.run_id}")
         except Exception as e:

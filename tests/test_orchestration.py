@@ -6,8 +6,9 @@ import pandas as pd
 from deltalake import DeltaTable
 
 from src.features.gold.model_enricher import ModelEnricher
-from src.modeling.config import ClusterConfig, GeminiRefinerConfig, ModelingConfig
+from src.modeling.config import ClusterConfig, GeminiRefinerConfig, ModelingConfig, PostPerformanceConfig
 from src.modeling.orchestration import run_deterministic_modeling, refine_topics_with_gemini
+from src.modeling.post_performance import PostPerformanceStageResult
 
 
 def _df_reels():
@@ -28,6 +29,24 @@ def _df_comments():
         {
             "id_comment": ["c1", "c2", "c3"],
             "text": ["ótimo trabalho", "péssimo governo", "concordo com a proposta"],
+        }
+    )
+
+
+def _df_posts_placeholder():
+    """Usada só nos testes que fazem monkeypatch de `classify_post_topics`
+    e `run_post_performance_stage` -- conteúdo irrelevante, os fakes não
+    olham para as colunas."""
+    return pd.DataFrame({"id": ["p1"], "caption": ["texto qualquer"]})
+
+
+def _df_engagement_placeholder():
+    return pd.DataFrame(
+        {
+            "id": ["governador_teste"],
+            "_WC_COMENTARIO": [1.0],
+            "FREQUENCIA": [1.0],
+            "followersCount": [1000],
         }
     )
 
@@ -53,8 +72,51 @@ def _make_fake_model_topics(nome_provisorio, nome_refinado):
     return _fake_model_topics
 
 
+def _fake_classify_post_topics(df_posts, config, preprocessing_config=None, embedding_model=None):
+    """Fake leve (issue #74 já testa `classify_post_topics` de verdade em
+    `tests/test_topics.py`) -- aqui só precisa devolver `df_posts` com uma
+    coluna `Topic` para não travar `run_post_performance_stage`."""
+    topic_model = MagicMock()
+    df_final = df_posts.copy()
+    df_final["Topic"] = 0
+    return topic_model, df_final
+
+
+_EMPTY_COEFFICIENTS_COLUMNS = [
+    "grupo",
+    "preditor",
+    "coeficiente",
+    "r2_treino",
+    "r2_holdout",
+    "n_treino",
+    "n_holdout",
+    "alpha",
+]
+_EMPTY_PREDICTIONS_COLUMNS = ["id", "inputUrl", "grupo", "y_real", "y_previsto", "residuo"]
+
+
+def _fake_run_post_performance_stage(df_posts, df_reels, df_engagement, config):
+    """Fake usado nos testes que não são sobre performance-por-post em si --
+    devolve tabelas vazias, mas com o schema certo, para que a escrita Gold
+    da nova etapa não quebre nem precise de dado real."""
+    return PostPerformanceStageResult(
+        coefficients=pd.DataFrame(columns=_EMPTY_COEFFICIENTS_COLUMNS),
+        predictions=pd.DataFrame(columns=_EMPTY_PREDICTIONS_COLUMNS),
+    )
+
+
 def _fake_apply_gemini_refinement(topic_model, docs, config):
     return topic_model
+
+
+def _patch_post_performance_fakes(monkeypatch):
+    monkeypatch.setattr(
+        "src.modeling.orchestration.classify_post_topics", _fake_classify_post_topics
+    )
+    monkeypatch.setattr(
+        "src.modeling.orchestration.run_post_performance_stage",
+        _fake_run_post_performance_stage,
+    )
 
 
 def test_run_deterministic_modeling_grava_clusters_e_sentimento_com_mesmo_run_id(
@@ -67,17 +129,22 @@ def test_run_deterministic_modeling_grava_clusters_e_sentimento_com_mesmo_run_id
         "src.modeling.orchestration.model_topics",
         _make_fake_model_topics("0_provisorio", "0_refinado"),
     )
+    _patch_post_performance_fakes(monkeypatch)
 
     config = ModelingConfig(
         cluster=ClusterConfig(max_evals_per_algo=10, random_state=42, max_n_clusters=5),
         gold_clusters_path=tmp_path / "governor_clusters",
         gold_sentiment_path=tmp_path / "governor_sentiment",
         gold_sentiment_history_path=tmp_path / "governor_sentiment_history",
+        gold_post_performance_coefficients_path=tmp_path / "post_performance_coefficients",
+        gold_post_performance_predictions_path=tmp_path / "post_performance_predictions",
         checkpoints_dir=tmp_path / "checkpoints",
         logs_dir=tmp_path / "logs",
     )
 
-    result = run_deterministic_modeling(_df_reels(), _df_comments(), config)
+    result = run_deterministic_modeling(
+        _df_reels(), _df_comments(), _df_posts_placeholder(), _df_engagement_placeholder(), config
+    )
 
     clusters_out = DeltaTable(str(config.gold_clusters_path)).to_pandas()
     sentiment_out = DeltaTable(str(config.gold_sentiment_path)).to_pandas()
@@ -109,17 +176,22 @@ def test_run_deterministic_modeling_grava_sentimento_tambem_no_historico_em_appe
         "src.modeling.orchestration.model_topics",
         _make_fake_model_topics("0_provisorio", "0_refinado"),
     )
+    _patch_post_performance_fakes(monkeypatch)
 
     config = ModelingConfig(
         cluster=ClusterConfig(max_evals_per_algo=10, random_state=42, max_n_clusters=5),
         gold_clusters_path=tmp_path / "governor_clusters",
         gold_sentiment_path=tmp_path / "governor_sentiment",
         gold_sentiment_history_path=tmp_path / "governor_sentiment_history",
+        gold_post_performance_coefficients_path=tmp_path / "post_performance_coefficients",
+        gold_post_performance_predictions_path=tmp_path / "post_performance_predictions",
         checkpoints_dir=tmp_path / "checkpoints",
         logs_dir=tmp_path / "logs",
     )
 
-    result = run_deterministic_modeling(_df_reels(), _df_comments(), config)
+    result = run_deterministic_modeling(
+        _df_reels(), _df_comments(), _df_posts_placeholder(), _df_engagement_placeholder(), config
+    )
 
     sentiment_out = DeltaTable(str(config.gold_sentiment_path)).to_pandas()
     history_out = DeltaTable(str(config.gold_sentiment_history_path)).to_pandas()
@@ -147,16 +219,21 @@ def test_refine_topics_with_gemini_nao_grava_no_historico_de_sentimento(monkeypa
     monkeypatch.setattr(
         "src.modeling.orchestration.apply_gemini_refinement", _fake_apply_gemini_refinement
     )
+    _patch_post_performance_fakes(monkeypatch)
 
     config = ModelingConfig(
         cluster=ClusterConfig(max_evals_per_algo=10, random_state=42, max_n_clusters=5),
         gold_clusters_path=tmp_path / "governor_clusters",
         gold_sentiment_path=tmp_path / "governor_sentiment",
         gold_sentiment_history_path=tmp_path / "governor_sentiment_history",
+        gold_post_performance_coefficients_path=tmp_path / "post_performance_coefficients",
+        gold_post_performance_predictions_path=tmp_path / "post_performance_predictions",
         checkpoints_dir=tmp_path / "checkpoints",
         logs_dir=tmp_path / "logs",
     )
-    result = run_deterministic_modeling(_df_reels(), _df_comments(), config)
+    result = run_deterministic_modeling(
+        _df_reels(), _df_comments(), _df_posts_placeholder(), _df_engagement_placeholder(), config
+    )
 
     calls = []
     original_write_sentiment = ModelEnricher.write_sentiment
@@ -193,18 +270,26 @@ def test_run_deterministic_modeling_grava_parent_run_id_como_primeira_linha_do_l
         "src.modeling.orchestration.model_topics",
         _make_fake_model_topics("0_provisorio", "0_refinado"),
     )
+    _patch_post_performance_fakes(monkeypatch)
 
     config = ModelingConfig(
         cluster=ClusterConfig(max_evals_per_algo=10, random_state=42, max_n_clusters=5),
         gold_clusters_path=tmp_path / "governor_clusters",
         gold_sentiment_path=tmp_path / "governor_sentiment",
         gold_sentiment_history_path=tmp_path / "governor_sentiment_history",
+        gold_post_performance_coefficients_path=tmp_path / "post_performance_coefficients",
+        gold_post_performance_predictions_path=tmp_path / "post_performance_predictions",
         checkpoints_dir=tmp_path / "checkpoints",
         logs_dir=tmp_path / "logs",
     )
 
     result = run_deterministic_modeling(
-        _df_reels(), _df_comments(), config, parent_run_id="run_extracao_pai"
+        _df_reels(),
+        _df_comments(),
+        _df_posts_placeholder(),
+        _df_engagement_placeholder(),
+        config,
+        parent_run_id="run_extracao_pai",
     )
 
     assert result.parent_run_id == "run_extracao_pai"
@@ -232,16 +317,21 @@ def test_refine_topics_with_gemini_so_reescreve_sentimento_com_run_id_novo(
     monkeypatch.setattr(
         "src.modeling.orchestration.apply_gemini_refinement", _fake_apply_gemini_refinement
     )
+    _patch_post_performance_fakes(monkeypatch)
 
     config = ModelingConfig(
         cluster=ClusterConfig(max_evals_per_algo=10, random_state=42, max_n_clusters=5),
         gold_clusters_path=tmp_path / "governor_clusters",
         gold_sentiment_path=tmp_path / "governor_sentiment",
         gold_sentiment_history_path=tmp_path / "governor_sentiment_history",
+        gold_post_performance_coefficients_path=tmp_path / "post_performance_coefficients",
+        gold_post_performance_predictions_path=tmp_path / "post_performance_predictions",
         checkpoints_dir=tmp_path / "checkpoints",
         logs_dir=tmp_path / "logs",
     )
-    result = run_deterministic_modeling(_df_reels(), _df_comments(), config)
+    result = run_deterministic_modeling(
+        _df_reels(), _df_comments(), _df_posts_placeholder(), _df_engagement_placeholder(), config
+    )
 
     gemini_config = GeminiRefinerConfig(
         api_key="fake-key", gold_sentiment_path=tmp_path / "governor_sentiment"
@@ -262,3 +352,175 @@ def test_refine_topics_with_gemini_so_reescreve_sentimento_com_run_id_novo(
 
     # governor_clusters não é tocado pelo refinamento de tópicos.
     assert (clusters_out["_run_id"] == result.run_id).all()
+
+
+# ---------------------------------------------------------------------------
+# ADR 0019 (parte C): estágio novo [PERFORMANCE-POR-POST].
+# ---------------------------------------------------------------------------
+
+N_GOVERNADORES_PERFORMANCE = 6
+POSTS_POR_GOVERNADOR_PERFORMANCE = 4
+
+
+def _df_engagement_performance():
+    rng = np.random.default_rng(10)
+    ids = [f"gov{i}" for i in range(N_GOVERNADORES_PERFORMANCE)]
+    return pd.DataFrame(
+        {
+            "id": ids,
+            "_WC_COMENTARIO": 1.5,
+            "FREQUENCIA": rng.uniform(0.1, 2.0, size=N_GOVERNADORES_PERFORMANCE),
+            "followersCount": rng.integers(10_000, 500_000, size=N_GOVERNADORES_PERFORMANCE),
+        }
+    )
+
+
+def _df_reels_performance(df_engagement):
+    rng = np.random.default_rng(11)
+    linhas = []
+    for gov in df_engagement["id"]:
+        for j in range(POSTS_POR_GOVERNADOR_PERFORMANCE):
+            linhas.append(
+                {
+                    "id": f"{gov}_reel_{j}",
+                    "ownerId": gov,
+                    "ownerUsername": gov,
+                    "inputUrl": f"https://instagram.com/{gov}",
+                    "commentsCount": int(rng.integers(0, 200)),
+                    "likesCount": int(rng.integers(0, 5000)),
+                    "data_hora": pd.Timestamp("2026-01-01")
+                    + pd.Timedelta(days=j, hours=int(rng.integers(0, 24))),
+                    "type_raw": "Video",
+                    "videoDuration": float(rng.uniform(5, 90)),
+                    "videoPlayCount": int(rng.integers(100, 100_000)),
+                    "isSponsored": bool(rng.integers(0, 2)),
+                }
+            )
+    return pd.DataFrame(linhas)
+
+
+def _df_posts_performance(df_engagement):
+    rng = np.random.default_rng(12)
+    linhas = []
+    for gov in df_engagement["id"]:
+        for j in range(POSTS_POR_GOVERNADOR_PERFORMANCE):
+            linhas.append(
+                {
+                    "id": f"{gov}_post_{j}",
+                    "ownerId": gov,
+                    "ownerUsername": gov,
+                    "inputUrl": f"https://instagram.com/{gov}",
+                    "commentsCount": int(rng.integers(0, 200)),
+                    "likesCount": int(rng.integers(0, 5000)),
+                    "data_hora": pd.Timestamp("2026-01-01")
+                    + pd.Timedelta(days=j, hours=int(rng.integers(0, 24))),
+                    "type_raw": rng.choice(["Image", "Sidecar"]),
+                    "videoDuration": np.nan,
+                    "caption": f"legenda {j} do governador {gov}",
+                    "hashtags": None,
+                }
+            )
+    return pd.DataFrame(linhas)
+
+
+def _config_performance(tmp_path):
+    return ModelingConfig(
+        cluster=ClusterConfig(max_evals_per_algo=10, random_state=42, max_n_clusters=5),
+        post_performance=PostPerformanceConfig(holdout_governors_count=2, lasso_cv_folds=2),
+        gold_clusters_path=tmp_path / "governor_clusters",
+        gold_sentiment_path=tmp_path / "governor_sentiment",
+        gold_sentiment_history_path=tmp_path / "governor_sentiment_history",
+        gold_post_performance_coefficients_path=tmp_path / "post_performance_coefficients",
+        gold_post_performance_predictions_path=tmp_path / "post_performance_predictions",
+        checkpoints_dir=tmp_path / "checkpoints",
+        logs_dir=tmp_path / "logs",
+    )
+
+
+def test_run_deterministic_modeling_grava_coeficientes_e_previsoes_de_performance_por_post(
+    monkeypatch, tmp_path
+):
+    """ADR 0019 (parte C): o novo passo roda de verdade (Lasso real sobre
+    dado sintético pequeno) e persiste as duas tabelas Gold novas sob o
+    mesmo `run_id` da execução -- só `classify_post_topics` é fake (já
+    coberto em tests/test_topics.py), o resto do estágio é real."""
+    monkeypatch.setattr(
+        "src.modeling.orchestration.analyze_sentiment", _fake_analyze_sentiment
+    )
+    monkeypatch.setattr(
+        "src.modeling.orchestration.model_topics",
+        _make_fake_model_topics("0_provisorio", "0_refinado"),
+    )
+    monkeypatch.setattr(
+        "src.modeling.orchestration.classify_post_topics", _fake_classify_post_topics
+    )
+
+    df_engagement = _df_engagement_performance()
+    df_reels = _df_reels_performance(df_engagement)
+    df_posts = _df_posts_performance(df_engagement)
+    config = _config_performance(tmp_path)
+
+    result = run_deterministic_modeling(df_reels, _df_comments(), df_posts, df_engagement, config)
+
+    coefficients_out = DeltaTable(
+        str(config.gold_post_performance_coefficients_path)
+    ).to_pandas()
+    predictions_out = DeltaTable(str(config.gold_post_performance_predictions_path)).to_pandas()
+
+    assert (coefficients_out["_run_id"] == result.run_id).all()
+    assert (predictions_out["_run_id"] == result.run_id).all()
+    assert set(coefficients_out["grupo"].unique()) == {"video", "estatico"}
+    assert set(predictions_out["grupo"].unique()) == {"video", "estatico"}
+    assert len(predictions_out) == len(df_reels) + len(df_posts)
+
+
+def test_run_deterministic_modeling_degrada_sem_derrubar_pipeline_se_performance_por_post_falhar(
+    monkeypatch, tmp_path
+):
+    """User story 13 (issue #75): dado insuficiente (ou qualquer outra
+    falha) na etapa de performance-por-post não pode derrubar PCA/
+    clustering/sentimento/tópicos, que já rodaram com sucesso na mesma
+    execução -- a etapa só é pulada."""
+    monkeypatch.setattr(
+        "src.modeling.orchestration.analyze_sentiment", _fake_analyze_sentiment
+    )
+    monkeypatch.setattr(
+        "src.modeling.orchestration.model_topics",
+        _make_fake_model_topics("0_provisorio", "0_refinado"),
+    )
+    monkeypatch.setattr(
+        "src.modeling.orchestration.classify_post_topics", _fake_classify_post_topics
+    )
+
+    def _fake_run_post_performance_stage_falha(df_posts, df_reels, df_engagement, config):
+        raise ValueError("dado insuficiente para treinar")
+
+    monkeypatch.setattr(
+        "src.modeling.orchestration.run_post_performance_stage",
+        _fake_run_post_performance_stage_falha,
+    )
+
+    config = ModelingConfig(
+        cluster=ClusterConfig(max_evals_per_algo=10, random_state=42, max_n_clusters=5),
+        gold_clusters_path=tmp_path / "governor_clusters",
+        gold_sentiment_path=tmp_path / "governor_sentiment",
+        gold_sentiment_history_path=tmp_path / "governor_sentiment_history",
+        gold_post_performance_coefficients_path=tmp_path / "post_performance_coefficients",
+        gold_post_performance_predictions_path=tmp_path / "post_performance_predictions",
+        checkpoints_dir=tmp_path / "checkpoints",
+        logs_dir=tmp_path / "logs",
+    )
+
+    result = run_deterministic_modeling(
+        _df_reels(), _df_comments(), _df_posts_placeholder(), _df_engagement_placeholder(), config
+    )
+
+    # Os demais estágios completaram normalmente, apesar da falha.
+    clusters_out = DeltaTable(str(config.gold_clusters_path)).to_pandas()
+    assert (clusters_out["_run_id"] == result.run_id).all()
+    checkpoint_dir = config.checkpoints_dir / result.run_id
+    assert (checkpoint_dir / "metadata.json").exists()
+
+    # A etapa pulada não deixou as tabelas novas para trás.
+    assert not config.gold_post_performance_coefficients_path.exists()
+    assert not config.gold_post_performance_predictions_path.exists()

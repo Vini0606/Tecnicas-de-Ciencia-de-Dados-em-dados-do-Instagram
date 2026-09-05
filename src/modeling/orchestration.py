@@ -16,9 +16,10 @@ from src.modeling.clustering import cluster_reels
 from src.modeling.config import GeminiRefinerConfig, ModelingConfig
 from src.modeling.gemini_refiner import apply_gemini_refinement
 from src.modeling.pca import reduce_dimensions
+from src.modeling.post_performance import run_post_performance_stage
 from src.modeling.preprocessing import preprocess_comments
 from src.modeling.sentiment import analyze_sentiment
-from src.modeling.topics import model_topics
+from src.modeling.topics import classify_post_topics, model_topics
 from src.run_id import build_run_id
 
 logger = logging.getLogger(__name__)
@@ -52,14 +53,18 @@ def _merge_topic_info(df_comments: pd.DataFrame, document_info: pd.DataFrame) ->
 def run_deterministic_modeling(
     df_reels: pd.DataFrame,
     df_comments: pd.DataFrame,
+    df_posts: pd.DataFrame,
+    df_engagement: pd.DataFrame,
     config: ModelingConfig,
     run_id: str | None = None,
     parent_run_id: str | None = None,
 ) -> DeterministicModelingResult:
     """Estágio 100% automatizável: PCA -> clustering -> sentimento -> tópicos
-    (representação determinística via KeyBERTInspired, não via Gemini).
-    Escreve as duas tabelas Gold (clusters e sentimento/tópicos provisórios)
-    sob um único `run_id` novo.
+    -> performance-por-post (representação determinística via
+    KeyBERTInspired, não via Gemini). Escreve as quatro tabelas Gold
+    (clusters, sentimento/tópicos provisórios, coeficientes e
+    previsão/resíduo da regressão de performance-por-post) sob um único
+    `run_id` novo.
 
     `parent_run_id`, se informado, é só rastreabilidade -- o `run_id` da
     extração/invocação de `pipeline.py` que disparou esta chamada, gravado
@@ -117,6 +122,35 @@ def run_deterministic_modeling(
         mode="append",
         generated_at=generated_at,
     )
+
+    logger.info(
+        "[PERFORMANCE-POR-POST] Classificando tema das captions e treinando "
+        "Lasso vídeo/estático..."
+    )
+    try:
+        _post_topic_model, df_posts_com_tema = classify_post_topics(df_posts, config.post_topics)
+        performance_result = run_post_performance_stage(
+            df_posts_com_tema, df_reels, df_engagement, config.post_performance
+        )
+        enricher.write_post_performance_coefficients(
+            performance_result.coefficients,
+            config.gold_post_performance_coefficients_path,
+            run_id,
+        )
+        enricher.write_post_performance_predictions(
+            performance_result.predictions,
+            config.gold_post_performance_predictions_path,
+            run_id,
+        )
+    except Exception:
+        # ADR 0019 (parte C), user story 13: dado insuficiente para treinar
+        # (ou qualquer outra falha desta etapa) não pode derrubar PCA/
+        # clustering/sentimento/tópicos que já rodaram com sucesso na mesma
+        # execução -- loga e pula só a escrita Gold desta etapa.
+        logger.exception(
+            "[PERFORMANCE-POR-POST] Falha ao treinar/persistir -- etapa "
+            "pulada, pipeline segue com os demais estágios."
+        )
 
     # Checkpoint incondicional (ver ADR 0003): sem ele, o refinamento via
     # Gemini só poderia rodar no mesmo processo que acabou de ajustar o

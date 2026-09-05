@@ -85,7 +85,7 @@ def test_run_medallion_pipeline_com_run_modeling_chama_estagio_deterministico(mo
 
     df_reels_silver = pd.DataFrame({"id": ["1"]})
     df_comments_silver = pd.DataFrame({"text": ["oi"]})
-    fake_modeling, _aggregator = _patch_medallion_dependencies(
+    fake_modeling, aggregator = _patch_medallion_dependencies(
         monkeypatch, df_reels_silver, df_comments_silver
     )
 
@@ -97,6 +97,12 @@ def test_run_medallion_pipeline_com_run_modeling_chama_estagio_deterministico(mo
     args, kwargs = fake_modeling.call_args
     assert args[0] is df_reels_silver
     assert args[1] is df_comments_silver
+    # ADR 0019 (parte C): o novo passo [PERFORMANCE-POR-POST] precisa de
+    # df_posts_silver e do df_gold (governor_engagement) já calculados aqui.
+    # `pipeline.PostCleaner()` devolve o mesmo mock usado internamente (ver
+    # `_patch_medallion_dependencies`).
+    assert args[2] is pipeline.PostCleaner().clean_posts.return_value
+    assert args[3] is aggregator.aggregate.return_value
     # ADR 0001: "um run_id = um estado imutável" -- a modelagem deve gerar o
     # seu próprio run_id, nunca reaproveitar o run_id da ingestão.
     assert kwargs.get("run_id") != "r1"
