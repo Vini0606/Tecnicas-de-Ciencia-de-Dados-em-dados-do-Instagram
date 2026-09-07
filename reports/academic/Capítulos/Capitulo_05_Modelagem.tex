@@ -1,4 +1,5 @@
-\chapter{Modelagem Híbrida}\label{Desenvolvimento} 
+% !TEX root = ../TCC - CD e IA.tex
+\chapter{Modelagem Híbrida}\label{Desenvolvimento}
 
 Afim de se cumprir com o objetivo principal de desenvolver e validar uma metodologia de modelagem híbrida baseada em Processamento de Linguagem Natural (PLN) que combine análise de sentimentos, modelagem de tópicos e técnicas de clusterização para análise de publicações e comentários de redes sociais, este projeto aplciado em dados do Instagram inicia-se com um pipeline de Extração, Transformação e Carga (ETL) automatizado, que utiliza a API da Apify para coletar dados de perfis, postagens e reels de governadores. Na fase de transformação, os dados brutos são enriquecidos com métricas de engajamento, como recência e frequência, e os textos das publicações passam por um pré-processamento que inclui a remoção de stopwords e a conversão de emojis em texto. A análise exploratória de dados subsequente permitiu a visualização das distribuições das métricas chave e a identificação de padrões iniciais. Já o processo de Análise de Componentes Principais permitiu ao projeto diminuir a multicolinearidade, reduzindo a dimensionalidade dos dados.  O núcleo do projeto reside na modelagem de Processamento de Linguagem Natural (PLN), onde é realizada uma análise de sentimentos com o modelo pré-treinado twitter-xlm-roberta-base-sentiment para classificar os comentários como positivos, negativos ou neutros, e uma modelagem de tópicos com BERTopic para identificar os principais temas discutidos, sendo estes últimos refinados por um modelo de representação customizado que utiliza a API do Gemini para gerar descrições mais detalhadas e precisas para cada tópico.
 
@@ -9,9 +10,6 @@ Após a conclusão bem-sucedida do pipeline de Extração, Transformação e Car
 \subsection{Análise Univariada}
 
 A análise descritiva univariada representa o primeiro pilar da  fase de exploração de dados. Ao analisar individualmente as métricas, será possível identificar suas características centrais, como média, mediana e desvio padrão. Este passo é crucial para validar a qualidade dos dados, detectar anomalias ou outliers que poderiam distorcer modelos futuros, e compreender a escala e a distribuição de cada indicador.
-
-% Adicione este pacote no seu preâmbulo
-\usepackage{booktabs}
 
 \begin{table}[h]
 \centering
@@ -165,7 +163,7 @@ Internamente, as métricas de engajamento mostram altíssima sinergia, com uma c
 
 A análise revela uma sinergia extremamente forte e positiva entre as principais métricas de desempenho. A correlação entre o número de reproduções (videoPlayCount) e o de curtidas (likesCount) é de r = 0.90, indicando uma relação linear quase perfeita. De forma similar, a correlação entre reproduções e comentários (commentsCount) é de r = 0.76 (forte e positiva), e entre curtidas e comentários é de r = 0.86 (muito forte e positiva). Em termos práticos, estas três métricas se movem em conjunto: um Reel que alcança muitas pessoas (reproduções) invariavelmente gera alto engajamento (curtidas e comentários). Isso sugere um ciclo de feedback positivo, onde o algoritmo do Instagram provavelmente impulsiona o alcance de vídeos que demonstram alto potencial de engajamento inicial. Graficamente, um diagrama de dispersão entre videoPlayCount e likesCount mostraria os pontos densamente agrupados em torno de uma linha ascendente. É crucial lembrar, contudo, que correlação não implica causalidade.
 
-Um dos insights mais significativos da análise é a completa ausência de correlação entre a duração do vídeo (videoDuration) и qualquer outra métrica de desempenho. Os coeficientes de correlação entre a duração e as reproduções (r = -0.06), curtidas (r = -0.04) e comentários (r = -0.01) são todos próximos de zero. Isso demonstra que não há uma relação linear entre o tamanho de um Reel e o seu sucesso. Vídeos mais longos não tendem a performar nem melhor nem pior do que vídeos mais curtos. A conclusão estratégica é clara: o foco para o sucesso de um Reel deve estar na qualidade e no poder de atração do conteúdo, e não em uma suposta "duração ideal". Essa descoberta oferece liberdade criativa aos produtores de conteúdo, que não precisam se prender a um formato de tempo específico.
+Um dos insights mais significativos da análise é a completa ausência de correlação entre a duração do vídeo (videoDuration) e qualquer outra métrica de desempenho. Os coeficientes de correlação entre a duração e as reproduções (r = -0.06), curtidas (r = -0.04) e comentários (r = -0.01) são todos próximos de zero. Isso demonstra que não há uma relação linear entre o tamanho de um Reel e o seu sucesso. Vídeos mais longos não tendem a performar nem melhor nem pior do que vídeos mais curtos. A conclusão estratégica é clara: o foco para o sucesso de um Reel deve estar na qualidade e no poder de atração do conteúdo, e não em uma suposta "duração ideal". Essa descoberta oferece liberdade criativa aos produtores de conteúdo, que não precisam se prender a um formato de tempo específico.
 
 Conforme apontado na análise univariada, a métrica videoViewCount se comporta de maneira anômala também na análise de correlação. Ela possui uma correlação positiva moderada com videoPlayCount (r = 0.43) e fraca com likesCount (r = 0.33), mas quase nenhuma com commentsCount (r = 0.04). Essa inconsistência e a fraqueza das suas correlações em comparação com as outras métricas de desempenho reforçam a conclusão de que videoViewCount não é um indicador confiável do sucesso geral de um Reel neste conjunto de dados, devendo ser interpretado com máxima cautela.
 
@@ -273,7 +271,7 @@ A análise de sentimentos realizada neste projeto revelou uma predominância mas
     \centering
     \includegraphics[width=\textwidth]{Figuras/sentiment_plots.png} 
     \caption{Visualizações da Análise de Sentimento: (a) Distribuição de Rótulos, (b) Distribuição dos Scores de Confiança, (c) Boxplot de Scores por Sentimento.}
-    \label{fig:sentiment}
+    \label{fig:sentiment-geral}
 \end{figure}
 
 Acima, é possível analisar que o Histograma de Scores de Confiança mostra que o modelo realizou a maioria de suas classificações com alta confiança (scores próximos de 1.0), indicando robustez. O Boxplot detalha essa confiança por categoria, mostrando que as classificações \texttt{positive} e \texttt{negative} possuem scores consistentemente mais altos do que a categoria \texttt{neutral}, o que é esperado, já que a neutralidade é semanticamente mais ambígua.
@@ -286,7 +284,7 @@ Após estabelecer o perfil de sentimento agregado do dataset e analisar a recep�
     \centering
     \includegraphics[width=0.5\textwidth]{Figuras/top_5_governadores_positivo.png} 
     \caption{Visualizações da Análise de Sentimento: 5 governadores com Maior percentual de comentários Positivos}
-    \label{fig:sentiment}
+    \label{fig:sentiment-top5-positivo}
 \end{figure}
 
 A análise do gráfico de barras horizontais, que ilustra os cinco governadores com maior percentual de comentários positivos, revela um desempenho de recepção qualitativa notavelmente elevado para este grupo de elite. Clécio Luís lidera o ranking de forma destacada, com 92,01\% dos comentários em suas publicações classificados como positivos, estabelecendo uma vantagem de mais de 3,2 pontos percentuais sobre o segundo colocado, Antonio Denarium (88,72\%). O grupo dos cinco primeiros é completado por Eduardo Riedel (87,18\%), Raquel Lyra (84,86\%) e Rafael Fonteles (84,67\%). É notável que todos os governadores neste top 5 mantêm um índice de positividade acima de 84\%, um patamar extremamente alto. Este resultado dialoga diretamente com a Análise Exploratória de Dados (AED) apresentada anteriormente na TCC (seção 5.1.1). A AED já havia estabelecido a presença de heterogeneidade extrema e assimetria positiva em todas as métricas quantitativas, como número de seguidores , soma de comentários e taxa de engajamento. Este novo gráfico de sentimento comprova que a mesma variabilidade se aplica à recepção qualitativa: assim como a AED identificou outliers quantitativos que distorcem a média (perfis com desempenho muito acima do padrão), o desempenho de Clécio Luís (92,01\%) representa um outlier qualitativo, validando a conclusão do TCC de que o desempenho dos governadores no Instagram não é uniforme, mas sim caracterizado por picos de performance excepcionais que se distanciam significativamente da mediana.
@@ -295,7 +293,7 @@ A análise do gráfico de barras horizontais, que ilustra os cinco governadores 
     \centering
     \includegraphics[width=0.5\textwidth]{Figuras/top_5_governadores_negativo.png} 
     \caption{Visualizações da Análise de Sentimento: Visualizações da Análise de Sentimento: 5 governadores com Maior percentual de comentários Negativos}
-    \label{fig:sentiment}
+    \label{fig:sentiment-top5-negativo}
 \end{figure}
 
 Em contrapartida, a análise dos cinco governadores com maior percentual de comentários negativos expõe o outro extremo da recepção pública. O governador Ibaneis apresenta-se como um outlier negativo proeminente, com 51,89\% de seus comentários classificados como negativos, indicando que mais da metade das interações em seu perfil são críticas. Este resultado é drasticamente superior aos demais, com Cláudio Castro (31,67\%) e Romeu Zema (31,02\%) formando um segundo patamar, seguidos por Jorginho Mello (24,10\%) e Tino Rodrigues (23,69\%). A existência de um perfil cuja recepção negativa supera os 50\% é uma ilustração clara da heterogeneidade extrema e da distribuição assimétrica que a Análise Exploratória de Dados (AED) do TCC (seção 5.1.1) já havia identificado. Assim como a AED revelou outliers de performance quantitativa (perfis com engajamento muito acima da média), este gráfico valida que também existem outliers qualitativos, onde a recepção do público é significativamente mais hostil do que a do restante do grupo, reforçando a conclusão de que o desempenho digital dos governadores é marcado por extremos em ambas as pontas.
@@ -310,7 +308,7 @@ Para aprofundar a compreensão dos padrões de desempenho identificados, esta se
     \centering
     \includegraphics[width=0.4\textwidth]{Figuras/grafico_sentimentos_cluster-1.png} 
     \caption{Visualizações da Análise de Sentimento: Distribuição de Rótulos (Cluster -1)}
-    \label{fig:sentiment}
+    \label{fig:sentiment-cluster-m1}
 \end{figure}
 
 A análise de sentimentos para o Cluster -1, que o TCC identificou como o grupo de 12 Reels "outliers" de alto impacto e viralidade, revela uma dinâmica de recepção muito mais polarizada em comparação ao Cluster 0. Embora os comentários positivos ainda sejam majoritários (53,5\%), essa proporção é substancialmente menor (em comparação aos 72,3\% do Cluster 0). O insight mais relevante é o crescimento expressivo das reações não-positivas: os comentários negativos (20,8\%) e neutros (25,7\%) somam 46,5\% do total. Isso sugere que o conteúdo viral, caracterizado por um "Índice de Engajamento" (PC1) anômalo, não gera apenas aprovação, mas também atrai um volume significativamente maior de debate, críticas e reações ambíguas, refletindo a natureza muitas vezes controversa ou divisiva que impulsiona a própria viralidade.
@@ -320,7 +318,7 @@ A análise de sentimentos para o Cluster -1, que o TCC identificou como o grupo 
     \centering
     \includegraphics[width=0.4\textwidth]{Figuras/grafico_sentimentos_cluster0.png} 
     \caption{Visualizações da Análise de Sentimento: Distribuição de Rótulos (Cluster 0)}
-    \label{fig:sentiment}
+    \label{fig:sentiment-cluster-0}
 \end{figure}
 
 A análise de sentimentos detalhada para o Cluster 0, o grupo mais representativo com 792 Reels, revela que o conteúdo "padrão" da plataforma é recebido de forma esmagadoramente positiva. Conforme o gráfico de pizza, 72,3\% dos comentários associados a este cluster foram classificados como positivos, indicando uma forte aprovação. Os sentimentos neutros (14,1\%) e negativos (13,7\%) são minoritários e apresentam proporções quase idênticas. Este resultado complementa e enriquece a definição anterior do Cluster 0: que os vídeos definidos pelo seu desempenho métrico "padrão" (curta duração, com média de 64,5 segundos, e engajamento moderado)  geram, de forma consistente, uma resposta emocional majoritariamente favorável do público.
@@ -329,7 +327,7 @@ A análise de sentimentos detalhada para o Cluster 0, o grupo mais representativ
     \centering
     \includegraphics[width=0.4\textwidth]{Figuras/grafico_sentimentos_cluster1.png} 
     \caption{Visualizações da Análise de Sentimento: Distribuição de Rótulos (Cluster 1)}
-    \label{fig:sentiment}
+    \label{fig:sentiment-cluster-1}
 \end{figure}
 
 A análise de sentimentos para o Cluster 1, o grupo de 6 Reels definido por sua duração extrema (média de 721 segundos) e desempenho de engajamento muito baixo, apresenta um perfil de recepção peculiar. Embora os comentários positivos ainda sejam a maioria (60,4\%), o dado mais distintivo é a alta proporção de comentários neutros (27,1\%), a maior entre todos os clusters. Combinado com o menor índice de comentários negativos (12,5\%), isso sugere um padrão claro: esses vídeos longos, que o TCC já havia identificado como de baixa performance, parecem falhar em gerar reações fortes. Eles não geram o alto engajamento do Cluster -1, mas também não atraem a negatividade; em vez disso, a audiência que interage é ou levemente positiva ou, mais significativamente, neutra, o que reforça a conclusão de que o conteúdo não consegue reter a atenção ou provocar um debate engajado, alinhando-se perfeitamente com suas métricas de desempenho fracas.

@@ -1,0 +1,33 @@
+{
+  // Configuração da extensão "LaTeX Workshop" (james-yu.latex-workshop) para
+  // editar/compilar o TCC em reports/academic/ com uma experiência parecida
+  // com o Overleaf, mas 100% local e versionada no git normalmente.
+  "latex-workshop.latex.recipes": [
+    {
+      "name": "latexmk (pdflatex + bibtex)",
+      "tools": ["latexmk"]
+    }
+  ],
+  "latex-workshop.latex.tools": [
+    {
+      "name": "latexmk",
+      "command": "latexmk",
+      "args": [
+        "-pdf",
+        "-interaction=nonstopmode",
+        "-synctex=1",
+        "-file-line-error",
+        "%DOC%"
+      ]
+    }
+  ],
+  "latex-workshop.latex.autoBuild.run": "onSave",
+  "latex-workshop.view.pdf.viewer": "tab",
+  "latex-workshop.view.pdf.zoom": "page-width",
+  "latex-workshop.synctex.afterBuild.enabled": true,
+  "latex-workshop.latex.clean.fileTypes": [
+    "*.aux", "*.bbl", "*.blg", "*.brf", "*.idx", "*.ind", "*.ilg",
+    "*.lof", "*.lot", "*.out", "*.toc", "*.fls", "*.fdb_latexmk",
+    "*.synctex.gz", "*.bcf", "*.run.xml"
+  ]
+}

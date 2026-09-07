@@ -29,12 +29,15 @@
 % ---------------------------------------------------------------------------
 
 \usepackage[utf8]{inputenc}		% Codificação do documento (conversão automática dos acentos)
+\usepackage{lmodern}			% Fontes Latin Modern escaláveis (evita erro do microtype com negrito+monoespaçado)
 \usepackage{indentfirst}		% Indenta o primeiro parágrafo de cada seção.
-\usepackage{color}	
+\usepackage{color}
 \usepackage{xcolor} % Controle das cores
 \usepackage{graphicx}			% Inclusão de gráficos
 \usepackage{microtype} 			% para melhorias de justificação
-\usepackage[toc,page]{appendix}
+\usepackage{booktabs}			% linhas de tabela no estilo "profissional" (usado nas tabelas dos capítulos)
+% \usepackage[toc,page]{appendix} % REMOVIDO: dá "Option clash" com o appendix emulado pelo memoir (base do abntex2);
+                                   % nenhum comando específico do pacote appendix é usado no documento.
 
 % ---------------------------------------------------------------------------
 \usepackage{pdfpages} % permite inserir páginas em pdf
