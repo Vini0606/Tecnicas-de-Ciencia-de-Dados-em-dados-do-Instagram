@@ -17,6 +17,27 @@ __pycache__/
 # ambiente virtual
 .venv/
 
+# LaTeX (reports/academic/ -- TCC) -- artefatos de build do latexmk/pdflatex/bibtex.
+# Compilados localmente a partir dos .tex/.bib versionados; não fazem sentido no git.
+*.aux
+*.bbl
+*.bcf
+*.blg
+*.brf
+*.fdb_latexmk
+*.fls
+*.idx
+*.ilg
+*.ind
+*.lof
+*.log
+*.lot
+*.out
+*.run.xml
+*.synctex.gz
+*.toc
+reports/academic/*.pdf
+
 # Terraform (infra/) -- estado e variáveis locais nunca vão pro git;
 # terraform.tfvars pode conter o apify_api_token em texto plano.
 # .terraform.lock.hcl fica de fora do gitignore de propósito: é um lockfile
