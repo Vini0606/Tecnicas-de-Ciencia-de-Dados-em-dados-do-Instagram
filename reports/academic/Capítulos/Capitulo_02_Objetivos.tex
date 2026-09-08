@@ -1,23 +1,32 @@
 % !TEX root = ../TCC - CD e IA.tex
 \chapter{Objetivos}\label{Objetivos e Organização do Trabalho}
 
-A partir da problemática identificada e da lacuna de conhecimento existente na análise de dados de mídias sociais, este trabalho estabelece um conjunto de objetivos claros e sequenciais. Tais metas servem como um roteiro metodológico para o desenvolvimento e a validação de uma abordagem analítica inovadora, que busca superar as limitações das ferramentas tradicionais. Os objetivos delineiam as etapas práticas do projeto, desde a estruturação de um pipeline de processamento de dados até a comparação da eficácia da metodologia proposta com abordagens isoladas, garantindo que o estudo não apenas desenvolva um novo modelo, mas também comprove sua relevância e superioridade no contexto de análise de percepção de marca no ambiente digital. 
+A partir da problemática identificada \textemdash{} a distância entre o grande volume de dados de engajamento gerados nas mídias sociais e a carência de metodologias que os convertam em decisões práticas de comunicação \textemdash{} este trabalho estabelece um conjunto de objetivos que orientam o desenvolvimento e a validação de uma ferramenta de apoio à decisão para assessorias políticas. Diferentemente de abordagens que se encerram na descrição da opinião pública, aqui as técnicas de Processamento de Linguagem Natural (PLN) e de clusterização são o \emph{motor} de um instrumento orientado à ação: um funil de engajamento que permite diagnosticar a saúde da audiência de um perfil e priorizar o que produzir, o que amplificar e o que abandonar. A análise não se restringe aos comentários dos usuários; abrange as três fontes textuais disponíveis nas publicações \textemdash{} os \textbf{comentários}, as \textbf{legendas} (\emph{captions}) e as \textbf{transcrições} da fala dos vídeos \textemdash{} articuladas às \textbf{métricas de engajamento}, de modo a contrastar o discurso produzido pela assessoria (legendas e transcrições) com a reação do público (comentários). Os objetivos delineiam as etapas desse percurso, da estruturação do pipeline de dados até a tradução dos resultados em recomendações acionáveis, articulando os construtos de \emph{Consumers' Online Brand-Related Activities} (COBRAs) \cite{MUNTINGA2011} e o funil de \emph{marketing} de crescimento \cite{FEROZ2024} ao estudo de caso dos governadores do Brasil.
 
 \section{Objetivo geral}
 
-Este trabalho tem como objetivo geral: desenvolver e validar uma metodologia de modelagem híbrida baseada em Processamento de Linguagem Natural (PLN) que combine análise de sentimentos, modelagem de tópicos e técnicas de clusterização para análise de publicações e comentários de redes sociais.
+Desenvolver e validar uma metodologia de modelagem híbrida baseada em Processamento de Linguagem Natural (PLN) \textemdash{} combinando análise de sentimentos, modelagem de tópicos e clusterização sobre as diferentes fontes textuais e métricas das publicações \textemdash{} e traduzi-la em uma ferramenta de apoio à decisão que oriente estratégias de crescimento (\emph{growth}) de assessorias políticas na análise de publicações e comentários de redes sociais.
 
 \section{Objetivos específicos}
 
 Este trabalho tem os seguintes objetivos específicos:
 
 \begin{enumerate}
-    \item Estruturar um pipeline de processamento de dados textuais extraídos de comentários no Instagram, incluindo limpeza, normalização e preparação textual.
-    \item Aplicar técnicas de análise de sentimentos para identificar polaridades e emoções expressas nos comentários dos usuários.
-    \item Implementar a modelagem de tópicos com o objetivo de extrair os principais temas discutidos nas interações.
-    \item Aplicar algoritmos de clusterização para agrupar as publicações com base em semelhanças.
-    \item Validar a eficácia da metodologia proposta por meio de um estudo de caso real, analisando comentários de postagens específicas, mais precisamente dos governadores do Brasil.
-    \item Comparar os resultados obtidos com abordagens tradicionais ou isoladas (por exemplo, análise de sentimentos ou tópicos aplicadas separadamente), destacando as vantagens da abordagem integrada.
+    \item Estruturar um pipeline de processamento de dados textuais e quantitativos extraídos do Instagram, contemplando a coleta, limpeza, normalização e preparação das três fontes textuais das publicações \textemdash{} comentários, legendas e transcrições dos vídeos \textemdash{} bem como das respectivas métricas de engajamento.
+
+    \item Aplicar técnicas de análise de sentimentos para identificar as polaridades expressas, distinguindo o sentimento dos comentários dos usuários \textemdash{} tanto em publicações do \emph{feed} quanto em \emph{Reels} \textemdash{} do sentimento veiculado pelas legendas e transcrições produzidas pelas assessorias.
+
+    \item Implementar a modelagem de tópicos para extrair os principais temas em discussão, contrastando os temas emergentes nos comentários dos usuários com os temas do discurso oficial presente nas legendas e transcrições dos vídeos.
+
+    \item Aplicar algoritmos de clusterização em diferentes granularidades, agrupando por semelhança tanto as publicações \textemdash{} \emph{Reels} e posts do \emph{feed} \textemdash{} quanto os perfis dos governadores, de modo a revelar padrões de desempenho e de comportamento comunicacional.
+
+    \item Validar a eficácia da metodologia proposta por meio de um estudo de caso real, aplicando-a de forma integrada aos perfis, às publicações e às interações dos governadores do Brasil.
+
+    \item Comparar os resultados da abordagem híbrida com os de abordagens tradicionais ou isoladas, evidenciando o ganho analítico obtido ao integrar sentimento, tópicos e clusterização sobre as múltiplas fontes textuais e níveis de agregação.
+
+    \item Mapear os resultados da modelagem em um funil de engajamento acionável, articulando os níveis de COBRAs \cite{MUNTINGA2011} aos estágios do funil de crescimento \cite{FEROZ2024} e cruzando o discurso das assessorias (legendas e transcrições) com a resposta do público (comentários e métricas).
+
+    \item Derivar, a partir desse mapeamento, recomendações práticas de \emph{growth} por perfil e por tipo de publicação, evidenciando como a ferramenta orienta a tomada de decisão de uma assessoria política.
 \end{enumerate}
 
 
