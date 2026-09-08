@@ -1,4 +1,135 @@
 % !TEX root = ../TCC - CD e IA.tex
-\chapter{Resultados do projeto}\label{Resultados}
+\chapter{Resultados}\label{Resultados}
 
-Os resultados obtidos a partir do processo de modelagem e análise de dados revelaram insights significativos e confirmaram a eficácia das técnicas de Ciência de Dados e Inteligência Artificial aplicadas ao problema proposto. Após o treinamento dos modelos, foi realizada uma avaliação rigorosa de desempenho, \textcolor{red} {com base em métricas específicas como acurácia, precisão, recall, F1-score e área sob a curva ROC, dependendo da natureza do problema (classificação ou regressão). Entre os modelos testados, o algoritmo [inserir aqui o nome do modelo com melhor desempenho, ex: Random Forest ou XGBoost] destacou-se por apresentar o melhor equilíbrio entre desempenho e interpretabilidade. Além disso, foram geradas visualizações interativas e painéis analíticos, utilizando ferramentas como SAS, Streamlit ou matplotlib, com o objetivo de facilitar a compreensão dos resultados por usuários não técnicos. Essas visualizações permitiram identificar padrões relevantes nos dados, bem como evidenciar as variáveis com maior impacto sobre o modelo preditivo, por meio de técnicas de explicabilidade como a análise de importância de atributos (feature importance) e métodos SHAP}. Os resultados obtidos foram discutidos à luz dos objetivos específicos do trabalho, demonstrando que a abordagem adotada contribui de forma relevante para a resolução do problema investigado e pode ser escalada ou adaptada a outras situações similares. Por fim, foram também identificadas limitações nos dados e nos modelos, que foram consideradas nas sugestões para trabalhos futuros.
+% ==========================================================================
+% ROTEIRO GERAL DO CAPÍTULO 6
+% Propósito: este é o capítulo ACIONÁVEL. O cap. 5 apresentou a modelagem
+% (o "motor"); aqui os resultados são organizados no funil COBRA-RACE e
+% traduzidos em recomendações de growth. Fio condutor: sair da descrição
+% ("o que os dados mostram") para a decisão ("o que a assessoria deve fazer").
+% Não repetir a modelagem do cap. 5 — REFERENCIAR (\ref{}) e interpretar.
+% ==========================================================================
+
+% ROTEIRO (parágrafo de abertura do capítulo):
+% - 1 parágrafo curto. Retomar a pergunta de pesquisa (do cap. 1) e anunciar
+%   que este capítulo a responde aplicando o framework COBRA-RACE aos
+%   resultados já obtidos no cap. 5.
+% - Anunciar a estrutura do capítulo em 1 frase (as seções abaixo).
+
+\section{Do Diagnóstico à Ação: Operacionalização do Funil de Engajamento}
+
+% ROTEIRO:
+% - Apresentar o framework COBRA-RACE já "montado" com OS SEUS dados.
+% - Inserir uma TABELA (montar) que cruza: Estágio RACE | Nível COBRA |
+%   métrica dos seus dados | cluster/figura correspondente.
+%   Linhas: Reach->views(PC1); Act/Consumir->curtidas/cluster Padrão;
+%   Convert/Contribuir->comentários+sentimento positivo;
+%   Engage/Criar->comentários em debate (cluster Viral \ref{fig:sentiment-cluster-m1}).
+% - Explicar que cada seção seguinte percorre um nível do funil.
+% - Citar \cite{FEROZ2024} e \cite{MUNTINGA2011} ao apresentar a tabela.
+
+\section{Segmentação de Publicações por Desempenho (Clusterização)}
+
+% ROTEIRO:
+% - Interpretar, à luz do growth, os 3 clusters de reels já obtidos (\ref{fig:clusters_pca}).
+% - Retomar os números do cap.5/README: Cluster 0 "Padrão" (792 reels);
+%   Cluster -1 "Viral" (12 reels, ~4.843 comentários, ~90k curtidas, 1,12M views);
+%   Cluster 1 "Longo" (6 reels, ~721s de duração média).
+% - NÃO reexplicar PCA/DBSCAN (está no cap.5) — referenciar \ref{tab:pca_loadings}.
+% - Fechar cada cluster com sua LEITURA de growth (Padrão=aprovado,
+%   Viral=debatido/polarizado, Longo=ignorado/indiferença).
+
+\subsection{Clusterização de Publicações do Feed}
+
+% ROTEIRO (PENDENTE DE EXECUÇÃO — você disse que vai gerar):
+% - Rodar AutoClusterHPO também sobre os posts do FEED (hoje só há de reels).
+% - Preencher com: nº de clusters encontrados, algoritmo eleito, score CVI,
+%   perfil de cada cluster. Inserir figura análoga à \ref{fig:clusters_pca}.
+% - Comparar com os clusters de reels: os padrões se repetem no feed?
+
+\subsection{Clusterização de Perfis dos Governadores}
+
+% ROTEIRO (PENDENTE DE EXECUÇÃO — você disse que vai gerar):
+% - Rodar clusterização sobre as MÉTRICAS AGREGADAS por perfil
+%   (tabela governor_engagement / \ref{tab:matriz_correlacao}).
+% - Preencher: quantos grupos de governadores emergem, o que caracteriza
+%   cada grupo (ex: "alto alcance/baixa conversão"), quais governadores em cada.
+% - Este é o nível de segmentação à la Flesch \cite{FLESCH2017}: nomear os
+%   grupos em termos funcionais se possível (loyalist-heavy, critic-heavy...).
+
+\section{Qualificação dos Segmentos pelo Sentimento}
+
+% ROTEIRO:
+% - Cruzar clusters x sentimento (a etapa que "prova a tese", README seção 2.5).
+% - Inserir a TABELA de distribuição de sentimento por cluster (montar a partir
+%   das figuras \ref{fig:sentiment-cluster-m1}, \ref{fig:sentiment-cluster-0},
+%   \ref{fig:sentiment-cluster-1}):
+%   Cluster 0: 72,3% pos / 14,1% neu / 13,7% neg
+%   Cluster -1 (Viral): 53,5% pos / 25,7% neu / 20,8% neg  <- polarizado
+%   Cluster 1 (Longo): 60,4% pos / 27,1% neu / 12,5% neg   <- indiferença
+% - Interpretar: alto engajamento (Viral) NÃO é alta aprovação. Este é o
+%   achado central — conectá-lo explicitamente à crítica das vanity metrics
+%   \cite{FEROZ2024} feita no referencial (seção 3.2).
+
+\section{Discurso da Assessoria versus Reação do Público (Tópicos)}
+
+% ROTEIRO:
+% - Este é o contraste NOVO e mais rico. Precisa dos tópicos das legendas/
+%   transcrições (discurso oficial) vs. tópicos dos comentários (público).
+% - Comentários: retomar os 50 tópicos do BERTopic (\ref{fig:intertopic},
+%   \ref{fig:hierarchy}, \ref{fig:heatmap}) já obtidos.
+% - Legendas/transcrições (PENDENTE — vêm da API): rodar BERTopic sobre elas.
+% - Montar a análise de GAP: temas que a assessoria pauta mas o público
+%   ignora; temas que o público levanta mas a assessoria não aborda.
+% - Este gap é a matéria-prima das recomendações da seção seguinte.
+
+\section{Métricas de Crescimento e Priorização}
+
+\subsection{North Star Metric: Engajamento Positivo Qualificado}
+
+% ROTEIRO:
+% - Definir a fórmula da NSM (a detalhar em bloco próprio — ver conversa).
+%   Ideia: (comentários positivos / comentários totais) ponderado por alcance.
+% - Calcular a NSM por perfil a partir de governor_sentiment + governor_engagement.
+% - Contrastar o ranking por NSM com o ranking por engajamento bruto —
+%   mostrar que mudam de ordem (prova de que a métrica importa).
+% - Ancorar em \cite{FEROZ2024} e no precedente de Loyalty Rate (a citar).
+
+\subsection{Retenção e Crescimento da Audiência (CMGR)}
+
+% ROTEIRO:
+% - Usar governor_engagement_history (tabela append, já existe) para calcular
+%   crescimento ao longo do tempo, à la Flesch \cite{FLESCH2017}.
+% - Se houver poucos pontos temporais ainda, declarar honestamente a limitação
+%   e apresentar o método pronto para quando houver mais coletas.
+
+\subsection{Priorização de Temas (Score ICE)}
+
+% ROTEIRO:
+% - Rankear os 50 tópicos por um score simples: Impacto (alcance do tópico x
+%   sentimento positivo) x Confiança x Facilidade.
+% - Entregar uma tabela "top temas a produzir" — saída diretamente acionável.
+
+\section{Estudo de Caso Aplicado: Recomendações por Perfil}
+
+% ROTEIRO:
+% - AQUI o framework "paga" tudo. Escolher 2-3 governadores dos EXTREMOS já
+%   identificados no cap.5:
+%   * Clécio Luís (92,01% positivo, \ref{fig:sentiment-top5-positivo})
+%   * Ibaneis (51,89% negativo, \ref{fig:sentiment-top5-negativo})
+%   * (opcional) um caso mediano de contraste.
+% - Para CADA um, aplicar o funil completo: em que estágio a audiência trava?
+%   Qual o gap discurso x reação? O que a NSM revela? E então:
+%   3-5 recomendações CONCRETAS de growth ("produzir mais X", "abandonar
+%   formato Y", "o tema Z converte e está subexplorado").
+% - Este é o núcleo do valor prático do TCC. Ser específico e acionável.
+
+\section{Validação: Abordagem Híbrida versus Análises Isoladas}
+
+% ROTEIRO (responde ao objetivo específico nº 6):
+% - Argumentar, com os resultados em mãos, o que CADA técnica isolada NÃO
+%   veria e que a integração revelou:
+%   * só sentimento: veria "Ibaneis tem muita crítica" mas não em qual formato/tema.
+%   * só tópicos: veria os temas mas não a valência nem o desempenho.
+%   * só clusterização: veria grupos de performance mas não o conteúdo/reação.
+% - Fechar com o achado que só o cruzamento permite: "engajamento != aprovação".

@@ -1,7 +1,7 @@
 % !TEX root = ../TCC - CD e IA.tex
 \chapter{Modelagem Híbrida}\label{Desenvolvimento}
 
-Afim de se cumprir com o objetivo principal de desenvolver e validar uma metodologia de modelagem híbrida baseada em Processamento de Linguagem Natural (PLN) que combine análise de sentimentos, modelagem de tópicos e técnicas de clusterização para análise de publicações e comentários de redes sociais, este projeto aplciado em dados do Instagram inicia-se com um pipeline de Extração, Transformação e Carga (ETL) automatizado, que utiliza a API da Apify para coletar dados de perfis, postagens e reels de governadores. Na fase de transformação, os dados brutos são enriquecidos com métricas de engajamento, como recência e frequência, e os textos das publicações passam por um pré-processamento que inclui a remoção de stopwords e a conversão de emojis em texto. A análise exploratória de dados subsequente permitiu a visualização das distribuições das métricas chave e a identificação de padrões iniciais. Já o processo de Análise de Componentes Principais permitiu ao projeto diminuir a multicolinearidade, reduzindo a dimensionalidade dos dados.  O núcleo do projeto reside na modelagem de Processamento de Linguagem Natural (PLN), onde é realizada uma análise de sentimentos com o modelo pré-treinado twitter-xlm-roberta-base-sentiment para classificar os comentários como positivos, negativos ou neutros, e uma modelagem de tópicos com BERTopic para identificar os principais temas discutidos, sendo estes últimos refinados por um modelo de representação customizado que utiliza a API do Gemini para gerar descrições mais detalhadas e precisas para cada tópico.
+A fim de se cumprir o objetivo principal de desenvolver e validar uma metodologia de modelagem híbrida baseada em Processamento de Linguagem Natural (PLN) \textemdash{} que combine análise de sentimentos, modelagem de tópicos e técnicas de clusterização e sirva de motor a uma ferramenta de apoio à decisão para assessorias políticas \textemdash{}, este projeto, aplicado em dados do Instagram, inicia-se com um pipeline de Extração, Transformação e Carga (ETL) automatizado, que utiliza a API da Apify para coletar dados de perfis, postagens e reels de governadores. Na fase de transformação, os dados brutos são enriquecidos com métricas de engajamento, como recência e frequência, e os textos das publicações passam por um pré-processamento que inclui a remoção de stopwords e a conversão de emojis em texto. A análise exploratória de dados subsequente permitiu a visualização das distribuições das métricas chave e a identificação de padrões iniciais. Já o processo de Análise de Componentes Principais permitiu ao projeto diminuir a multicolinearidade, reduzindo a dimensionalidade dos dados.  O núcleo do projeto reside na modelagem de Processamento de Linguagem Natural (PLN), onde é realizada uma análise de sentimentos com o modelo pré-treinado \code{twitter-xlm-roberta-base-sentiment} para classificar os comentários como positivos, negativos ou neutros, e uma modelagem de tópicos com BERTopic para identificar os principais temas discutidos, sendo estes últimos refinados por um modelo de representação customizado que utiliza a API do Gemini para gerar descrições mais detalhadas e precisas para cada tópico.
 
 \section{Análise Exploratória dos Dados}
 
@@ -334,9 +334,30 @@ A análise de sentimentos para o Cluster 1, o grupo de 6 Reels definido por sua 
 
 Com isso, conclui-se que a integração da análise de sentimentos com a clusterização é fundamental para desmistificar o real significado da performance métrica. Os resultados demonstram que "alto engajamento" não é sinônimo de "alta aprovação". O Cluster 0 (Padrão) estabelece a linha de base com uma recepção esmagadoramente positiva (72,3\%). Em nítido contraste, o Cluster -1 (Viral), dono das métricas mais fortes, revela-se o mais polarizado, com uma maioria positiva reduzida (53,5\%) e as maiores taxas de comentários negativos (20,8\%) e neutros (25,7\%), indicando que a viralidade foi impulsionada tanto pela aclamação quanto pela controvérsia. Por fim, o Cluster 1 (Longo/Baixa Performance) confirma sua ineficácia  ao apresentar a maior taxa de indiferença (27,1\% de comentários neutros), falhando em gerar reações emocionais fortes. A análise híbrida, portanto, qualifica os clusters, provando que o conteúdo padrão é aprovado, o viral é debatido, e o longo é ignorado.
 
+\subsection{Clusterização das Publicações do Feed}
+
+% ROTEIRO (PENDENTE DE EXECUÇÃO):
+% - Rodar AutoClusterHPO sobre as métricas de engajamento dos posts do FEED
+%   (análogo ao que foi feito para os Reels).
+% - Preencher: algoritmo eleito, hiperparâmetros, score CVI combinado,
+%   número de clusters e o perfil de cada um (nº de posts, métricas médias).
+% - Inserir figura de projeção dos clusters (análoga à \ref{fig:clusters_pca}).
+% - Descrição APENAS: caracterizar os grupos. A leitura de growth fica no cap.6.
+% - Comparar brevemente com os clusters de Reels: os padrões se repetem?
+
+\subsection{Clusterização dos Perfis dos Governadores}
+
+% ROTEIRO (PENDENTE DE EXECUÇÃO):
+% - Rodar clusterização sobre as métricas AGREGADAS por perfil
+%   (base da tabela \ref{tab:matriz_correlacao}).
+% - Preencher: quantos grupos de governadores emergem, o que caracteriza
+%   cada grupo (ex: alto alcance/baixa conversão), e quais governadores em cada.
+% - Inserir figura/tabela dos grupos de perfis.
+% - Descrição APENAS. A interpretação (segmentos à la Flesch) fica no cap.6.
+
 \section{Modelagem de Tópicos com BERTopic}
 
-A modelagem de tópicos identificou 50 temas distintos no corpus. As visualizações interativas fornecem insights profundos sobre a estrutura desses temas. O mapa da Figura 4 (Intertopic Distance Map) abaixo posiciona os tópicos em um espaço 2D com base em sua similaridade semântica. Cada círculo representa um tópico, e seu tamanho é proporcional à sua frequência.
+A modelagem de tópicos identificou 50 temas distintos no corpus. As visualizações interativas fornecem insights profundos sobre a estrutura desses temas. O mapa da Figura~\ref{fig:intertopic} (Intertopic Distance Map) abaixo posiciona os tópicos em um espaço 2D com base em sua similaridade semântica. Cada círculo representa um tópico, e seu tamanho é proporcional à sua frequência.
 
 \begin{figure}[h!]
     \centering
@@ -348,7 +369,7 @@ A modelagem de tópicos identificou 50 temas distintos no corpus. As visualizaç
 
 A análise do mapa revela um \textbf{tópico dominante} (círculo grande), que representa a maioria dos comentários e é composto principalmente por expressões de apoio e emojis positivos (ex: aplausos, corações). Os demais tópicos, menores e mais dispersos, formam clusters que abordam assuntos mais específicos, como política, críticas a serviços públicos e pedidos de justiça.
 
-Já o dendrograma de clusterização hierárquica (Figura 5) e o mapa de calor de similaridade (Figura 6) complementam a análise, mostrando como os tópicos se relacionam e podem ser agregados em meta-tópicos. Por exemplo, tópicos relacionados a críticas sobre concursos públicos e serviços de saúde, embora distintos, mostram-se semanticamente próximos e poderiam ser agrupados sob um tema maior de "Reivindicações de Serviços Públicos".
+Já o dendrograma de clusterização hierárquica (Figura~\ref{fig:hierarchy}) e o mapa de calor de similaridade (Figura~\ref{fig:heatmap}) complementam a análise, mostrando como os tópicos se relacionam e podem ser agregados em meta-tópicos. Por exemplo, tópicos relacionados a críticas sobre concursos públicos e serviços de saúde, embora distintos, mostram-se semanticamente próximos e poderiam ser agrupados sob um tema maior de "Reivindicações de Serviços Públicos".
 
 \begin{figure}[h!]
     \centering
@@ -377,4 +398,16 @@ Analisando a matriz de similaridade, a modelagem de tópicos agruparia os coment
 A aplicação do pipeline híbrido de NLP revelou com sucesso as principais características do corpus de comentários do Instagram. A análise de sentimentos indicou uma recepção majoritariamente positiva ao conteúdo dos Reels, com alta confiança do modelo classificador.
 
 A modelagem de tópicos híbrida, combinando BERTopic e Gemini, provou ser excepcionalmente eficaz. Ela não apenas identificou a estrutura temática dos dados—com um tópico principal de reações positivas e diversos subtópicos específicos—mas também forneceu descrições contextuais e de fácil interpretação para cada tema. Esta abordagem representa um avanço significativo em relação aos métodos tradicionais, permitindo uma análise qualitativa mais profunda e a extração de insights acionáveis com maior facilidade. Os resultados demonstram o potencial da integração de modelos de embedding e modelos generativos para análises de texto complexas.
+
+\subsection{Modelagem de Tópicos do Discurso Oficial (Legendas e Transcrições)}
+
+% ROTEIRO (PENDENTE DE EXECUÇÃO — legendas e transcrições vêm da API):
+% - Rodar BERTopic (mesmo pipeline) sobre o texto produzido pelas assessorias:
+%   legendas (captions) e transcrições da fala dos vídeos.
+% - Preencher: nº de tópicos, temas dominantes, e as visualizações análogas
+%   (mapa intertópico, dendrograma) para o discurso oficial.
+% - Descrição APENAS dos temas do discurso. O CONTRASTE com os temas dos
+%   comentários (o gap discurso x reação) é analisado no cap.6.
+
+Os resultados apresentados neste capítulo \textemdash{} a segmentação das publicações por desempenho, a qualificação dos clusters pelo sentimento e a estrutura temática revelada pela modelagem de tópicos \textemdash{} constituem o diagnóstico bruto sobre o qual se assenta a etapa seguinte. No próximo capítulo, essas evidências deixam de ser descritas isoladamente e passam a ser organizadas segundo o funil de engajamento COBRA-RACE, traduzindo-se em métricas de crescimento e em recomendações práticas por perfil, de modo a converter a modelagem aqui desenvolvida em um instrumento efetivo de apoio à decisão para assessorias políticas.
 

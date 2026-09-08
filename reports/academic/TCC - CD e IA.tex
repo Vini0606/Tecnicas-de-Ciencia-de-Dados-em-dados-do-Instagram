@@ -65,6 +65,9 @@
 \usepackage[alf]{abntex2cite}	% Citações padrão ABNT
 \usepackage{listings}
 
+\usepackage{seqsplit}   % permite quebra de strings longas sem espaços
+\newcommand{\code}[1]{\seqsplit{#1}}
+
 
 %\usepackage{cite}
 %\renewcommand\citeleft{(}
