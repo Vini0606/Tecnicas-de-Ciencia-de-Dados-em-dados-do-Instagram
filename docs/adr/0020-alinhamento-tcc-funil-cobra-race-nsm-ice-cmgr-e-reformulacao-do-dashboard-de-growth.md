@@ -18,22 +18,27 @@ reels), nenhuma extração de transcrição de vídeo, nenhum modelo de tópicos
 "discurso oficial" (BERTopic hoje roda só sobre comentários e sobre captions-como-preditor, ADR
 0019), e nenhuma métrica de volume de UGC (conteúdo gerado por terceiros).
 
-Dois documentos do usuário, externos ao repositório (`Plano_Implementacao_Analises.docx` e
-`Adendo_Plano_Implementacao.docx`, ambos em Downloads), chegaram já com um plano técnico detalhado
-por "ficha" (arquivo a tocar, tabela Gold, teste, ordem de dependência) para fechar essas lacunas.
-Verificação de código nesta sessão confirmou que esses documentos são mais precisos que o gap
-analysis inicial: existe uma "Fase 2" já esboçada (`scripts/run_profile_clustering_engagement.py`
-+ `lambdas/model/handler.py`, que já chama `cluster_governor_profiles` e grava em
-`governor_profile_clusters_engagement`) — construída, mas **não conectada** a
-`lambdas/orchestrator/`. Uma pesquisa de actors do Apify Store (`/research`,
+Três documentos do usuário, externos ao repositório (`Plano_Implementacao_Analises.docx`,
+`Adendo_Plano_Implementacao.docx` e `Ficha8_Coleta_UGC.docx`, todos em Downloads), chegaram já com
+um plano técnico detalhado por "ficha" (arquivo a tocar, tabela Gold, teste, ordem de dependência)
+para fechar essas lacunas. Verificação de código nesta sessão confirmou que esses documentos são
+mais precisos que o gap analysis inicial: existe uma "Fase 2" já esboçada
+(`scripts/run_profile_clustering_engagement.py` + `lambdas/model/handler.py`, que já chama
+`cluster_governor_profiles` e grava em `governor_profile_clusters_engagement`) — construída, mas
+**não conectada** a `lambdas/orchestrator/`. Uma pesquisa de actors do Apify Store (`/research`,
 `docs/research/apify-instagram-actors-cobra-mapping.md`, commit `3c90476`) encontrou ainda que o
 `apify/instagram-reel-scraper` (já integrado em `src/data_extract/scraper.py`) tem uma flag paga
 `includeTranscript` — ou seja, extrair transcrição não exige um pipeline de ASR do zero, só
 habilitar uma opção no actor já em uso, no mesmo padrão de `includeSharesCount` (também não
 habilitada hoje). Essa mesma pesquisa mapeou, para o nível "Creating" do COBRA (volume de UGC),
-duas rotas viáveis: reconfigurar o actor de perfil já integrado (`shu8hvrXbJbY3Eb9W` =
+duas rotas técnicas viáveis: reconfigurar o actor de perfil já integrado (`shu8hvrXbJbY3Eb9W` =
 `apify/instagram-scraper` genérico) com `resultsType: "mentions"`, ou adicionar
-`apify/instagram-tagged-scraper` (oficial, schema de output confirmado, $1,50/1000).
+`apify/instagram-tagged-scraper` (oficial, schema de output confirmado, $1,50/1000). O terceiro
+documento (`Ficha8_Coleta_UGC.docx`) avaliou um actor de terceiros que o usuário havia cogitado
+(`fetch_cat/instagram-mentions-scraper`) e recomendou rejeitá-lo por risco de reprodutibilidade
+("under maintenance", 2 usuários, 0 avaliações) — reforçando a preferência por um actor consolidado
+já mapeado na pesquisa — e propôs tratar UGC não como troca de actor, mas como uma frente de coleta
+Medallion própria (Ficha 8).
 
 As decisões abaixo saíram de uma rodada de `/grilling` cruzando os dois documentos do usuário com
 essas descobertas de código, e uma especificação de dashboard (`/dashboard-specification`,
@@ -90,24 +95,56 @@ na decisão de registrar tudo numa ADR só antes de abrir issues, em vez de frag
    declarado como limitação explícita no Cap. 6/7, não escondido.
 
 Ordem de execução: 1 → 2 → 3 → 4 → (5 e 6, mesma dependência, podem ser paralelas) → 7 (calculado
-por último; coleta para ele deve rodar desde o início).
+por último; coleta para ele deve rodar desde o início) → Ficha 8/UGC (depois de 1-7 fechadas, não
+compete pelos mesmos dados).
 
-### UGC ("Creating" do COBRA) — decisão de experimento, em aberto
+### Ficha 8 — Pipeline de Coleta de UGC de Criação ("Creating" do COBRA)
 
-Diferente das 7 fichas acima, a fonte de dado de UGC **não está decidida** — vai ser resolvida por
-um experimento, não por esta ADR. Rodar em paralelo, comparar resultado, e só então decidir qual
-fica definitivo no pipeline:
+Ao contrário das 7 fichas acima, UGC não é extensão do pipeline existente — é uma **frente de coleta
+nova**, com Medallion completo (Bronze→Silver→Gold), incluída nesta rodada e executada **depois das
+Fichas 1-7** (não compete com as análises que já podem rodar sobre dado existente).
 
-- (a) reconfigurar o actor de perfil já integrado (`shu8hvrXbJbY3Eb9W` = `apify/instagram-scraper`
-  genérico) com `resultsType: "mentions"` — zero actor novo a manter, mas o schema de output desse
-  modo não foi confirmado por exemplo JSON na pesquisa (só a capacidade, via input schema);
-- (b) adicionar `apify/instagram-tagged-scraper` (oficial, $1,50/1000, schema de output confirmado
-  com exemplo real, 9.999 usuários, 5.0★) — actor novo, mais confiável/documentado.
+**Decisão de actor**: rejeitar `fetch_cat/instagram-mentions-scraper` como dependência, apesar de
+ter os campos certos (`caption`, `matchTypes`, engajamento, `isAd`/`isPaidPartnership`) — está
+"under maintenance", com 2 usuários e 0 avaliações, risco de descontinuação inaceitável para
+reprodutibilidade acadêmica (se o actor sair do ar, o dado não se reproduz e o TCC perde
+rastreabilidade). Preferir um actor consolidado de tagged/mentions: `apify/instagram-tagged-scraper`
+(oficial, 9.999 usuários, 5.0★, $1,50/1000, schema de output confirmado — já mapeado em
+`docs/research/apify-instagram-actors-cobra-mapping.md`) é o candidato. Antes de comprometer o
+pipeline: rodar um **piloto pequeno** (`resultsLimit` baixo) nos 27 perfis, medir volume real e
+estabilidade, e confirmar os nomes exatos de campo na aba Output do actor antes de fixar o schema
+Delta. A reconfiguração do actor de perfil já integrado (`resultsType: "mentions"`) fica registrada
+como alternativa secundária a considerar no piloto, não como uma segunda rota em produção — ver
+Opções consideradas.
 
-Métrica resultante, em ambos os casos: `COUNT` de posts de terceiros marcando/mencionando o perfil
-no período, mais `SUM(likesCount + commentsCount)` desses posts = volume/engajamento de UGC. Isso
-fica registrado aqui como decisão de arquitetura pendente — a issue de implementação do experimento
-precede qualquer issue que consuma o resultado (funil, dashboard).
+**Campos a coletar** (mapeados ao schema do projeto): `caption` (sentimento/tópicos do UGC);
+`matchTypes` (distingue marcação visual de menção textual); `likesCount`/`commentsCount`/
+`videoPlayCount` (engajamento do próprio UGC); `authorUsername`/`authorIsVerified` (perfil de quem
+criou); `isPaidPartnership`/`isAd`/`isAffiliate` (crítico — separa UGC orgânico de publi paga antes
+de agregar); `timestamp` (série temporal, dialoga com CMGR).
+
+**Arquivos a tocar** (mesmo padrão Medallion do resto do projeto): `src/data_extract/scraper.py`
+(nova função de coleta do actor de mentions, landing zone própria por `run_id`);
+`src/schemas_delta.py` (contrato Bronze/Silver/Gold da nova tabela, `nullable` onde a fonte pode
+faltar); `src/features/silver/` (novo cleaner de UGC — dedup por `id`/`shortCode`, normalização de
+handles); `src/features/gold/` (agregação por governador: contagem, engajamento médio, % orgânico
+vs. pago); nova tabela Gold `governor_ugc_mentions` (uma linha por post de UGC); `tests/` (cleaner e
+agregador, padrão dos testes existentes).
+
+**Pontos de atenção**:
+- Separar orgânico de pago **antes** de agregar — contar publi (`isPaidPartnership`/`isAd`) como
+  "apoio espontâneo" infla falsamente o nível de criação.
+- Viés de volume: governadores mais populares terão muito mais menções — declarar esse viés ou
+  normalizar por tamanho de audiência, não comparar contagem bruta entre perfis sem ressalva.
+- Mesma ressalva do `cardiffnlp/...` (treinado em tweets) já registrada para legendas/transcrições
+  (Ficha 3) se aplica a UGC — texto de terceiros é um registro diferente do que o modelo foi
+  treinado para classificar.
+- Privacidade/ética: são posts de cidadãos comuns, não de figuras públicas — coletar só dado
+  público, anonimizar autores em análises agregadas, e registrar a conformidade explicitamente (a
+  banca vai perguntar).
+
+Métrica resultante para o funil: `COUNT` de posts de terceiros marcando/mencionando o perfil no
+período, mais `SUM(likesCount + commentsCount)` desses posts = volume/engajamento de UGC.
 
 ### Frente 2 — Funil RACE↔COBRA + Dashboard
 
@@ -123,9 +160,11 @@ novo, só rotula e organiza o que as fichas 1-7 (+ UGC) já produzem. Mapeamento
 
 A linha "Engage/Criar" é uma **revisão deliberada** do roteiro original do Cap. 6 do TCC, que usava
 "comentários em debate (cluster Viral)" — uma métrica de reação do público, semanticamente mais
-próxima de "Contribuir" que de "Criar". A substituição por volume de UGC só se confirma como número
-real quando o experimento da seção anterior escolher uma fonte; até lá, o estágio "Engage" no texto
-e no dashboard permanece com essa métrica pendente, não com a métrica antiga do roteiro.
+próxima de "Contribuir" que de "Criar". A substituição por volume de UGC só vira número real quando
+a Ficha 8 (seção anterior) entregar `governor_ugc_mentions`, o que por sua vez depende do piloto de
+validação do `apify/instagram-tagged-scraper` confirmar volume/estabilidade suficientes; até lá, o
+estágio "Engage" no texto e no dashboard permanece com essa métrica pendente, não com a métrica
+antiga do roteiro.
 
 Dois destinos, ambos obrigatórios (não um obrigatório e um opcional, como um rascunho anterior do
 adendo sugeria — decisão do usuário nesta sessão foi mexer também nas páginas existentes, não só
@@ -172,10 +211,15 @@ adicionar uma aba isolada):
   por minuto num actor já integrado, não um pipeline de ASR construído do zero — a avaliação inicial
   de custo/complexidade que motivou adiar essa peça estava desatualizada assim que a pesquisa de
   actors trouxe esse dado.
-- UGC fica como experimento em aberto, não decisão fechada, porque nenhuma das duas rotas mapeadas
-  teve seu schema de output 100% confirmado com a mesma confiança (uma tem capacidade confirmada
-  mas schema incerto; a outra tem schema confirmado mas é um actor a mais para manter) — decidir sem
-  rodar as duas seria uma escolha às cegas sobre um dado que ainda não foi visto.
+- UGC vira pipeline completo (Ficha 8) em vez de trabalho futuro porque o usuário decidiu assumir o
+  escopo maior mesmo com o projeto já ambicioso (3 fontes textuais, clustering em 3 níveis, funil,
+  NSM, ICE) — mas com uma salvaguarda: um piloto pequeno antes de comprometer o schema Delta, porque
+  o actor recomendado (`apify/instagram-tagged-scraper`) tem schema confirmado por exemplo, mas
+  nenhum teste real nos 27 perfis do projeto ainda foi rodado.
+- `fetch_cat/instagram-mentions-scraper` foi descartado apesar de ter os campos mais completos
+  (`matchTypes`, `isAd`/`isPaidPartnership`) porque reprodutibilidade acadêmica pesa mais que
+  completude de schema — um actor "under maintenance" com 2 usuários pode simplesmente desaparecer
+  antes da defesa do TCC, e o dado deixaria de ser reproduzível.
 - "Engage/Criar" muda de "comentários em debate" para "volume de UGC" porque comentário — mesmo em
   debate — continua sendo uma atividade de reação de quem já está na publicação do governador, não
   de criação de conteúdo novo por um terceiro; UGC é a métrica que bate literalmente com a definição
@@ -206,8 +250,16 @@ adicionar uma aba isolada):
 - **Dashboard só com a aba nova de funil, sem mexer nas páginas existentes** (opção que o adendo do
   usuário apresentava como suficiente) — rejeitada pelo usuário; escolheu também reformular as
   páginas existentes.
-- **Decidir já qual actor de UGC usar**, sem rodar experimento comparativo — rejeitada pelo usuário;
-  escolheu rodar os dois em paralelo antes de decidir.
+- **Rodar dois actors de UGC em paralelo em produção para comparar** (decisão inicial desta sessão)
+  — substituída por uma rota única (`apify/instagram-tagged-scraper`) validada por piloto pequeno
+  antes de comprometer o pipeline, depois que a Ficha 8 trouxe critério de reprodutibilidade que
+  desempatava a favor de um actor consolidado.
+- **Adotar `fetch_cat/instagram-mentions-scraper`** (actor que o usuário havia cogitado, com campos
+  mais completos) — rejeitada por risco de descontinuação incompatível com reprodutibilidade
+  acadêmica.
+- **Tratar UGC como Trabalho Futuro no Cap. 7**, em vez de pipeline completo nesta rodada (opção que
+  a própria Ficha 8 recomendava, dado o escopo já grande do projeto) — rejeitada pelo usuário, que
+  escolheu assumir o escopo maior.
 - **Abrir ADRs/issues separadas por ficha**, conforme iam sendo fechadas — rejeitada pelo usuário;
   escolheu uma ADR grande cobrindo tudo, com issues só depois de ambas as frentes fechadas.
 
@@ -215,24 +267,32 @@ adicionar uma aba isolada):
 
 - **Nada foi implementado nesta sessão** — esta ADR registra escopo e desenho; a implementação
   (lambda de perfil conectada ao orquestrador, clustering de feed, extensão do `ModelEnricher`,
-  `includeTranscript` habilitado, BERTopic de discurso, NSM, Score ICE, CMGR, o experimento de UGC,
-  a página de funil e as mudanças nas 4 páginas existentes) fica para issues futuras, seguindo o
-  padrão já validado do projeto (issue no GitHub rotulada `ready-for-agent` → TDD → `/code-review`
-  Standards+Spec → commit), com `/wayfinder` recomendado dado o tamanho (maior que a ADR 0019).
-- O experimento de UGC bloqueia a métrica final de "Engage/Criar" no funil (texto do Cap. 6 e
-  `pages/05_funil.py`) — até ele resolver, essa métrica não tem fonte de dado definitiva.
+  `includeTranscript` habilitado, BERTopic de discurso, NSM, Score ICE, CMGR, o pipeline Medallion
+  de UGC da Ficha 8, a página de funil e as mudanças nas 4 páginas existentes) fica para issues
+  futuras, seguindo o padrão já validado do projeto (issue no GitHub rotulada `ready-for-agent` →
+  TDD → `/code-review` Standards+Spec → commit), com `/wayfinder` recomendado dado o tamanho (maior
+  que a ADR 0019).
+- O piloto de validação do actor de UGC (`apify/instagram-tagged-scraper`) bloqueia a métrica final
+  de "Engage/Criar" no funil (texto do Cap. 6 e `pages/05_funil.py`) — até ele confirmar volume e
+  estabilidade suficientes nos 27 perfis, essa métrica não tem fonte de dado definitiva. Se o piloto
+  falhar, a Ficha 8 precisa de uma segunda rota (ex.: reconfigurar `resultsType: "mentions"` no actor
+  de perfil já integrado) antes de a Ficha 8 poder ser dada como fechada.
 - `governor_sentiment` ganha uma coluna de fonte (`comentario`/`legenda`/`transcricao`) —
   qualquer consumidor existente que já lê essa tabela sem filtrar por fonte passa a misturar as três
   granularidades nas agregações, a menos que seja atualizado para filtrar.
 - `governor_clusters` ganha `content_type` — consumidores existentes que já leem essa tabela sem
   filtrar por tipo passam a ver reels e posts de feed juntos.
-- O custo de extração cresce: `includeTranscript` (cobrado por minuto de vídeo) e, dependendo do
-  resultado do experimento de UGC, mais um actor Apify (`apify/instagram-tagged-scraper`) rodando
-  por governador monitorado — impacto de custo recorrente, não pontual.
+- O custo de extração cresce: `includeTranscript` (cobrado por minuto de vídeo) e mais um actor
+  Apify (`apify/instagram-tagged-scraper`, pendente de confirmação pelo piloto) rodando por
+  governador monitorado — impacto de custo recorrente, não pontual.
+- A Ficha 8 introduz uma frente de coleta sobre dados de **terceiros** (cidadãos comuns, não figuras
+  públicas) — exige tratamento de privacidade/anonimização em análises agregadas e filtragem
+  explícita de conteúdo pago (`isPaidPartnership`/`isAd`) antes de qualquer agregação, sob risco de
+  inflar artificialmente o nível "Criar" do funil com publi contabilizada como apoio espontâneo.
 - CMGR entra no dashboard como métrica declaradamente ilustrativa enquanto o histórico for curto —
   qualquer leitura precisa comunicar essa limitação; não é um gap temporário que desaparece sozinho,
   depende de tempo de operação acumulado.
-- Duas fontes externas ao repositório (`Plano_Implementacao_Analises.docx`,
-  `Adendo_Plano_Implementacao.docx`, Downloads do usuário) fundamentam parte desta decisão e não
-  estão versionadas no projeto — se o usuário quiser rastreabilidade completa, vale considerar
-  anexá-los a `docs/` em uma revisão futura.
+- Três fontes externas ao repositório (`Plano_Implementacao_Analises.docx`,
+  `Adendo_Plano_Implementacao.docx`, `Ficha8_Coleta_UGC.docx`, Downloads do usuário) fundamentam
+  parte desta decisão e não estão versionadas no projeto — se o usuário quiser rastreabilidade
+  completa, vale considerar anexá-los a `docs/` em uma revisão futura.
