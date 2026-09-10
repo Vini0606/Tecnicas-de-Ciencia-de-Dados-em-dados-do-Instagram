@@ -5,12 +5,13 @@ locals {
 
   # Timeout/memória por Lambda -- extract pode demorar dependendo do
   # RESULTS_LIMIT (scraping via Apify); orchestrator precisa cobrir a soma
-  # das 3 etapas, até o teto de 15 min (900s) do Lambda. `model` (Fase 2 --
-  # clustering de perfil de governador) fica FORA da cadeia da orquestradora
-  # de propósito: modelagem é opt-in, não parte da ingestão obrigatória
-  # (mesmo princípio da modelagem local, ver ADR 0001) -- por isso não conta
-  # pro orçamento de tempo do orchestrator, e não entra em `data_lambdas`/
-  # na policy `invoke_data_lambdas` abaixo.
+  # das 4 etapas (extract/transform/load/model), até o teto de 15 min (900s)
+  # do Lambda. `model` (Fase 2 -- clustering de perfil de governador) roda
+  # por último, pós-Gold-de-engajamento (issue #86 / ADR 0020, Ficha 1 --
+  # decisão que reverte a exclusão original de `model` da cadeia). Continua
+  # fora de `data_lambdas` porque essa lista é sobre I/O de Bronze/Silver/
+  # Gold; `model` só lê/escreve Gold e tem role/policy própria (ver seção
+  # abaixo), mas agora é invocada automaticamente pela orquestradora.
   lambda_settings = {
     extract      = { timeout = 300, memory = 512 }
     transform    = { timeout = 120, memory = 1024 }
@@ -82,7 +83,8 @@ resource "aws_iam_role_policy" "data_lambda_s3_access" {
   policy = data.aws_iam_policy_document.data_lake_access.json
 }
 
-# ── IAM: orquestradora só pode invocar as 3 Lambdas de dados ─────────────
+# ── IAM: orquestradora só pode invocar as 4 Lambdas da cadeia (3 de dados +
+# `model`, issue #86 / ADR 0020) ──────────────────────────────────────────
 
 resource "aws_iam_role" "orchestrator" {
   name               = "${var.project_name}-orchestrator-role"
@@ -94,17 +96,20 @@ resource "aws_iam_role_policy_attachment" "orchestrator_basic_execution" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
 
-data "aws_iam_policy_document" "invoke_data_lambdas" {
+data "aws_iam_policy_document" "invoke_orchestrated_lambdas" {
   statement {
-    actions   = ["lambda:InvokeFunction"]
-    resources = [for name in local.data_lambdas : aws_lambda_function.data_lambda[name].arn]
+    actions = ["lambda:InvokeFunction"]
+    resources = concat(
+      [for name in local.data_lambdas : aws_lambda_function.data_lambda[name].arn],
+      [aws_lambda_function.model.arn],
+    )
   }
 }
 
 resource "aws_iam_role_policy" "orchestrator_invoke_access" {
   name   = "${var.project_name}-orchestrator-invoke-access"
   role   = aws_iam_role.orchestrator.id
-  policy = data.aws_iam_policy_document.invoke_data_lambdas.json
+  policy = data.aws_iam_policy_document.invoke_orchestrated_lambdas.json
 }
 
 # ── Lambdas: extract, transform, load ─────────────────────────────────────
@@ -134,7 +139,8 @@ resource "aws_lambda_function" "data_lambda" {
 
 # ── IAM: model lê/escreve só na camada Gold do data lake ──────────────────
 # Fora de `data_lambdas` de propósito (ver comentário em `lambda_settings`
-# acima) -- role e Lambda próprios, não entra na cadeia da orquestradora.
+# acima) -- role e Lambda próprios, IAM restrita só à camada Gold (não
+# precisa de acesso a Bronze/Silver, diferente de extract/transform/load).
 
 resource "aws_iam_role" "model_lambda" {
   name               = "${var.project_name}-model-role"
@@ -154,8 +160,10 @@ resource "aws_iam_role_policy" "model_lambda_s3_access" {
 
 # ── Lambda: model (clustering de perfil de governador por Engajamento,
 # Fase 2) ──────────────────────────────────────────────────────────────────
-# Invocada manualmente (aws lambda invoke --function-name ...), nunca pela
-# orquestradora -- ver decisão em `lambda_settings`.
+# Invocada automaticamente pela orquestradora, como última etapa da cadeia
+# (issue #86 / ADR 0020, Ficha 1). Pode também ser invocada manualmente
+# (aws lambda invoke --function-name ...) para reprocessar sem repetir
+# extract/transform/load.
 
 resource "aws_lambda_function" "model" {
   function_name = "${var.project_name}-model"
@@ -188,6 +196,7 @@ resource "aws_lambda_function" "orchestrator" {
       EXTRACT_FUNCTION_NAME   = aws_lambda_function.data_lambda["extract"].function_name
       TRANSFORM_FUNCTION_NAME = aws_lambda_function.data_lambda["transform"].function_name
       LOAD_FUNCTION_NAME      = aws_lambda_function.data_lambda["load"].function_name
+      MODEL_FUNCTION_NAME     = aws_lambda_function.model.function_name
     }
   }
 }
