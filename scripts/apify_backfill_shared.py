@@ -65,13 +65,19 @@ def estimate_cost_usd(days: int, n_governors: int) -> float:
     return round(estimated_results / 1000 * STARTER_PRICE_PER_1000_RESULTS, 2)
 
 
-def estimate_cost_usd_for_results_limit(results_limit: int, n_governors: int) -> float:
+def estimate_cost_usd_for_results_limit(
+    results_limit: int, n_governors: int, media_types: int = 2
+) -> float:
     """Estimativa PRE-run para uma extracao sem janela de data (sem
     `onlyPostsNewerThan`, caso do branch de fallback de `pipeline.py`) --
-    `results_limit` e um teto por perfil por tipo de midia (posts e reels)
-    aplicado pela Apify, entao o pior caso -- e o unico limite que da pra
-    calcular sem rodar -- e cada perfil bater o teto nos dois tipos."""
-    worst_case_results = results_limit * 2 * n_governors
+    `results_limit` e um teto por perfil por tipo de midia aplicado pela
+    Apify, entao o pior caso -- e o unico limite que da pra calcular sem
+    rodar -- e cada perfil bater o teto em todos os tipos de midia
+    chamados. `media_types` default 2 preserva o comportamento original
+    (posts + reels, `pipeline.py`); `scripts/run_apify_mentions_pilot.py`
+    (ADR 0020, Ficha 8 / issue #93) chama com `media_types=1` -- um actor
+    so (`apify/instagram-tagged-scraper`), nao dois."""
+    worst_case_results = results_limit * media_types * n_governors
     return round(worst_case_results / 1000 * STARTER_PRICE_PER_1000_RESULTS, 2)
 
 
