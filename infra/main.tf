@@ -96,7 +96,7 @@ resource "aws_iam_role_policy_attachment" "orchestrator_basic_execution" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
 
-data "aws_iam_policy_document" "invoke_data_lambdas" {
+data "aws_iam_policy_document" "invoke_orchestrated_lambdas" {
   statement {
     actions = ["lambda:InvokeFunction"]
     resources = concat(
@@ -109,7 +109,7 @@ data "aws_iam_policy_document" "invoke_data_lambdas" {
 resource "aws_iam_role_policy" "orchestrator_invoke_access" {
   name   = "${var.project_name}-orchestrator-invoke-access"
   role   = aws_iam_role.orchestrator.id
-  policy = data.aws_iam_policy_document.invoke_data_lambdas.json
+  policy = data.aws_iam_policy_document.invoke_orchestrated_lambdas.json
 }
 
 # ── Lambdas: extract, transform, load ─────────────────────────────────────
