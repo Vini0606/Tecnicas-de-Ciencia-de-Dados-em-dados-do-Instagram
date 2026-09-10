@@ -2,7 +2,11 @@ import numpy as np
 import pandas as pd
 from bertopic.backend import BaseEmbedder
 
-from src.modeling.config import PostTopicModelConfig, TopicModelConfig
+from src.modeling.config import (
+    DiscourseTopicModelConfig,
+    PostTopicModelConfig,
+    TopicModelConfig,
+)
 from src.modeling.topics import (
     classify_post_topics,
     hashtags_to_text,
@@ -104,6 +108,42 @@ def test_model_topics_retorna_document_info_com_colunas_esperadas():
     _, _, _, document_info = model_topics(docs, config, embedding_model=_FakeEmbedder())
 
     assert {"Document", "Topic", "Name"} <= set(document_info.columns)
+
+
+def test_discourse_topic_model_config_usa_nr_topics_auto_em_vez_de_fixo():
+    """ADR 0020 (Ficha 4) / issue #89: o volume baixo do discurso oficial
+    (~810 legendas/transcrições na coleta atual) não pode ser forçado a
+    bater com os ~50 tópicos fixos do modelo de comentários (`TopicModelConfig`)
+    nem com o `nr_topics=15` fixo do modelo de posts (`PostTopicModelConfig`)
+    -- `nr_topics="auto"` deixa o número de tópicos emergir do corpus real."""
+    config = DiscourseTopicModelConfig()
+    assert config.nr_topics == "auto"
+
+
+def test_model_topics_com_corpus_pequeno_e_nr_topics_auto_nao_trava_nem_forca_paridade():
+    """Corpus sintético pequeno (32 docs), na mesma ordem de grandeza
+    reduzida do discurso real (~810 legendas/transcrições vs. ~13,5 mil
+    comentários) -- `model_topics()` não pode travar, e o número de tópicos
+    não-ruído não pode ser forçado a bater com os 50 tópicos fixos usados
+    para comentários."""
+    docs = _docs_sinteticos()
+    config = DiscourseTopicModelConfig(
+        hdbscan_min_cluster_size=4,
+        hdbscan_min_samples=2,
+        calculate_probabilities=False,
+        verbose=False,
+    )
+
+    topic_model, topics, probs, document_info = model_topics(
+        docs, config, embedding_model=_FakeEmbedder()
+    )
+
+    assert len(topics) == len(docs)
+    topicos_nao_ruido = {t for t in topics if t != -1}
+    # Os 4 grupos sintéticos bem separados sobrevivem como tópicos distintos
+    # (nr_topics="auto" só mescla redundância) -- bem abaixo dos 50 tópicos
+    # fixos do modelo de comentários, sem forçar paridade com esse número.
+    assert 0 < len(topicos_nao_ruido) < 50
 
 
 def test_merge_topic_info_junta_por_posicao_e_descarta_document():

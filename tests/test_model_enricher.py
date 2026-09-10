@@ -202,6 +202,89 @@ def test_write_sentiment_aceita_generated_at_explicito_para_manter_consistencia(
     assert out_a.loc[0, "_generated_at"] == out_b.loc[0, "_generated_at"] == generated_at
 
 
+def _discurso_legenda():
+    return pd.DataFrame(
+        {
+            "id_reel": ["p1"],
+            "text": ["Anunciamos hoje um novo investimento em saúde para todo o estado."],
+            "inputUrl": ["https://www.instagram.com/governador_a/"],
+            "ownerUsername": ["governador_a"],
+            "fonte": ["legenda"],
+            "Topic": [2],
+            "Name": ["2_saude_investimento"],
+        }
+    )
+
+
+def _discurso_transcricao():
+    return pd.DataFrame(
+        {
+            "id_reel": ["r9"],
+            "text": ["Estamos trabalhando para melhorar a saúde da nossa população."],
+            "inputUrl": ["https://www.instagram.com/governador_a/"],
+            "ownerUsername": ["governador_a"],
+            "fonte": ["transcricao"],
+            "Topic": [2],
+            "Name": ["2_saude_investimento"],
+        }
+    )
+
+
+def test_write_discourse_topics_grava_topico_de_discurso(tmp_path):
+    """ADR 0020 (Ficha 4) / issue #89."""
+    path = tmp_path / "governor_discourse_topics"
+    ModelEnricher().write_discourse_topics(_discurso_legenda(), path, run_id="r1")
+
+    out = DeltaTable(str(path)).to_pandas()
+    assert len(out) == 1
+    assert out.loc[0, "fonte"] == "legenda"
+    assert out.loc[0, "Topic"] == 2
+    assert out.loc[0, "Name"] == "2_saude_investimento"
+
+
+def test_write_discourse_topics_duas_fontes_coexistem_na_mesma_escrita(tmp_path):
+    """Legenda e transcrição são modeladas juntas (mesmo corpus/modelo, ver
+    `run_deterministic_modeling`) -- uma única escrita grava as duas fontes
+    lado a lado, ao contrário de `write_sentiment` (uma chamada em
+    `mode="append"` por fonte)."""
+    path = tmp_path / "governor_discourse_topics"
+    df_combinado = pd.concat([_discurso_legenda(), _discurso_transcricao()], ignore_index=True)
+
+    ModelEnricher().write_discourse_topics(df_combinado, path, run_id="r1")
+
+    out = DeltaTable(str(path)).to_pandas()
+    assert len(out) == 2
+    assert set(out["fonte"]) == {"legenda", "transcricao"}
+
+
+def test_write_discourse_topics_falha_com_mensagem_clara_se_faltar_fonte(tmp_path):
+    df_incompleto = _discurso_legenda().drop(columns=["fonte"])
+
+    with pytest.raises(ValueError, match="fonte"):
+        ModelEnricher().write_discourse_topics(
+            df_incompleto, tmp_path / "governor_discourse_topics", run_id="r1"
+        )
+
+
+def test_write_discourse_topics_nao_grava_colunas_de_sentimento(tmp_path):
+    """Tabela própria (ADR 0020 Ficha 4 / issue #89), não uma extensão de
+    `governor_sentiment`: mesmo que o DataFrame de origem carregue
+    `sentiment_label`/`sentiment_score` (reaproveita o mesmo
+    df_fonte_sentiment da etapa de sentimento, ver `run_deterministic_modeling`),
+    essas colunas não pertencem ao contrato de `governor_discourse_topics` e
+    não podem vazar pra ela."""
+    path = tmp_path / "governor_discourse_topics"
+    df_com_sentimento = _discurso_legenda().assign(
+        sentiment_label="Positive", sentiment_score=0.81
+    )
+
+    ModelEnricher().write_discourse_topics(df_com_sentimento, path, run_id="r1")
+
+    out = DeltaTable(str(path)).to_pandas()
+    assert "sentiment_label" not in out.columns
+    assert "sentiment_score" not in out.columns
+
+
 def test_write_clusters_usa_granularidade_de_reel(tmp_path):
     """
     `write_clusters` grava clusters de granularidade de post (reel ou feed,
