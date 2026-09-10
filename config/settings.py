@@ -66,6 +66,11 @@ GOLD_SENTIMENT = GOLD_DIR / "governor_sentiment"
 # ADR 0017. `governor_sentiment` continua em overwrite, inalterada para os
 # consumidores existentes.
 GOLD_SENTIMENT_HISTORY = GOLD_DIR / "governor_sentiment_history"
+# ADR 0020 (Ficha 4) / issue #89: tópicos do discurso oficial (BERTopic
+# sobre legenda+transcrição) -- tabela própria, não misturada a
+# `governor_sentiment` (granularidades conceitualmente distintas: fala da
+# assessoria vs. reação do público, decisão de schema já fechada na ADR).
+GOLD_DISCOURSE_TOPICS = GOLD_DIR / "governor_discourse_topics"
 GOLD_CLUSTERS = GOLD_DIR / "governor_clusters"
 GOLD_PROFILE_CLUSTERS_ENGAGEMENT = GOLD_DIR / "governor_profile_clusters_engagement"
 # ADR 0019 (parte C): regressão de performance-por-post, uma tabela por

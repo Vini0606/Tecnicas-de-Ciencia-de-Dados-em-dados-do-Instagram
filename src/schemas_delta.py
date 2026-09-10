@@ -323,6 +323,29 @@ GOLD_SENTIMENT_SCHEMA = pa.schema(
     ]
 )
 
+# ADR 0020 (Ficha 4) / issue #89: tópicos do discurso oficial (BERTopic
+# sobre legenda+transcrição, reaproveitando `model_topics()`) -- tabela Gold
+# própria, NÃO uma extensão de `governor_sentiment`: as duas granularidades
+# são conceitualmente distintas (fala da assessoria vs. reação do público),
+# decisão de schema já fechada na ADR 0020. Colunas equivalentes às de
+# tópico de comentário (`Topic`/`Name`/texto-fonte/`ownerUsername`), mais
+# `fonte` ("legenda"/"transcricao") para distinguir as duas dentro da
+# própria tabela -- mesmo padrão de `GOLD_SENTIMENT_SCHEMA` (issue #88).
+GOLD_DISCOURSE_TOPICS_SCHEMA = pa.schema(
+    [
+        pa.field("id_reel", pa.string(), nullable=True),
+        pa.field("text", pa.string(), nullable=True),
+        pa.field("inputUrl", pa.string(), nullable=True),
+        pa.field("ownerUsername", pa.string(), nullable=True),
+        pa.field("timestamp", pa.string(), nullable=True),
+        pa.field("fonte", pa.string(), nullable=False),
+        pa.field("Topic", pa.int64(), nullable=True),
+        pa.field("Name", pa.string(), nullable=True),
+        pa.field("_run_id", pa.string(), nullable=False),
+        pa.field("_generated_at", pa.timestamp("us", tz="UTC"), nullable=False),
+    ]
+)
+
 # ADR 0020 (Ficha 2): `content_type` ("reel"/"feed") discrimina a
 # granularidade de origem de cada linha -- clusterização de posts do feed
 # (issue #87) grava aqui também, em vez de uma tabela `governor_feed_clusters`

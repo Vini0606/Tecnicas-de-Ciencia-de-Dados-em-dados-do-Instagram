@@ -12,6 +12,7 @@ import pandas as pd
 from src.delta_io import write_delta
 from src.schemas_delta import (
     GOLD_CLUSTERS_SCHEMA,
+    GOLD_DISCOURSE_TOPICS_SCHEMA,
     GOLD_POST_PERFORMANCE_COEFFICIENTS_SCHEMA,
     GOLD_POST_PERFORMANCE_PREDICTIONS_SCHEMA,
     GOLD_PROFILE_CLUSTERS_ENGAGEMENT_SCHEMA,
@@ -46,6 +47,45 @@ class ModelEnricher:
         df["_generated_at"] = generated_at or datetime.now(timezone.utc)
         df["fonte"] = fonte
         write_delta(path, df, GOLD_SENTIMENT_SCHEMA, mode=mode)
+
+    def write_discourse_topics(
+        self,
+        df_discourse_topics: pd.DataFrame,
+        path: Path | str,
+        run_id: str,
+        mode: str = "overwrite",
+        generated_at: datetime | None = None,
+    ) -> None:
+        """Grava uma linha de `governor_discourse_topics` por
+        legenda/transcrição avaliada pelo BERTopic (ADR 0020 Ficha 4 / issue
+        #89) -- tabela própria, separada de `governor_sentiment`: as duas
+        granularidades são conceitualmente distintas (fala da assessoria vs.
+        reação do público), decisão de schema já fechada na ADR 0020.
+
+        Ao contrário de `write_sentiment`, `fonte` não é parâmetro aqui --
+        `df_discourse_topics` já deve trazer a coluna `fonte`
+        ("legenda"/"transcricao") por linha, porque as duas fontes são
+        modeladas juntas num único corpus/chamada de `model_topics()` (ver
+        `run_deterministic_modeling`), não uma escrita por fonte.
+
+        Valida o conjunto completo de colunas que dão sentido à linha (mesmo
+        padrão de `write_clusters`/`write_profile_clusters_engagement`/
+        `write_post_performance_*`) -- todas elas são `nullable=True` em
+        `GOLD_DISCOURSE_TOPICS_SCHEMA`, então sem essa checagem um bug do
+        chamador (ex.: esquecer de juntar `document_info` do BERTopic)
+        gravaria a tabela inteira com `Topic`/`Name`/`text` nulos em vez de
+        falhar de forma clara."""
+        required = {"id_reel", "text", "fonte", "Topic", "Name"}
+        missing = required - set(df_discourse_topics.columns)
+        if missing:
+            raise ValueError(
+                f"df_discourse_topics não tem as colunas esperadas: {sorted(missing)}"
+            )
+
+        df = df_discourse_topics.copy()
+        df["_run_id"] = run_id
+        df["_generated_at"] = generated_at or datetime.now(timezone.utc)
+        write_delta(path, df, GOLD_DISCOURSE_TOPICS_SCHEMA, mode=mode)
 
     def write_clusters(
         self,

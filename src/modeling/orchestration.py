@@ -97,11 +97,14 @@ def run_deterministic_modeling(
     parent_run_id: str | None = None,
 ) -> DeterministicModelingResult:
     """Estágio 100% automatizável: PCA -> clustering (reels e posts do feed,
-    ADR 0020 Ficha 2) -> sentimento -> tópicos -> performance-por-post
+    ADR 0020 Ficha 2) -> sentimento (comentário/legenda/transcrição, ADR
+    0020 Ficha 3) -> tópicos de comentário -> tópicos de discurso oficial
+    (legenda+transcrição, ADR 0020 Ficha 4) -> performance-por-post
     (representação determinística via KeyBERTInspired, não via Gemini).
-    Escreve as quatro tabelas Gold (clusters, sentimento/tópicos
-    provisórios, coeficientes e previsão/resíduo da regressão de
-    performance-por-post) sob um único `run_id` novo.
+    Escreve as cinco tabelas Gold (clusters, sentimento/tópicos
+    provisórios de comentário, tópicos de discurso, coeficientes e
+    previsão/resíduo da regressão de performance-por-post) sob um único
+    `run_id` novo.
 
     `parent_run_id`, se informado, é só rastreabilidade -- o `run_id` da
     extração/invocação de `pipeline.py` que disparou esta chamada, gravado
@@ -197,12 +200,18 @@ def run_deterministic_modeling(
         ("legenda", "legendas", df_posts, "caption"),
         ("transcricao", "transcrições", df_reels, "transcript"),
     ]
+    # Acumulado para o estágio de tópicos de discurso logo abaixo (ADR 0020
+    # Ficha 4 / issue #89) -- guarda o DataFrame-fonte de ANTES do
+    # sentimento (não `df_fonte_sentiment`): tópicos de discurso não
+    # dependem de sentimento, então a entrada desse estágio não deve ficar
+    # acoplada à forma de saída de um estágio conceitualmente diferente.
+    discourse_frames = []
     for fonte, rotulo_log, df_origem, text_col in fontes_texto:
         logger.info("[SENTIMENTO] Analisando sentimento de %s...", rotulo_log)
-        df_fonte_sentiment = analyze_sentiment(
-            _build_text_sentiment_source(df_origem, id_col="id", text_col=text_col),
-            config.sentiment,
+        df_fonte_source = _build_text_sentiment_source(
+            df_origem, id_col="id", text_col=text_col
         )
+        df_fonte_sentiment = analyze_sentiment(df_fonte_source, config.sentiment)
         for path in (config.gold_sentiment_path, config.gold_sentiment_history_path):
             enricher.write_sentiment(
                 df_fonte_sentiment,
@@ -212,6 +221,31 @@ def run_deterministic_modeling(
                 generated_at=generated_at,
                 fonte=fonte,
             )
+        discourse_frames.append(df_fonte_source.assign(fonte=fonte))
+
+    # ADR 0020 (Ficha 4) / issue #89: mesmo pipeline `model_topics()` já
+    # usado para tópicos de comentário, agora sobre o corpus de discurso
+    # oficial (legenda+transcrição combinadas num único corpus/modelo, não
+    # dois modelos separados) -- tabela Gold própria `governor_discourse_topics`,
+    # nunca `governor_sentiment` (decisão de schema já fechada na ADR 0020:
+    # granularidades conceitualmente distintas, fala da assessoria vs. reação
+    # do público). `config.discourse_topics` usa nr_topics="auto" -- volume
+    # baixo (~810 legendas/transcrições na coleta atual) pode legitimamente
+    # gerar menos de 50 tópicos estáveis, e isso não deve ser forçado a bater
+    # com o modelo de comentários (corpus ~15x maior).
+    logger.info("[TÓPICOS-DISCURSO] Ajustando BERTopic sobre legenda+transcrição...")
+    df_discourse_source = pd.concat(discourse_frames, ignore_index=True)
+    docs_discourse = df_discourse_source["text"].fillna("").tolist()
+    _discourse_topic_model, _topics_discurso, _probs_discurso, document_info_discurso = (
+        model_topics(docs_discourse, config.discourse_topics)
+    )
+    df_discourse_final = _merge_topic_info(df_discourse_source, document_info_discurso)
+    enricher.write_discourse_topics(
+        df_discourse_final,
+        config.gold_discourse_topics_path,
+        run_id,
+        generated_at=generated_at,
+    )
 
     logger.info(
         "[PERFORMANCE-POR-POST] Classificando tema das captions e treinando "
@@ -306,7 +340,13 @@ def refine_topics_with_gemini(
     já tinha gravado nesse mesmo `run_id` de origem. Refinamento via Gemini é
     hoje só sobre tópicos de comentário (ADR 0001) -- religar legenda/
     transcrição nessa escrita fica para quando a Ficha 4 (tópicos de
-    discurso) tocar este fluxo."""
+    discurso) tocar este fluxo.
+
+    ATUALIZAÇÃO (issue #89 / Ficha 4): tópicos de discurso ganharam tabela
+    própria (`governor_discourse_topics`, ver `ModelEnricher.write_discourse_topics`)
+    e não passam por este refinamento via Gemini -- a limitação acima
+    continua não corrigida, deliberadamente fora do escopo da #89 (que não
+    toca `governor_sentiment`/refinamento de comentário)."""
     run_id = build_run_id(run_id)
 
     apply_gemini_refinement(topic_model, docs, config)

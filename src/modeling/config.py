@@ -94,7 +94,10 @@ class TopicModelConfig:
     language: str = "multilingual"
     hdbscan_min_cluster_size: int = 15
     hdbscan_min_samples: int = 5
-    nr_topics: int = 50
+    # `int` fixa um alvo de mesclagem (ver `model_topics`/`reduce_topics`);
+    # `"auto"` (ver `DiscourseTopicModelConfig`) deixa o BERTopic mesclar só
+    # tópicos redundantes, sem forçar uma contagem alvo.
+    nr_topics: int | str = 50
     calculate_probabilities: bool = True
     verbose: bool = True
     token_pattern: str = EMOJI_TOKEN_PATTERN
@@ -112,6 +115,25 @@ class PostTopicModelConfig(TopicModelConfig):
     hdbscan_min_cluster_size: int = 5
     hdbscan_min_samples: int = 2
     nr_topics: int = 15
+
+
+@dataclass
+class DiscourseTopicModelConfig(TopicModelConfig):
+    """Config de BERTopic para o discurso oficial (legenda+transcrição, ADR
+    0020 Ficha 4 / issue #89) -- corpus pequeno (~810 documentos na coleta
+    atual), mesma ordem de grandeza do corpus de posts
+    (`PostTopicModelConfig`), mas SEM `nr_topics` fixo: a issue #89 pede
+    explicitamente que o número de tópicos emerja do volume real do corpus,
+    sem forçar paridade nem com os ~50 tópicos do modelo de comentários
+    (corpus ~15x maior) nem com o `nr_topics=15` fixo do modelo de posts.
+    `nr_topics="auto"` deixa `reduce_topics` mesclar só tópicos redundantes
+    entre si (ver `model_topics`), em vez de reduzir para uma contagem
+    alvo -- volume baixo pode legitimamente produzir menos de 50 tópicos
+    estáveis, o que é esperado, não um bug."""
+
+    hdbscan_min_cluster_size: int = 5
+    hdbscan_min_samples: int = 2
+    nr_topics: int | str = "auto"
 
 
 @dataclass
@@ -168,11 +190,18 @@ class ModelingConfig:
     preprocessing: PreprocessingConfig = field(default_factory=PreprocessingConfig)
     topics: TopicModelConfig = field(default_factory=TopicModelConfig)
     post_topics: PostTopicModelConfig = field(default_factory=PostTopicModelConfig)
+    # ADR 0020 (Ficha 4) / issue #89: BERTopic sobre legenda+transcrição.
+    discourse_topics: DiscourseTopicModelConfig = field(
+        default_factory=DiscourseTopicModelConfig
+    )
     post_performance: PostPerformanceConfig = field(default_factory=PostPerformanceConfig)
     gold_clusters_path: Path = settings.GOLD_CLUSTERS
     gold_sentiment_path: Path = settings.GOLD_SENTIMENT
     # Tabela paralela de histórico (mode append) -- ver issue #52 / ADR 0017.
     gold_sentiment_history_path: Path = settings.GOLD_SENTIMENT_HISTORY
+    # ADR 0020 (Ficha 4) / issue #89: tabela própria, separada de
+    # `governor_sentiment` -- ver `GOLD_DISCOURSE_TOPICS_SCHEMA`.
+    gold_discourse_topics_path: Path = settings.GOLD_DISCOURSE_TOPICS
     gold_post_performance_coefficients_path: Path = settings.GOLD_POST_PERFORMANCE_COEFFICIENTS
     gold_post_performance_predictions_path: Path = settings.GOLD_POST_PERFORMANCE_PREDICTIONS
     checkpoints_dir: Path = settings.MODEL_CHECKPOINTS_DIR
