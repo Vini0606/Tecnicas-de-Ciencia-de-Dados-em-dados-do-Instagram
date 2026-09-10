@@ -229,7 +229,7 @@ def test_run_deterministic_modeling_grava_sentimento_de_legenda_e_transcricao(
         logs_dir=tmp_path / "logs",
     )
 
-    df_posts = _df_posts_placeholder()  # id="p1", caption="texto qualquer"
+    df_posts = _df_posts_placeholder()  # id="post_0".."post_11", caption="texto qualquer"
     df_reels = _df_reels_com_transcript()
 
     run_deterministic_modeling(
@@ -242,7 +242,7 @@ def test_run_deterministic_modeling_grava_sentimento_de_legenda_e_transcricao(
 
     legenda_out = sentiment_out[sentiment_out["fonte"] == "legenda"]
     assert len(legenda_out) == len(df_posts)
-    assert legenda_out.iloc[0]["id_reel"] == "p1"
+    assert legenda_out.iloc[0]["id_reel"] == "post_0"
     assert legenda_out.iloc[0]["text"] == "texto qualquer"
 
     transcricao_out = sentiment_out[sentiment_out["fonte"] == "transcricao"]
