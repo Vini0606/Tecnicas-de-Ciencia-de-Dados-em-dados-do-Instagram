@@ -262,6 +262,7 @@ flowchart TB
         EXT["📥 extract<br/>512 MB · timeout 300s"]
         TRN["🔄 transform<br/>1024 MB · timeout 120s"]
         LOD["📊 load<br/>1024 MB · timeout 120s"]
+        MDL["🧪 model<br/>1024 MB · timeout 120s"]
 
         ORCH -- "1. invoke(links, run_id)" --> EXT
         EXT -- "run_id gerado" --> ORCH
@@ -269,12 +270,15 @@ flowchart TB
         TRN --> ORCH
         ORCH -- "3. invoke(run_id)" --> LOD
         LOD --> ORCH
+        ORCH -- "4. invoke(run_id)" --> MDL
+        MDL --> ORCH
 
         EXT -.write.-> S3B[("🥉 S3 Bronze")]
         TRN -.read.-> S3B
         TRN -.write.-> S3S[("🥈 S3 Silver")]
         LOD -.read.-> S3S
         LOD -.write.-> S3G[("🥇 S3 Gold")]
+        MDL -.read/write.-> S3G
     end
 ```
 
@@ -283,22 +287,27 @@ flowchart TB
 | `extract/handler.py` | API Apify | Bronze Delta | 512 MB | 300s | `APIFY_API_TOKEN` |
 | `transform/handler.py` | Bronze Delta | Silver Delta | 1024 MB | 120s | — |
 | `load/handler.py` | Silver Delta | Gold Delta | 1024 MB | 120s | — |
-| `orchestrator/handler.py` | — (só invoca as 3 acima) | — | 256 MB | 900s (teto AWS) | `EXTRACT_FUNCTION_NAME`, `TRANSFORM_FUNCTION_NAME`, `LOAD_FUNCTION_NAME` |
+| `model/handler.py` | Gold Delta (`governor_engagement`) | Gold Delta (`governor_profile_clusters_engagement`) | 1024 MB | 120s | — |
+| `orchestrator/handler.py` | — (só invoca as 4 acima) | — | 256 MB | 900s (teto AWS) | `EXTRACT_FUNCTION_NAME`, `TRANSFORM_FUNCTION_NAME`, `LOAD_FUNCTION_NAME`, `MODEL_FUNCTION_NAME` |
 
 As três primeiras compartilham `S3_BUCKET`, `S3_BRONZE_PREFIX`, `S3_SILVER_PREFIX`,
 `S3_GOLD_PREFIX` (lidas direto pelos handlers, não por `config/settings.py` — ver
-[ADR 0007](docs/adr/0007-generalizar-deltarepository-para-s3-e-aposentar-is-cloud.md)).
+[ADR 0007](docs/adr/0007-generalizar-deltarepository-para-s3-e-aposentar-is-cloud.md)); `model`
+só precisa de `S3_BUCKET`/`S3_GOLD_PREFIX`, já que lê e escreve exclusivamente na camada Gold.
 
 **Encadeamento.** `orchestrator/handler.py` chama `extract` de forma síncrona
 (`InvocationType="RequestResponse"`), lê o `run_id` do corpo da resposta e o repassa para
-`transform` e depois `load`. Se qualquer etapa devolver `statusCode != 200` — ou lançar uma
-exceção não tratada, que a AWS entrega como `{"errorMessage", "errorType", "stackTrace"}` em vez
-do contrato `{"statusCode", "body"}` — a cadeia para imediatamente e o erro da etapa é propagado
-com `statusCode 500` (`_stage_error`, [`lambdas/orchestrator/handler.py:20-28`](lambdas/orchestrator/handler.py)).
+`transform`, depois `load` e por fim `model` — a clusterização de perfil de governador por
+engajamento (Fase 2, issue #86 / ADR 0020), que roda pós-Gold-de-engajamento porque lê
+`governor_engagement` (saída de `load`) e escreve `governor_profile_clusters_engagement`. Se
+qualquer etapa devolver `statusCode != 200` — ou lançar uma exceção não tratada, que a AWS entrega
+como `{"errorMessage", "errorType", "stackTrace"}` em vez do contrato `{"statusCode", "body"}` — a
+cadeia para imediatamente e o erro da etapa é propagado com `statusCode 500` (`_stage_error`,
+[`lambdas/orchestrator/handler.py:20-28`](lambdas/orchestrator/handler.py)).
 Não há retry automático por etapa nem persistência de progresso parcial: uma falha no `load`
-não desfaz o que `extract`/`transform` já gravaram, mas também não reexecuta essas duas
-etapas — reinvocar a orquestradora com o mesmo `run_id` (via payload) faz `transform`/`load`
-reprocessarem os mesmos dados de Bronze/Silver.
+não desfaz o que `extract`/`transform` já gravaram, mas também não reexecuta essas etapas —
+reinvocar a orquestradora com o mesmo `run_id` (via payload) faz `transform`/`load`/`model`
+reprocessarem os mesmos dados de Bronze/Silver/Gold.
 
 **Empacotamento.** As 4 Lambdas rodam como **imagens de container** (`package_type = "Image"`,
 publicadas no ECR), não como zip + Lambda Layer — `pyarrow`/`deltalake` têm binários nativos que
@@ -318,8 +327,9 @@ dessas escolhas em vez de Step Functions/EventBridge, e suas limitações conhec
   imagens novas e imutáveis, sem sobrescrever uma tag `latest`
 - **IAM com privilégio mínimo por função**: `extract`/`transform`/`load` recebem um papel cada,
   com política customizada restrita a `s3:ListBucket`/`GetObject`/`PutObject` só no bucket do data
-  lake; `orchestrator` recebe um papel à parte cuja única permissão além do básico de execução é
-  `lambda:InvokeFunction`, e só nos ARNs das 3 Lambdas de dados — não pode invocar mais nada
+  lake; `model` recebe papel próprio restrito à camada Gold; `orchestrator` recebe um papel à
+  parte cuja única permissão além do básico de execução é `lambda:InvokeFunction`, e só nos ARNs
+  das 4 Lambdas que ela encadeia (3 de dados + `model`) — não pode invocar mais nada
 - **IAM/OIDC do GitHub Actions** — uma role federada (`sts:AssumeRoleWithWebIdentity`) que a esteira
   de CI assume sem credenciais estáticas da AWS, com a trust policy restrita a
   `repo:<este repositório>:ref:refs/heads/main` (publicar a partir de outro branch exige revisar
@@ -347,9 +357,9 @@ TF_VAR_image_tag=$(git rev-parse origin/main) terraform apply
 
 - **Sem retry nativo por etapa** — uma falha transitória em `transform` (ex.: throttling do S3)
   não é reexecutada automaticamente; é preciso reinvocar a orquestradora.
-- **Teto de 15 minutos** — a soma de `extract` + `transform` + `load` precisa caber no timeout
-  máximo de Lambda (900s, hard limit da AWS). Um `RESULTS_LIMIT` muito alto pode estourar esse
-  teto; a migração para Step Functions é o caminho natural se isso virar um problema real (a
+- **Teto de 15 minutos** — a soma de `extract` + `transform` + `load` + `model` precisa caber no
+  timeout máximo de Lambda (900s, hard limit da AWS). Um `RESULTS_LIMIT` muito alto pode estourar
+  esse teto; a migração para Step Functions é o caminho natural se isso virar um problema real (a
   lógica de cada etapa não muda, só quem as invoca).
 - **Sem gatilho agendado** — não há regra EventBridge/cron configurada; o pipeline roda só quando
   invocado manualmente (`aws lambda invoke` na Lambda orquestradora, payload `{"links": [...]}`).
@@ -383,8 +393,8 @@ TF_VAR_image_tag=$(git rev-parse origin/main) terraform apply
 │   ├── extract/            # Apify -> Bronze (S3)
 │   ├── transform/          # Bronze -> Silver (S3)
 │   ├── load/               # Silver -> Gold (governor_engagement) (S3)
-│   ├── model/              # Gold engagement -> clusterização de perfil, Fase 2 (S3) -- ainda não documentada na tabela de Lambdas da seção 3
-│   └── orchestrator/       # Invoca extract -> transform -> load em sequência (não invoca model/ ainda)
+│   ├── model/              # Gold engagement -> clusterização de perfil, Fase 2 (S3)
+│   └── orchestrator/       # Invoca extract -> transform -> load -> model em sequência
 ├── notebooks/              # 01 extração · 02 EDA · 03 modelagem · 04 regressão · 05 síntese
 ├── tests/                  # 31 arquivos de teste (pytest)
 ├── data/                   # Efêmero, fora do git (.gitignore) -- ver seção 3 pra Bronze/Silver/Gold

@@ -25,7 +25,9 @@ def _comentarios_com_sentimento():
 def _reels_clusterizados():
     # Colunas produzidas pelo notebook 03 após AutoClusterHPO.fit_predict:
     # 'Clusters (AutoClusterHPO)', 'algo_name' e 'score' vêm de um único
-    # modelo vencedor, por isso são constantes entre as linhas.
+    # modelo vencedor, por isso são constantes entre as linhas. `content_type`
+    # (ADR 0020, Ficha 2 / issue #87) é a coluna discriminadora que
+    # `write_clusters` passou a exigir.
     return pd.DataFrame(
         {
             "id": ["r1", "r2"],
@@ -33,6 +35,24 @@ def _reels_clusterizados():
             "Clusters (AutoClusterHPO)": [0, -1],
             "algo_name": ["DBSCAN", "DBSCAN"],
             "score": [0.62, 0.62],
+            "content_type": ["reel", "reel"],
+        }
+    )
+
+
+def _feed_clusterizados():
+    # Mesma forma de `_reels_clusterizados`, granularidade de post de feed
+    # (ADR 0020, Ficha 2 / issue #87) -- ids deliberadamente distintos dos de
+    # `_reels_clusterizados` para o teste de escrita combinada confirmar que
+    # as duas granularidades coexistem sem colidir.
+    return pd.DataFrame(
+        {
+            "id": ["p1", "p2"],
+            "ownerUsername": ["governador_a", "governador_b"],
+            "Clusters (AutoClusterHPO)": [1, 0],
+            "algo_name": ["KMeans", "KMeans"],
+            "score": [0.71, 0.71],
+            "content_type": ["feed", "feed"],
         }
     )
 
@@ -184,18 +204,20 @@ def test_write_sentiment_aceita_generated_at_explicito_para_manter_consistencia(
 
 def test_write_clusters_usa_granularidade_de_reel(tmp_path):
     """
-    `write_clusters` é especificamente para a clusterização de reel do
-    AutoClusterHPO (PCA de engajamento/duração do vídeo) -- granularidade
-    de reel, não de perfil de governador (essa é `write_profile_clusters_engagement`,
-    ver testes abaixo). O schema e a escrita precisam refletir isso.
+    `write_clusters` grava clusters de granularidade de post (reel ou feed,
+    ver `content_type` -- ADR 0020, Ficha 2 / issue #87) do AutoClusterHPO
+    (PCA de engajamento) -- não de perfil de governador (essa é
+    `write_profile_clusters_engagement`, ver testes abaixo). O schema e a
+    escrita precisam refletir isso.
     """
     path = tmp_path / "governor_clusters"
     ModelEnricher().write_clusters(_reels_clusterizados(), path, run_id="r1")
 
     out = DeltaTable(str(path)).to_pandas()
     assert len(out) == 2
-    assert set(out.columns) >= {"id_reel", "ownerUsername", "cluster_label"}
+    assert set(out.columns) >= {"id_reel", "ownerUsername", "cluster_label", "content_type"}
     assert out.loc[out["id_reel"] == "r2", "cluster_label"].iloc[0] == -1
+    assert (out["content_type"] == "reel").all()
 
 
 def test_write_clusters_falha_com_mensagem_clara_se_faltar_coluna(tmp_path):
@@ -203,6 +225,38 @@ def test_write_clusters_falha_com_mensagem_clara_se_faltar_coluna(tmp_path):
 
     with pytest.raises(ValueError, match="algo_name"):
         ModelEnricher().write_clusters(df_incompleto, tmp_path / "governor_clusters", run_id="r1")
+
+
+def test_write_clusters_falha_com_mensagem_clara_se_faltar_content_type(tmp_path):
+    """ADR 0020 (Ficha 2 / issue #87): `content_type` é obrigatória --
+    sem ela não dá pra distinguir reel de feed na mesma tabela."""
+    df_incompleto = _reels_clusterizados().drop(columns=["content_type"])
+
+    with pytest.raises(ValueError, match="content_type"):
+        ModelEnricher().write_clusters(df_incompleto, tmp_path / "governor_clusters", run_id="r1")
+
+
+def test_write_clusters_grava_reel_e_feed_juntos_sem_colidir(tmp_path):
+    """ADR 0020 (Ficha 2 / issue #87): a clusterização de posts do feed
+    grava em `governor_clusters` (tabela existente) ao lado das linhas de
+    reel já existentes, discriminadas por `content_type` -- não uma tabela
+    nova. Uma única escrita combinando os dois DataFrames (o padrão que
+    `run_deterministic_modeling` usa) precisa preservar as linhas das duas
+    granularidades."""
+    path = tmp_path / "governor_clusters"
+    df_combinado = pd.concat(
+        [_reels_clusterizados(), _feed_clusterizados()], ignore_index=True
+    )
+
+    ModelEnricher().write_clusters(df_combinado, path, run_id="r1")
+
+    out = DeltaTable(str(path)).to_pandas()
+    assert len(out) == 4
+    assert set(out["content_type"].unique()) == {"reel", "feed"}
+    assert set(out.loc[out["content_type"] == "reel", "id_reel"]) == {"r1", "r2"}
+    assert set(out.loc[out["content_type"] == "feed", "id_reel"]) == {"p1", "p2"}
+    # Nenhuma linha perdida/sobrescrita entre as duas granularidades.
+    assert out["id_reel"].nunique() == 4
 
 
 def _perfis_clusterizados():

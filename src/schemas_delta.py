@@ -238,6 +238,13 @@ GOLD_SENTIMENT_SCHEMA = pa.schema(
     ]
 )
 
+# ADR 0020 (Ficha 2): `content_type` ("reel"/"feed") discrimina a
+# granularidade de origem de cada linha -- clusterização de posts do feed
+# (issue #87) grava aqui também, em vez de uma tabela `governor_feed_clusters`
+# nova (opção rejeitada na ADR: mesma pipeline PCA->AutoClusterHPO, mesma
+# granularidade conceitual de post, só as features de entrada do PCA mudam).
+# `id_reel` continua com esse nome por compatibilidade com o contrato já
+# fechado -- passa a guardar o id do post também quando `content_type=="feed"`.
 GOLD_CLUSTERS_SCHEMA = pa.schema(
     [
         pa.field("id_reel", pa.string(), nullable=False),
@@ -245,6 +252,7 @@ GOLD_CLUSTERS_SCHEMA = pa.schema(
         pa.field("cluster_label", pa.int64(), nullable=False),
         pa.field("cluster_algo", pa.string(), nullable=False),
         pa.field("cluster_score", pa.float64(), nullable=True),
+        pa.field("content_type", pa.string(), nullable=False),
         pa.field("_run_id", pa.string(), nullable=False),
         pa.field("_generated_at", pa.timestamp("us", tz="UTC"), nullable=False),
     ]

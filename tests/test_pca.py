@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-from src.modeling.config import PCAConfig
+from src.modeling.config import FeedPCAConfig, PCAConfig
 from src.modeling.pca import reduce_dimensions
 
 
@@ -57,3 +57,24 @@ def test_reduce_dimensions_e_deterministico_com_random_state_fixo():
         df_a["PC1_Engajamento_videoPlay"].to_numpy(),
         df_b["PC1_Engajamento_videoPlay"].to_numpy(),
     )
+
+
+def test_reduce_dimensions_com_feed_pca_config_nao_precisa_de_colunas_de_video():
+    """ADR 0020 (Ficha 2 / issue #87): posts do feed não têm
+    `videoPlayCount`/`videoDuration` -- `FeedPCAConfig` entra só com
+    `commentsCount`/`likesCount`, e `reduce_dimensions` (código genérico,
+    dirigido por `config.feature_columns`) não pode quebrar por essas
+    colunas faltarem."""
+    df_posts = pd.DataFrame(
+        {
+            "commentsCount": [1, 2, 3, 100],
+            "likesCount": [1, 2, 3, 100],
+        }
+    )
+    config = FeedPCAConfig(random_state=42)
+
+    df_out, pca_model = reduce_dimensions(df_posts, config)
+
+    assert {"PC1_Engajamento_videoPlay", "PC2_videoDuration"} <= set(df_out.columns)
+    assert len(df_out) == len(df_posts)
+    assert pca_model.n_components_ == 2

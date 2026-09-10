@@ -6,6 +6,7 @@ import boto3
 STAGE_EXTRACT = "extract"
 STAGE_TRANSFORM = "transform"
 STAGE_LOAD = "load"
+STAGE_MODEL = "model"
 
 
 def _invoke(client, function_name: str, payload: dict) -> dict:
@@ -50,6 +51,13 @@ def handler(event, context):
     load_result = _invoke(client, os.environ["LOAD_FUNCTION_NAME"], {"run_id": run_id})
     if load_result.get("statusCode") != 200:
         return _stage_error(STAGE_LOAD, load_result)
+
+    # Fase 2 (issue #86 / ADR 0020, Ficha 1): clusterização de perfil de
+    # governador por engajamento. Roda pós-Gold-de-engajamento (`load`), de
+    # onde `governor_profile_clusters_engagement` lê `governor_engagement`.
+    model_result = _invoke(client, os.environ["MODEL_FUNCTION_NAME"], {"run_id": run_id})
+    if model_result.get("statusCode") != 200:
+        return _stage_error(STAGE_MODEL, model_result)
 
     return {
         "statusCode": 200,
