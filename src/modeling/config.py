@@ -38,6 +38,21 @@ class PCAConfig:
 
 
 @dataclass
+class FeedPCAConfig(PCAConfig):
+    """PCA de engajamento de posts do feed (ADR 0020, Ficha 2 / issue #87).
+
+    Posts do feed não têm `videoPlayCount`/`videoDuration` -- essas colunas
+    só existem para vídeo (Reels; ver `SILVER_POSTS_SCHEMA`, onde ficam
+    nulas para posts estáticos). O PCA de feed entra só com métricas de
+    engajamento comuns a qualquer post, então suas cargas são diferentes das
+    de `PCAConfig` (reel) -- isso é esperado, não um bug a corrigir."""
+
+    feature_columns: list[str] = field(
+        default_factory=lambda: ["commentsCount", "likesCount"]
+    )
+
+
+@dataclass
 class ClusterConfig:
     feature_columns: list[str] = field(
         default_factory=lambda: ["PC1_Engajamento_videoPlay", "PC2_videoDuration"]
@@ -128,6 +143,13 @@ class PostPerformanceConfig:
 @dataclass
 class ModelingConfig:
     pca: PCAConfig = field(default_factory=PCAConfig)
+    # ADR 0020 (Ficha 2): PCA de posts do feed, features diferentes das de
+    # reel. `cluster` (abaixo) é compartilhado entre reel e feed -- ambos os
+    # PCAs sempre produzem as mesmas colunas de saída fixas
+    # (PC1_Engajamento_videoPlay/PC2_videoDuration, ver `reduce_dimensions`),
+    # então o `ClusterConfig` que as consome não precisa de uma cópia própria
+    # para feed.
+    pca_feed: FeedPCAConfig = field(default_factory=FeedPCAConfig)
     cluster: ClusterConfig = field(default_factory=ClusterConfig)
     sentiment: SentimentConfig = field(default_factory=SentimentConfig)
     preprocessing: PreprocessingConfig = field(default_factory=PreprocessingConfig)

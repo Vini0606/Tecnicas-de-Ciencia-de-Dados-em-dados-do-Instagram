@@ -43,10 +43,23 @@ class ModelEnricher:
         path: Path | str,
         run_id: str,
     ) -> None:
-        """Grava clusters de reels (AutoClusterHPO). Espera as colunas
-        produzidas pelo notebook 03: id, ownerUsername, 'Clusters (AutoClusterHPO)',
-        algo_name, score."""
-        required = {"id", "ownerUsername", "Clusters (AutoClusterHPO)", "algo_name", "score"}
+        """Grava clusters de posts (reel ou feed) via AutoClusterHPO. Espera as
+        colunas produzidas pelo notebook 03 / `run_autocluster`: id,
+        ownerUsername, 'Clusters (AutoClusterHPO)', algo_name, score,
+        content_type. `content_type` ("reel"/"feed") é a coluna
+        discriminadora da ADR 0020 (Ficha 2, issue #87) -- o chamador
+        (`run_deterministic_modeling`) monta um único DataFrame combinando
+        reels e posts do feed antes de chamar este método, para que as duas
+        granularidades sejam escritas juntas numa única escrita (overwrite)
+        de `governor_clusters`, sem uma sobrescrever a outra."""
+        required = {
+            "id",
+            "ownerUsername",
+            "Clusters (AutoClusterHPO)",
+            "algo_name",
+            "score",
+            "content_type",
+        }
         missing = required - set(df_reels_clustered.columns)
         if missing:
             raise ValueError(
@@ -62,6 +75,7 @@ class ModelEnricher:
                 .values,
                 "cluster_algo": df_reels_clustered["algo_name"].astype(str).values,
                 "cluster_score": df_reels_clustered["score"].astype(float).values,
+                "content_type": df_reels_clustered["content_type"].astype(str).values,
                 "_run_id": run_id,
                 "_generated_at": datetime.now(timezone.utc),
             }

@@ -286,3 +286,19 @@ def cluster_reels(
     """Aplica `run_autocluster` a reels. Reproduz o comportamento já esperado
     pelos testes de `ModelEnricher.write_clusters`."""
     return run_autocluster(df_reels, config)
+
+
+def cluster_feed_posts(
+    df_feed: pd.DataFrame, config: ClusterConfig
+) -> tuple[pd.DataFrame, object, dict | None, float, str | None]:
+    """Aplica `run_autocluster` a posts do feed (ADR 0020, Ficha 2 / issue
+    #87). Mesmo pipeline PCA->AutoClusterHPO de `cluster_reels` -- só as
+    features de entrada do PCA mudam (ver `FeedPCAConfig`, sem
+    `videoPlayCount`/`videoDuration`). `reduce_dimensions` sempre produz as
+    mesmas colunas de saída fixas (PC1_Engajamento_videoPlay/
+    PC2_videoDuration) independente da granularidade de entrada, então
+    `cluster_reels` e `cluster_feed_posts` compartilham o mesmo
+    `ClusterConfig` sem duplicar lógica -- wrapper com nome específico sobre
+    `run_autocluster`, mesmo padrão de `cluster_governor_profiles`
+    (`src/modeling/profile_clustering.py`)."""
+    return run_autocluster(df_feed, config)
