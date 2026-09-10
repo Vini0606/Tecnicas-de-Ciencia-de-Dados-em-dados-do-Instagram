@@ -34,10 +34,21 @@ def _df_comments():
 
 
 def _df_posts_placeholder():
-    """Usada só nos testes que fazem monkeypatch de `classify_post_topics`
-    e `run_post_performance_stage` -- conteúdo irrelevante, os fakes não
-    olham para as colunas."""
-    return pd.DataFrame({"id": ["p1"], "caption": ["texto qualquer"]})
+    """Usada nos testes que fazem monkeypatch de `classify_post_topics` e
+    `run_post_performance_stage` -- o conteúdo de `caption`/`Topic` é
+    irrelevante (os fakes não olham pra essas colunas), mas
+    `commentsCount`/`likesCount`/`ownerUsername` precisam existir e ter
+    linhas suficientes porque a clusterização de posts do feed (ADR 0020,
+    Ficha 2 / issue #87) roda de verdade nesses testes, sem mock."""
+    rng = np.random.default_rng(1)
+    grupo_a = rng.normal(loc=(5, 50), scale=1.0, size=(6, 2))
+    grupo_b = rng.normal(loc=(50, 5), scale=1.0, size=(6, 2))
+    dados = np.vstack([grupo_a, grupo_b])
+    df = pd.DataFrame(dados, columns=["commentsCount", "likesCount"])
+    df["id"] = [f"post_{i}" for i in range(len(df))]
+    df["ownerUsername"] = "governador_teste"
+    df["caption"] = "texto qualquer"
+    return df
 
 
 def _df_engagement_placeholder():
@@ -149,7 +160,17 @@ def test_run_deterministic_modeling_grava_clusters_e_sentimento_com_mesmo_run_id
     clusters_out = DeltaTable(str(config.gold_clusters_path)).to_pandas()
     sentiment_out = DeltaTable(str(config.gold_sentiment_path)).to_pandas()
 
-    assert len(clusters_out) == len(_df_reels())
+    # ADR 0020 (Ficha 2 / issue #87): governor_clusters agora grava reels e
+    # posts do feed juntos, discriminados por `content_type`.
+    assert len(clusters_out) == len(_df_reels()) + len(_df_posts_placeholder())
+    assert set(clusters_out["content_type"].unique()) == {"reel", "feed"}
+    assert (
+        clusters_out.loc[clusters_out["content_type"] == "reel"].shape[0] == len(_df_reels())
+    )
+    assert (
+        clusters_out.loc[clusters_out["content_type"] == "feed"].shape[0]
+        == len(_df_posts_placeholder())
+    )
     assert (clusters_out["_run_id"] == result.run_id).all()
     assert (sentiment_out["_run_id"] == result.run_id).all()
     assert (sentiment_out["Name"] == "0_provisorio").all()
@@ -160,6 +181,49 @@ def test_run_deterministic_modeling_grava_clusters_e_sentimento_com_mesmo_run_id
     assert (checkpoint_dir / "df_comments.parquet").exists()
     assert (checkpoint_dir / "pca_model.joblib").exists()
     assert (checkpoint_dir / "cluster_model.joblib").exists()
+
+
+def test_run_deterministic_modeling_clusteriza_feed_sem_colidir_com_reel(monkeypatch, tmp_path):
+    """ADR 0020 (Ficha 2 / issue #87): a clusterização de posts do feed
+    (`posts_clean`/`instagram_posts`) grava em `governor_clusters` (tabela
+    já existente) ao lado das linhas de reel já produzidas por
+    `cluster_reels`, discriminadas por `content_type` -- sem tabela nova, e
+    sem que um tipo sobrescreva ou colida com o outro (ids de reel e de
+    post do feed nunca se repetem entre as duas granularidades)."""
+    monkeypatch.setattr(
+        "src.modeling.orchestration.analyze_sentiment", _fake_analyze_sentiment
+    )
+    monkeypatch.setattr(
+        "src.modeling.orchestration.model_topics",
+        _make_fake_model_topics("0_provisorio", "0_refinado"),
+    )
+    _patch_post_performance_fakes(monkeypatch)
+
+    config = ModelingConfig(
+        cluster=ClusterConfig(max_evals_per_algo=10, random_state=42, max_n_clusters=5),
+        gold_clusters_path=tmp_path / "governor_clusters",
+        gold_sentiment_path=tmp_path / "governor_sentiment",
+        gold_sentiment_history_path=tmp_path / "governor_sentiment_history",
+        gold_post_performance_coefficients_path=tmp_path / "post_performance_coefficients",
+        gold_post_performance_predictions_path=tmp_path / "post_performance_predictions",
+        checkpoints_dir=tmp_path / "checkpoints",
+        logs_dir=tmp_path / "logs",
+    )
+
+    df_reels = _df_reels()
+    df_posts = _df_posts_placeholder()
+    run_deterministic_modeling(df_reels, _df_comments(), df_posts, _df_engagement_placeholder(), config)
+
+    clusters_out = DeltaTable(str(config.gold_clusters_path)).to_pandas()
+
+    ids_reel = set(clusters_out.loc[clusters_out["content_type"] == "reel", "id_reel"])
+    ids_feed = set(clusters_out.loc[clusters_out["content_type"] == "feed", "id_reel"])
+    assert ids_reel == set(df_reels["id"])
+    assert ids_feed == set(df_posts["id"])
+    # Nenhum id de reel colide com um id de post do feed, e nenhuma linha
+    # das duas granularidades foi perdida na escrita combinada.
+    assert ids_reel.isdisjoint(ids_feed)
+    assert len(clusters_out) == len(df_reels) + len(df_posts)
 
 
 def test_run_deterministic_modeling_grava_sentimento_tambem_no_historico_em_append(

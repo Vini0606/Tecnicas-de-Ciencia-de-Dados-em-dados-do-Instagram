@@ -12,7 +12,7 @@ from bertopic import BERTopic
 from src.features.gold.model_enricher import ModelEnricher
 from src.logging_setup import attach_run_log_handler
 from src.modeling.checkpoint import save_checkpoint
-from src.modeling.clustering import cluster_reels
+from src.modeling.clustering import cluster_feed_posts, cluster_reels
 from src.modeling.config import GeminiRefinerConfig, ModelingConfig
 from src.modeling.gemini_refiner import apply_gemini_refinement
 from src.modeling.pca import reduce_dimensions
@@ -59,12 +59,12 @@ def run_deterministic_modeling(
     run_id: str | None = None,
     parent_run_id: str | None = None,
 ) -> DeterministicModelingResult:
-    """Estágio 100% automatizável: PCA -> clustering -> sentimento -> tópicos
-    -> performance-por-post (representação determinística via
-    KeyBERTInspired, não via Gemini). Escreve as quatro tabelas Gold
-    (clusters, sentimento/tópicos provisórios, coeficientes e
-    previsão/resíduo da regressão de performance-por-post) sob um único
-    `run_id` novo.
+    """Estágio 100% automatizável: PCA -> clustering (reels e posts do feed,
+    ADR 0020 Ficha 2) -> sentimento -> tópicos -> performance-por-post
+    (representação determinística via KeyBERTInspired, não via Gemini).
+    Escreve as quatro tabelas Gold (clusters, sentimento/tópicos
+    provisórios, coeficientes e previsão/resíduo da regressão de
+    performance-por-post) sob um único `run_id` novo.
 
     `parent_run_id`, se informado, é só rastreabilidade -- o `run_id` da
     extração/invocação de `pipeline.py` que disparou esta chamada, gravado
@@ -88,6 +88,17 @@ def run_deterministic_modeling(
         cluster_reels(df_reels_pca, config.cluster)
     )
 
+    # ADR 0020 (Ficha 2 / issue #87): mesma pipeline PCA->AutoClusterHPO
+    # aplicada aos posts do feed -- `df_posts` aqui já é só feed
+    # (`posts_clean`/`instagram_posts`, granularidade separada de
+    # `reels_clean`/`df_reels`, ver `DeltaRepository.load_posts`), então não
+    # há filtro de Tipo a fazer antes de clusterizar.
+    logger.info("[PCA] Reduzindo dimensionalidade dos posts do feed...")
+    df_posts_pca, _pca_feed_model = reduce_dimensions(df_posts, config.pca_feed)
+
+    logger.info("[CLUSTERING] Agrupando posts do feed...")
+    df_posts_clustered, *_cluster_feed_rest = cluster_feed_posts(df_posts_pca, config.cluster)
+
     logger.info("[SENTIMENTO] Analisando sentimento dos comentários...")
     df_comments_sentiment = analyze_sentiment(df_comments, config.sentiment)
     df_comments_preprocessed = preprocess_comments(df_comments_sentiment, config.preprocessing)
@@ -99,7 +110,18 @@ def run_deterministic_modeling(
     df_comments_final = _merge_topic_info(df_comments_preprocessed, document_info)
 
     enricher = ModelEnricher()
-    enricher.write_clusters(df_reels_clustered, config.gold_clusters_path, run_id)
+    # `content_type` (ADR 0020, Ficha 2) distingue as duas granularidades na
+    # mesma tabela `governor_clusters` -- as duas são combinadas antes de
+    # uma única escrita (overwrite), para que reels e feed coexistam sem uma
+    # sobrescrever a outra.
+    df_clusters_combined = pd.concat(
+        [
+            df_reels_clustered.assign(content_type="reel"),
+            df_posts_clustered.assign(content_type="feed"),
+        ],
+        ignore_index=True,
+    )
+    enricher.write_clusters(df_clusters_combined, config.gold_clusters_path, run_id)
     # `generated_at` calculado uma vez e repassado às duas escritas de
     # sentimento abaixo, para que governor_sentiment e
     # governor_sentiment_history carimbem o mesmo timestamp -- mesmo
