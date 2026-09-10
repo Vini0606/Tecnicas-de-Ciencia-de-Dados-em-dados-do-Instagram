@@ -62,3 +62,54 @@ def test_scrape_reels_repassa_resultado_do_dataset():
     resultado = scraper.scrape_reels(["governador_teste"])
 
     assert resultado == items
+
+
+class TestScrapeMentions:
+    """ADR 0020 (Ficha 8) / issue #93: UGC de criação via
+    `apify/instagram-tagged-scraper` -- mesmo padrão de `scrape_posts`/
+    `scrape_reels`."""
+
+    def test_usa_o_actor_de_mentions_configurado(self):
+        client, actor_mock = _fake_client()
+        scraper = InstagramScraper(client)
+
+        scraper.scrape_mentions(["governador_teste"])
+
+        client.actor.assert_called_with("apify/instagram-tagged-scraper")
+
+    def test_run_input_usa_username_e_results_limit_da_config(self):
+        client, actor_mock = _fake_client()
+        scraper = InstagramScraper(client, ScraperConfig(results_limit=5))
+
+        scraper.scrape_mentions(["governador_teste"])
+
+        run_input = actor_mock.call.call_args.kwargs["run_input"]
+        assert run_input == {"username": ["governador_teste"], "resultsLimit": 5}
+
+    def test_extra_run_input_sobrescreve_run_input(self):
+        client, actor_mock = _fake_client()
+        scraper = InstagramScraper(client)
+
+        scraper.scrape_mentions(["governador_teste"], extra_run_input={"resultsLimit": 1})
+
+        run_input = actor_mock.call.call_args.kwargs["run_input"]
+        assert run_input["resultsLimit"] == 1
+
+    def test_repassa_resultado_do_dataset(self):
+        items = [{"id": "m1", "mentions": ["governador_teste"], "ownerUsername": "eleitor1"}]
+        client, _actor_mock = _fake_client(items)
+        scraper = InstagramScraper(client)
+
+        resultado = scraper.scrape_mentions(["governador_teste"])
+
+        assert resultado == items
+
+    def test_actor_id_e_configuravel(self):
+        """`ScraperConfig.mentions_actor_id` segue o mesmo padrão injetável
+        dos demais IDs de actor -- sem hardcode fora de `ScraperConfig`."""
+        client, actor_mock = _fake_client()
+        scraper = InstagramScraper(client, ScraperConfig(mentions_actor_id="outro/actor"))
+
+        scraper.scrape_mentions(["governador_teste"])
+
+        client.actor.assert_called_with("outro/actor")

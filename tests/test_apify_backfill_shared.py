@@ -64,6 +64,15 @@ def test_estimate_cost_usd_for_results_limit_considera_posts_e_reels():
     assert resultado == esperado
 
 
+def test_estimate_cost_usd_for_results_limit_aceita_media_types_customizado():
+    """ADR 0020 (Ficha 8) / issue #93: `scripts/run_apify_mentions_pilot.py`
+    chama com `media_types=1` (um actor só) -- o default 2 (posts+reels)
+    não se aplica a UGC de menções."""
+    resultado = estimate_cost_usd_for_results_limit(results_limit=100, n_governors=1, media_types=1)
+    esperado = round(100 * 1 / 1000 * STARTER_PRICE_PER_1000_RESULTS, 2)
+    assert resultado == esperado
+
+
 def test_load_links_le_e_normaliza_planilha(monkeypatch):
     df_fake = pd.DataFrame(
         {f" {settings.LINK_COLUMN} ": [" https://instagram.com/a ", " https://instagram.com/a "]}
