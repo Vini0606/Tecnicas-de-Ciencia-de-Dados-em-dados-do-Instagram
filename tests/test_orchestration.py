@@ -244,10 +244,7 @@ def test_run_deterministic_modeling_grava_sentimento_de_legenda_e_transcricao(
 
     legenda_out = sentiment_out[sentiment_out["fonte"] == "legenda"]
     assert len(legenda_out) == len(df_posts)
-    # Pré-existente (issue #88): asserção antiga comparava contra "p1", um id
-    # que `_df_posts_placeholder()` nunca gerou -- corrigido para o id real
-    # ("post_0"), sem mudar o comportamento testado.
-    assert legenda_out.iloc[0]["id_reel"] == df_posts["id"].iloc[0]
+    assert legenda_out.iloc[0]["id_reel"] == "post_0"
     assert legenda_out.iloc[0]["text"] == "texto qualquer"
 
     transcricao_out = sentiment_out[sentiment_out["fonte"] == "transcricao"]
