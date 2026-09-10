@@ -27,7 +27,16 @@ class ModelEnricher:
         run_id: str,
         mode: str = "overwrite",
         generated_at: datetime | None = None,
+        fonte: str = "comentario",
     ) -> None:
+        """Grava uma linha de `governor_sentiment`/`governor_sentiment_history`
+        por texto avaliado. `fonte` (ADR 0020 Ficha 3 / issue #88) discrimina
+        a granularidade: "comentario" (default, comportamento pré-existente
+        desta função), "legenda" (caption de post/reel) ou "transcricao"
+        (fala do reel via `includeTranscript`). As três fontes reaproveitam
+        o mesmo classificador de sentimento e coexistem na mesma tabela --
+        só muda a coluna de texto de entrada usada por quem chama esta
+        função e o valor gravado aqui."""
         df = df_comments_with_sentiment.copy()
         df["_run_id"] = run_id
         # `generated_at` explícito (issue #52) para que duas chamadas desta
@@ -35,6 +44,7 @@ class ModelEnricher:
         # governor_sentiment_history -- carimbem o mesmo timestamp, em vez
         # de dois `datetime.now()` levemente diferentes.
         df["_generated_at"] = generated_at or datetime.now(timezone.utc)
+        df["fonte"] = fonte
         write_delta(path, df, GOLD_SENTIMENT_SCHEMA, mode=mode)
 
     def write_clusters(

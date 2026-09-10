@@ -40,6 +40,43 @@ class DeterministicModelingResult:
     parent_run_id: str | None = None
 
 
+def _build_text_sentiment_source(
+    df: pd.DataFrame, id_col: str, text_col: str
+) -> pd.DataFrame:
+    """Reindexa `df` (posts ou reels da Silver) para o formato que
+    `analyze_sentiment`/`ModelEnricher.write_sentiment` esperam -- `id_reel`/
+    `text`/`timestamp` mais o que já existir de `inputUrl`/`ownerUsername`/
+    `likesCount` (ADR 0020 Ficha 3 / issue #88). Colunas ausentes viram nulo
+    em vez de KeyError -- `write_sentiment`/`conform_to_schema` já preenchem
+    o resto do schema como nulo, e nem toda chamada (ex.: dado sintético de
+    teste) tem todas as colunas de produção.
+
+    `timestamp` sai como string (`data_hora.astype(str)`) porque
+    `GOLD_SENTIMENT_SCHEMA` declara esse campo como string -- mesmo tipo já
+    usado para o `timestamp` bruto (string) dos comentários -- em vez do
+    `datetime64` que `data_hora` tem na Silver de posts/reels.
+
+    `likesCount` sai arredondado para `Int64` (nullable) -- a Silver real
+    (`SILVER_POSTS_SCHEMA`/`SILVER_REELS_SCHEMA`) já grava esse campo como
+    int64, mas `conform_to_schema` faz cast estrito (sem `safe=False`): um
+    valor fracionário vindo de dado sintético de teste faria
+    `pa.Table.from_pandas` falhar em vez de truncar silenciosamente."""
+    df_source = pd.DataFrame(index=df.index)
+    df_source["id_reel"] = df[id_col] if id_col in df.columns else pd.NA
+    df_source["text"] = df[text_col] if text_col in df.columns else pd.NA
+    for col in ("inputUrl", "ownerUsername"):
+        df_source[col] = df[col] if col in df.columns else pd.NA
+    df_source["likesCount"] = (
+        pd.to_numeric(df["likesCount"], errors="coerce").round().astype("Int64")
+        if "likesCount" in df.columns
+        else pd.NA
+    )
+    df_source["timestamp"] = (
+        df["data_hora"].astype(str) if "data_hora" in df.columns else pd.NA
+    )
+    return df_source
+
+
 def _merge_topic_info(df_comments: pd.DataFrame, document_info: pd.DataFrame) -> pd.DataFrame:
     """Reproduz a junção feita no notebook 03: concatena por posição (não por
     índice) o `document_info` do BERTopic ao DataFrame de comentários, na
@@ -145,6 +182,37 @@ def run_deterministic_modeling(
         generated_at=generated_at,
     )
 
+    # ADR 0020 (Ficha 3) / issue #88: mesmo classificador de sentimento,
+    # aplicado também sobre legenda (caption de post) e transcrição (fala do
+    # reel, via `includeTranscript`) -- fonte "legenda"/"transcricao"
+    # discriminam as linhas na mesma tabela `governor_sentiment`, sempre em
+    # append (a primeira escrita, acima, já usou o modo overwrite/default
+    # para a fonte "comentario"). Nenhum tópico é calculado para essas duas
+    # fontes nesta issue -- fica para a Ficha 4 (BERTopic de discurso),
+    # bloqueada por este corpus existir primeiro. Mesmo par de escritas
+    # (tabela + histórico) para as duas fontes, só troca o DataFrame de
+    # origem/coluna de texto -- feito em loop para não duplicar as quatro
+    # chamadas de `write_sentiment`.
+    fontes_texto = [
+        ("legenda", "legendas", df_posts, "caption"),
+        ("transcricao", "transcrições", df_reels, "transcript"),
+    ]
+    for fonte, rotulo_log, df_origem, text_col in fontes_texto:
+        logger.info("[SENTIMENTO] Analisando sentimento de %s...", rotulo_log)
+        df_fonte_sentiment = analyze_sentiment(
+            _build_text_sentiment_source(df_origem, id_col="id", text_col=text_col),
+            config.sentiment,
+        )
+        for path in (config.gold_sentiment_path, config.gold_sentiment_history_path):
+            enricher.write_sentiment(
+                df_fonte_sentiment,
+                path,
+                run_id,
+                mode="append",
+                generated_at=generated_at,
+                fonte=fonte,
+            )
+
     logger.info(
         "[PERFORMANCE-POR-POST] Classificando tema das captions e treinando "
         "Lasso vídeo/estático..."
@@ -228,7 +296,17 @@ def refine_topics_with_gemini(
     `governor_clusters`, que não depende do refinamento de tópicos.
 
     `df_comments` deve ser o `df_comments` retornado por
-    `run_deterministic_modeling` (mesma ordem de linhas que `docs`)."""
+    `run_deterministic_modeling` (mesma ordem de linhas que `docs`).
+
+    LIMITAÇÃO CONHECIDA (ADR 0020 Ficha 3 / issue #88, não corrigida nesta
+    issue): a escrita abaixo usa `fonte="comentario"` (default) em modo
+    overwrite -- rodar este refinamento depois de `run_deterministic_modeling`
+    substitui `governor_sentiment` inteira só pelas linhas de comentário,
+    apagando as linhas "legenda"/"transcricao" que a modelagem determinística
+    já tinha gravado nesse mesmo `run_id` de origem. Refinamento via Gemini é
+    hoje só sobre tópicos de comentário (ADR 0001) -- religar legenda/
+    transcrição nessa escrita fica para quando a Ficha 4 (tópicos de
+    discurso) tocar este fluxo."""
     run_id = build_run_id(run_id)
 
     apply_gemini_refinement(topic_model, docs, config)

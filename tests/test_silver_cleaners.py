@@ -173,6 +173,53 @@ def test_reel_cleaner_preserva_type_raw():
     assert out.loc[0, "Tipo"] == "REELS"
 
 
+def test_reel_cleaner_preserva_transcript():
+    """ADR 0020 (Ficha 3) / issue #88: `transcript` (fala do reel, via
+    `includeTranscript`) precisa sobreviver ao Bronze->Silver sem
+    transformação, mesmo tratamento que `caption` já recebe em posts."""
+    df = pd.DataFrame(
+        {
+            "id": ["r1"],
+            "ownerId": ["1"],
+            "ownerUsername": ["g"],
+            "commentsCount": [1],
+            "likesCount": [2],
+            "timestamp": ["2026-05-01T00:00:00+00:00"],
+            "latestComments": ["[]"],
+            "transcript": ["fala do governador sobre saude"],
+            "_ingested_at": pd.to_datetime(["2026-05-01"], utc=True),
+            "_run_id": ["r1"],
+        }
+    )
+    out = PostCleaner().clean_reels(df)
+    assert out.loc[0, "transcript"] == "fala do governador sobre saude"
+
+
+def test_reel_cleaner_sem_transcript_nao_quebra():
+    """Nem todo reel tem transcrição (vídeo sem fala, ou `includeTranscript`
+    desligado na execução) -- coluna ausente ou nula não pode quebrar a
+    limpeza; `conform_to_schema` preenche o nulo na escrita."""
+    df = pd.DataFrame(
+        {
+            "id": ["r1"],
+            "ownerId": ["1"],
+            "ownerUsername": ["g"],
+            "commentsCount": [1],
+            "likesCount": [2],
+            "timestamp": ["2026-05-01T00:00:00+00:00"],
+            "latestComments": ["[]"],
+            "_ingested_at": pd.to_datetime(["2026-05-01"], utc=True),
+            "_run_id": ["r1"],
+        }
+    )
+    out = PostCleaner().clean_reels(df)
+    assert "transcript" not in out.columns or out["transcript"].isna().all()
+
+    df_transcript_nula = df.assign(transcript=[None])
+    out_nulo = PostCleaner().clean_reels(df_transcript_nula)
+    assert out_nulo.loc[0, "transcript"] is None or pd.isna(out_nulo.loc[0, "transcript"])
+
+
 def test_post_cleaner_sem_type_ou_hashtags_nao_quebra():
     """Bronze sem esses campos (coluna ausente) não pode quebrar a limpeza --
     `conform_to_schema` preenche `type_raw`/`hashtags` como nulos na escrita,
