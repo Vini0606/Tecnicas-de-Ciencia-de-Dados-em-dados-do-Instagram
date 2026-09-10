@@ -152,7 +152,12 @@ def test_run_deterministic_modeling_grava_clusters_e_sentimento_com_mesmo_run_id
     assert len(clusters_out) == len(_df_reels())
     assert (clusters_out["_run_id"] == result.run_id).all()
     assert (sentiment_out["_run_id"] == result.run_id).all()
-    assert (sentiment_out["Name"] == "0_provisorio").all()
+    # ADR 0020 (Ficha 3) / issue #88: `governor_sentiment` agora também
+    # recebe legenda/transcrição (fonte "legenda"/"transcricao") -- só a
+    # fonte "comentario" passa por BERTopic nesta issue, então `Name` só é
+    # populado para ela (ver teste dedicado abaixo para as outras fontes).
+    comentarios_out = sentiment_out[sentiment_out["fonte"] == "comentario"]
+    assert (comentarios_out["Name"] == "0_provisorio").all()
 
     checkpoint_dir = config.checkpoints_dir / result.run_id
     assert (checkpoint_dir / "metadata.json").exists()
@@ -160,6 +165,75 @@ def test_run_deterministic_modeling_grava_clusters_e_sentimento_com_mesmo_run_id
     assert (checkpoint_dir / "df_comments.parquet").exists()
     assert (checkpoint_dir / "pca_model.joblib").exists()
     assert (checkpoint_dir / "cluster_model.joblib").exists()
+
+
+def _df_reels_com_transcript():
+    """Mesma base de `_df_reels()`, mas com `transcript` -- uma linha com
+    fala real, outra nula (nem todo reel tem transcrição) -- e `data_hora`,
+    para exercitar `_build_text_sentiment_source` de verdade (ADR 0020
+    Ficha 3 / issue #88)."""
+    df = _df_reels()
+    df["transcript"] = [None] * (len(df) - 1) + [
+        "estamos trabalhando para melhorar a saude da populacao"
+    ]
+    df["data_hora"] = pd.Timestamp("2026-05-01")
+    return df
+
+
+def test_run_deterministic_modeling_grava_sentimento_de_legenda_e_transcricao(
+    monkeypatch, tmp_path
+):
+    """ADR 0020 (Ficha 3) / issue #88: `governor_sentiment` passa a receber,
+    além dos comentários, uma linha por legenda de post (`caption`) e por
+    transcrição de reel (`transcript`), distinguidas pela coluna `fonte` --
+    sem que nenhuma fonte apague a outra (todas as escritas depois da
+    primeira usam `mode="append"`)."""
+    monkeypatch.setattr(
+        "src.modeling.orchestration.analyze_sentiment", _fake_analyze_sentiment
+    )
+    monkeypatch.setattr(
+        "src.modeling.orchestration.model_topics",
+        _make_fake_model_topics("0_provisorio", "0_refinado"),
+    )
+    _patch_post_performance_fakes(monkeypatch)
+
+    config = ModelingConfig(
+        cluster=ClusterConfig(max_evals_per_algo=10, random_state=42, max_n_clusters=5),
+        gold_clusters_path=tmp_path / "governor_clusters",
+        gold_sentiment_path=tmp_path / "governor_sentiment",
+        gold_sentiment_history_path=tmp_path / "governor_sentiment_history",
+        gold_post_performance_coefficients_path=tmp_path / "post_performance_coefficients",
+        gold_post_performance_predictions_path=tmp_path / "post_performance_predictions",
+        checkpoints_dir=tmp_path / "checkpoints",
+        logs_dir=tmp_path / "logs",
+    )
+
+    df_posts = _df_posts_placeholder()  # id="p1", caption="texto qualquer"
+    df_reels = _df_reels_com_transcript()
+
+    run_deterministic_modeling(
+        df_reels, _df_comments(), df_posts, _df_engagement_placeholder(), config
+    )
+
+    sentiment_out = DeltaTable(str(config.gold_sentiment_path)).to_pandas()
+
+    assert set(sentiment_out["fonte"]) == {"comentario", "legenda", "transcricao"}
+
+    legenda_out = sentiment_out[sentiment_out["fonte"] == "legenda"]
+    assert len(legenda_out) == len(df_posts)
+    assert legenda_out.iloc[0]["id_reel"] == "p1"
+    assert legenda_out.iloc[0]["text"] == "texto qualquer"
+
+    transcricao_out = sentiment_out[sentiment_out["fonte"] == "transcricao"]
+    assert len(transcricao_out) == len(df_reels)
+    # A linha com transcrição real carrega o texto original -- as demais
+    # (sem fala) não quebram o pipeline, só ficam com `text` nulo.
+    linha_com_fala = transcricao_out[transcricao_out["text"].notna()]
+    assert len(linha_com_fala) == 1
+    assert (
+        linha_com_fala.iloc[0]["text"]
+        == "estamos trabalhando para melhorar a saude da populacao"
+    )
 
 
 def test_run_deterministic_modeling_grava_sentimento_tambem_no_historico_em_append(

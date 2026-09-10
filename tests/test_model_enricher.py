@@ -37,6 +37,32 @@ def _reels_clusterizados():
     )
 
 
+def _legenda_com_sentimento():
+    return pd.DataFrame(
+        {
+            "id_reel": ["p1"],
+            "text": ["Anunciamos hoje um novo investimento em saúde para todo o estado."],
+            "inputUrl": ["https://www.instagram.com/governador_a/"],
+            "ownerUsername": ["governador_a"],
+            "sentiment_label": ["Positive"],
+            "sentiment_score": [0.81],
+        }
+    )
+
+
+def _transcricao_com_sentimento():
+    return pd.DataFrame(
+        {
+            "id_reel": ["r9"],
+            "text": ["Estamos trabalhando para melhorar a saúde da nossa população."],
+            "inputUrl": ["https://www.instagram.com/governador_a/"],
+            "ownerUsername": ["governador_a"],
+            "sentiment_label": ["Positive"],
+            "sentiment_score": [0.77],
+        }
+    )
+
+
 def test_write_sentiment_grava_topico_junto_do_sentimento(tmp_path):
     path = tmp_path / "governor_sentiment"
     ModelEnricher().write_sentiment(_comentarios_com_sentimento(), path, run_id="r1")
@@ -45,6 +71,66 @@ def test_write_sentiment_grava_topico_junto_do_sentimento(tmp_path):
     assert len(out) == 1
     assert out.loc[0, "sentiment_label"] == "Positive"
     assert out.loc[0, "Topic"] == 3
+
+
+def test_write_sentiment_usa_fonte_comentario_por_padrao(tmp_path):
+    """Comportamento pré-existente: quem já chama `write_sentiment` sem
+    informar `fonte` (todos os call sites de `orchestration.py` para
+    comentários) continua gravando "comentario", sem precisar mudar
+    nenhuma chamada existente (ADR 0020 Ficha 3 / issue #88)."""
+    path = tmp_path / "governor_sentiment"
+    ModelEnricher().write_sentiment(_comentarios_com_sentimento(), path, run_id="r1")
+
+    out = DeltaTable(str(path)).to_pandas()
+    assert out.loc[0, "fonte"] == "comentario"
+
+
+def test_write_sentiment_grava_fonte_legenda(tmp_path):
+    path = tmp_path / "governor_sentiment"
+    ModelEnricher().write_sentiment(_legenda_com_sentimento(), path, run_id="r1", fonte="legenda")
+
+    out = DeltaTable(str(path)).to_pandas()
+    assert len(out) == 1
+    assert out.loc[0, "fonte"] == "legenda"
+    assert out.loc[0, "sentiment_label"] == "Positive"
+
+
+def test_write_sentiment_grava_fonte_transcricao(tmp_path):
+    path = tmp_path / "governor_sentiment"
+    ModelEnricher().write_sentiment(
+        _transcricao_com_sentimento(), path, run_id="r1", fonte="transcricao"
+    )
+
+    out = DeltaTable(str(path)).to_pandas()
+    assert len(out) == 1
+    assert out.loc[0, "fonte"] == "transcricao"
+
+
+def test_write_sentiment_tres_fontes_coexistem_sem_colidir(tmp_path):
+    """`governor_sentiment` acumula comentário/legenda/transcrição na mesma
+    tabela (ADR 0020 Ficha 3 / issue #88) -- a primeira escrita usa o modo
+    default (overwrite), as seguintes precisam de `mode="append"` para não
+    apagar as fontes já gravadas."""
+    path = tmp_path / "governor_sentiment"
+    enricher = ModelEnricher()
+
+    enricher.write_sentiment(_comentarios_com_sentimento(), path, run_id="r1")
+    enricher.write_sentiment(
+        _legenda_com_sentimento(), path, run_id="r1", mode="append", fonte="legenda"
+    )
+    enricher.write_sentiment(
+        _transcricao_com_sentimento(), path, run_id="r1", mode="append", fonte="transcricao"
+    )
+
+    out = DeltaTable(str(path)).to_pandas()
+    assert len(out) == 3
+    assert set(out["fonte"]) == {"comentario", "legenda", "transcricao"}
+    # Cada fonte preserva seu próprio texto e sentimento -- nenhuma
+    # sobrescreveu a linha da outra.
+    por_fonte = out.set_index("fonte")
+    assert por_fonte.loc["comentario", "text"] == "ótimo trabalho"
+    assert por_fonte.loc["legenda", "id_reel"] == "p1"
+    assert por_fonte.loc["transcricao", "id_reel"] == "r9"
 
 
 def test_write_sentiment_repassa_mode_para_write_delta(monkeypatch):

@@ -68,6 +68,12 @@ BRONZE_REELS_SCHEMA = pa.schema(
         pa.field("isCommentsDisabled", pa.bool_(), nullable=True),
         pa.field("isPinned", pa.bool_(), nullable=True),
         pa.field("latestComments", pa.string(), nullable=True),
+        # ADR 0020 (Ficha 3) / issue #88: transcrição de fala do reel, via
+        # flag paga `includeTranscript` do `apify/instagram-reel-scraper`
+        # (ver `ScraperConfig.include_transcript`). Nullable -- nem todo
+        # reel tem fala (vídeo mudo, música só) ou a flag pode estar
+        # desligada na execução (custo por minuto de vídeo).
+        pa.field("transcript", pa.string(), nullable=True),
         pa.field("_ingested_at", pa.timestamp("us", tz="UTC"), nullable=False),
         pa.field("_run_id", pa.string(), nullable=False),
         pa.field("_source", pa.string(), nullable=False),
@@ -142,6 +148,11 @@ SILVER_REELS_SCHEMA = pa.schema(
         pa.field("isSponsored", pa.bool_(), nullable=True),
         pa.field("isCommentsDisabled", pa.bool_(), nullable=True),
         pa.field("Total de Engajamento", pa.int64(), nullable=False),
+        # ADR 0020 (Ficha 3) / issue #88: mesmo campo bruto de
+        # BRONZE_REELS_SCHEMA, propagado sem transformação (`PostCleaner`
+        # não faz limpeza especial de texto além do já aplicado a `caption`)
+        # -- alimenta `governor_sentiment` (fonte "transcricao").
+        pa.field("transcript", pa.string(), nullable=True),
         pa.field("_ingested_at", pa.timestamp("us", tz="UTC"), nullable=False),
         pa.field("_run_id", pa.string(), nullable=False),
         pa.field("_source_layer", pa.string(), nullable=False),
@@ -212,6 +223,12 @@ GOLD_SENTIMENT_SCHEMA = pa.schema(
         pa.field("likesCount", pa.int64(), nullable=True),
         pa.field("repliesCount", pa.int64(), nullable=True),
         pa.field("timestamp", pa.string(), nullable=True),
+        # ADR 0020 (Ficha 3) / issue #88: discrimina a granularidade da
+        # linha -- "comentario" (default, comportamento pré-existente),
+        # "legenda" (caption de post/reel) ou "transcricao" (fala do reel,
+        # `includeTranscript`). Sem esta coluna, as três fontes ficariam
+        # indistinguíveis na mesma tabela (ver `ModelEnricher.write_sentiment`).
+        pa.field("fonte", pa.string(), nullable=False),
         pa.field("sentiment_label", pa.string(), nullable=True),
         pa.field("sentiment_score", pa.float64(), nullable=True),
         pa.field("Topic", pa.int64(), nullable=True),

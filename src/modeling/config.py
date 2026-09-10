@@ -49,6 +49,19 @@ class ClusterConfig:
 
 @dataclass
 class SentimentConfig:
+    """Reaproveitada para as três fontes de `governor_sentiment`
+    (comentário/legenda/transcrição -- ADR 0020 Ficha 3 / issue #88): só a
+    coluna de texto de entrada muda por chamada, o modelo é o mesmo.
+
+    Limitação conhecida, documentada e não resolvida nesta rodada (fora de
+    escopo da issue #88): `model_name` foi treinado em tweets (texto curto e
+    informal). Legenda/transcrição de assessoria de governador são texto
+    mais longo e formal -- um registro estruturalmente diferente do domínio
+    de treino do modelo. `analyze_sentiment` não quebra com esse texto
+    (trunca em 512 tokens), mas a qualidade do rótulo de sentimento em
+    texto formal não foi validada com dado real; isso deve ser declarado
+    como limitação metodológica explícita no Cap. 7 do TCC, não escondido."""
+
     text_column: str = "text"
     model_name: str = "cardiffnlp/twitter-xlm-roberta-base-sentiment"
 
