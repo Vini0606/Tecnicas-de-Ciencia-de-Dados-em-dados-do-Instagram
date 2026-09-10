@@ -80,6 +80,57 @@ BRONZE_REELS_SCHEMA = pa.schema(
     ]
 )
 
+# ADR 0020 (Ficha 8) / issue #93: UGC de criação -- posts de TERCEIROS que
+# marcam/mencionam o perfil do governador (nível "Creating" do COBRA),
+# via `apify/instagram-tagged-scraper` (ScraperConfig.mentions_actor_id).
+# Quase todo campo abaixo é `nullable=True` de propósito: o piloto pequeno
+# exigido pela issue (`scripts/run_apify_mentions_pilot.py`) ainda NÃO foi
+# executado contra os 27 perfis reais nesta sessão (sem APIFY_API_TOKEN no
+# ambiente do agente, e a chamada real gera custo na conta Apify) -- os
+# nomes de campo abaixo seguem a especificação da issue/ADR, cruzada com
+# `docs/research/apify-instagram-actors-cobra-mapping.md` §7.1, mas não
+# foram confirmados 1:1 contra um exemplo de output real do actor escolhido
+# para estes perfis. `authorUsername`/`ownerUsername` ficam como campos
+# brutos candidatos lado a lado (o cleaner normaliza os dois num só) porque
+# a doc de pesquisa confirma em prosa que existe um campo de autor do post,
+# mas não confirma o nome exato -- mesma incerteza para `matchTypes`
+# (tagged vs. mentioned, ver §7.1 "Limitação declarada").
+BRONZE_UGC_MENTIONS_SCHEMA = pa.schema(
+    [
+        pa.field("id", pa.string(), nullable=True),
+        pa.field("shortCode", pa.string(), nullable=True),
+        pa.field("type", pa.string(), nullable=True),
+        pa.field("caption", pa.string(), nullable=True),
+        # Lista de usernames marcados/mencionados no post (serializada como
+        # JSON string pelo `BronzeWriter._add_ingestion_metadata`, mesmo
+        # tratamento de qualquer campo list/dict) -- é o único campo com
+        # exemplo real confirmado na pesquisa (`"mentions": ["zelenskiy_..."]`),
+        # e por isso a base usada para correlacionar cada post ao governador
+        # marcado (`SILVER_UGC_MENTIONS_SCHEMA.governor_username`).
+        pa.field("mentions", pa.string(), nullable=True),
+        # Distingue marcação visual ("tagged") de menção textual ("mentioned")
+        # -- campo do actor rejeitado (`fetch_cat/...`) que o piloto precisa
+        # confirmar se o actor escolhido também expõe.
+        pa.field("matchTypes", pa.string(), nullable=True),
+        pa.field("likesCount", pa.int64(), nullable=True),
+        pa.field("commentsCount", pa.int64(), nullable=True),
+        pa.field("videoPlayCount", pa.int64(), nullable=True),
+        pa.field("timestamp", pa.string(), nullable=True),
+        pa.field("authorUsername", pa.string(), nullable=True),
+        pa.field("ownerUsername", pa.string(), nullable=True),
+        pa.field("authorIsVerified", pa.bool_(), nullable=True),
+        # Crítico (ADR 0020, Ficha 8): separa UGC orgânico de publi paga --
+        # sem isso, `GovernorUGCAggregator` contaria publi como "apoio
+        # espontâneo" e infla falsamente o nível "Criar" do COBRA.
+        pa.field("isPaidPartnership", pa.bool_(), nullable=True),
+        pa.field("isAd", pa.bool_(), nullable=True),
+        pa.field("isAffiliate", pa.bool_(), nullable=True),
+        pa.field("_ingested_at", pa.timestamp("us", tz="UTC"), nullable=False),
+        pa.field("_run_id", pa.string(), nullable=False),
+        pa.field("_source", pa.string(), nullable=False),
+    ]
+)
+
 # SILVER
 SILVER_PROFILES_SCHEMA = pa.schema(
     [
@@ -188,6 +239,40 @@ SILVER_GOVERNORS_METADATA_SCHEMA = pa.schema(
     ]
 )
 
+# ADR 0020 (Ficha 8) / issue #93: `id`/`shortCode` ficam `nullable=True` (em
+# vez do padrão `id` NOT NULL de SILVER_POSTS/REELS/PROFILES) porque o piloto
+# do actor ainda não confirmou que `id` é sempre preenchido -- o cleaner
+# descarta linhas sem `id` E sem `shortCode` (ambos ausentes = registro
+# inidentificável), então a dedup continua garantida na prática.
+SILVER_UGC_MENTIONS_SCHEMA = pa.schema(
+    [
+        pa.field("id", pa.string(), nullable=True),
+        pa.field("shortCode", pa.string(), nullable=True),
+        pa.field("type", pa.string(), nullable=True),
+        pa.field("caption", pa.string(), nullable=True),
+        pa.field("matchTypes", pa.string(), nullable=True),
+        # Derivado de `mentions` (Bronze) cruzado com a lista de usernames de
+        # governador informada ao cleaner -- não é um campo bruto do actor.
+        # Nulo quando `mentions` não bate com nenhum username conhecido
+        # (post não correlacionável a um governador do projeto).
+        pa.field("governor_username", pa.string(), nullable=True),
+        # Normalização de `authorUsername`/`ownerUsername` (Bronze) num só
+        # campo -- "normalização de handles" pedida pela issue #93.
+        pa.field("authorUsername", pa.string(), nullable=True),
+        pa.field("authorIsVerified", pa.bool_(), nullable=False),
+        pa.field("isPaidPartnership", pa.bool_(), nullable=False),
+        pa.field("isAd", pa.bool_(), nullable=False),
+        pa.field("isAffiliate", pa.bool_(), nullable=False),
+        pa.field("likesCount", pa.int64(), nullable=False),
+        pa.field("commentsCount", pa.int64(), nullable=False),
+        pa.field("videoPlayCount", pa.int64(), nullable=True),
+        pa.field("data_hora", pa.timestamp("us"), nullable=False),
+        pa.field("_ingested_at", pa.timestamp("us", tz="UTC"), nullable=False),
+        pa.field("_run_id", pa.string(), nullable=False),
+        pa.field("_source_layer", pa.string(), nullable=False),
+    ]
+)
+
 # GOLD
 GOLD_ENGAGEMENT_SCHEMA = pa.schema(
     [
@@ -231,6 +316,29 @@ GOLD_SENTIMENT_SCHEMA = pa.schema(
         pa.field("fonte", pa.string(), nullable=False),
         pa.field("sentiment_label", pa.string(), nullable=True),
         pa.field("sentiment_score", pa.float64(), nullable=True),
+        pa.field("Topic", pa.int64(), nullable=True),
+        pa.field("Name", pa.string(), nullable=True),
+        pa.field("_run_id", pa.string(), nullable=False),
+        pa.field("_generated_at", pa.timestamp("us", tz="UTC"), nullable=False),
+    ]
+)
+
+# ADR 0020 (Ficha 4) / issue #89: tópicos do discurso oficial (BERTopic
+# sobre legenda+transcrição, reaproveitando `model_topics()`) -- tabela Gold
+# própria, NÃO uma extensão de `governor_sentiment`: as duas granularidades
+# são conceitualmente distintas (fala da assessoria vs. reação do público),
+# decisão de schema já fechada na ADR 0020. Colunas equivalentes às de
+# tópico de comentário (`Topic`/`Name`/texto-fonte/`ownerUsername`), mais
+# `fonte` ("legenda"/"transcricao") para distinguir as duas dentro da
+# própria tabela -- mesmo padrão de `GOLD_SENTIMENT_SCHEMA` (issue #88).
+GOLD_DISCOURSE_TOPICS_SCHEMA = pa.schema(
+    [
+        pa.field("id_reel", pa.string(), nullable=True),
+        pa.field("text", pa.string(), nullable=True),
+        pa.field("inputUrl", pa.string(), nullable=True),
+        pa.field("ownerUsername", pa.string(), nullable=True),
+        pa.field("timestamp", pa.string(), nullable=True),
+        pa.field("fonte", pa.string(), nullable=False),
         pa.field("Topic", pa.int64(), nullable=True),
         pa.field("Name", pa.string(), nullable=True),
         pa.field("_run_id", pa.string(), nullable=False),
@@ -306,6 +414,35 @@ GOLD_POST_PERFORMANCE_PREDICTIONS_SCHEMA = pa.schema(
         pa.field("y_real", pa.float64(), nullable=False),
         pa.field("y_previsto", pa.float64(), nullable=False),
         pa.field("residuo", pa.float64(), nullable=False),
+        pa.field("_run_id", pa.string(), nullable=False),
+        pa.field("_generated_at", pa.timestamp("us", tz="UTC"), nullable=False),
+    ]
+)
+
+# ADR 0020 (Ficha 8) / issue #93: `governor_ugc_mentions` -- UGC de criação
+# ("Creating" do COBRA). Grão de UMA LINHA POR POST DE UGC, não agregado por
+# governador: a agregação (contagem, engajamento médio, % orgânico vs. pago)
+# é uma view/query sobre esta tabela (`GovernorUGCAggregator.aggregate_by_governor`),
+# não a granularidade de armazenamento -- decisão explícita da issue, mesmo
+# raciocínio de GOLD_CLUSTERS_SCHEMA/GOLD_POST_PERFORMANCE_PREDICTIONS_SCHEMA
+# (granularidade fina na Gold, agregação calculada em cima). `is_organic`
+# (derivado de isPaidPartnership/isAd/isAffiliate) é o campo que separa UGC
+# espontâneo de publi paga ANTES de qualquer agregação -- contar publi como
+# "apoio espontâneo" infla falsamente o nível "Criar" do funil COBRA-RACE.
+GOLD_UGC_MENTIONS_SCHEMA = pa.schema(
+    [
+        pa.field("id", pa.string(), nullable=True),
+        pa.field("shortCode", pa.string(), nullable=True),
+        pa.field("governor_username", pa.string(), nullable=True),
+        pa.field("authorUsername", pa.string(), nullable=True),
+        pa.field("authorIsVerified", pa.bool_(), nullable=False),
+        pa.field("caption", pa.string(), nullable=True),
+        pa.field("matchTypes", pa.string(), nullable=True),
+        pa.field("likesCount", pa.int64(), nullable=False),
+        pa.field("commentsCount", pa.int64(), nullable=False),
+        pa.field("videoPlayCount", pa.int64(), nullable=True),
+        pa.field("is_organic", pa.bool_(), nullable=False),
+        pa.field("data_hora", pa.timestamp("us"), nullable=False),
         pa.field("_run_id", pa.string(), nullable=False),
         pa.field("_generated_at", pa.timestamp("us", tz="UTC"), nullable=False),
     ]

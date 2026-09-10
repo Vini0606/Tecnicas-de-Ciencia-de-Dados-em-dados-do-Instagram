@@ -63,6 +63,7 @@ data/model_checkpoints/
 data/landing/
 data/backfill/
 data/calibration/
+data/pilot/
 
 # Logs estruturados por run_id (ADR 0015).
 data/logs/

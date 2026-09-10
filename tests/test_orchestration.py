@@ -147,6 +147,7 @@ def test_run_deterministic_modeling_grava_clusters_e_sentimento_com_mesmo_run_id
         gold_clusters_path=tmp_path / "governor_clusters",
         gold_sentiment_path=tmp_path / "governor_sentiment",
         gold_sentiment_history_path=tmp_path / "governor_sentiment_history",
+        gold_discourse_topics_path=tmp_path / "governor_discourse_topics",
         gold_post_performance_coefficients_path=tmp_path / "post_performance_coefficients",
         gold_post_performance_predictions_path=tmp_path / "post_performance_predictions",
         checkpoints_dir=tmp_path / "checkpoints",
@@ -223,6 +224,7 @@ def test_run_deterministic_modeling_grava_sentimento_de_legenda_e_transcricao(
         gold_clusters_path=tmp_path / "governor_clusters",
         gold_sentiment_path=tmp_path / "governor_sentiment",
         gold_sentiment_history_path=tmp_path / "governor_sentiment_history",
+        gold_discourse_topics_path=tmp_path / "governor_discourse_topics",
         gold_post_performance_coefficients_path=tmp_path / "post_performance_coefficients",
         gold_post_performance_predictions_path=tmp_path / "post_performance_predictions",
         checkpoints_dir=tmp_path / "checkpoints",
@@ -257,6 +259,61 @@ def test_run_deterministic_modeling_grava_sentimento_de_legenda_e_transcricao(
     )
 
 
+def test_run_deterministic_modeling_grava_topicos_de_discurso_separados_de_comentario(
+    monkeypatch, tmp_path
+):
+    """ADR 0020 (Ficha 4) / issue #89: `governor_discourse_topics` recebe os
+    tópicos do corpus de discurso oficial (legenda+transcrição combinadas
+    num único corpus/modelo) -- tabela própria, não misturada a
+    `governor_sentiment` (que continua sem Topic/Name para essas duas
+    fontes, exatamente como antes desta issue)."""
+    monkeypatch.setattr(
+        "src.modeling.orchestration.analyze_sentiment", _fake_analyze_sentiment
+    )
+    monkeypatch.setattr(
+        "src.modeling.orchestration.model_topics",
+        _make_fake_model_topics("0_provisorio", "0_refinado"),
+    )
+    _patch_post_performance_fakes(monkeypatch)
+
+    config = ModelingConfig(
+        cluster=ClusterConfig(max_evals_per_algo=10, random_state=42, max_n_clusters=5),
+        gold_clusters_path=tmp_path / "governor_clusters",
+        gold_sentiment_path=tmp_path / "governor_sentiment",
+        gold_sentiment_history_path=tmp_path / "governor_sentiment_history",
+        gold_discourse_topics_path=tmp_path / "governor_discourse_topics",
+        gold_post_performance_coefficients_path=tmp_path / "post_performance_coefficients",
+        gold_post_performance_predictions_path=tmp_path / "post_performance_predictions",
+        checkpoints_dir=tmp_path / "checkpoints",
+        logs_dir=tmp_path / "logs",
+    )
+
+    df_posts = _df_posts_placeholder()  # 12 posts, caption="texto qualquer"
+    df_reels = _df_reels_com_transcript()  # 12 reels, 1 com transcript real
+
+    run_deterministic_modeling(
+        df_reels, _df_comments(), df_posts, _df_engagement_placeholder(), config
+    )
+
+    discourse_out = DeltaTable(str(config.gold_discourse_topics_path)).to_pandas()
+
+    # Uma linha por documento de cada fonte -- legenda (posts) + transcrição
+    # (reels), nunca por comentário.
+    assert len(discourse_out) == len(df_posts) + len(df_reels)
+    assert set(discourse_out["fonte"]) == {"legenda", "transcricao"}
+    # Tópicos vieram do `model_topics` fake (mesmo usado para comentários,
+    # mas chamado de novo sobre o corpus de discurso) -- rótulo provisório,
+    # não o refinado via Gemini (que não toca esta tabela).
+    assert (discourse_out["Name"] == "0_provisorio").all()
+
+    # Não mistura com governor_sentiment: as linhas de legenda/transcrição
+    # lá continuam sem Topic/Name (comportamento inalterado da issue #88 --
+    # só a fonte "comentario" passa por tópicos nessa tabela).
+    sentiment_out = DeltaTable(str(config.gold_sentiment_path)).to_pandas()
+    legenda_sentiment = sentiment_out[sentiment_out["fonte"] == "legenda"]
+    assert legenda_sentiment["Topic"].isna().all()
+
+
 def test_run_deterministic_modeling_grava_sentimento_tambem_no_historico_em_append(
     monkeypatch, tmp_path
 ):
@@ -278,6 +335,7 @@ def test_run_deterministic_modeling_grava_sentimento_tambem_no_historico_em_appe
         gold_clusters_path=tmp_path / "governor_clusters",
         gold_sentiment_path=tmp_path / "governor_sentiment",
         gold_sentiment_history_path=tmp_path / "governor_sentiment_history",
+        gold_discourse_topics_path=tmp_path / "governor_discourse_topics",
         gold_post_performance_coefficients_path=tmp_path / "post_performance_coefficients",
         gold_post_performance_predictions_path=tmp_path / "post_performance_predictions",
         checkpoints_dir=tmp_path / "checkpoints",
@@ -321,6 +379,7 @@ def test_refine_topics_with_gemini_nao_grava_no_historico_de_sentimento(monkeypa
         gold_clusters_path=tmp_path / "governor_clusters",
         gold_sentiment_path=tmp_path / "governor_sentiment",
         gold_sentiment_history_path=tmp_path / "governor_sentiment_history",
+        gold_discourse_topics_path=tmp_path / "governor_discourse_topics",
         gold_post_performance_coefficients_path=tmp_path / "post_performance_coefficients",
         gold_post_performance_predictions_path=tmp_path / "post_performance_predictions",
         checkpoints_dir=tmp_path / "checkpoints",
@@ -372,6 +431,7 @@ def test_run_deterministic_modeling_grava_parent_run_id_como_primeira_linha_do_l
         gold_clusters_path=tmp_path / "governor_clusters",
         gold_sentiment_path=tmp_path / "governor_sentiment",
         gold_sentiment_history_path=tmp_path / "governor_sentiment_history",
+        gold_discourse_topics_path=tmp_path / "governor_discourse_topics",
         gold_post_performance_coefficients_path=tmp_path / "post_performance_coefficients",
         gold_post_performance_predictions_path=tmp_path / "post_performance_predictions",
         checkpoints_dir=tmp_path / "checkpoints",
@@ -419,6 +479,7 @@ def test_refine_topics_with_gemini_so_reescreve_sentimento_com_run_id_novo(
         gold_clusters_path=tmp_path / "governor_clusters",
         gold_sentiment_path=tmp_path / "governor_sentiment",
         gold_sentiment_history_path=tmp_path / "governor_sentiment_history",
+        gold_discourse_topics_path=tmp_path / "governor_discourse_topics",
         gold_post_performance_coefficients_path=tmp_path / "post_performance_coefficients",
         gold_post_performance_predictions_path=tmp_path / "post_performance_predictions",
         checkpoints_dir=tmp_path / "checkpoints",
@@ -525,6 +586,7 @@ def _config_performance(tmp_path):
         gold_clusters_path=tmp_path / "governor_clusters",
         gold_sentiment_path=tmp_path / "governor_sentiment",
         gold_sentiment_history_path=tmp_path / "governor_sentiment_history",
+        gold_discourse_topics_path=tmp_path / "governor_discourse_topics",
         gold_post_performance_coefficients_path=tmp_path / "post_performance_coefficients",
         gold_post_performance_predictions_path=tmp_path / "post_performance_predictions",
         checkpoints_dir=tmp_path / "checkpoints",
@@ -600,6 +662,7 @@ def test_run_deterministic_modeling_degrada_sem_derrubar_pipeline_se_performance
         gold_clusters_path=tmp_path / "governor_clusters",
         gold_sentiment_path=tmp_path / "governor_sentiment",
         gold_sentiment_history_path=tmp_path / "governor_sentiment_history",
+        gold_discourse_topics_path=tmp_path / "governor_discourse_topics",
         gold_post_performance_coefficients_path=tmp_path / "post_performance_coefficients",
         gold_post_performance_predictions_path=tmp_path / "post_performance_predictions",
         checkpoints_dir=tmp_path / "checkpoints",
