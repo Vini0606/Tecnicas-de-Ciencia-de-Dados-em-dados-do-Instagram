@@ -82,6 +82,12 @@ GOLD_PROFILE_CLUSTERS_ENGAGEMENT = GOLD_DIR / "governor_profile_clusters_engagem
 # (vídeo/estático) como dimensão em vez de duas tabelas quase idênticas.
 GOLD_POST_PERFORMANCE_COEFFICIENTS = GOLD_DIR / "post_performance_coefficients"
 GOLD_POST_PERFORMANCE_PREDICTIONS = GOLD_DIR / "post_performance_predictions"
+# ADR 0020 (Ficha 7) / issue #92: CMGR e retenção sobre
+# `governor_engagement_history`/`governor_sentiment_history` -- módulo
+# standalone (`scripts/run_growth_metrics.py`), fora de
+# `src/modeling/orchestration.py` de propósito (não depende de nenhum outro
+# estágio pós-modelagem, roda independente do restante do pipeline).
+GOLD_GROWTH_METRICS = GOLD_DIR / "governor_growth_metrics"
 
 # Checkpoints locais do estágio determinístico de modelagem (ver ADR 0003) —
 # não são Delta, ficam fora do git.

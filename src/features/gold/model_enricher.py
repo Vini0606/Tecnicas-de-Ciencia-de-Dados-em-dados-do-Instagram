@@ -13,6 +13,7 @@ from src.delta_io import write_delta
 from src.schemas_delta import (
     GOLD_CLUSTERS_SCHEMA,
     GOLD_DISCOURSE_TOPICS_SCHEMA,
+    GOLD_GROWTH_METRICS_SCHEMA,
     GOLD_POST_PERFORMANCE_COEFFICIENTS_SCHEMA,
     GOLD_POST_PERFORMANCE_PREDICTIONS_SCHEMA,
     GOLD_PROFILE_CLUSTERS_ENGAGEMENT_SCHEMA,
@@ -216,3 +217,45 @@ class ModelEnricher:
         df["_run_id"] = run_id
         df["_generated_at"] = datetime.now(timezone.utc)
         write_delta(path, df, GOLD_POST_PERFORMANCE_PREDICTIONS_SCHEMA)
+
+    def write_growth_metrics(
+        self,
+        df_growth_metrics: pd.DataFrame,
+        path: Path | str,
+        run_id: str,
+    ) -> None:
+        """Grava CMGR/retenção por perfil (ADR 0020, Ficha 7 / issue #92).
+        Espera as colunas produzidas por
+        `src.modeling.growth_history.compute_growth_metrics`: inputUrl,
+        cmgr/cmgr_n_periodos/cmgr_confiavel/cmgr_motivo,
+        retencao/retencao_n_periodos/retencao_n_pares_validos/
+        retencao_confiavel/retencao_motivo, ilustrativo, nota.
+
+        Sempre `mode="overwrite"` (ao contrário de `governor_*_history`,
+        sem parâmetro para o chamador escolher): esta tabela é um snapshot
+        recalculável a qualquer momento a partir do histórico já
+        acumulado, não um registro incremental por execução -- não há um
+        segundo caso de uso real (nenhum chamador precisa de "append")
+        que justifique expor a escolha."""
+        required = {
+            "inputUrl",
+            "cmgr",
+            "cmgr_n_periodos",
+            "cmgr_confiavel",
+            "retencao",
+            "retencao_n_periodos",
+            "retencao_n_pares_validos",
+            "retencao_confiavel",
+            "ilustrativo",
+            "nota",
+        }
+        missing = required - set(df_growth_metrics.columns)
+        if missing:
+            raise ValueError(
+                f"df_growth_metrics não tem as colunas esperadas: {sorted(missing)}"
+            )
+
+        df = df_growth_metrics.copy()
+        df["_run_id"] = run_id
+        df["_generated_at"] = datetime.now(timezone.utc)
+        write_delta(path, df, GOLD_GROWTH_METRICS_SCHEMA, mode="overwrite")

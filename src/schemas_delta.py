@@ -478,3 +478,34 @@ GOLD_UGC_MENTIONS_SCHEMA = pa.schema(
         pa.field("_generated_at", pa.timestamp("us", tz="UTC"), nullable=False),
     ]
 )
+
+# ADR 0020 (Ficha 7) / issue #92: CMGR (crescimento mensal composto, sobre
+# `followersCount` de `governor_engagement_history`) e retenção de
+# sentimento positivo (sobre `governor_sentiment_history`) -- uma linha por
+# perfil por execução deste módulo, mesmo padrão de
+# `GOLD_PROFILE_CLUSTERS_ENGAGEMENT_SCHEMA`. `cmgr`/`retencao` são
+# `nullable=True` (podem ser NaN quando não calculáveis -- ver
+# `src/modeling/growth_history.py`); `ilustrativo`/`nota` sinalizam de
+# forma explícita, para qualquer consumidor, que o valor não é conclusivo
+# enquanto poucas execuções tiverem se acumulado -- essa marca é uma
+# limitação de dado real (tempo de operação), não um bug a corrigir aqui.
+GOLD_GROWTH_METRICS_SCHEMA = pa.schema(
+    [
+        pa.field("inputUrl", pa.string(), nullable=True),
+        pa.field("valor_inicial", pa.float64(), nullable=True),
+        pa.field("valor_final", pa.float64(), nullable=True),
+        pa.field("cmgr", pa.float64(), nullable=True),
+        pa.field("cmgr_n_periodos", pa.int64(), nullable=False),
+        pa.field("cmgr_confiavel", pa.bool_(), nullable=False),
+        pa.field("cmgr_motivo", pa.string(), nullable=True),
+        pa.field("retencao", pa.float64(), nullable=True),
+        pa.field("retencao_n_periodos", pa.int64(), nullable=False),
+        pa.field("retencao_n_pares_validos", pa.int64(), nullable=False),
+        pa.field("retencao_confiavel", pa.bool_(), nullable=False),
+        pa.field("retencao_motivo", pa.string(), nullable=True),
+        pa.field("ilustrativo", pa.bool_(), nullable=False),
+        pa.field("nota", pa.string(), nullable=False),
+        pa.field("_run_id", pa.string(), nullable=False),
+        pa.field("_generated_at", pa.timestamp("us", tz="UTC"), nullable=False),
+    ]
+)
