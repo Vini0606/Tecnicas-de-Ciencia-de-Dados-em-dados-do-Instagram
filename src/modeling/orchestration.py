@@ -10,6 +10,7 @@ import pandas as pd
 from bertopic import BERTopic
 
 from src.features.gold.model_enricher import ModelEnricher
+from src.features.gold.topic_priority_scorer import TopicPriorityScorer
 from src.logging_setup import attach_run_log_handler
 from src.modeling.checkpoint import save_checkpoint
 from src.modeling.clustering import cluster_feed_posts, cluster_reels
@@ -98,13 +99,14 @@ def run_deterministic_modeling(
 ) -> DeterministicModelingResult:
     """Estágio 100% automatizável: PCA -> clustering (reels e posts do feed,
     ADR 0020 Ficha 2) -> sentimento (comentário/legenda/transcrição, ADR
-    0020 Ficha 3) -> tópicos de comentário -> tópicos de discurso oficial
+    0020 Ficha 3) -> tópicos de comentário -> Score ICE de priorização de
+    tópicos de comentário (ADR 0020 Ficha 6) -> tópicos de discurso oficial
     (legenda+transcrição, ADR 0020 Ficha 4) -> performance-por-post
     (representação determinística via KeyBERTInspired, não via Gemini).
-    Escreve as cinco tabelas Gold (clusters, sentimento/tópicos
-    provisórios de comentário, tópicos de discurso, coeficientes e
-    previsão/resíduo da regressão de performance-por-post) sob um único
-    `run_id` novo.
+    Escreve as seis tabelas Gold (clusters, sentimento/tópicos
+    provisórios de comentário, Score ICE por tópico, tópicos de discurso,
+    coeficientes e previsão/resíduo da regressão de performance-por-post)
+    sob um único `run_id` novo.
 
     `parent_run_id`, se informado, é só rastreabilidade -- o `run_id` da
     extração/invocação de `pipeline.py` que disparou esta chamada, gravado
@@ -182,6 +184,25 @@ def run_deterministic_modeling(
         config.gold_sentiment_history_path,
         run_id,
         mode="append",
+        generated_at=generated_at,
+    )
+
+    # ADR 0020 (Ficha 6) / issue #91: Score ICE de priorização de tópicos de
+    # comentário -- estágio pós-modelagem que só depende de
+    # `df_comments_final` (mesmo `governor_sentiment` recém-gravado acima,
+    # fonte "comentario"), então roda aqui, antes do bloco de
+    # legenda/transcrição abaixo (que é uma fonte diferente, sem tópico de
+    # comentário). Inserção isolada de propósito (uma função nova +
+    # uma chamada nova): a Ficha 5 (NSM, issue #90) tem a mesma dependência
+    # e pode inserir sua própria chamada nesta vizinhança em paralelo --
+    # nenhuma das duas precisa do resultado da outra.
+    logger.info("[SCORE-ICE] Calculando priorização de tópicos de comentário...")
+    topic_priority_scorer = TopicPriorityScorer()
+    df_topic_priority = topic_priority_scorer.score(df_comments_final)
+    topic_priority_scorer.write(
+        df_topic_priority,
+        config.gold_topic_priority_score_path,
+        run_id,
         generated_at=generated_at,
     )
 
@@ -346,7 +367,18 @@ def refine_topics_with_gemini(
     própria (`governor_discourse_topics`, ver `ModelEnricher.write_discourse_topics`)
     e não passam por este refinamento via Gemini -- a limitação acima
     continua não corrigida, deliberadamente fora do escopo da #89 (que não
-    toca `governor_sentiment`/refinamento de comentário)."""
+    toca `governor_sentiment`/refinamento de comentário).
+
+    ATUALIZAÇÃO (ADR 0020 Ficha 6 / issue #91): `topic_priority_score`
+    (Score ICE) é recalculado aqui também, a partir de `df_comments_refined`
+    -- a ADR 0020 e a issue #91 pedem explicitamente que o Score ICE
+    dependa de `governor_sentiment` "já refinado via Gemini", não dos
+    rótulos provisórios que `run_deterministic_modeling` grava antes deste
+    refinamento existir. A escrita é overwrite (mesma tabela, sem `fonte`
+    para discriminar, ao contrário de `governor_sentiment`): o ranking
+    provisório calculado em `run_deterministic_modeling` fica obsoleto
+    assim que o refinamento roda, exatamente como já acontece com
+    `governor_sentiment` acima."""
     run_id = build_run_id(run_id)
 
     apply_gemini_refinement(topic_model, docs, config)
@@ -357,6 +389,12 @@ def refine_topics_with_gemini(
     df_comments_refined["Name"] = refreshed_info["Name"].values
 
     ModelEnricher().write_sentiment(df_comments_refined, config.gold_sentiment_path, run_id)
+
+    topic_priority_scorer = TopicPriorityScorer()
+    df_topic_priority_refined = topic_priority_scorer.score(df_comments_refined)
+    topic_priority_scorer.write(
+        df_topic_priority_refined, config.gold_topic_priority_score_path, run_id
+    )
 
     return GeminiRefinementResult(
         df_comments=df_comments_refined, topic_model=topic_model, run_id=run_id

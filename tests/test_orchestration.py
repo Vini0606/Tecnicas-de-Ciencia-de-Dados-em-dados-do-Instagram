@@ -148,6 +148,7 @@ def test_run_deterministic_modeling_grava_clusters_e_sentimento_com_mesmo_run_id
         gold_sentiment_path=tmp_path / "governor_sentiment",
         gold_sentiment_history_path=tmp_path / "governor_sentiment_history",
         gold_discourse_topics_path=tmp_path / "governor_discourse_topics",
+        gold_topic_priority_score_path=tmp_path / "topic_priority_score",
         gold_post_performance_coefficients_path=tmp_path / "post_performance_coefficients",
         gold_post_performance_predictions_path=tmp_path / "post_performance_predictions",
         checkpoints_dir=tmp_path / "checkpoints",
@@ -189,6 +190,53 @@ def test_run_deterministic_modeling_grava_clusters_e_sentimento_com_mesmo_run_id
     assert (checkpoint_dir / "cluster_model.joblib").exists()
 
 
+def test_run_deterministic_modeling_grava_score_ice_por_topico_de_comentario(
+    monkeypatch, tmp_path
+):
+    """ADR 0020 (Ficha 6) / issue #91: `topic_priority_score` recebe uma
+    linha por tópico de COMENTÁRIO (não de discurso oficial) -- calculada a
+    partir do `df_comments_final` já com sentimento/tópico, no mesmo
+    `run_id` das demais tabelas desta execução."""
+    monkeypatch.setattr(
+        "src.modeling.orchestration.analyze_sentiment", _fake_analyze_sentiment
+    )
+    monkeypatch.setattr(
+        "src.modeling.orchestration.model_topics",
+        _make_fake_model_topics("0_provisorio", "0_refinado"),
+    )
+    _patch_post_performance_fakes(monkeypatch)
+
+    config = ModelingConfig(
+        cluster=ClusterConfig(max_evals_per_algo=10, random_state=42, max_n_clusters=5),
+        gold_clusters_path=tmp_path / "governor_clusters",
+        gold_sentiment_path=tmp_path / "governor_sentiment",
+        gold_sentiment_history_path=tmp_path / "governor_sentiment_history",
+        gold_discourse_topics_path=tmp_path / "governor_discourse_topics",
+        gold_topic_priority_score_path=tmp_path / "topic_priority_score",
+        gold_post_performance_coefficients_path=tmp_path / "post_performance_coefficients",
+        gold_post_performance_predictions_path=tmp_path / "post_performance_predictions",
+        checkpoints_dir=tmp_path / "checkpoints",
+        logs_dir=tmp_path / "logs",
+    )
+
+    result = run_deterministic_modeling(
+        _df_reels(), _df_comments(), _df_posts_placeholder(), _df_engagement_placeholder(), config
+    )
+
+    priority_out = DeltaTable(str(config.gold_topic_priority_score_path)).to_pandas()
+
+    # `_fake_model_topics` coloca todos os 3 comentários no mesmo Topic 0 --
+    # uma linha só no resultado, com o Name provisório (mesmo tópico
+    # "cru" gravado em governor_sentiment, ver teste acima).
+    assert len(priority_out) == 1
+    assert priority_out.loc[0, "Topic"] == 0
+    assert priority_out.loc[0, "Name"] == "0_provisorio"
+    assert priority_out.loc[0, "n_comentarios"] == 3
+    assert (priority_out["_run_id"] == result.run_id).all()
+    for componente in ("impacto", "confianca", "facilidade", "score"):
+        assert 0.0 <= priority_out.loc[0, componente] <= 1.0
+
+
 def _df_reels_com_transcript():
     """Mesma base de `_df_reels()`, mas com `transcript` -- uma linha com
     fala real, outra nula (nem todo reel tem transcrição) -- e `data_hora`,
@@ -225,6 +273,7 @@ def test_run_deterministic_modeling_grava_sentimento_de_legenda_e_transcricao(
         gold_sentiment_path=tmp_path / "governor_sentiment",
         gold_sentiment_history_path=tmp_path / "governor_sentiment_history",
         gold_discourse_topics_path=tmp_path / "governor_discourse_topics",
+        gold_topic_priority_score_path=tmp_path / "topic_priority_score",
         gold_post_performance_coefficients_path=tmp_path / "post_performance_coefficients",
         gold_post_performance_predictions_path=tmp_path / "post_performance_predictions",
         checkpoints_dir=tmp_path / "checkpoints",
@@ -282,6 +331,7 @@ def test_run_deterministic_modeling_grava_topicos_de_discurso_separados_de_comen
         gold_sentiment_path=tmp_path / "governor_sentiment",
         gold_sentiment_history_path=tmp_path / "governor_sentiment_history",
         gold_discourse_topics_path=tmp_path / "governor_discourse_topics",
+        gold_topic_priority_score_path=tmp_path / "topic_priority_score",
         gold_post_performance_coefficients_path=tmp_path / "post_performance_coefficients",
         gold_post_performance_predictions_path=tmp_path / "post_performance_predictions",
         checkpoints_dir=tmp_path / "checkpoints",
@@ -336,6 +386,7 @@ def test_run_deterministic_modeling_grava_sentimento_tambem_no_historico_em_appe
         gold_sentiment_path=tmp_path / "governor_sentiment",
         gold_sentiment_history_path=tmp_path / "governor_sentiment_history",
         gold_discourse_topics_path=tmp_path / "governor_discourse_topics",
+        gold_topic_priority_score_path=tmp_path / "topic_priority_score",
         gold_post_performance_coefficients_path=tmp_path / "post_performance_coefficients",
         gold_post_performance_predictions_path=tmp_path / "post_performance_predictions",
         checkpoints_dir=tmp_path / "checkpoints",
@@ -380,6 +431,7 @@ def test_refine_topics_with_gemini_nao_grava_no_historico_de_sentimento(monkeypa
         gold_sentiment_path=tmp_path / "governor_sentiment",
         gold_sentiment_history_path=tmp_path / "governor_sentiment_history",
         gold_discourse_topics_path=tmp_path / "governor_discourse_topics",
+        gold_topic_priority_score_path=tmp_path / "topic_priority_score",
         gold_post_performance_coefficients_path=tmp_path / "post_performance_coefficients",
         gold_post_performance_predictions_path=tmp_path / "post_performance_predictions",
         checkpoints_dir=tmp_path / "checkpoints",
@@ -399,7 +451,9 @@ def test_refine_topics_with_gemini_nao_grava_no_historico_de_sentimento(monkeypa
     monkeypatch.setattr(ModelEnricher, "write_sentiment", spy_write_sentiment)
 
     gemini_config = GeminiRefinerConfig(
-        api_key="fake-key", gold_sentiment_path=tmp_path / "governor_sentiment"
+        api_key="fake-key",
+        gold_sentiment_path=tmp_path / "governor_sentiment",
+        gold_topic_priority_score_path=tmp_path / "topic_priority_score",
     )
     refine_topics_with_gemini(result.topic_model, result.docs, result.df_comments, gemini_config)
 
@@ -432,6 +486,7 @@ def test_run_deterministic_modeling_grava_parent_run_id_como_primeira_linha_do_l
         gold_sentiment_path=tmp_path / "governor_sentiment",
         gold_sentiment_history_path=tmp_path / "governor_sentiment_history",
         gold_discourse_topics_path=tmp_path / "governor_discourse_topics",
+        gold_topic_priority_score_path=tmp_path / "topic_priority_score",
         gold_post_performance_coefficients_path=tmp_path / "post_performance_coefficients",
         gold_post_performance_predictions_path=tmp_path / "post_performance_predictions",
         checkpoints_dir=tmp_path / "checkpoints",
@@ -480,6 +535,7 @@ def test_refine_topics_with_gemini_so_reescreve_sentimento_com_run_id_novo(
         gold_sentiment_path=tmp_path / "governor_sentiment",
         gold_sentiment_history_path=tmp_path / "governor_sentiment_history",
         gold_discourse_topics_path=tmp_path / "governor_discourse_topics",
+        gold_topic_priority_score_path=tmp_path / "topic_priority_score",
         gold_post_performance_coefficients_path=tmp_path / "post_performance_coefficients",
         gold_post_performance_predictions_path=tmp_path / "post_performance_predictions",
         checkpoints_dir=tmp_path / "checkpoints",
@@ -490,7 +546,9 @@ def test_refine_topics_with_gemini_so_reescreve_sentimento_com_run_id_novo(
     )
 
     gemini_config = GeminiRefinerConfig(
-        api_key="fake-key", gold_sentiment_path=tmp_path / "governor_sentiment"
+        api_key="fake-key",
+        gold_sentiment_path=tmp_path / "governor_sentiment",
+        gold_topic_priority_score_path=tmp_path / "topic_priority_score",
     )
     refinement = refine_topics_with_gemini(
         result.topic_model, result.docs, result.df_comments, gemini_config
@@ -508,6 +566,65 @@ def test_refine_topics_with_gemini_so_reescreve_sentimento_com_run_id_novo(
 
     # governor_clusters não é tocado pelo refinamento de tópicos.
     assert (clusters_out["_run_id"] == result.run_id).all()
+
+
+def test_refine_topics_with_gemini_recalcula_score_ice_com_topico_refinado(
+    monkeypatch, tmp_path
+):
+    """ADR 0020 (Ficha 6) / issue #91: Score ICE depende de
+    `governor_sentiment` já refinado via Gemini, não do rótulo provisório do
+    estágio determinístico -- `topic_priority_score` precisa ser
+    sobrescrito com o `Name` refinado, sob o mesmo `run_id` novo do
+    refinamento."""
+    monkeypatch.setattr(
+        "src.modeling.orchestration.analyze_sentiment", _fake_analyze_sentiment
+    )
+    monkeypatch.setattr(
+        "src.modeling.orchestration.model_topics",
+        _make_fake_model_topics("0_provisorio", "0_refinado"),
+    )
+    monkeypatch.setattr(
+        "src.modeling.orchestration.apply_gemini_refinement", _fake_apply_gemini_refinement
+    )
+    _patch_post_performance_fakes(monkeypatch)
+
+    config = ModelingConfig(
+        cluster=ClusterConfig(max_evals_per_algo=10, random_state=42, max_n_clusters=5),
+        gold_clusters_path=tmp_path / "governor_clusters",
+        gold_sentiment_path=tmp_path / "governor_sentiment",
+        gold_sentiment_history_path=tmp_path / "governor_sentiment_history",
+        gold_discourse_topics_path=tmp_path / "governor_discourse_topics",
+        gold_topic_priority_score_path=tmp_path / "topic_priority_score",
+        gold_post_performance_coefficients_path=tmp_path / "post_performance_coefficients",
+        gold_post_performance_predictions_path=tmp_path / "post_performance_predictions",
+        checkpoints_dir=tmp_path / "checkpoints",
+        logs_dir=tmp_path / "logs",
+    )
+    result = run_deterministic_modeling(
+        _df_reels(), _df_comments(), _df_posts_placeholder(), _df_engagement_placeholder(), config
+    )
+
+    # Antes do refinamento: ranking provisório, com o Name "cru" do BERTopic.
+    priority_out_provisorio = DeltaTable(str(config.gold_topic_priority_score_path)).to_pandas()
+    assert (priority_out_provisorio["Name"] == "0_provisorio").all()
+    assert (priority_out_provisorio["_run_id"] == result.run_id).all()
+
+    gemini_config = GeminiRefinerConfig(
+        api_key="fake-key",
+        gold_sentiment_path=tmp_path / "governor_sentiment",
+        gold_topic_priority_score_path=tmp_path / "topic_priority_score",
+    )
+    refinement = refine_topics_with_gemini(
+        result.topic_model, result.docs, result.df_comments, gemini_config
+    )
+
+    priority_out_refinado = DeltaTable(str(gemini_config.gold_topic_priority_score_path)).to_pandas()
+
+    # Depois do refinamento: overwrite -- só o run_id/Name do refinamento
+    # sobram, o ranking provisório não persiste ao lado do refinado.
+    assert len(priority_out_refinado) == 1
+    assert (priority_out_refinado["_run_id"] == refinement.run_id).all()
+    assert (priority_out_refinado["Name"] == "0_refinado").all()
 
 
 # ---------------------------------------------------------------------------
@@ -587,6 +704,7 @@ def _config_performance(tmp_path):
         gold_sentiment_path=tmp_path / "governor_sentiment",
         gold_sentiment_history_path=tmp_path / "governor_sentiment_history",
         gold_discourse_topics_path=tmp_path / "governor_discourse_topics",
+        gold_topic_priority_score_path=tmp_path / "topic_priority_score",
         gold_post_performance_coefficients_path=tmp_path / "post_performance_coefficients",
         gold_post_performance_predictions_path=tmp_path / "post_performance_predictions",
         checkpoints_dir=tmp_path / "checkpoints",
@@ -663,6 +781,7 @@ def test_run_deterministic_modeling_degrada_sem_derrubar_pipeline_se_performance
         gold_sentiment_path=tmp_path / "governor_sentiment",
         gold_sentiment_history_path=tmp_path / "governor_sentiment_history",
         gold_discourse_topics_path=tmp_path / "governor_discourse_topics",
+        gold_topic_priority_score_path=tmp_path / "topic_priority_score",
         gold_post_performance_coefficients_path=tmp_path / "post_performance_coefficients",
         gold_post_performance_predictions_path=tmp_path / "post_performance_predictions",
         checkpoints_dir=tmp_path / "checkpoints",

@@ -72,6 +72,10 @@ GOLD_SENTIMENT_HISTORY = GOLD_DIR / "governor_sentiment_history"
 # assessoria vs. reação do público, decisão de schema já fechada na ADR).
 GOLD_DISCOURSE_TOPICS = GOLD_DIR / "governor_discourse_topics"
 GOLD_CLUSTERS = GOLD_DIR / "governor_clusters"
+# ADR 0020 (Ficha 6) / issue #91: Score ICE de priorização de tópicos de
+# comentário -- estágio pós-modelagem, mesma posição/dependência da NSM
+# (Ficha 5), ambas lendo `governor_sentiment` já pronto.
+GOLD_TOPIC_PRIORITY_SCORE = GOLD_DIR / "topic_priority_score"
 GOLD_PROFILE_CLUSTERS_ENGAGEMENT = GOLD_DIR / "governor_profile_clusters_engagement"
 # ADR 0019 (parte C): regressão de performance-por-post, uma tabela por
 # conceito (coeficientes+R² e previsão/resíduo por post), `grupo`
