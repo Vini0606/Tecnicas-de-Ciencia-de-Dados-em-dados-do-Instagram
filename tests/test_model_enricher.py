@@ -383,3 +383,59 @@ def test_write_profile_clusters_engagement_falha_com_mensagem_clara_se_faltar_co
         ModelEnricher().write_profile_clusters_engagement(
             df_incompleto, tmp_path / "governor_profile_clusters_engagement", run_id="r1"
         )
+
+
+def _growth_metrics():
+    # Mesmo formato de saída de `compute_growth_metrics` (ADR 0020, Ficha 7
+    # / issue #92) -- uma linha por perfil, com `nota`/`ilustrativo` sempre
+    # presentes (ver `src/modeling/growth_history.py`).
+    return pd.DataFrame(
+        {
+            "inputUrl": ["https://www.instagram.com/governador_a/"],
+            "valor_inicial": [100.0],
+            "valor_final": [121.0],
+            "cmgr": [0.1],
+            "cmgr_n_periodos": [3],
+            "cmgr_confiavel": [False],
+            "cmgr_motivo": [None],
+            "retencao": [0.9],
+            "retencao_n_periodos": [3],
+            "retencao_n_pares_validos": [2],
+            "retencao_confiavel": [False],
+            "retencao_motivo": [None],
+            "ilustrativo": [True],
+            "nota": ["CMGR/retencao ilustrativos: poucas execucoes acumuladas."],
+        }
+    )
+
+
+def test_write_growth_metrics_grava_uma_linha_por_perfil(tmp_path):
+    path = tmp_path / "governor_growth_metrics"
+    ModelEnricher().write_growth_metrics(_growth_metrics(), path, run_id="r1")
+
+    out = DeltaTable(str(path)).to_pandas()
+    assert len(out) == 1
+    assert out.loc[0, "cmgr"] == pytest.approx(0.1)
+    assert out.loc[0, "ilustrativo"] == True  # noqa: E712 (valor vindo do Delta, comparar como bool simples)
+
+
+def test_write_growth_metrics_falha_com_mensagem_clara_se_faltar_coluna(tmp_path):
+    df_incompleto = _growth_metrics().drop(columns=["ilustrativo"])
+
+    with pytest.raises(ValueError, match="ilustrativo"):
+        ModelEnricher().write_growth_metrics(
+            df_incompleto, tmp_path / "governor_growth_metrics", run_id="r1"
+        )
+
+
+def test_write_growth_metrics_e_overwrite_por_padrao(tmp_path):
+    # Snapshot recalculável, não histórico incremental -- ver docstring de
+    # `write_growth_metrics`. Uma segunda escrita substitui a primeira em
+    # vez de acumular.
+    path = tmp_path / "governor_growth_metrics"
+    ModelEnricher().write_growth_metrics(_growth_metrics(), path, run_id="r1")
+    ModelEnricher().write_growth_metrics(_growth_metrics(), path, run_id="r2")
+
+    out = DeltaTable(str(path)).to_pandas()
+    assert len(out) == 1
+    assert out.loc[0, "_run_id"] == "r2"
