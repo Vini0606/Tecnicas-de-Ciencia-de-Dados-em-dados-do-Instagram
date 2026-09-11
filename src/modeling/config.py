@@ -202,6 +202,10 @@ class ModelingConfig:
     # ADR 0020 (Ficha 4) / issue #89: tabela própria, separada de
     # `governor_sentiment` -- ver `GOLD_DISCOURSE_TOPICS_SCHEMA`.
     gold_discourse_topics_path: Path = settings.GOLD_DISCOURSE_TOPICS
+    # ADR 0020 (Ficha 6) / issue #91: Score ICE de priorização de tópicos de
+    # comentário, estágio pós-modelagem (mesma posição/dependência da NSM,
+    # Ficha 5) -- ver `TopicPriorityScorer`.
+    gold_topic_priority_score_path: Path = settings.GOLD_TOPIC_PRIORITY_SCORE
     gold_post_performance_coefficients_path: Path = settings.GOLD_POST_PERFORMANCE_COEFFICIENTS
     gold_post_performance_predictions_path: Path = settings.GOLD_POST_PERFORMANCE_PREDICTIONS
     checkpoints_dir: Path = settings.MODEL_CHECKPOINTS_DIR
@@ -216,3 +220,8 @@ class GeminiRefinerConfig:
     sleep_seconds: int = 60
     sleep_every_n_topics: int = 10
     gold_sentiment_path: Path = settings.GOLD_SENTIMENT
+    # ADR 0020 (Ficha 6) / issue #91: `topic_priority_score` é recalculado
+    # junto do refinamento via Gemini (ver `refine_topics_with_gemini`) --
+    # Score ICE depende de `governor_sentiment` já refinado, não dos
+    # rótulos provisórios do estágio determinístico.
+    gold_topic_priority_score_path: Path = settings.GOLD_TOPIC_PRIORITY_SCORE

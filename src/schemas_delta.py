@@ -419,6 +419,37 @@ GOLD_POST_PERFORMANCE_PREDICTIONS_SCHEMA = pa.schema(
     ]
 )
 
+# ADR 0020 (Ficha 6) / issue #91: `topic_priority_score` -- Score ICE
+# (Impacto x Confiança x Facilidade) de priorização de TÓPICOS DE COMENTÁRIO
+# (`governor_sentiment`, fonte "comentario"; ver `TopicPriorityScorer`), uma
+# linha por tópico. Não confundir com `GOLD_DISCOURSE_TOPICS_SCHEMA` (fala da
+# assessoria) -- Score ICE é só sobre o que o público comenta, para responder
+# "sobre o que o governador deveria produzir a seguir". `facilidade` é
+# gravada como coluna própria (constante nesta v1, ver
+# `TopicPriorityScorer.FACILIDADE_V1`) em vez de só embutida no `score`, para
+# que o dashboard (issue futura de Frente 2) possa mostrar as três
+# componentes separadamente, não só o produto final.
+GOLD_TOPIC_PRIORITY_SCORE_SCHEMA = pa.schema(
+    [
+        pa.field("Topic", pa.int64(), nullable=False),
+        pa.field("Name", pa.string(), nullable=True),
+        pa.field("n_comentarios", pa.int64(), nullable=False),
+        # Proxy de visibilidade do tópico (soma de likesCount+repliesCount
+        # dos comentários do tópico) -- NÃO é alcance/views literal, que não
+        # existe por comentário em `governor_sentiment`. Ver docstring de
+        # `TopicPriorityScorer` para a justificativa completa da escolha.
+        pa.field("alcance_topico", pa.int64(), nullable=False),
+        pa.field("alcance_normalizado", pa.float64(), nullable=False),
+        pa.field("proporcao_sentimento_positivo", pa.float64(), nullable=False),
+        pa.field("confianca", pa.float64(), nullable=False),
+        pa.field("impacto", pa.float64(), nullable=False),
+        pa.field("facilidade", pa.float64(), nullable=False),
+        pa.field("score", pa.float64(), nullable=False),
+        pa.field("_run_id", pa.string(), nullable=False),
+        pa.field("_generated_at", pa.timestamp("us", tz="UTC"), nullable=False),
+    ]
+)
+
 # ADR 0020 (Ficha 8) / issue #93: `governor_ugc_mentions` -- UGC de criação
 # ("Creating" do COBRA). Grão de UMA LINHA POR POST DE UGC, não agregado por
 # governador: a agregação (contagem, engajamento médio, % orgânico vs. pago)
