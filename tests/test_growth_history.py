@@ -10,6 +10,9 @@ Seams testados (funções puras, sem I/O):
   mês, a partir do histórico de sentimento.
 - `compute_retention`: taxa média de retenção período-a-período sobre a
   série mensal já agregada.
+- `compute_growth_metrics`: combinação de CMGR + retenção numa linha por
+  perfil, incluindo o sinalizador `ilustrativo`/`nota` consumido pelo
+  dashboard/TCC (issue #92, Testing Decision 3).
 """
 
 from __future__ import annotations
@@ -23,6 +26,7 @@ from src.modeling.growth_history import (
     MIN_PERIODS_CONFIAVEL,
     aggregate_monthly,
     compute_cmgr,
+    compute_growth_metrics,
     compute_retention,
     positive_share_monthly,
 )
@@ -224,3 +228,82 @@ def test_compute_retention_sinaliza_ilustrativo_com_poucas_execucoes_acumuladas(
     linha = resultado.iloc[0]
     assert not math.isnan(linha["retencao_media"])
     assert bool(linha["confiavel"]) is False
+
+
+# ---------------------------------------------------------------------------
+# compute_growth_metrics (combinador -- Testing Decision 3 da issue #92: o
+# sinalizador de confiabilidade precisa ser testado no formato que o
+# dashboard/TCC efetivamente consomem, não só nas funções internas)
+# ---------------------------------------------------------------------------
+
+
+def _engagement_history(linhas: list[tuple[str, str, float]]) -> pd.DataFrame:
+    return pd.DataFrame(linhas, columns=["inputUrl", "_generated_at", "followersCount"])
+
+
+def _sentiment_history(linhas: list[tuple[str, str, str]]) -> pd.DataFrame:
+    return pd.DataFrame(linhas, columns=["inputUrl", "_generated_at", "sentiment_label"])
+
+
+def _meses_2026(n: int) -> list[str]:
+    return [f"2026-{mes:02d}-01" for mes in range(1, n + 1)]
+
+
+def test_compute_growth_metrics_marca_ilustrativo_com_poucas_execucoes():
+    meses = _meses_2026(2)  # abaixo de MIN_PERIODS_CONFIAVEL
+    df_engagement = _engagement_history(
+        [("gov_a", mes, 100.0 * (1.1**i)) for i, mes in enumerate(meses)]
+    )
+    df_sentiment = _sentiment_history([("gov_a", mes, "positive") for mes in meses])
+
+    resultado = compute_growth_metrics(df_engagement, df_sentiment).set_index("inputUrl")
+
+    linha = resultado.loc["gov_a"]
+    assert bool(linha["ilustrativo"]) is True
+    assert "ilustrativos" in linha["nota"]
+
+
+def test_compute_growth_metrics_marca_confiavel_ao_atingir_o_limiar_nas_duas_metricas():
+    meses = _meses_2026(MIN_PERIODS_CONFIAVEL)
+    df_engagement = _engagement_history(
+        [("gov_a", mes, 100.0 * (1.1**i)) for i, mes in enumerate(meses)]
+    )
+    df_sentiment = _sentiment_history([("gov_a", mes, "positive") for mes in meses])
+
+    resultado = compute_growth_metrics(df_engagement, df_sentiment).set_index("inputUrl")
+
+    linha = resultado.loc["gov_a"]
+    assert bool(linha["cmgr_confiavel"]) is True
+    assert bool(linha["retencao_confiavel"]) is True
+    assert bool(linha["ilustrativo"]) is False
+    # `nota` reflete o estado real -- não é o mesmo texto fixo do caso
+    # ilustrativo (spec: a ressalva precisa acompanhar o sinalizador, não
+    # ser uma string estática independente de `ilustrativo`).
+    assert "ilustrativos" not in linha["nota"]
+    assert "confiaveis" in linha["nota"]
+
+
+def test_compute_growth_metrics_perfil_presente_so_em_uma_das_tabelas_nao_quebra():
+    # gov_c só aparece em governor_engagement_history -- plausível quando
+    # governor_sentiment_history ainda não acumulou nenhuma execução para
+    # aquele perfil. O merge outer não pode deixar NaN em colunas
+    # `nullable=False` do Gold (cmgr_n_periodos/retencao_n_periodos/
+    # retencao_n_pares_validos).
+    meses = _meses_2026(MIN_PERIODS_CONFIAVEL)
+    df_engagement = _engagement_history(
+        [("gov_c", mes, 100.0 * (1.1**i)) for i, mes in enumerate(meses)]
+    )
+    df_sentiment = _sentiment_history([])
+
+    resultado = compute_growth_metrics(df_engagement, df_sentiment).set_index("inputUrl")
+
+    linha = resultado.loc["gov_c"]
+    assert linha["retencao_n_periodos"] == 0
+    assert linha["retencao_n_pares_validos"] == 0
+    assert math.isnan(linha["retencao"])
+    assert bool(linha["retencao_confiavel"]) is False
+    assert bool(linha["ilustrativo"]) is True
+    # As colunas de contagem precisam ser inteiras (0), não NaN/float --
+    # é isso que caberia em `nullable=False` na escrita Delta.
+    assert resultado["retencao_n_periodos"].dtype.kind == "i"
+    assert resultado["retencao_n_pares_validos"].dtype.kind == "i"

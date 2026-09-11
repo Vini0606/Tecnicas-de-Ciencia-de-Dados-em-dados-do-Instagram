@@ -142,7 +142,24 @@ def compute_cmgr(
     (ver limitação documentada no topo do módulo), mesmo quando o CMGR foi
     calculável -- histórico curto não deixa de ser ilustrativo só porque a
     fórmula rodou sem erro.
-    """
+
+    Com `df_monthly` vazio (nenhum grupo), retorna um DataFrame vazio mas
+    com as colunas certas -- sem isso, `pd.DataFrame([])` perderia até a
+    coluna `group_col`, quebrando um merge posterior (ver
+    `compute_growth_metrics`, chamado com uma das duas tabelas de origem
+    totalmente vazia)."""
+    colunas_saida = [
+        group_col,
+        "valor_inicial",
+        "valor_final",
+        "n_periodos",
+        "cmgr",
+        "confiavel",
+        "motivo",
+    ]
+    if df_monthly.empty:
+        return pd.DataFrame(columns=colunas_saida)
+
     linhas = []
     for group_value, group_df in df_monthly.groupby(group_col):
         group_df = group_df.sort_values(PERIOD_COL)
@@ -204,7 +221,21 @@ def compute_retention(
 
     Mesma semântica de `confiavel` de `compute_cmgr` -- ver limitação
     documentada no topo do módulo.
-    """
+
+    Com `df_monthly` vazio (nenhum grupo), retorna um DataFrame vazio mas
+    com as colunas certas -- mesmo motivo de `compute_cmgr`: preservar
+    `group_col` para não quebrar o merge em `compute_growth_metrics`."""
+    colunas_saida = [
+        group_col,
+        "n_periodos",
+        "n_pares_validos",
+        "retencao_media",
+        "confiavel",
+        "motivo",
+    ]
+    if df_monthly.empty:
+        return pd.DataFrame(columns=colunas_saida)
+
     linhas = []
     for group_value, group_df in df_monthly.groupby(group_col):
         group_df = group_df.sort_values(PERIOD_COL)
@@ -255,7 +286,16 @@ def compute_growth_metrics(
 
     `ilustrativo` é `True` sempre que qualquer uma das duas métricas não
     for `confiavel` -- ver limitação documentada no topo do módulo. `nota`
-    carrega a ressalva textual pronta para exibição (dashboard/TCC).
+    carrega a ressalva textual pronta para exibição (dashboard/TCC),
+    condicionada a `ilustrativo` -- não é um texto fixo: um perfil que já
+    atingiu o limiar de confiabilidade recebe uma nota diferente, não a
+    mesma ressalva de "poucas execuções" para todo mundo.
+
+    Um perfil pode existir em só uma das duas tabelas de origem (ex.:
+    `governor_sentiment_history` ainda sem nenhuma execução para aquele
+    perfil) -- o merge é `outer` de propósito, e as colunas de contagem do
+    lado ausente são preenchidas com 0 (não `NaN`) para caber no contrato
+    `nullable=False` de `GOLD_GROWTH_METRICS_SCHEMA`.
     """
     df_engagement_monthly = aggregate_monthly(
         df_engagement_history, value_col="followersCount", group_col=group_col, agg="last"
@@ -290,13 +330,38 @@ def compute_growth_metrics(
     )
 
     combined = pd.merge(df_cmgr, df_retencao, on=group_col, how="outer")
-    combined["cmgr_confiavel"] = combined["cmgr_confiavel"].fillna(False)
-    combined["retencao_confiavel"] = combined["retencao_confiavel"].fillna(False)
+
+    # Um perfil pode faltar de um dos dois lados do merge (ex.: ainda sem
+    # nenhuma execução em `governor_sentiment_history`) -- as colunas de
+    # contagem viram NaN nesse caso, o que quebraria o contrato
+    # `nullable=False` de `GOLD_GROWTH_METRICS_SCHEMA` (`*_n_periodos`,
+    # `retencao_n_pares_validos`). 0 execuções é a leitura correta, não uma
+    # ausência a esconder.
+    # `pd.to_numeric`/`infer_objects` ANTES do `fillna` evita o
+    # `FutureWarning` de downcasting do pandas: quando o lado ausente do
+    # merge deixa a coluna inteira como `object` (nenhuma linha real
+    # chegou a preenchê-la), `fillna` num dtype `object` é o que dispara o
+    # aviso -- convertendo o dtype primeiro, o `fillna` já opera num
+    # dtype numérico/booleano nativo.
+    for coluna in ("cmgr_n_periodos", "retencao_n_periodos", "retencao_n_pares_validos"):
+        combined[coluna] = pd.to_numeric(combined[coluna], errors="coerce").fillna(0).astype("int64")
+    combined["cmgr_confiavel"] = (combined["cmgr_confiavel"] == True).astype(bool)  # noqa: E712
+    combined["retencao_confiavel"] = (combined["retencao_confiavel"] == True).astype(bool)  # noqa: E712
+
     combined["ilustrativo"] = ~(combined["cmgr_confiavel"] & combined["retencao_confiavel"])
-    combined["nota"] = (
-        "CMGR/retencao ilustrativos: poucas execucoes de modelagem acumuladas ate o "
-        "momento (ver ADR 0020, Ficha 7). Nao usar como conclusao definitiva de "
-        "crescimento -- reavaliar conforme mais execucoes reais do pipeline se "
-        "acumularem."
+    combined["nota"] = combined["ilustrativo"].map(
+        {
+            True: (
+                "CMGR/retencao ilustrativos: poucas execucoes de modelagem acumuladas ate o "
+                "momento (ver ADR 0020, Ficha 7). Nao usar como conclusao definitiva de "
+                "crescimento -- reavaliar conforme mais execucoes reais do pipeline se "
+                "acumularem."
+            ),
+            False: (
+                "CMGR/retencao confiaveis: numero de execucoes acumuladas ja atinge o "
+                "limiar de confiabilidade documentado (MIN_PERIODS_CONFIAVEL, ADR 0020, "
+                "Ficha 7)."
+            ),
+        }
     )
     return combined

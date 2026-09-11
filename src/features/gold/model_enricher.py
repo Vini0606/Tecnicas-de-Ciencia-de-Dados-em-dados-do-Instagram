@@ -223,7 +223,6 @@ class ModelEnricher:
         df_growth_metrics: pd.DataFrame,
         path: Path | str,
         run_id: str,
-        mode: str = "overwrite",
     ) -> None:
         """Grava CMGR/retenção por perfil (ADR 0020, Ficha 7 / issue #92).
         Espera as colunas produzidas por
@@ -232,11 +231,12 @@ class ModelEnricher:
         retencao/retencao_n_periodos/retencao_n_pares_validos/
         retencao_confiavel/retencao_motivo, ilustrativo, nota.
 
-        `mode="overwrite"` por padrão (ao contrário de
-        `governor_*_history`): esta tabela é um snapshot recalculável a
-        qualquer momento a partir do histórico já acumulado, não um
-        registro incremental por execução -- não há motivo para acumular
-        uma linha por execução deste módulo por perfil."""
+        Sempre `mode="overwrite"` (ao contrário de `governor_*_history`,
+        sem parâmetro para o chamador escolher): esta tabela é um snapshot
+        recalculável a qualquer momento a partir do histórico já
+        acumulado, não um registro incremental por execução -- não há um
+        segundo caso de uso real (nenhum chamador precisa de "append")
+        que justifique expor a escolha."""
         required = {
             "inputUrl",
             "cmgr",
@@ -258,4 +258,4 @@ class ModelEnricher:
         df = df_growth_metrics.copy()
         df["_run_id"] = run_id
         df["_generated_at"] = datetime.now(timezone.utc)
-        write_delta(path, df, GOLD_GROWTH_METRICS_SCHEMA, mode=mode)
+        write_delta(path, df, GOLD_GROWTH_METRICS_SCHEMA, mode="overwrite")
