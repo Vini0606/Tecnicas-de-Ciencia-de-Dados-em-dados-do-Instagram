@@ -76,6 +76,34 @@ class DeltaRepository(DataRepository):
     def load_profile_clusters_engagement(self) -> pd.DataFrame:
         return self._load(_join(self._gold_dir, "governor_profile_clusters_engagement"))
 
+    def load_discourse_topics(self) -> pd.DataFrame:
+        """Tópicos do discurso oficial (legenda+transcrição), BERTopic
+        separado do de comentários -- ADR 0020 (Ficha 4) / issue #89."""
+        return self._load(_join(self._gold_dir, "governor_discourse_topics"))
+
+    def load_topic_priority_score(self) -> pd.DataFrame:
+        """Score ICE de priorização de tópicos de comentário -- ADR 0020
+        (Ficha 6) / issue #91. Uma linha por tópico, ranking GLOBAL (não por
+        governador)."""
+        return self._load(_join(self._gold_dir, "topic_priority_score"))
+
+    def load_nsm(self) -> pd.DataFrame:
+        """North Star Metric (engajamento qualificado por perfil) -- ADR 0020
+        (Ficha 5) / issue #90."""
+        return self._load(_join(self._gold_dir, "governor_nsm"))
+
+    def load_growth_metrics(self) -> pd.DataFrame:
+        """CMGR e retenção sobre o histórico acumulado -- ADR 0020 (Ficha 7)
+        / issue #92. Resultado declaradamente ilustrativo enquanto pouco
+        histórico tiver se acumulado (ver `ilustrativo`/`nota`)."""
+        return self._load(_join(self._gold_dir, "governor_growth_metrics"))
+
+    def load_ugc_mentions(self) -> pd.DataFrame:
+        """UGC de criação ("Creating" do COBRA) -- ADR 0020 (Ficha 8) / issue
+        #93. Uma linha por post de UGC; agregação por governador é uma view
+        (`GovernorUGCAggregator.aggregate_by_governor`), não persistida."""
+        return self._load(_join(self._gold_dir, "governor_ugc_mentions"))
+
     def load_post_performance_coefficients(self) -> pd.DataFrame:
         return self._load(_join(self._gold_dir, "post_performance_coefficients"))
 

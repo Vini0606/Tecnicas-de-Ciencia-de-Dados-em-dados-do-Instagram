@@ -18,10 +18,12 @@ from src.dashboard.filters import (
 )
 from src.dashboard.loaders import (
     load_comments,
+    load_discourse_topics,
     load_engagement_history,
     load_profiles,
     load_reels,
     load_sentiment_history,
+    load_topic_priority_score,
 )
 from src.dashboard.recommendations import compute_recommendations
 
@@ -71,6 +73,11 @@ df_sentiment = load_comments()
 df_sentiment_history = load_sentiment_history()
 df_reels = load_reels()
 df_profile_clusters = build_profile_cluster_directory()
+# ADR 0020 (Ficha 4/Ficha 6) / issue #94: regra nova "tema de alta
+# prioridade ainda não abordado" -- Score ICE (topic_priority_score) vs. o
+# que o próprio governador já cobriu no discurso oficial (governor_discourse_topics).
+df_topic_priority = load_topic_priority_score()
+df_discourse_topics = load_discourse_topics()
 
 achados = compute_recommendations(
     governador_selecionado,
@@ -80,6 +87,8 @@ achados = compute_recommendations(
     df_sentiment_history,
     df_reels,
     df_profile_clusters,
+    df_topic_priority=df_topic_priority,
+    df_discourse_topics=df_discourse_topics,
 )
 
 if not achados:

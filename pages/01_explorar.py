@@ -16,7 +16,9 @@ from src.dashboard.filters import (
     build_governor_directory,
     build_profile_cluster_directory,
     enrich_with_governor_metadata,
+    enrich_with_nsm,
     enrich_with_profile_cluster,
+    enrich_with_ugc_volume,
     render_group_filters,
     render_unmatched_warning,
 )
@@ -44,6 +46,12 @@ filters = render_group_filters(governor_directory, cluster_membership, profile_c
 
 df_profiles_enriched = enrich_with_governor_metadata(load_profiles())
 df_profiles_enriched = enrich_with_profile_cluster(df_profiles_enriched)
+# ADR 0020 (Frente 2) / issue #94: nsm/volume_ugc entram automaticamente em
+# `numeric_cols` abaixo (derivado de `select_dtypes(np.number)`) quando as
+# tabelas fonte existirem -- nenhum código novo além deste enrich, mesmo
+# raciocínio já documentado na especificação de dashboard.
+df_profiles_enriched = enrich_with_nsm(df_profiles_enriched)
+df_profiles_enriched = enrich_with_ugc_volume(df_profiles_enriched)
 render_unmatched_warning(df_profiles_enriched)
 df_profiles = apply_group_filters(df_profiles_enriched, filters, cluster_membership)
 
@@ -99,7 +107,27 @@ else:
         # Gera o gráfico apenas se as variáveis dos eixos foram selecionadas
         if x_axis and y_axis:
             with st.spinner("Gerando seu gráfico..."):
-                fig = plot_scatter(df_profiles, x=x_axis, y=y_axis, height=500)
+                # ADR 0020 (Frente 2) / issue #94: colore pelo cluster de
+                # perfil por engajamento (Fase 2, já importado/usado nos
+                # filtros desta página) quando disponível -- permite ver
+                # visualmente se o cluster se separa nas variáveis
+                # exploradas. Convertido para `str` pra virar cor categórica
+                # (não uma escala contínua sobre um id de cluster, que não
+                # tem ordem).
+                df_scatter = df_profiles
+                color_col = None
+                if (
+                    "cluster_perfil_engajamento" in df_profiles.columns
+                    and df_profiles["cluster_perfil_engajamento"].notna().any()
+                ):
+                    color_col = "cluster_perfil_engajamento"
+                    df_scatter = df_profiles.copy()
+                    df_scatter[color_col] = (
+                        df_scatter[color_col].astype("Int64").astype(str)
+                    )
+                fig = plot_scatter(
+                    df_scatter, x=x_axis, y=y_axis, height=500, color=color_col
+                )
                 st.plotly_chart(fig, use_container_width=True)
         else:
             st.warning("Por favor, selecione as variáveis para os eixos X e Y.")

@@ -7,6 +7,7 @@ from src.visualization.charts import (
     plot_engagement_quadrant_matrix,
     plot_engagement_trend,
     plot_engagement_trend_with_group_context,
+    plot_scatter,
     plot_sentiment_diverging_bar,
     plot_sentiment_trend,
 )
@@ -269,3 +270,29 @@ def test_plot_engagement_quadrant_matrix_destaca_governador_selecionado():
 
     trace_contexto = next(trace for trace in fig.data if trace.name != "Governador B")
     assert len(trace_contexto.x) == 2  # gov_a e gov_c, sem o destacado
+
+
+def _df_scatter():
+    return pd.DataFrame(
+        {
+            "x": [1, 2, 3, 4],
+            "y": [10, 20, 30, 40],
+            "cluster_perfil_engajamento": ["0", "0", "1", "1"],
+        }
+    )
+
+
+def test_plot_scatter_returns_figure_sem_color():
+    fig = plot_scatter(_df_scatter(), x="x", y="y")
+    assert isinstance(fig, go.Figure)
+    # Sem `color`, plotly agrupa tudo numa única trace (issue #94: não muda
+    # o comportamento pré-existente quando `color` não é passado).
+    assert len(fig.data) == 1
+
+
+def test_plot_scatter_com_color_uma_trace_por_categoria():
+    fig = plot_scatter(
+        _df_scatter(), x="x", y="y", color="cluster_perfil_engajamento"
+    )
+    trace_names = {trace.name for trace in fig.data}
+    assert trace_names == {"0", "1"}

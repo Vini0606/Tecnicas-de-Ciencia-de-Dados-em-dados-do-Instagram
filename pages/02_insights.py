@@ -26,8 +26,11 @@ from src.dashboard.filters import (
 from src.dashboard.loaders import (
     load_clusters,
     load_comments,
+    load_discourse_topics,
+    load_posts,
     load_reels,
     load_sentiment_history,
+    load_topic_priority_score,
 )
 from src.visualization.charts import (
     plot_sentiment_diverging_bar,
@@ -88,8 +91,51 @@ universo_ativo = governor_universe_filtrado["inputUrl"].tolist()
 df_filtrado_comments = select_governor_rows(df_comments, governador_selecionado, universo_ativo)
 df_filtrado_reels = select_governor_rows(df_reels, governador_selecionado, universo_ativo)
 
+# ADR 0020 (Ficha 2) / issue #94: posts do Feed, para "Padrões de conteúdo
+# (Reels e Feed)" abaixo -- `load_posts()` degrada para DataFrame vazio se
+# `posts_clean` ainda não existir, então este filtro nunca quebra a página.
+df_posts = load_posts()
+df_filtrado_posts = (
+    select_governor_rows(df_posts, governador_selecionado, universo_ativo)
+    if not df_posts.empty
+    else pd.DataFrame()
+)
+
 # --- PÁGINA PRINCIPAL ---
 st.title("💡 Insights — Governadores do Brasil")
+st.markdown("---")
+
+# ADR 0020 (Ficha 6) / issue #91, seção adicionada pela issue #94: Score ICE
+# de priorização de tópicos -- ranking GLOBAL de tópicos de COMENTÁRIO (não
+# por governador selecionado), por isso fica FORA do bloco condicionado a
+# `df_filtrado_comments` abaixo (mesma decisão da especificação de
+# dashboard: "tabela top temas a produzir" vale para a base toda, não muda
+# com o seletor individual de governador).
+st.markdown(
+    "#### Prioridade de Temas (o que produzir a seguir)",
+    help=(
+        "Score ICE = Impacto × Confiança × Facilidade, 100% automatizado -- "
+        "ADR 0020, Ficha 6. Ranking global de tópicos de comentário, não "
+        "filtrado pelo governador selecionado na barra lateral."
+    ),
+)
+df_topic_priority = load_topic_priority_score()
+if df_topic_priority.empty:
+    st.info(
+        "`topic_priority_score` ainda não existe. Rode `scripts/run_modeling.py` "
+        "para gerá-la."
+    )
+else:
+    colunas_score = [
+        c
+        for c in ["Name", "impacto", "confianca", "facilidade", "score"]
+        if c in df_topic_priority.columns
+    ]
+    st.dataframe(
+        df_topic_priority.sort_values("score", ascending=False)[colunas_score],
+        hide_index=True,
+        width="stretch",
+    )
 st.markdown("---")
 
 if df_filtrado_comments.empty:
@@ -187,6 +233,7 @@ else:
             )
 
     st.markdown("#### Tópicos mais frequentes")
+    df_topicos = None
     if tem_modelagem and "Name" in df_filtrado_comments.columns:
         df_topicos = (
             df_filtrado_comments["Name"].value_counts().reset_index(name="count")
@@ -205,9 +252,68 @@ else:
             "--run-id <ID>` para refinar os rótulos) para popular `governor_sentiment`."
         )
 
+    # ADR 0020 (Ficha 4) / issue #89, seção adicionada pela issue #94:
+    # "Discurso vs. Reação" -- do que a assessoria FALA (governor_discourse_topics,
+    # BERTopic sobre legenda+transcrição) lado a lado com do que o PÚBLICO fala
+    # (df_topicos, já calculado acima a partir dos comentários deste governador).
     st.markdown(
-        "#### Padrões de conteúdo dos reels",
-        help="Clusterização automática (AutoClusterHPO) por engajamento e duração do reel.",
+        "#### Discurso vs. Reação",
+        help=(
+            "Contraste entre o que a assessoria produz (legendas/"
+            "transcrições) e o que o público comenta -- ADR 0020, Ficha 4."
+        ),
+    )
+    df_discourse_topics = load_discourse_topics()
+    col_discurso, col_reacao = st.columns(2)
+    with col_discurso:
+        st.markdown("##### Do que a assessoria fala")
+        if df_discourse_topics.empty:
+            st.info(
+                "`governor_discourse_topics` ainda não existe. Rode "
+                "`scripts/run_modeling.py` (estágio de discurso) para gerá-la."
+            )
+        else:
+            df_discurso_filtrado = select_governor_rows(
+                df_discourse_topics, governador_selecionado, universo_ativo
+            )
+            if df_discurso_filtrado.empty or "Name" not in df_discurso_filtrado.columns:
+                st.info("Nenhum tópico de discurso para este governador ainda.")
+            else:
+                df_discurso_topicos = (
+                    df_discurso_filtrado["Name"].value_counts().reset_index(name="count")
+                )
+                df_discurso_topicos.columns = ["Name", "count"]
+                st.plotly_chart(
+                    plot_top_n_bar(
+                        df_discurso_topicos,
+                        x="count",
+                        y="Name",
+                        title="Top tópicos do discurso oficial",
+                    ),
+                    width="stretch",
+                )
+    with col_reacao:
+        st.markdown("##### Do que o público fala")
+        if df_topicos is None:
+            st.info(
+                "Tópicos de comentário ainda não gerados para este "
+                "governador -- ver seção 'Tópicos mais frequentes' acima."
+            )
+        else:
+            st.plotly_chart(
+                plot_top_n_bar(
+                    df_topicos, x="count", y="Name", title="Top tópicos de comentário"
+                ),
+                width="stretch",
+            )
+
+    st.markdown(
+        "#### Padrões de conteúdo (Reels e Feed)",
+        help=(
+            "Clusterização automática (AutoClusterHPO) por engajamento e "
+            "duração/formato do post -- `content_type` discrimina Reels de "
+            "posts do Feed (ADR 0020, Ficha 2)."
+        ),
     )
     if df_clusters.empty:
         st.info(
@@ -215,15 +321,45 @@ else:
             "Rode `scripts/run_modeling.py` para gerá-la."
         )
     else:
-        df_reels_com_cluster = df_filtrado_reels.merge(
+        # Reels + posts do Feed juntos (mesma tabela `governor_clusters`,
+        # discriminada por `content_type` -- ADR 0020, Ficha 2). Só `id`/
+        # `inputUrl` importam aqui, o resto do join vem de `df_clusters`.
+        partes_conteudo = [
+            df[["id", "inputUrl"]]
+            for df in (df_filtrado_reels, df_filtrado_posts)
+            if not df.empty
+        ]
+        df_conteudo = (
+            pd.concat(partes_conteudo, ignore_index=True)
+            if partes_conteudo
+            else pd.DataFrame(columns=["id", "inputUrl"])
+        )
+        df_conteudo_com_cluster = df_conteudo.merge(
             df_clusters, left_on="id", right_on="id_reel", how="inner"
         )
-        if df_reels_com_cluster.empty:
-            st.info("Nenhum reel deste governador tem cluster atribuído.")
+        if df_conteudo_com_cluster.empty:
+            st.info("Nenhum post/reel deste governador tem cluster atribuído.")
         else:
+            content_type_options = sorted(
+                df_conteudo_com_cluster["content_type"].dropna().unique().tolist()
+            )
+            # Toggle opcional (spec: só relevante quando há mais de um
+            # content_type pra filtrar -- com só "reel" disponível ainda
+            # hoje, o toggle nem aparece, sem quebrar nada).
+            content_type_filtro = "Todos"
+            if len(content_type_options) > 1:
+                content_type_filtro = st.radio(
+                    "Filtrar por formato:",
+                    options=["Todos"] + content_type_options,
+                    horizontal=True,
+                    key="insights_content_type_filtro",
+                )
+            df_exibir = df_conteudo_com_cluster
+            if content_type_filtro != "Todos":
+                df_exibir = df_exibir[df_exibir["content_type"] == content_type_filtro]
             st.dataframe(
-                df_reels_com_cluster.groupby("cluster_label")
-                .agg(qtd_reels=("id_reel", "nunique"), algoritmo=("cluster_algo", "first"))
+                df_exibir.groupby(["content_type", "cluster_label"])
+                .agg(qtd_posts=("id_reel", "nunique"), algoritmo=("cluster_algo", "first"))
                 .reset_index()
             )
 

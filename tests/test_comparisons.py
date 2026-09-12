@@ -6,6 +6,7 @@ from src.dashboard.comparisons import (
     compute_engagement_quadrants,
     compute_execution_gap,
     compute_governor_comparison,
+    compute_raw_vs_qualified_comparison,
 )
 
 METRICS = ["followersCount", "TOTAL ENGAJAMENTO", "% ENGAJAMENTO"]
@@ -253,3 +254,82 @@ def test_execution_gap_governador_sem_posts_de_um_grupo_nao_inventa_linha():
 
     assert list(out["grupo"]) == ["estatico"]
     assert out.set_index("grupo").loc["estatico", "residuo_medio"] == pytest.approx(0.05)
+
+
+# ADR 0020 (Frente 2) / issue #94: "Engajamento Bruto vs. Qualificado"
+# (`03_performance.py`) -- prova de que o ranking por NSM pode inverter a
+# ordem do ranking por engajamento bruto (critério de aceite explícito da
+# especificação de dashboard).
+def _df_engagement_bruto_vs_qualificado():
+    return pd.DataFrame(
+        {
+            "inputUrl": [
+                "https://www.instagram.com/governador_a/",
+                "https://www.instagram.com/governador_b/",
+                "https://www.instagram.com/governador_c/",
+            ],
+            # Bruto: A > B > C. Qualificado (nsm): C > B > A -- ordem
+            # totalmente invertida, caso real de mudança de ranking.
+            "TOTAL ENGAJAMENTO": [900, 500, 100],
+            "nsm": [0.1, 0.5, 0.9],
+        }
+    )
+
+
+def test_raw_vs_qualified_inverte_ranking_quando_nsm_discorda_do_bruto():
+    out = compute_raw_vs_qualified_comparison(
+        _df_engagement_bruto_vs_qualificado(), "https://www.instagram.com/governador_a/"
+    )
+
+    assert out is not None
+    assert out.rank_bruto == 1
+    assert out.rank_qualificado == 3
+    assert out.mudou_posicao is True
+    assert out.posicoes_ganhas == 1 - 3
+
+
+def test_raw_vs_qualified_sem_mudanca_quando_rankings_coincidem():
+    df = pd.DataFrame(
+        {
+            "inputUrl": [
+                "https://www.instagram.com/governador_a/",
+                "https://www.instagram.com/governador_b/",
+            ],
+            "TOTAL ENGAJAMENTO": [900, 100],
+            "nsm": [0.9, 0.1],
+        }
+    )
+    out = compute_raw_vs_qualified_comparison(df, "https://www.instagram.com/governador_a/")
+
+    assert out is not None
+    assert out.rank_bruto == out.rank_qualificado == 1
+    assert out.mudou_posicao is False
+    assert out.posicoes_ganhas == 0
+
+
+def test_raw_vs_qualified_retorna_none_com_dataframe_vazio():
+    out = compute_raw_vs_qualified_comparison(
+        pd.DataFrame(columns=["inputUrl", "TOTAL ENGAJAMENTO", "nsm"]),
+        "https://www.instagram.com/qualquer/",
+    )
+    assert out is None
+
+
+def test_raw_vs_qualified_retorna_none_sem_coluna_qualificada():
+    out = compute_raw_vs_qualified_comparison(
+        pd.DataFrame(
+            {
+                "inputUrl": ["https://www.instagram.com/governador_a/"],
+                "TOTAL ENGAJAMENTO": [900],
+            }
+        ),
+        "https://www.instagram.com/governador_a/",
+    )
+    assert out is None
+
+
+def test_raw_vs_qualified_retorna_none_governador_sem_linha_correspondente():
+    out = compute_raw_vs_qualified_comparison(
+        _df_engagement_bruto_vs_qualificado(), "https://www.instagram.com/nao_existe/"
+    )
+    assert out is None
