@@ -33,6 +33,7 @@ adicional. O motivo de um `nan` fica sempre em `motivo`.
 from __future__ import annotations
 
 import math
+from itertools import pairwise
 
 import pandas as pd
 
@@ -244,7 +245,7 @@ def compute_retention(
 
         ratios = [
             min(atual / anterior, 1.0)
-            for anterior, atual in zip(valores, valores[1:])
+            for anterior, atual in pairwise(valores)
             if anterior is not None and not pd.isna(anterior) and anterior > 0
         ]
 
@@ -345,8 +346,12 @@ def compute_growth_metrics(
     # dtype numérico/booleano nativo.
     for coluna in ("cmgr_n_periodos", "retencao_n_periodos", "retencao_n_pares_validos"):
         combined[coluna] = pd.to_numeric(combined[coluna], errors="coerce").fillna(0).astype("int64")
-    combined["cmgr_confiavel"] = (combined["cmgr_confiavel"] == True).astype(bool)  # noqa: E712
-    combined["retencao_confiavel"] = (combined["retencao_confiavel"] == True).astype(bool)  # noqa: E712
+    combined["cmgr_confiavel"] = combined["cmgr_confiavel"].map(
+        lambda v: bool(v) if pd.notna(v) else False
+    )
+    combined["retencao_confiavel"] = combined["retencao_confiavel"].map(
+        lambda v: bool(v) if pd.notna(v) else False
+    )
 
     combined["ilustrativo"] = ~(combined["cmgr_confiavel"] & combined["retencao_confiavel"])
     combined["nota"] = combined["ilustrativo"].map(
