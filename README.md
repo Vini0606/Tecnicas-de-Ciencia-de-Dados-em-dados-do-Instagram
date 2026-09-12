@@ -425,7 +425,9 @@ A modelagem roda via `scripts/run_modeling.py` (PCA → `AutoClusterHPO` → sen
 - **Python 3.10+** (o código usa sintaxe `X | None` em anotações avaliadas em tempo de import)
 - [uv](https://docs.astral.sh/uv/) — `pip install uv`
 
-### Passo a passo
+### Fluxo principal — do zero, só com `pipeline.py`
+
+`data/` começa vazia no clone (só os `.gitkeep` versionados em `.gitignore` — Bronze/Silver/Gold/landing não são versionados). Todo o fluxo principal usa um único script; ele detecta sozinho se precisa extrair ou se já há dado local para reaproveitar.
 
 ```bash
 # 1. Clonar
@@ -438,12 +440,12 @@ uv sync --extra dev
 # 3. Variáveis de ambiente
 cp .env.example .env      # editar e preencher APIFY_API_TOKEN
 
-# 4. Gerar as tabelas Delta
-uv run python pipeline.py
+# 4. Bronze -> Silver -> Gold (extrai da Apify se a Bronze estiver vazia; reusa se já houver dado local)
+uv run python pipeline.py --yes
 
-# 5. (opcional) Modelagem — preencher API_GEMINI no .env antes do segundo comando
-uv run python scripts/run_modeling.py --parent-run-id <RUN_ID_IMPRESSO_NO_PASSO_4>
-uv run python scripts/refine_topics.py --run-id <ID_IMPRESSO_ACIMA>
+# 5. (opcional) Modelagem determinística sobre o mesmo Bronze/Silver/Gold do passo 4
+#    (PCA -> clustering -> sentimento -> tópicos de comentário/discurso -> NSM -> Score ICE -> performance-por-post)
+uv run python pipeline.py --run-modeling
 
 # 6. Abrir os dashboards
 uv run streamlit run app.py     # http://localhost:8501
@@ -453,7 +455,77 @@ uv run pytest tests/ -v --cov=src --cov-report=term-missing
 uv run ruff check src/
 ```
 
-> **Sobre créditos da API:** os JSONs de `data/raw/` já estão presentes no repositório local, então o passo 4 **não consome créditos Apify** — o pipeline detecta os arquivos e migra para Bronze. Um token só é necessário para coletar dados novos. O passo 5 é opcional e pesado (~14 min só o embedding do BERTopic) — pule se só quiser ver os dashboards com dados de modelagem já existentes.
+> **Sobre créditos da API:** o passo 4 só extrai de verdade (e só então exige `--yes`) se a Bronze estiver vazia — é o caso de um clone novo. A extração padrão é uma **amostra recente** (`resultsLimit=30` por perfil, sem janela de data), não um backfill histórico; para uma janela de dias específica, use o fluxo de calibração/backfill abaixo. Se a Bronze já tiver dado local (de uma execução anterior ou de um dos fluxos alternativos), o pipeline reusa e não gasta crédito de novo. O passo 5 é opcional e pesado (~10-14 min, o embedding do BERTopic é o gargalo) — pule se só quiser ver os dashboards com Bronze/Silver/Gold de engajamento.
+
+### Fluxos alternativos
+
+Scripts standalone em `scripts/`, para cenários que o fluxo principal não cobre. Cada um roda isolado, sem reprocessar os estágios anteriores — útil pra reexecutar só um pedaço depois de um ajuste, ou pra coletar uma janela de dias específica em vez da amostra padrão.
+
+#### Calibrar e rodar um backfill histórico com janela de dias (custo financeiro real)
+
+Antes de comprometer com uma janela grande, meça o custo com o teste de calibração (isolado, não escreve em produção); só depois disso rode o backfill de verdade:
+
+```bash
+# 1. Estimativa de custo, sem gastar nada (roda sem --yes primeiro)
+uv run python scripts/run_apify_calibration_test.py --days 5
+
+# 2. Teste de calibração de verdade -- isolado em data/calibration/, NÃO toca a Bronze de produção
+uv run python scripts/run_apify_calibration_test.py --days 5 --yes
+
+# 3. Com a janela decidida a partir da calibração, backfill real -- este ESCREVE na Bronze de produção
+uv run python scripts/run_apify_backfill.py --days 5 --yes
+
+# 4. Cascateia Silver/Gold + modelagem a partir da Bronze recém-preenchida (não reextrai, não pede --yes)
+uv run python pipeline.py --run-modeling
+```
+
+`--yes` é obrigatório em `run_apify_calibration_test.py` e `run_apify_backfill.py` — ambos geram custo real na conta Apify e nunca disparam sozinhos sem essa confirmação explícita.
+
+#### Só re-rodar a modelagem (Bronze/Silver/Gold-engagement já existem)
+
+Equivalente ao passo 5 do fluxo principal, mas via script dedicado — útil quando você quer repetir a modelagem sobre uma extração específica (`--parent-run-id`) sem reprocessar Silver/Gold-engagement a cada chamada:
+
+```bash
+uv run python scripts/run_modeling.py --parent-run-id <RUN_ID_DA_EXTRACAO_OU_DO_PIPELINE>
+```
+
+#### Refinar rótulos de tópico via Gemini (etapa manual, revisão humana)
+
+Nunca roda sozinho dentro do pipeline (decisão da ADR 0001) — só depois de inspecionar os tópicos provisórios em `governor_sentiment`/`governor_discourse_topics`:
+
+```bash
+# preencher API_GEMINI no .env antes
+uv run python scripts/refine_topics.py --run-id <RUN_ID_DO_CHECKPOINT_DE_MODELAGEM>
+```
+
+#### Métricas pós-modelagem independentes (ADR 0020)
+
+Rodam sobre tabelas Gold já existentes, sem depender uma da outra nem do restante da modelagem:
+
+```bash
+uv run python scripts/run_growth_metrics.py                  # CMGR + retenção de sentimento -> governor_growth_metrics (Ficha 7)
+uv run python scripts/run_profile_clustering_engagement.py   # clustering de perfil por engajamento -> governor_profile_clusters_engagement
+```
+
+`governor_nsm`, `topic_priority_score` e `governor_discourse_topics` já saem de `pipeline.py --run-modeling` / `scripts/run_modeling.py` — não precisam de script separado.
+
+#### Piloto do actor de UGC (ADR 0020, Ficha 8 / issue #93)
+
+Ainda não validado em produção — os nomes de campo do actor `apify/instagram-tagged-scraper` não têm exemplo confirmado para os perfis reais do projeto. Resultado isolado em `data/pilot/`, fora do Delta lake:
+
+```bash
+uv run python scripts/run_apify_mentions_pilot.py --yes
+```
+
+#### Inspecionar `run_id`s espalhados pelo projeto
+
+Consolida `data/landing/`, `data/logs/`, `data/model_checkpoints/`, `data/backfill/` e as colunas `_run_id` da Bronze/Silver/Gold numa visão única:
+
+```bash
+uv run python scripts/inspect_runs.py                    # lista todos os run_id conhecidos
+uv run python scripts/inspect_runs.py --run-id <ID>       # detalhe de um run_id específico
+uv run python scripts/inspect_runs.py --pipeline <ID>     # extração <ID> + toda modelagem que ela disparou
+```
 
 ### Referência rápida de comandos `uv`
 
