@@ -450,6 +450,48 @@ GOLD_TOPIC_PRIORITY_SCORE_SCHEMA = pa.schema(
     ]
 )
 
+# ADR 0020 (Ficha 5) / issue #90: `governor_nsm` -- North Star Metric (NSM)
+# de engajamento QUALIFICADO por perfil: `(comentários positivos /
+# comentários totais) x alcance médio`. Mesma posição/dependência do Score
+# ICE acima (Ficha 6) -- lê `governor_sentiment` (fonte "comentario") e
+# `governor_engagement`, uma linha por perfil.
+#
+# `alcance_medio` é um PROXY, não alcance/views real: Instagram não expõe
+# alcance para posts estáticos, e `governor_engagement` não guarda nenhuma
+# coluna de alcance -- só `likesSum`/`commentsSum`/`TOTAL ENGAJAMENTO`/
+# `count`. O proxy escolhido é `TOTAL ENGAJAMENTO / count` (engajamento
+# médio por post) -- mesmo raciocínio de proxy documentado já usado pelo
+# Score ICE (Ficha 6) para "alcance do tópico". Componentes intermediárias
+# (`n_comentarios_positivos`, `n_comentarios_totais`, `total_engajamento`,
+# `count_posts`) são gravadas ao lado do resultado final, não só o `nsm`,
+# para que o dashboard (issue futura de Frente 2, "Bruto vs. Qualificado")
+# possa contrastar NSM com o ranking por engajamento bruto sem reprocessar
+# nada. Ver docstring de `NsmScorer` para a justificativa completa.
+GOLD_NSM_SCHEMA = pa.schema(
+    [
+        pa.field("inputUrl", pa.string(), nullable=True),
+        # `nullable=True` aqui, ao contrário de `GOLD_ENGAGEMENT_SCHEMA.username`
+        # (`nullable=False`): o merge `outer` de `NsmScorer.score` pode gerar
+        # uma linha só de `governor_sentiment` sem par em `governor_engagement`
+        # (perfil com comentário mas ainda sem agregado de engajamento nesta
+        # execução) -- `username` fica nulo nesse caso, não um erro de dado.
+        pa.field("username", pa.string(), nullable=True),
+        pa.field("n_comentarios_positivos", pa.int64(), nullable=False),
+        pa.field("n_comentarios_totais", pa.int64(), nullable=False),
+        pa.field("proporcao_positivos", pa.float64(), nullable=False),
+        # Proxy de "alcance" -- ver comentário acima. `total_engajamento`/
+        # `count_posts` são cópias das colunas-fonte de `governor_engagement`
+        # (`TOTAL ENGAJAMENTO`/`count`) já pelo `inputUrl` do NSM, mantidas
+        # para auditoria/contraste no dashboard.
+        pa.field("total_engajamento", pa.int64(), nullable=False),
+        pa.field("count_posts", pa.int64(), nullable=False),
+        pa.field("alcance_medio", pa.float64(), nullable=False),
+        pa.field("nsm", pa.float64(), nullable=False),
+        pa.field("_run_id", pa.string(), nullable=False),
+        pa.field("_generated_at", pa.timestamp("us", tz="UTC"), nullable=False),
+    ]
+)
+
 # ADR 0020 (Ficha 8) / issue #93: `governor_ugc_mentions` -- UGC de criação
 # ("Creating" do COBRA). Grão de UMA LINHA POR POST DE UGC, não agregado por
 # governador: a agregação (contagem, engajamento médio, % orgânico vs. pago)

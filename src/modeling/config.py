@@ -206,6 +206,10 @@ class ModelingConfig:
     # comentário, estágio pós-modelagem (mesma posição/dependência da NSM,
     # Ficha 5) -- ver `TopicPriorityScorer`.
     gold_topic_priority_score_path: Path = settings.GOLD_TOPIC_PRIORITY_SCORE
+    # ADR 0020 (Ficha 5) / issue #90: North Star Metric (NSM) de engajamento
+    # qualificado por perfil, mesma posição/dependência do Score ICE acima --
+    # ver `NsmScorer`.
+    gold_nsm_path: Path = settings.GOLD_NSM
     gold_post_performance_coefficients_path: Path = settings.GOLD_POST_PERFORMANCE_COEFFICIENTS
     gold_post_performance_predictions_path: Path = settings.GOLD_POST_PERFORMANCE_PREDICTIONS
     checkpoints_dir: Path = settings.MODEL_CHECKPOINTS_DIR

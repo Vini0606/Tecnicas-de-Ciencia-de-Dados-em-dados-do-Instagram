@@ -10,6 +10,7 @@ import pandas as pd
 from bertopic import BERTopic
 
 from src.features.gold.model_enricher import ModelEnricher
+from src.features.gold.nsm_scorer import NsmScorer
 from src.features.gold.topic_priority_scorer import TopicPriorityScorer
 from src.logging_setup import attach_run_log_handler
 from src.modeling.checkpoint import save_checkpoint
@@ -100,13 +101,14 @@ def run_deterministic_modeling(
     """Estágio 100% automatizável: PCA -> clustering (reels e posts do feed,
     ADR 0020 Ficha 2) -> sentimento (comentário/legenda/transcrição, ADR
     0020 Ficha 3) -> tópicos de comentário -> Score ICE de priorização de
-    tópicos de comentário (ADR 0020 Ficha 6) -> tópicos de discurso oficial
-    (legenda+transcrição, ADR 0020 Ficha 4) -> performance-por-post
-    (representação determinística via KeyBERTInspired, não via Gemini).
-    Escreve as seis tabelas Gold (clusters, sentimento/tópicos
-    provisórios de comentário, Score ICE por tópico, tópicos de discurso,
-    coeficientes e previsão/resíduo da regressão de performance-por-post)
-    sob um único `run_id` novo.
+    tópicos de comentário (ADR 0020 Ficha 6) -> North Star Metric de
+    engajamento qualificado por perfil (ADR 0020 Ficha 5) -> tópicos de
+    discurso oficial (legenda+transcrição, ADR 0020 Ficha 4) ->
+    performance-por-post (representação determinística via KeyBERTInspired,
+    não via Gemini). Escreve as sete tabelas Gold (clusters, sentimento/
+    tópicos provisórios de comentário, Score ICE por tópico, NSM por
+    perfil, tópicos de discurso, coeficientes e previsão/resíduo da
+    regressão de performance-por-post) sob um único `run_id` novo.
 
     `parent_run_id`, se informado, é só rastreabilidade -- o `run_id` da
     extração/invocação de `pipeline.py` que disparou esta chamada, gravado
@@ -202,6 +204,26 @@ def run_deterministic_modeling(
     topic_priority_scorer.write(
         df_topic_priority,
         config.gold_topic_priority_score_path,
+        run_id,
+        generated_at=generated_at,
+    )
+
+    # ADR 0020 (Ficha 5) / issue #90: North Star Metric (NSM) de engajamento
+    # QUALIFICADO por perfil -- mesma posição/dependência do Score ICE acima
+    # (nenhuma das duas precisa do resultado da outra, ver comentário
+    # anterior). Lê `df_comments_final` (mesmo `governor_sentiment` recém-
+    # gravado, fonte "comentario") e `df_engagement` -- o mesmo parâmetro já
+    # recebido por esta função e reutilizado mais abaixo por
+    # `run_post_performance_stage` (Gold `governor_engagement`, ver
+    # `DeltaRepository.load_profiles`) -- sem nenhuma leitura extra de Gold.
+    logger.info(
+        "[NSM] Calculando North Star Metric (engajamento qualificado) por perfil..."
+    )
+    nsm_scorer = NsmScorer()
+    df_nsm = nsm_scorer.score(df_comments_final, df_engagement)
+    nsm_scorer.write(
+        df_nsm,
+        config.gold_nsm_path,
         run_id,
         generated_at=generated_at,
     )

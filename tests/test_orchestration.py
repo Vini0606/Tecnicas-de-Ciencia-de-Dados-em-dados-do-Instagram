@@ -25,10 +25,15 @@ def _df_reels():
 
 
 def _df_comments():
+    # `inputUrl` presente (mesma convenção de `SILVER_COMMENTS_SCHEMA`) para
+    # exercitar o NSM (ADR 0020 Ficha 5 / issue #90), que junta
+    # `governor_sentiment` a `governor_engagement` por essa coluna -- mesmo
+    # perfil de `_df_engagement_placeholder()` abaixo.
     return pd.DataFrame(
         {
             "id_comment": ["c1", "c2", "c3"],
             "text": ["ótimo trabalho", "péssimo governo", "concordo com a proposta"],
+            "inputUrl": "https://instagram.com/governador_teste",
         }
     )
 
@@ -52,12 +57,19 @@ def _df_posts_placeholder():
 
 
 def _df_engagement_placeholder():
+    # `inputUrl`/`username`/`TOTAL ENGAJAMENTO`/`count` presentes (mesmas
+    # colunas de `GOLD_ENGAGEMENT_SCHEMA`) para exercitar o NSM (ADR 0020
+    # Ficha 5 / issue #90) -- mesmo `inputUrl` de `_df_comments()` acima.
     return pd.DataFrame(
         {
             "id": ["governador_teste"],
+            "username": ["governador_teste"],
+            "inputUrl": ["https://instagram.com/governador_teste"],
             "_WC_COMENTARIO": [1.0],
             "FREQUENCIA": [1.0],
             "followersCount": [1000],
+            "TOTAL ENGAJAMENTO": [100],
+            "count": [10],
         }
     )
 
@@ -149,6 +161,7 @@ def test_run_deterministic_modeling_grava_clusters_e_sentimento_com_mesmo_run_id
         gold_sentiment_history_path=tmp_path / "governor_sentiment_history",
         gold_discourse_topics_path=tmp_path / "governor_discourse_topics",
         gold_topic_priority_score_path=tmp_path / "topic_priority_score",
+        gold_nsm_path=tmp_path / "governor_nsm",
         gold_post_performance_coefficients_path=tmp_path / "post_performance_coefficients",
         gold_post_performance_predictions_path=tmp_path / "post_performance_predictions",
         checkpoints_dir=tmp_path / "checkpoints",
@@ -213,6 +226,7 @@ def test_run_deterministic_modeling_grava_score_ice_por_topico_de_comentario(
         gold_sentiment_history_path=tmp_path / "governor_sentiment_history",
         gold_discourse_topics_path=tmp_path / "governor_discourse_topics",
         gold_topic_priority_score_path=tmp_path / "topic_priority_score",
+        gold_nsm_path=tmp_path / "governor_nsm",
         gold_post_performance_coefficients_path=tmp_path / "post_performance_coefficients",
         gold_post_performance_predictions_path=tmp_path / "post_performance_predictions",
         checkpoints_dir=tmp_path / "checkpoints",
@@ -235,6 +249,54 @@ def test_run_deterministic_modeling_grava_score_ice_por_topico_de_comentario(
     assert (priority_out["_run_id"] == result.run_id).all()
     for componente in ("impacto", "confianca", "facilidade", "score"):
         assert 0.0 <= priority_out.loc[0, componente] <= 1.0
+
+
+def test_run_deterministic_modeling_grava_nsm_por_perfil(monkeypatch, tmp_path):
+    """ADR 0020 (Ficha 5) / issue #90: `governor_nsm` recebe uma linha por
+    perfil (`inputUrl`), calculada a partir do `df_comments_final` já com
+    sentimento (mesmo `governor_sentiment` gravado nesta execução, fonte
+    "comentario") e do `df_engagement` recebido por esta função -- mesma
+    posição/dependência do Score ICE (teste acima), no mesmo `run_id`."""
+    monkeypatch.setattr(
+        "src.modeling.orchestration.analyze_sentiment", _fake_analyze_sentiment
+    )
+    monkeypatch.setattr(
+        "src.modeling.orchestration.model_topics",
+        _make_fake_model_topics("0_provisorio", "0_refinado"),
+    )
+    _patch_post_performance_fakes(monkeypatch)
+
+    config = ModelingConfig(
+        cluster=ClusterConfig(max_evals_per_algo=10, random_state=42, max_n_clusters=5),
+        gold_clusters_path=tmp_path / "governor_clusters",
+        gold_sentiment_path=tmp_path / "governor_sentiment",
+        gold_sentiment_history_path=tmp_path / "governor_sentiment_history",
+        gold_discourse_topics_path=tmp_path / "governor_discourse_topics",
+        gold_topic_priority_score_path=tmp_path / "topic_priority_score",
+        gold_nsm_path=tmp_path / "governor_nsm",
+        gold_post_performance_coefficients_path=tmp_path / "post_performance_coefficients",
+        gold_post_performance_predictions_path=tmp_path / "post_performance_predictions",
+        checkpoints_dir=tmp_path / "checkpoints",
+        logs_dir=tmp_path / "logs",
+    )
+
+    result = run_deterministic_modeling(
+        _df_reels(), _df_comments(), _df_posts_placeholder(), _df_engagement_placeholder(), config
+    )
+
+    nsm_out = DeltaTable(str(config.gold_nsm_path)).to_pandas()
+
+    # `_fake_analyze_sentiment` marca os 3 comentários como "Positive" --
+    # proporcao_positivos = 1.0; `_df_engagement_placeholder` tem
+    # TOTAL ENGAJAMENTO=100/count=10 -> alcance_medio=10.0 -> nsm=10.0.
+    assert len(nsm_out) == 1
+    linha = nsm_out.iloc[0]
+    assert linha["inputUrl"] == "https://instagram.com/governador_teste"
+    assert linha["n_comentarios_totais"] == 3
+    assert linha["proporcao_positivos"] == 1.0
+    assert linha["alcance_medio"] == 10.0
+    assert linha["nsm"] == 10.0
+    assert (nsm_out["_run_id"] == result.run_id).all()
 
 
 def _df_reels_com_transcript():
@@ -274,6 +336,7 @@ def test_run_deterministic_modeling_grava_sentimento_de_legenda_e_transcricao(
         gold_sentiment_history_path=tmp_path / "governor_sentiment_history",
         gold_discourse_topics_path=tmp_path / "governor_discourse_topics",
         gold_topic_priority_score_path=tmp_path / "topic_priority_score",
+        gold_nsm_path=tmp_path / "governor_nsm",
         gold_post_performance_coefficients_path=tmp_path / "post_performance_coefficients",
         gold_post_performance_predictions_path=tmp_path / "post_performance_predictions",
         checkpoints_dir=tmp_path / "checkpoints",
@@ -332,6 +395,7 @@ def test_run_deterministic_modeling_grava_topicos_de_discurso_separados_de_comen
         gold_sentiment_history_path=tmp_path / "governor_sentiment_history",
         gold_discourse_topics_path=tmp_path / "governor_discourse_topics",
         gold_topic_priority_score_path=tmp_path / "topic_priority_score",
+        gold_nsm_path=tmp_path / "governor_nsm",
         gold_post_performance_coefficients_path=tmp_path / "post_performance_coefficients",
         gold_post_performance_predictions_path=tmp_path / "post_performance_predictions",
         checkpoints_dir=tmp_path / "checkpoints",
@@ -387,6 +451,7 @@ def test_run_deterministic_modeling_grava_sentimento_tambem_no_historico_em_appe
         gold_sentiment_history_path=tmp_path / "governor_sentiment_history",
         gold_discourse_topics_path=tmp_path / "governor_discourse_topics",
         gold_topic_priority_score_path=tmp_path / "topic_priority_score",
+        gold_nsm_path=tmp_path / "governor_nsm",
         gold_post_performance_coefficients_path=tmp_path / "post_performance_coefficients",
         gold_post_performance_predictions_path=tmp_path / "post_performance_predictions",
         checkpoints_dir=tmp_path / "checkpoints",
@@ -432,6 +497,7 @@ def test_refine_topics_with_gemini_nao_grava_no_historico_de_sentimento(monkeypa
         gold_sentiment_history_path=tmp_path / "governor_sentiment_history",
         gold_discourse_topics_path=tmp_path / "governor_discourse_topics",
         gold_topic_priority_score_path=tmp_path / "topic_priority_score",
+        gold_nsm_path=tmp_path / "governor_nsm",
         gold_post_performance_coefficients_path=tmp_path / "post_performance_coefficients",
         gold_post_performance_predictions_path=tmp_path / "post_performance_predictions",
         checkpoints_dir=tmp_path / "checkpoints",
@@ -487,6 +553,7 @@ def test_run_deterministic_modeling_grava_parent_run_id_como_primeira_linha_do_l
         gold_sentiment_history_path=tmp_path / "governor_sentiment_history",
         gold_discourse_topics_path=tmp_path / "governor_discourse_topics",
         gold_topic_priority_score_path=tmp_path / "topic_priority_score",
+        gold_nsm_path=tmp_path / "governor_nsm",
         gold_post_performance_coefficients_path=tmp_path / "post_performance_coefficients",
         gold_post_performance_predictions_path=tmp_path / "post_performance_predictions",
         checkpoints_dir=tmp_path / "checkpoints",
@@ -536,6 +603,7 @@ def test_refine_topics_with_gemini_so_reescreve_sentimento_com_run_id_novo(
         gold_sentiment_history_path=tmp_path / "governor_sentiment_history",
         gold_discourse_topics_path=tmp_path / "governor_discourse_topics",
         gold_topic_priority_score_path=tmp_path / "topic_priority_score",
+        gold_nsm_path=tmp_path / "governor_nsm",
         gold_post_performance_coefficients_path=tmp_path / "post_performance_coefficients",
         gold_post_performance_predictions_path=tmp_path / "post_performance_predictions",
         checkpoints_dir=tmp_path / "checkpoints",
@@ -595,6 +663,7 @@ def test_refine_topics_with_gemini_recalcula_score_ice_com_topico_refinado(
         gold_sentiment_history_path=tmp_path / "governor_sentiment_history",
         gold_discourse_topics_path=tmp_path / "governor_discourse_topics",
         gold_topic_priority_score_path=tmp_path / "topic_priority_score",
+        gold_nsm_path=tmp_path / "governor_nsm",
         gold_post_performance_coefficients_path=tmp_path / "post_performance_coefficients",
         gold_post_performance_predictions_path=tmp_path / "post_performance_predictions",
         checkpoints_dir=tmp_path / "checkpoints",
@@ -641,9 +710,16 @@ def _df_engagement_performance():
     return pd.DataFrame(
         {
             "id": ids,
+            "username": ids,
+            # Mesmo `inputUrl` usado por `_df_reels_performance`/
+            # `_df_posts_performance` abaixo -- exercita o NSM (ADR 0020
+            # Ficha 5 / issue #90) sobre este fixture também.
+            "inputUrl": [f"https://instagram.com/{gov}" for gov in ids],
             "_WC_COMENTARIO": 1.5,
             "FREQUENCIA": rng.uniform(0.1, 2.0, size=N_GOVERNADORES_PERFORMANCE),
             "followersCount": rng.integers(10_000, 500_000, size=N_GOVERNADORES_PERFORMANCE),
+            "TOTAL ENGAJAMENTO": rng.integers(100, 10_000, size=N_GOVERNADORES_PERFORMANCE),
+            "count": rng.integers(1, 50, size=N_GOVERNADORES_PERFORMANCE),
         }
     )
 
@@ -705,6 +781,7 @@ def _config_performance(tmp_path):
         gold_sentiment_history_path=tmp_path / "governor_sentiment_history",
         gold_discourse_topics_path=tmp_path / "governor_discourse_topics",
         gold_topic_priority_score_path=tmp_path / "topic_priority_score",
+        gold_nsm_path=tmp_path / "governor_nsm",
         gold_post_performance_coefficients_path=tmp_path / "post_performance_coefficients",
         gold_post_performance_predictions_path=tmp_path / "post_performance_predictions",
         checkpoints_dir=tmp_path / "checkpoints",
@@ -782,6 +859,7 @@ def test_run_deterministic_modeling_degrada_sem_derrubar_pipeline_se_performance
         gold_sentiment_history_path=tmp_path / "governor_sentiment_history",
         gold_discourse_topics_path=tmp_path / "governor_discourse_topics",
         gold_topic_priority_score_path=tmp_path / "topic_priority_score",
+        gold_nsm_path=tmp_path / "governor_nsm",
         gold_post_performance_coefficients_path=tmp_path / "post_performance_coefficients",
         gold_post_performance_predictions_path=tmp_path / "post_performance_predictions",
         checkpoints_dir=tmp_path / "checkpoints",
