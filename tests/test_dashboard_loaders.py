@@ -203,3 +203,192 @@ def test_load_post_performance_predictions_returns_empty_dataframe_when_missing(
     assert isinstance(out, pd.DataFrame)
     assert out.empty
     _clear_caches()
+
+
+def test_load_posts_returns_delta_table(tmp_path, monkeypatch):
+    _point_settings_at(monkeypatch, tmp_path)
+    posts_path = settings.SILVER_DIR / "posts_clean"
+    df = pd.DataFrame(
+        {
+            "id": ["p1"],
+            "ownerUsername": ["g"],
+            "inputUrl": ["https://www.instagram.com/g/"],
+            "commentsCount": [1],
+            "likesCount": [2],
+            "_run_id": ["r1"],
+        }
+    )
+    write_deltalake(str(posts_path), df, mode="overwrite")
+
+    out = loaders.load_posts()
+
+    assert "likesCount" in out.columns
+    _clear_caches()
+
+
+def test_load_posts_returns_empty_dataframe_when_missing(tmp_path, monkeypatch):
+    _point_settings_at(monkeypatch, tmp_path)
+
+    out = loaders.load_posts()
+
+    assert isinstance(out, pd.DataFrame)
+    assert out.empty
+    _clear_caches()
+
+
+# ADR 0020 (Frente 2) / issue #94: loaders novos das métricas de growth --
+# mesmo par de testes (dado real + ausência) de todos os loaders acima.
+def test_load_discourse_topics_returns_delta_table(tmp_path, monkeypatch):
+    _point_settings_at(monkeypatch, tmp_path)
+    path = settings.GOLD_DIR / "governor_discourse_topics"
+    df = pd.DataFrame(
+        {
+            "id_reel": ["r1"],
+            "inputUrl": ["https://www.instagram.com/governador_a/"],
+            "fonte": ["legenda"],
+            "Topic": [0],
+            "Name": ["0_saude"],
+            "_run_id": ["r1"],
+            "_generated_at": pd.to_datetime(["2026-05-01"], utc=True),
+        }
+    )
+    write_deltalake(str(path), df, mode="overwrite")
+
+    out = loaders.load_discourse_topics()
+
+    assert "Name" in out.columns
+    _clear_caches()
+
+
+def test_load_discourse_topics_returns_empty_dataframe_when_missing(tmp_path, monkeypatch):
+    _point_settings_at(monkeypatch, tmp_path)
+
+    out = loaders.load_discourse_topics()
+
+    assert isinstance(out, pd.DataFrame)
+    assert out.empty
+    _clear_caches()
+
+
+def test_load_topic_priority_score_returns_delta_table(tmp_path, monkeypatch):
+    _point_settings_at(monkeypatch, tmp_path)
+    path = settings.GOLD_DIR / "topic_priority_score"
+    df = pd.DataFrame(
+        {
+            "Topic": [0],
+            "Name": ["0_saude"],
+            "score": [0.5],
+            "_run_id": ["r1"],
+            "_generated_at": pd.to_datetime(["2026-05-01"], utc=True),
+        }
+    )
+    write_deltalake(str(path), df, mode="overwrite")
+
+    out = loaders.load_topic_priority_score()
+
+    assert "score" in out.columns
+    _clear_caches()
+
+
+def test_load_topic_priority_score_returns_empty_dataframe_when_missing(tmp_path, monkeypatch):
+    _point_settings_at(monkeypatch, tmp_path)
+
+    out = loaders.load_topic_priority_score()
+
+    assert isinstance(out, pd.DataFrame)
+    assert out.empty
+    _clear_caches()
+
+
+def test_load_nsm_returns_delta_table(tmp_path, monkeypatch):
+    _point_settings_at(monkeypatch, tmp_path)
+    path = settings.GOLD_DIR / "governor_nsm"
+    df = pd.DataFrame(
+        {
+            "inputUrl": ["https://www.instagram.com/governador_a/"],
+            "username": ["governador_a"],
+            "nsm": [0.42],
+            "_run_id": ["r1"],
+            "_generated_at": pd.to_datetime(["2026-05-01"], utc=True),
+        }
+    )
+    write_deltalake(str(path), df, mode="overwrite")
+
+    out = loaders.load_nsm()
+
+    assert "nsm" in out.columns
+    _clear_caches()
+
+
+def test_load_nsm_returns_empty_dataframe_when_missing(tmp_path, monkeypatch):
+    _point_settings_at(monkeypatch, tmp_path)
+
+    out = loaders.load_nsm()
+
+    assert isinstance(out, pd.DataFrame)
+    assert out.empty
+    _clear_caches()
+
+
+def test_load_growth_metrics_returns_delta_table(tmp_path, monkeypatch):
+    _point_settings_at(monkeypatch, tmp_path)
+    path = settings.GOLD_DIR / "governor_growth_metrics"
+    df = pd.DataFrame(
+        {
+            "inputUrl": ["https://www.instagram.com/governador_a/"],
+            "cmgr": [0.05],
+            "ilustrativo": [True],
+            "nota": ["ilustrativo"],
+            "_run_id": ["r1"],
+            "_generated_at": pd.to_datetime(["2026-05-01"], utc=True),
+        }
+    )
+    write_deltalake(str(path), df, mode="overwrite")
+
+    out = loaders.load_growth_metrics()
+
+    assert "cmgr" in out.columns
+    _clear_caches()
+
+
+def test_load_growth_metrics_returns_empty_dataframe_when_missing(tmp_path, monkeypatch):
+    _point_settings_at(monkeypatch, tmp_path)
+
+    out = loaders.load_growth_metrics()
+
+    assert isinstance(out, pd.DataFrame)
+    assert out.empty
+    _clear_caches()
+
+
+def test_load_ugc_mentions_returns_delta_table(tmp_path, monkeypatch):
+    _point_settings_at(monkeypatch, tmp_path)
+    path = settings.GOLD_DIR / "governor_ugc_mentions"
+    df = pd.DataFrame(
+        {
+            "id": ["u1"],
+            "governor_username": ["governador_a"],
+            "likesCount": [10],
+            "commentsCount": [2],
+            "is_organic": [True],
+            "data_hora": pd.to_datetime(["2026-05-01"]),
+            "_run_id": ["r1"],
+            "_generated_at": pd.to_datetime(["2026-05-01"], utc=True),
+        }
+    )
+    write_deltalake(str(path), df, mode="overwrite")
+
+    out = loaders.load_ugc_mentions()
+
+    assert "governor_username" in out.columns
+    _clear_caches()
+
+
+def test_load_ugc_mentions_returns_empty_dataframe_when_missing(tmp_path, monkeypatch):
+    _point_settings_at(monkeypatch, tmp_path)
+
+    out = loaders.load_ugc_mentions()
+
+    assert isinstance(out, pd.DataFrame)
+    assert out.empty
+    _clear_caches()

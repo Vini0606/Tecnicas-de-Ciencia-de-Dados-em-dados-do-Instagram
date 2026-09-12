@@ -31,9 +31,12 @@ import streamlit as st
 from src.dashboard.loaders import (
     load_clusters,
     load_governors_metadata,
+    load_nsm,
     load_profile_clusters_engagement,
     load_reels,
+    load_ugc_mentions,
 )
+from src.features.gold.ugc_mentions_aggregator import GovernorUGCAggregator
 
 TODOS_GOVERNADORES = "__todos_governadores__"
 
@@ -177,6 +180,83 @@ def enrich_with_profile_cluster(df: pd.DataFrame, url_col: str = "inputUrl") -> 
         on="_match_key",
         how="left",
     ).drop(columns="_match_key")
+    return merged
+
+
+@st.cache_data
+def build_nsm_directory() -> pd.DataFrame:
+    """1 linha por governador: inputUrl, nsm (ADR 0020, Ficha 5 / issue #90).
+    Vazio (mas com essas colunas) se `governor_nsm` ainda não existir --
+    mesmo padrão de `build_profile_cluster_directory`."""
+    df = load_nsm()
+    if df.empty or "inputUrl" not in df.columns:
+        return pd.DataFrame(columns=["inputUrl", "nsm"])
+    return df[["inputUrl", "nsm"]]
+
+
+def enrich_with_nsm(df: pd.DataFrame, url_col: str = "inputUrl") -> pd.DataFrame:
+    """Adiciona `nsm` a `df` via join por `url_col` normalizado -- mesmo
+    padrão de `enrich_with_profile_cluster` (issue #94, `01_explorar.py`/
+    `03_performance.py`). Left join, função pura."""
+    directory = build_nsm_directory()
+    df = df.copy()
+    if url_col not in df.columns or directory.empty:
+        if "nsm" not in df.columns:
+            df["nsm"] = pd.NA
+        return df
+
+    df = _with_match_key(df, url_col)
+    directory = _with_match_key(directory, "inputUrl")
+    merged = df.merge(
+        directory[["_match_key", "nsm"]], on="_match_key", how="left"
+    ).drop(columns="_match_key")
+    return merged
+
+
+def aggregate_ugc_by_governor(df_ugc_mentions: pd.DataFrame) -> pd.DataFrame:
+    """Único ponto do dashboard que importa `GovernorUGCAggregator` (camada
+    de modelagem/ETL, `src/features/gold/`) -- `build_ugc_volume_directory`
+    abaixo e `pages/05_funil.py` chamam esta função em vez de importar o
+    agregador diretamente, para não duplicar a travessia de camada em dois
+    lugares. `aggregate_by_governor` é a "view" pura já documentada naquele
+    módulo (ADR 0020, Ficha 8 / issue #93) -- não é um cálculo novo, só a
+    agregação (contagem/média/% orgânico) já testada em
+    `tests/test_ugc_mentions_aggregator.py`."""
+    return GovernorUGCAggregator().aggregate_by_governor(df_ugc_mentions)
+
+
+@st.cache_data
+def build_ugc_volume_directory() -> pd.DataFrame:
+    """1 linha por governador: username, volume_ugc (contagem de posts de UGC
+    orgânicos que marcam/mencionam o perfil -- ADR 0020, Ficha 8 / issue
+    #93, estágio Engage/Criar do funil COBRA-RACE). Chave de junção é
+    `username` (não `inputUrl`): `governor_ugc_mentions` grava
+    `governor_username`, não uma URL de perfil. Vazio (mas com essas
+    colunas) se `governor_ugc_mentions` ainda não existir (piloto do actor
+    pendente, ver ADR 0020)."""
+    df = load_ugc_mentions()
+    if df.empty or "governor_username" not in df.columns:
+        return pd.DataFrame(columns=["username", "volume_ugc"])
+    agregado = aggregate_ugc_by_governor(df)
+    return agregado.rename(
+        columns={"governor_username": "username", "count_organic": "volume_ugc"}
+    )[["username", "volume_ugc"]]
+
+
+def enrich_with_ugc_volume(df: pd.DataFrame, username_col: str = "username") -> pd.DataFrame:
+    """Adiciona `volume_ugc` a `df` via join por `username_col` -- mesmo
+    contrato de degradação graciosa de `enrich_with_nsm`/
+    `enrich_with_profile_cluster` (issue #94)."""
+    directory = build_ugc_volume_directory().rename(columns={"username": "_ugc_username"})
+    df = df.copy()
+    if username_col not in df.columns or directory.empty:
+        if "volume_ugc" not in df.columns:
+            df["volume_ugc"] = pd.NA
+        return df
+
+    merged = df.merge(
+        directory, left_on=username_col, right_on="_ugc_username", how="left"
+    ).drop(columns="_ugc_username")
     return merged
 
 

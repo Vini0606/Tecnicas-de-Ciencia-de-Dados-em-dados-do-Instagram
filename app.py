@@ -3,13 +3,14 @@ from __future__ import annotations
 import os
 import sys
 
+import pandas as pd
 import streamlit as st
 
 ROOT_DIR = os.path.abspath(os.path.dirname(__file__))
 if ROOT_DIR not in sys.path:
     sys.path.insert(0, ROOT_DIR)
 
-from src.dashboard.loaders import load_comments, load_profiles, load_reels
+from src.dashboard.loaders import load_comments, load_nsm, load_profiles, load_reels
 
 st.set_page_config(
     page_title="Instagram Analytics — Governadores",
@@ -28,6 +29,7 @@ df_profiles = load_profiles()
 df_reels = load_reels()
 df_comments = load_comments()
 
+st.markdown("#### Volume")
 col1, col2, col3, col4 = st.columns(4)
 with col1:
     st.metric("Governadores", len(df_profiles) if not df_profiles.empty else "—")
@@ -42,10 +44,37 @@ with col4:
     else:
         st.metric("% Sentimento Positivo", "—")
 
+# ADR 0020 (Frente 2) / issue #94: 2ª linha de KPIs, separada da de Volume
+# acima -- "quanto" (volume) é uma leitura diferente de "quão bem" (growth/
+# qualidade), misturar as duas na mesma linha de 4 colunas viraria uma
+# parede de números indistintos (decisão de layout já recomendada pela
+# especificação, `docs/dashboard/especificacao-reformulacao-growth.md`).
+st.markdown("#### Growth")
+df_nsm = load_nsm()
+with st.container():
+    if not df_nsm.empty and "nsm" in df_nsm.columns:
+        nsm_medio = df_nsm["nsm"].dropna().mean()
+        st.metric(
+            "NSM médio da base",
+            f"{nsm_medio:.2f}" if pd.notna(nsm_medio) else "—",
+            help=(
+                "North Star Metric: engajamento qualificado (comentários "
+                "positivos/totais × alcance médio) -- ADR 0020, Ficha 5. "
+                "Leitura executiva de 'estamos crescendo com qualidade', "
+                "não só em volume."
+            ),
+        )
+    else:
+        st.metric("NSM médio da base", "—")
+        st.caption(
+            "`governor_nsm` ainda não existe. Rode o estágio pós-modelagem "
+            "de NSM (`scripts/run_modeling.py`) para gerá-la."
+        )
+
 st.markdown("---")
 
 st.markdown("### Navegue pelas análises")
-nav1, nav2, nav3, nav4 = st.columns(4)
+nav1, nav2, nav3, nav4, nav5 = st.columns(5)
 with nav1:
     st.page_link(
         "pages/01_explorar.py",
@@ -69,6 +98,12 @@ with nav4:
         "pages/04_recommendations.py",
         label="Recommendations — recomendações para este governador",
         icon="✅",
+    )
+with nav5:
+    st.page_link(
+        "pages/05_funil.py",
+        label="Funil — do Alcance à Criação (RACE ↔ COBRA)",
+        icon="🧭",
     )
 
 st.markdown("---")

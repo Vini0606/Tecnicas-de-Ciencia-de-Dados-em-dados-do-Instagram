@@ -287,6 +287,57 @@ def check_engagement_quadrant(
     return f"Você está no quadrante {quadrante}: {_QUADRANT_DESCRIPTIONS[quadrante]}"
 
 
+def check_uncovered_priority_topic(
+    df_topic_priority: pd.DataFrame,
+    df_discourse_topics: pd.DataFrame,
+    governor_url: str,
+    top_n: int = 5,
+) -> str | None:
+    """Dispara se algum dos `top_n` tópicos de maior Score ICE
+    (`topic_priority_score`, ranking GLOBAL de tópicos de COMENTÁRIO -- ADR
+    0020, Ficha 6 / issue #91, não por governador) ainda não aparece no
+    discurso oficial do PRÓPRIO governador (`governor_discourse_topics`, ADR
+    0020, Ficha 4 / issue #89). Regra determinística nova da issue #94:
+    "tema de alta prioridade ainda não abordado".
+
+    Casamento por `Name` (rótulo textual do tópico), não por `Topic` (id
+    numérico) -- os dois modelos de tópico (comentário vs. discurso) rodam
+    BERTopic em corpora diferentes, então o mesmo `Topic` id não representa
+    o mesmo assunto entre as duas tabelas; `Name` é o que um assessor humano
+    reconhece como "o mesmo tema" entre as duas fontes.
+
+    `None` (nunca levanta exceção, mesmo contrato das demais `check_*`) se
+    `topic_priority_score` ou `governor_discourse_topics` ainda não
+    existirem, se não houver tópico válido no top-N, ou se todos os temas do
+    top-N já estiverem cobertos no discurso do governador."""
+    if df_topic_priority.empty or "Name" not in df_topic_priority.columns:
+        return None
+    if df_discourse_topics.empty or "Name" not in df_discourse_topics.columns:
+        return None
+
+    top_topicos = (
+        df_topic_priority.dropna(subset=["Name"])
+        .sort_values("score", ascending=False)
+        .head(top_n)["Name"]
+        .tolist()
+    )
+    if not top_topicos:
+        return None
+
+    universo = df_discourse_topics["inputUrl"].dropna().unique().tolist()
+    discurso_governador = select_governor_rows(df_discourse_topics, governor_url, universo)
+    topicos_cobertos = set(discurso_governador["Name"].dropna().unique().tolist())
+
+    nao_cobertos = [topico for topico in top_topicos if topico not in topicos_cobertos]
+    if not nao_cobertos:
+        return None
+
+    # O primeiro da lista já vem ordenado por score decrescente -- é o de
+    # maior prioridade entre os não cobertos, não um nome qualquer do top-N.
+    tema_prioritario = nao_cobertos[0]
+    return f'Tema de alta prioridade ainda não abordado no seu discurso: "{tema_prioritario}".'
+
+
 def compute_recommendations(
     governor_url: str,
     df_engagement: pd.DataFrame,
@@ -295,9 +346,16 @@ def compute_recommendations(
     df_sentiment_history: pd.DataFrame,
     df_reels: pd.DataFrame,
     df_profile_clusters: pd.DataFrame,
+    df_topic_priority: pd.DataFrame | None = None,
+    df_discourse_topics: pd.DataFrame | None = None,
 ) -> list[str]:
-    """Roda as 6 regras na ordem definida, retorna as mensagens disparadas
-    (lista vazia se nenhuma regra disparou)."""
+    """Roda as regras na ordem definida, retorna as mensagens disparadas
+    (lista vazia se nenhuma regra disparou).
+
+    `df_topic_priority`/`df_discourse_topics` (issue #94, ADR 0020) são
+    opcionais/`None` por padrão -- chamadas existentes (antes da issue #94)
+    continuam funcionando sem precisar passar as duas tabelas novas; a regra
+    de tema não abordado simplesmente não dispara sem elas."""
     checagens = [
         check_engagement_drop(df_engagement_history, governor_url),
         check_sentiment_trend_drop(df_sentiment_history, governor_url),
@@ -305,5 +363,10 @@ def compute_recommendations(
         check_shorter_or_longer_reels_than_peers(df_reels, df_profile_clusters, governor_url),
         check_frequency_below_cluster_peers(df_engagement, df_profile_clusters, governor_url),
         check_engagement_quadrant(df_engagement, governor_url),
+        check_uncovered_priority_topic(
+            df_topic_priority if df_topic_priority is not None else pd.DataFrame(),
+            df_discourse_topics if df_discourse_topics is not None else pd.DataFrame(),
+            governor_url,
+        ),
     ]
     return [mensagem for mensagem in checagens if mensagem is not None]

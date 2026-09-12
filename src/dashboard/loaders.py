@@ -40,6 +40,23 @@ def load_reels() -> pd.DataFrame:
 
 
 @st.cache_data
+def load_posts() -> pd.DataFrame:
+    # ADR 0020 (Ficha 2) / issue #94: posts do Feed (Silver), necessários
+    # para juntar com `governor_clusters` (content_type=="feed") em
+    # `02_insights.py` -- "Padrões de conteúdo (Reels e Feed)". Mesmo
+    # contrato degradado de `load_clusters`/`load_profile_clusters_engagement`,
+    # não os de `load_comments`/`load_reels` (que não tratam
+    # `FileNotFoundError` -- são tabelas "core", sempre presentes desde o
+    # primeiro Silver): a tabela de posts do Feed é opcional aqui porque
+    # nem toda instalação do dashboard necessariamente já rodou o Silver de
+    # posts.
+    try:
+        return get_repository().load_posts()
+    except FileNotFoundError:
+        return pd.DataFrame()
+
+
+@st.cache_data
 def load_clusters() -> pd.DataFrame:
     try:
         return get_delta_repository().load_clusters()
@@ -96,5 +113,48 @@ def load_sentiment_history() -> pd.DataFrame:
     # (issue #61).
     try:
         return get_delta_repository().load_sentiment_history()
+    except FileNotFoundError:
+        return pd.DataFrame()
+
+
+# ADR 0020 (Frente 2) / issue #94: loaders novos para as métricas de growth
+# (Fichas 1-8), mesmo padrão degradado dos loaders acima -- `DataFrame` vazio
+# em vez de exceção quando a tabela Gold ainda não existe.
+@st.cache_data
+def load_discourse_topics() -> pd.DataFrame:
+    try:
+        return get_delta_repository().load_discourse_topics()
+    except FileNotFoundError:
+        return pd.DataFrame()
+
+
+@st.cache_data
+def load_topic_priority_score() -> pd.DataFrame:
+    try:
+        return get_delta_repository().load_topic_priority_score()
+    except FileNotFoundError:
+        return pd.DataFrame()
+
+
+@st.cache_data
+def load_nsm() -> pd.DataFrame:
+    try:
+        return get_delta_repository().load_nsm()
+    except FileNotFoundError:
+        return pd.DataFrame()
+
+
+@st.cache_data
+def load_growth_metrics() -> pd.DataFrame:
+    try:
+        return get_delta_repository().load_growth_metrics()
+    except FileNotFoundError:
+        return pd.DataFrame()
+
+
+@st.cache_data
+def load_ugc_mentions() -> pd.DataFrame:
+    try:
+        return get_delta_repository().load_ugc_mentions()
     except FileNotFoundError:
         return pd.DataFrame()

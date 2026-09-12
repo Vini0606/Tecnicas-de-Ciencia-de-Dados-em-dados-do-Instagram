@@ -123,10 +123,21 @@ def plot_sentiment_diverging_bar(
 
 
 def plot_scatter(
-    df: pd.DataFrame, x: str, y: str, height: int = 800, width: int | None = None
+    df: pd.DataFrame,
+    x: str,
+    y: str,
+    height: int = 800,
+    width: int | None = None,
+    color: str | None = None,
 ) -> go.Figure:
-    """Gráfico de dispersão interativo."""
-    return px.scatter(df, x=x, y=y, hover_data=df.columns, height=height, width=width)
+    """Gráfico de dispersão interativo. `color` (ADR 0020 / issue #94,
+    `pages/01_explorar.py`) é opcional -- `None` preserva o comportamento
+    anterior (sem cor por categoria); passar uma coluna categórica (ex.:
+    `cluster_perfil_engajamento`, já convertida para `str` pelo chamador)
+    permite ver visualmente se o grupo se separa nas variáveis exploradas."""
+    return px.scatter(
+        df, x=x, y=y, color=color, hover_data=df.columns, height=height, width=width
+    )
 
 
 def plot_engagement_trend(

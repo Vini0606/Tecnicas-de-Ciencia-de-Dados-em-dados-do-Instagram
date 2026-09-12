@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import sys
 
+import pandas as pd
 import streamlit as st
 
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -14,17 +15,20 @@ from src.dashboard.comparisons import (
     compute_engagement_quadrants,
     compute_execution_gap,
     compute_governor_comparison,
+    compute_raw_vs_qualified_comparison,
 )
 from src.dashboard.filters import (
     TODOS_GOVERNADORES,
     build_governor_directory,
     build_governor_label_map,
     enrich_with_governor_metadata,
+    enrich_with_nsm,
     render_governor_selector,
     select_governor_rows,
 )
 from src.dashboard.loaders import (
     load_engagement_history,
+    load_growth_metrics,
     load_post_performance_predictions,
     load_profiles,
 )
@@ -70,6 +74,12 @@ METRICAS_COMPARACAO = [
     "commentsSum",
     "likesSum",
     "count",
+    # ADR 0020 (Ficha 5) / issue #90, adicionada pela issue #94: North Star
+    # Metric (engajamento qualificado). Sempre presente na comparação --
+    # `enrich_with_nsm` abaixo garante a coluna mesmo antes de
+    # `governor_nsm` existir (fica NaN, e a linha some do ranking, mesmo
+    # contrato de degradação das demais métricas desta lista).
+    "nsm",
 ]
 
 # Seletor global (issue #54 / ADR 0017): mesmo widget/`session_state`
@@ -85,6 +95,12 @@ if df_engagement.empty:
         "(`uv run python pipeline.py`) primeiro."
     )
     st.stop()
+
+# ADR 0020 (Ficha 5) / issue #94: garante a coluna `nsm` (NaN se
+# `governor_nsm` ainda não existir) ANTES de `METRICAS_COMPARACAO` usá-la --
+# sem isso, `compute_governor_comparison` levantaria `KeyError` na primeira
+# vez que a lista incluir "nsm" e a tabela ainda não tiver rodado.
+df_engagement = enrich_with_nsm(df_engagement)
 
 governor_universe = df_engagement[["inputUrl"]].dropna().drop_duplicates()
 governor_universe_enriched = enrich_with_governor_metadata(governor_universe)
@@ -139,6 +155,60 @@ if governador_selecionado != TODOS_GOVERNADORES:
                         value=valor_fmt,
                         delta=f"{delta_fmt} vs. média (#{metrica['rank']} de {metrica['total']})",
                     )
+    st.markdown("---")
+
+    # ADR 0020 (Ficha 5) / issue #94: "Engajamento Bruto vs. Qualificado" --
+    # contrasta o ranking por `TOTAL ENGAJAMENTO` (volume) com o ranking por
+    # `nsm` (qualidade) para o governador selecionado. Critério de aceite
+    # explícito da especificação de dashboard: mostrar pelo menos 1 caso
+    # real onde a posição muda de ordem.
+    st.markdown(
+        "### Engajamento Bruto vs. Qualificado",
+        help=(
+            "NSM (North Star Metric, ADR 0020 Ficha 5) qualifica o "
+            "engajamento por sentimento positivo -- comparar com o ranking "
+            "bruto mostra se volume e qualidade contam a mesma história."
+        ),
+    )
+    comparacao_bruto_vs_qualificado = compute_raw_vs_qualified_comparison(
+        df_engagement, governador_selecionado
+    )
+    if comparacao_bruto_vs_qualificado is None:
+        st.info(
+            "`governor_nsm` ainda não tem dado suficiente para este "
+            "contraste. Rode o estágio pós-modelagem de NSM "
+            "(`scripts/run_modeling.py`) primeiro."
+        )
+    else:
+        col_bruto, col_qualificado = st.columns(2)
+        with col_bruto:
+            st.caption("Ranking por engajamento BRUTO (volume)")
+            st.dataframe(
+                comparacao_bruto_vs_qualificado.ranking_bruto.head(10),
+                hide_index=True,
+                width="stretch",
+            )
+        with col_qualificado:
+            st.caption("Ranking por NSM (qualidade)")
+            st.dataframe(
+                comparacao_bruto_vs_qualificado.ranking_qualificado.head(10),
+                hide_index=True,
+                width="stretch",
+            )
+        if comparacao_bruto_vs_qualificado.mudou_posicao:
+            posicoes = comparacao_bruto_vs_qualificado.posicoes_ganhas
+            direcao = "sobe" if posicoes > 0 else "desce"
+            st.info(
+                f"Este governador {direcao} {abs(posicoes)} posição(ões) "
+                f"(#{comparacao_bruto_vs_qualificado.rank_bruto} → "
+                f"#{comparacao_bruto_vs_qualificado.rank_qualificado}) "
+                "ao considerar qualidade (NSM) em vez de volume (engajamento bruto)."
+            )
+        else:
+            st.caption(
+                f"Mesma posição (#{comparacao_bruto_vs_qualificado.rank_bruto}) "
+                "nos dois rankings."
+            )
     st.markdown("---")
 
 # Matriz de quadrantes (ADR 0018): fora do `if` acima -- ao contrário da
@@ -287,3 +357,45 @@ def render_performance_trend() -> None:
 
 
 render_performance_trend()
+
+
+# ADR 0020 (Ficha 7) / issue #94: CMGR (crescimento mensal composto), logo
+# após o fragment de tendência acima -- reaproveita `load_growth_metrics()`
+# (novo loader, mesma degradação graciosa dos demais). Individual apenas
+# (mesmo raciocínio de "Lacuna de Execução" acima): CMGR é por perfil, uma
+# agregação para "Todos os Governadores" não foi pedida pela especificação.
+if governador_selecionado != TODOS_GOVERNADORES:
+    st.markdown("### Crescimento (CMGR)")
+    st.caption(
+        "Métrica ilustrativa enquanto o histórico acumulado de execuções de "
+        "modelagem for curto (ADR 0020, Ficha 7) -- não usar como conclusão "
+        "definitiva de crescimento."
+    )
+    df_growth_metrics = load_growth_metrics()
+    if df_growth_metrics.empty:
+        st.info(
+            "`governor_growth_metrics` ainda não existe. Rode "
+            "`scripts/run_growth_metrics.py` para gerá-la."
+        )
+    else:
+        universo_urls_growth = df_growth_metrics["inputUrl"].dropna().unique().tolist()
+        linha_growth = select_governor_rows(
+            df_growth_metrics, governador_selecionado, universo_urls_growth
+        )
+        if linha_growth.empty:
+            st.info("Sem CMGR calculado para este governador ainda.")
+        else:
+            linha_growth = linha_growth.iloc[0]
+            cmgr_valor = linha_growth["cmgr"]
+            if pd.isna(cmgr_valor):
+                st.info(
+                    f"CMGR não calculável para este governador "
+                    f"(motivo: `{linha_growth['cmgr_motivo']}`)."
+                )
+            else:
+                st.metric(
+                    "CMGR (crescimento mensal composto de seguidores)",
+                    f"{cmgr_valor * 100:.2f}%",
+                )
+            if bool(linha_growth["ilustrativo"]):
+                st.caption(linha_growth["nota"])

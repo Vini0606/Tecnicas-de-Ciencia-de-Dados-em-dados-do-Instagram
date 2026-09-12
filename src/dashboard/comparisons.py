@@ -8,6 +8,8 @@ Streamlit, mesmo padrão testável de `loaders.py`/`charts.py`.
 
 from __future__ import annotations
 
+from typing import NamedTuple
+
 import pandas as pd
 
 from src.dashboard.filters import select_governor_rows
@@ -133,6 +135,92 @@ def compute_engagement_quadrants(df_engagement: pd.DataFrame) -> pd.DataFrame:
     out["mediana_engajamento"] = mediana_engajamento
 
     return out
+
+
+class RawVsQualifiedComparison(NamedTuple):
+    """Resultado de `compute_raw_vs_qualified_comparison` -- tipo próprio em
+    vez de um `dict` solto (7 campos que sempre viajam juntos), pro chamador
+    (`03_performance.py`) acessar por atributo em vez de chave string."""
+
+    ranking_bruto: pd.DataFrame
+    ranking_qualificado: pd.DataFrame
+    rank_bruto: int
+    rank_qualificado: int
+    # Positivo = subiu (rank numericamente menor é melhor) ao trocar volume
+    # por qualidade; negativo = desceu; zero = mesma posição.
+    posicoes_ganhas: int
+    mudou_posicao: bool
+    total: int
+
+
+def compute_raw_vs_qualified_comparison(
+    df_engagement: pd.DataFrame,
+    governor_url: str,
+    raw_col: str = "TOTAL ENGAJAMENTO",
+    qualified_col: str = "nsm",
+) -> RawVsQualifiedComparison | None:
+    """Contrasta o ranking do governador por engajamento BRUTO (`raw_col`)
+    com o ranking pela métrica QUALIFICADA (`qualified_col`, NSM por padrão
+    -- ADR 0020, Ficha 5 / issue #90) -- critério de aceite explícito da
+    especificação de dashboard: "contraste NSM vs. engajamento bruto mostra
+    pelo menos 1 caso real onde o ranking muda de ordem".
+
+    Maior valor = rank 1 nos dois rankings (mesma convenção de
+    `compute_governor_comparison`); empates usam `method="min"` (dois
+    governadores empatados no topo dividem o rank 1, o próximo pula pro
+    rank 3, não 2 -- não inventa uma ordem entre empatados).
+
+    Retorna `None` (não uma tupla com valores `NaN`) se `df_engagement` não
+    tiver as duas colunas, estiver vazio, não sobrar nenhuma linha com as
+    duas métricas válidas, ou o governador não tiver linha correspondente --
+    mesmo contrato de "nunca levanta exceção" das demais funções deste
+    módulo, só que `None` em vez de DataFrame vazio porque o chamador
+    (`03_performance.py`) precisa de um único resultado escalar, não de uma
+    tabela."""
+    if df_engagement.empty or not {raw_col, qualified_col} <= set(df_engagement.columns):
+        return None
+
+    working = df_engagement.copy()
+    working["_raw"] = pd.to_numeric(working[raw_col], errors="coerce")
+    working["_qualified"] = pd.to_numeric(working[qualified_col], errors="coerce")
+    working = working.dropna(subset=["_raw", "_qualified", "inputUrl"])
+    if working.empty:
+        return None
+
+    working["rank_bruto"] = working["_raw"].rank(ascending=False, method="min").astype(int)
+    working["rank_qualificado"] = (
+        working["_qualified"].rank(ascending=False, method="min").astype(int)
+    )
+
+    universo_urls = working["inputUrl"].unique().tolist()
+    linha_governador = select_governor_rows(working, governor_url, universo_urls)
+    if linha_governador.empty:
+        return None
+    linha_governador = linha_governador.iloc[0]
+
+    ranking_bruto = (
+        working.sort_values("rank_bruto")[["inputUrl", "_raw", "rank_bruto"]]
+        .rename(columns={"_raw": raw_col})
+        .reset_index(drop=True)
+    )
+    ranking_qualificado = (
+        working.sort_values("rank_qualificado")[["inputUrl", "_qualified", "rank_qualificado"]]
+        .rename(columns={"_qualified": qualified_col})
+        .reset_index(drop=True)
+    )
+
+    rank_bruto = int(linha_governador["rank_bruto"])
+    rank_qualificado = int(linha_governador["rank_qualificado"])
+
+    return RawVsQualifiedComparison(
+        ranking_bruto=ranking_bruto,
+        ranking_qualificado=ranking_qualificado,
+        rank_bruto=rank_bruto,
+        rank_qualificado=rank_qualificado,
+        posicoes_ganhas=rank_bruto - rank_qualificado,
+        mudou_posicao=rank_bruto != rank_qualificado,
+        total=len(working),
+    )
 
 
 _EXECUTION_GAP_COLUMNS = ["grupo", "residuo_medio", "n_posts"]

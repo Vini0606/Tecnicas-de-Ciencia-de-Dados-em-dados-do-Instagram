@@ -7,6 +7,7 @@ from src.dashboard.recommendations import (
     check_negative_sentiment_topic,
     check_sentiment_trend_drop,
     check_shorter_or_longer_reels_than_peers,
+    check_uncovered_priority_topic,
     compute_recommendations,
 )
 
@@ -367,6 +368,122 @@ def test_compute_recommendations_inclui_achado_de_quadrante_quando_ha_dado():
 
 
 def test_compute_recommendations_retorna_lista_vazia_sem_nenhum_disparo():
+    df_engagement = pd.DataFrame(columns=["inputUrl", "FREQUENCIA"])
+    df_engagement_history = pd.DataFrame(columns=["inputUrl", "% ENGAJAMENTO", "_generated_at"])
+    df_sentiment = pd.DataFrame(columns=["inputUrl", "Name", "sentiment_label"])
+    df_sentiment_history = pd.DataFrame(
+        columns=["inputUrl", "sentiment_label", "_run_id", "_generated_at"]
+    )
+    df_reels = pd.DataFrame(columns=["inputUrl", "videoDuration"])
+    df_profile_clusters = pd.DataFrame(columns=["inputUrl", "cluster_perfil_engajamento"])
+
+    achados = compute_recommendations(
+        GOV_A,
+        df_engagement,
+        df_engagement_history,
+        df_sentiment,
+        df_sentiment_history,
+        df_reels,
+        df_profile_clusters,
+    )
+    assert achados == []
+
+
+# --- check_uncovered_priority_topic (ADR 0020 / issue #94) ---
+
+
+def _df_topic_priority():
+    return pd.DataFrame(
+        {
+            "Topic": [3, 7, 12],
+            "Name": ["3_seguranca", "7_saude", "12_educacao"],
+            "score": [0.9, 0.7, 0.5],
+        }
+    )
+
+
+def test_uncovered_priority_topic_dispara_com_tema_top_nao_coberto():
+    df_discourse = pd.DataFrame(
+        {
+            "inputUrl": [GOV_A],
+            "Name": ["7_saude"],
+        }
+    )
+    msg = check_uncovered_priority_topic(_df_topic_priority(), df_discourse, GOV_A)
+
+    assert msg is not None
+    # "3_seguranca" é o de maior score (0.9) entre os não cobertos -- deve
+    # ser o citado, não "7_saude" (que o governador já cobriu) nem
+    # "12_educacao" (menor score entre os não cobertos).
+    assert "3_seguranca" in msg
+
+
+def test_uncovered_priority_topic_nao_dispara_quando_todos_os_temas_top_ja_cobertos():
+    df_discourse = pd.DataFrame(
+        {
+            "inputUrl": [GOV_A, GOV_A, GOV_A],
+            "Name": ["3_seguranca", "7_saude", "12_educacao"],
+        }
+    )
+    msg = check_uncovered_priority_topic(_df_topic_priority(), df_discourse, GOV_A)
+    assert msg is None
+
+
+def test_uncovered_priority_topic_ignora_cobertura_de_outro_governador():
+    """`governor_discourse_topics` de OUTRO governador não deve contar como
+    "coberto" para o governador selecionado -- cada um só cobre o próprio
+    discurso."""
+    df_discourse = pd.DataFrame(
+        {
+            "inputUrl": [GOV_B, GOV_B, GOV_B],
+            "Name": ["3_seguranca", "7_saude", "12_educacao"],
+        }
+    )
+    msg = check_uncovered_priority_topic(_df_topic_priority(), df_discourse, GOV_A)
+
+    assert msg is not None
+    assert "3_seguranca" in msg
+
+
+def test_uncovered_priority_topic_none_sem_topic_priority_score():
+    df_discourse = pd.DataFrame({"inputUrl": [GOV_A], "Name": ["3_seguranca"]})
+    msg = check_uncovered_priority_topic(pd.DataFrame(), df_discourse, GOV_A)
+    assert msg is None
+
+
+def test_uncovered_priority_topic_none_sem_discourse_topics():
+    msg = check_uncovered_priority_topic(_df_topic_priority(), pd.DataFrame(), GOV_A)
+    assert msg is None
+
+
+def test_compute_recommendations_dispara_tema_nao_abordado_quando_tabelas_passadas():
+    df_engagement = pd.DataFrame(columns=["inputUrl", "FREQUENCIA"])
+    df_engagement_history = pd.DataFrame(columns=["inputUrl", "% ENGAJAMENTO", "_generated_at"])
+    df_sentiment = pd.DataFrame(columns=["inputUrl", "Name", "sentiment_label"])
+    df_sentiment_history = pd.DataFrame(
+        columns=["inputUrl", "sentiment_label", "_run_id", "_generated_at"]
+    )
+    df_reels = pd.DataFrame(columns=["inputUrl", "videoDuration"])
+    df_profile_clusters = pd.DataFrame(columns=["inputUrl", "cluster_perfil_engajamento"])
+    df_discourse = pd.DataFrame({"inputUrl": [GOV_A], "Name": ["7_saude"]})
+
+    achados = compute_recommendations(
+        GOV_A,
+        df_engagement,
+        df_engagement_history,
+        df_sentiment,
+        df_sentiment_history,
+        df_reels,
+        df_profile_clusters,
+        df_topic_priority=_df_topic_priority(),
+        df_discourse_topics=df_discourse,
+    )
+    assert any("3_seguranca" in achado for achado in achados)
+
+
+def test_compute_recommendations_sem_tabelas_de_topico_nao_quebra():
+    """Chamadas antigas (antes da issue #94), sem os dois parâmetros novos,
+    continuam funcionando -- a regra de tema não abordado só não dispara."""
     df_engagement = pd.DataFrame(columns=["inputUrl", "FREQUENCIA"])
     df_engagement_history = pd.DataFrame(columns=["inputUrl", "% ENGAJAMENTO", "_generated_at"])
     df_sentiment = pd.DataFrame(columns=["inputUrl", "Name", "sentiment_label"])
