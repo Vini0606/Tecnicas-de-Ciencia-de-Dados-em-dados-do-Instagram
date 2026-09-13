@@ -142,6 +142,51 @@ def test_temas_acionaveis_exclui_outros():
     assert tela._TEMA_OUTROS not in acionaveis["tema"].tolist()
 
 
+def test_temas_acionaveis_exclui_reacao_emotiva():
+    """Achado da revisão de conteúdo curado (issue #116): 'reação emotiva
+    (emojis)' é comportamento do público reagindo a qualquer conteúdo, não
+    uma pauta -- nunca deve ser candidata a 'produza mais sobre X'/'reduza
+    Y', mesmo raciocínio já aplicado a 'outros'."""
+    tabela = _tabela_gap_sintetica()
+    acionaveis = tela._temas_acionaveis(tabela)
+    assert tela._TEMA_REACAO_EMOTIVA not in acionaveis["tema"].tolist()
+
+
+def test_produzir_mais_nunca_recomenda_reacao_emotiva_mesmo_sendo_o_maior_gap():
+    """Reproduz o cenário real da amostra da issue #116: comentários
+    dominados por 'reação emotiva (emojis)' (54,4% das linhas na amostra
+    real) e quase ausente do discurso -- o que produziria o MAIOR gap
+    positivo da tabela inteira se não fosse excluído de
+    `_temas_acionaveis`. Confirma que `_tema_produzir_mais` nunca recomenda
+    esse tema, e escolhe o próximo tema real com gap positivo em vez dele."""
+    dist_discurso = dict.fromkeys(tela._ordem_temas_exibicao(), 0.0)
+    dist_reacao = dict.fromkeys(tela._ordem_temas_exibicao(), 0.0)
+
+    # "reação emotiva (emojis)" domina a reação (maior gap positivo possível
+    # se não fosse excluído -- 0.60 vs. qualquer outro tema real abaixo).
+    dist_reacao[tela._TEMA_REACAO_EMOTIVA] = 0.60
+    # "educação" tem um gap positivo bem menor, mas é uma pauta real --
+    # deve ser o resultado de `_tema_produzir_mais`.
+    dist_discurso["educação"] = 0.05
+    dist_reacao["educação"] = 0.15
+
+    tabela = tela._montar_tabela_gap(dist_discurso, dist_reacao)
+
+    # Confere a premissa do teste: sem a exclusão, "reação emotiva (emojis)"
+    # teria o maior |gap| de toda a tabela.
+    maior_gap_bruto = tabela.loc[tabela["gap"].idxmax(), "tema"]
+    assert maior_gap_bruto == tela._TEMA_REACAO_EMOTIVA
+
+    tema_produzir = tela._tema_produzir_mais(tabela)
+    assert tema_produzir is not None
+    assert tema_produzir["tema"] != tela._TEMA_REACAO_EMOTIVA
+    assert tema_produzir["tema"] == "educação"
+
+    tema_decisao = tela._tema_decisao(tema_produzir, tela._tema_reduzir_reformular(tabela))
+    assert tema_decisao is not None
+    assert tema_decisao["tema"] != tela._TEMA_REACAO_EMOTIVA
+
+
 def test_tema_decisao_escolhe_maior_valor_absoluto_entre_os_dois():
     tabela = _tabela_gap_sintetica()
     tema_produzir = tela._tema_produzir_mais(tabela)  # educação, gap = +0.6

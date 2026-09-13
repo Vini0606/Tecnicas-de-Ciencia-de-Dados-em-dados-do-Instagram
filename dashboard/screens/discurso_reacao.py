@@ -92,6 +92,19 @@ _STAGE = "Convert (Contribuir)"
 
 _TEMA_OUTROS = "outros"
 
+# "reação emotiva (emojis)" é um tema de EXIBIÇÃO (aparece no gráfico, para
+# transparência de cobertura -- ver `_ordem_temas_exibicao`), mas NUNCA um
+# tema ACIONÁVEL: é comportamento do público reagindo a QUALQUER conteúdo
+# (aplauso/coração/tecla), não um assunto que a assessoria possa "produzir
+# mais sobre" ou "reduzir/reformular" -- ao contrário de "obras"/"economia"/
+# "educação" etc., que são pautas de conteúdo reais. Ver `_TEMAS_NAO_ACIONAVEIS`
+# / `_temas_acionaveis` abaixo (bug encontrado na revisão de conteúdo curado
+# da issue #116: sem esta exclusão, o tema dominante do lado reação --
+# 54,4% das linhas de comentário na amostra real, quase ausente do discurso
+# -- vira artificialmente a recomendação-manchete "produza mais sobre reação
+# emotiva (emojis)", o que não tem ação concreta nenhuma).
+_TEMA_REACAO_EMOTIVA = "reação emotiva (emojis)"
+
 # Ordem de exibição dos temas curados nas duas colunas de barra (sempre a
 # MESMA ordem nos dois lados, para comparação direta) -- "outros" é sempre
 # acrescentado por último por `_ordem_temas_exibicao`, nunca hardcoded aqui,
@@ -104,8 +117,14 @@ TEMAS_ORDEM: list[str] = [
     "campanha e mobilização política",
     "fé e agradecimento",
     "crítica e insatisfação",
-    "reação emotiva (emojis)",
+    _TEMA_REACAO_EMOTIVA,
 ]
+
+# Temas de EXIBIÇÃO que nunca devem virar recomendação de conteúdo -- ver
+# `_temas_acionaveis`. "outros" (não-classificado) e "reação emotiva
+# (emojis)" (reação do público sem conteúdo temático próprio) são os dois
+# buckets "não é uma pauta", nunca "produza mais sobre X"/"reduza Y".
+_TEMAS_NAO_ACIONAVEIS = {_TEMA_OUTROS, _TEMA_REACAO_EMOTIVA}
 
 # ---------------------------------------------------------------------------
 # TAXONOMIA -- mapa curado de rótulo bruto (`Name`, de QUALQUER um dos dois
@@ -168,7 +187,7 @@ TAXONOMIA: dict[str, list[str]] = {
         # Reação -- único tópico de crítica clara em qualquer um dos dois modelos
         "0_arruinou_descaso_estrago_ridículo",
     ],
-    "reação emotiva (emojis)": [
+    _TEMA_REACAO_EMOTIVA: [
         # Reação -- tópicos dominados por emoji de aplauso/coração/tecla sem
         # nome de candidato nem palavra temática (ver docstring do módulo).
         "1_mãos_aplaudindo_polegar_para_cima_literalmente_desenhando",
@@ -283,11 +302,14 @@ def _montar_tabela_gap(
 ) -> pd.DataFrame:
     """1 linha por tema de `_ordem_temas_exibicao()`: `pct_discurso`,
     `pct_reacao`, `gap` (= `pct_reacao - pct_discurso`, positivo = público
-    reage mais do que a assessoria fala sobre aquele tema). `_TEMA_OUTROS` é
-    incluído na tabela (para o gráfico -- ver `_distribuicao_percentual_por_tema`)
+    reage mais do que a assessoria fala sobre aquele tema). Os temas de
+    `_TEMAS_NAO_ACIONAVEIS` (`_TEMA_OUTROS`/`_TEMA_REACAO_EMOTIVA`) são
+    incluídos na tabela (para o gráfico -- ver `_distribuicao_percentual_por_tema`)
     mas as funções de leitura automática abaixo (`_tema_produzir_mais`/
-    `_tema_reduzir_reformular`/`_tema_decisao`) o ignoram explicitamente:
-    recomendar "produza mais sobre outros" não tem ação concreta nenhuma."""
+    `_tema_reduzir_reformular`/`_tema_decisao`, via `_temas_acionaveis`) os
+    ignoram explicitamente: recomendar "produza mais sobre outros" ou
+    "produza mais sobre reação emotiva (emojis)" não tem ação concreta
+    nenhuma -- nenhum dos dois é uma pauta de conteúdo real."""
     temas = _ordem_temas_exibicao()
     linhas = [
         {
@@ -302,10 +324,17 @@ def _montar_tabela_gap(
 
 
 def _temas_acionaveis(tabela_gap: pd.DataFrame) -> pd.DataFrame:
-    """`tabela_gap` sem a linha `_TEMA_OUTROS` -- usado por toda função de
-    leitura automática/decisão abaixo (nunca pelo gráfico, que mostra
-    `_TEMA_OUTROS` normalmente para transparência de cobertura)."""
-    return tabela_gap[tabela_gap["tema"] != _TEMA_OUTROS]
+    """`tabela_gap` sem as linhas de `_TEMAS_NAO_ACIONAVEIS` (`_TEMA_OUTROS`
+    e `_TEMA_REACAO_EMOTIVA`) -- usado por toda função de leitura
+    automática/decisão abaixo (nunca pelo gráfico, que mostra os dois
+    normalmente para transparência de cobertura). Achado da revisão de
+    conteúdo curado da issue #116: sem excluir `_TEMA_REACAO_EMOTIVA` aqui,
+    ele -- dominante do lado reação em dados reais (54,4% das linhas de
+    comentário na amostra da issue, quase ausente do discurso) -- vira
+    artificialmente o maior gap positivo da tabela inteira, e
+    `_tema_produzir_mais` recomendaria "produza mais sobre reação emotiva
+    (emojis)", que não é uma pauta de conteúdo real."""
+    return tabela_gap[~tabela_gap["tema"].isin(_TEMAS_NAO_ACIONAVEIS)]
 
 
 def _tema_produzir_mais(tabela_gap: pd.DataFrame) -> dict | None:
