@@ -2,6 +2,11 @@
 status: accepted
 ---
 
+> **Nota (superseded parcial):** a Frente 2 (dashboard) desta ADR foi substituída pela ADR
+> [0021](0021-dashboard-organizado-por-decisao-com-funil-como-tela-dedicada.md), que reorganiza o
+> dashboard por decisão do analista em vez de por estágio do funil. A Frente 1 (pipeline/modelagem)
+> abaixo continua válida e não foi afetada.
+
 # Alinhamento do código ao TCC pós-PR#84: funil COBRA-RACE, NSM, Score ICE, CMGR, tópicos de discurso oficial e reformulação do dashboard como ferramenta de growth
 
 ## Contexto
