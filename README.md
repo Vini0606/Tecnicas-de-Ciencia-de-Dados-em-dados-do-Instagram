@@ -409,7 +409,7 @@ TF_VAR_image_tag=$(git rev-parse origin/main) terraform apply
 │   ├── logs/<run_id>/              # Log estruturado por run_id -- console INFO / arquivo DEBUG (ADR 0015)
 │   ├── backfill/                   # Relatórios de `scripts/run_apify_backfill.py` (contagens, taxa calibrada, projeção de custo)
 │   └── calibration/                # Saída isolada de `scripts/run_apify_calibration_test.py` -- nunca toca a Bronze real
-├── reference/              # Dado de entrada mantido manualmente (governadores.xlsx) -- não gerado pelo pipeline (ADR 0013)
+├── reference/              # governadores.xlsx (dado de entrada mantido manualmente, ADR 0013) + dicionario_de_dados_medallion.xlsx (catálogo de dados, gerado por scripts/generate_data_dictionary.py)
 ├── reports/
 │   ├── academic/           # TCC completo em LaTeX — 7 capítulos, bibliografia, figuras
 │   └── figures/            # Figuras geradas pelos notebooks
@@ -418,7 +418,7 @@ TF_VAR_image_tag=$(git rev-parse origin/main) terraform apply
 │   ├── agents/             # Convenções para agentes de IA (issue tracker, labels de triagem, docs de domínio) -- ver CLAUDE.md
 │   ├── dashboard/          # Especificação da reformulação do dashboard de growth (ADR 0020)
 │   └── research/           # Notas de pesquisa (ex.: mapeamento de actors Apify para o framework COBRA)
-└── scripts/                # run_modeling.py, refine_topics.py, run_apify_backfill.py, run_apify_calibration_test.py, run_growth_metrics.py, run_profile_clustering_engagement.py, run_apify_mentions_pilot.py, inspect_runs.py, sync de figuras para o TCC
+└── scripts/                # run_modeling.py, refine_topics.py, run_apify_backfill.py, run_apify_calibration_test.py, run_growth_metrics.py, run_profile_clustering_engagement.py, run_apify_mentions_pilot.py, inspect_runs.py, generate_data_dictionary.py, sync de figuras para o TCC
 ```
 
 A modelagem roda via `scripts/run_modeling.py` (PCA → `AutoClusterHPO` → sentimento → BERTopic, representação determinística) e `scripts/refine_topics.py` (refinamento manual dos rótulos de tópico via Gemini) — não mais pelo notebook, que virou leitura pura de Gold/checkpoint para análise e visualização (ver [ADR 0003](docs/adr/0003-desacoplar-modelagem-do-notebook-via-scripts-cli-com-checkpoint.md)).
@@ -620,7 +620,8 @@ Lista completa e versões em `pyproject.toml` e `uv.lock`.
 |---|---|
 | TCC completo (LaTeX, 7 capítulos) | `reports/academic/` |
 | Metodologia e resultados detalhados | `reports/academic/Capítulos/Capitulo_05_Modelagem.tex` |
-| Dicionário de dados | `reports/academic/Dicionário de Dados.xlsx` |
+| **Catálogo de dados da arquitetura Medallion** (23 tabelas, 323 colunas, linhagem e glossário de métricas -- Bronze/Silver/Gold atuais) | `reference/dicionario_de_dados_medallion.xlsx`, gerado por `scripts/generate_data_dictionary.py` a partir de `src/schemas_delta.py` |
+| Dicionário de dados legado (era pré-Medallion, `Profiles.json`) | `reports/academic/Dicionário de Dados.xlsx` -- mantido só como artefato histórico do TCC, não reflete o schema atual |
 | Bibliografia | `reports/academic/IESB-CDeIA-Bibliografia.bib` |
 | Figuras geradas | `reports/figures/` |
 
