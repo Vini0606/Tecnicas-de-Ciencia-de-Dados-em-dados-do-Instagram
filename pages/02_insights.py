@@ -30,7 +30,6 @@ from src.dashboard.loaders import (
     load_posts,
     load_reels,
     load_sentiment_history,
-    load_topic_priority_score,
 )
 from src.visualization.charts import (
     plot_sentiment_diverging_bar,
@@ -105,38 +104,11 @@ df_filtrado_posts = (
 st.title("💡 Insights — Governadores do Brasil")
 st.markdown("---")
 
-# ADR 0020 (Ficha 6) / issue #91, seção adicionada pela issue #94: Score ICE
-# de priorização de tópicos -- ranking GLOBAL de tópicos de COMENTÁRIO (não
-# por governador selecionado), por isso fica FORA do bloco condicionado a
-# `df_filtrado_comments` abaixo (mesma decisão da especificação de
-# dashboard: "tabela top temas a produzir" vale para a base toda, não muda
-# com o seletor individual de governador).
-st.markdown(
-    "#### Prioridade de Temas (o que produzir a seguir)",
-    help=(
-        "Score ICE = Impacto × Confiança × Facilidade, 100% automatizado -- "
-        "ADR 0020, Ficha 6. Ranking global de tópicos de comentário, não "
-        "filtrado pelo governador selecionado na barra lateral."
-    ),
-)
-df_topic_priority = load_topic_priority_score()
-if df_topic_priority.empty:
-    st.info(
-        "`topic_priority_score` ainda não existe. Rode `scripts/run_modeling.py` "
-        "para gerá-la."
-    )
-else:
-    colunas_score = [
-        c
-        for c in ["Name", "impacto", "confianca", "facilidade", "score"]
-        if c in df_topic_priority.columns
-    ]
-    st.dataframe(
-        df_topic_priority.sort_values("score", ascending=False)[colunas_score],
-        hide_index=True,
-        width="stretch",
-    )
-st.markdown("---")
+# Score ICE / Prioridade de Temas foi REMOVIDO desta página pela issue #112
+# (ADR 0021) -- substituído por `dashboard/screens/produzir.py` (Tela 2, "O
+# que produzir"), que reusa a mesma `topic_priority_score` mas já filtrada
+# ao governador selecionado, com selo de prioridade em vez do score bruto.
+# Ver a issue #112 / PR correspondente para o que exatamente saiu daqui.
 
 if df_filtrado_comments.empty:
     st.warning("Nenhum dado encontrado para os filtros selecionados.")
