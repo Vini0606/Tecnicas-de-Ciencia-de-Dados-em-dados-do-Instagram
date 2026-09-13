@@ -8,6 +8,15 @@ nova") -- cada entrada de `TELAS` é o `render()` de um módulo de
 `dashboard/screens/*.py`, registrado aqui conforme cada tela é implementada
 pelas próximas issues da sequência (#111-#116).
 
+`key="tela_selecionada"` no `st.radio` abaixo (issue #114, Tela 6/Funil):
+qualquer tela pode trocar de aba programaticamente gravando o RÓTULO exato
+de uma chave de `TELAS` em `st.session_state["tela_selecionada"]` e
+chamando `st.rerun()` ANTES deste módulo recriar o widget -- no próximo
+render, `st.radio` lê esse valor de `session_state` como seleção corrente
+(Streamlit dá prioridade ao `session_state` já presente para a `key` do
+widget sobre o parâmetro `index`). Ver `dashboard/screens/funil.py::render`
+(bloco "O que fazer") para o primeiro uso real desse padrão.
+
 Rodar com: `streamlit run dashboard/app.py`.
 """
 
@@ -23,7 +32,7 @@ if ROOT_DIR not in sys.path:
     sys.path.insert(0, ROOT_DIR)
 
 from dashboard.core.theme import inject_theme  # noqa: E402
-from dashboard.screens import produzir, radar, resumo  # noqa: E402
+from dashboard.screens import funil, produzir, radar, resumo  # noqa: E402
 
 st.set_page_config(page_title="Growth — Assessoria", layout="wide")
 inject_theme()
@@ -32,8 +41,9 @@ TELAS: dict[str, object] = {
     "Resumo da semana": resumo.render,
     "O que produzir": produzir.render,
     "Radar de crise": radar.render,
+    "Funil de engajamento": funil.render,
 }
 
 st.sidebar.title("Growth — Assessoria")
-tela_selecionada = st.sidebar.radio("Telas", options=list(TELAS.keys()))
+tela_selecionada = st.sidebar.radio("Telas", options=list(TELAS.keys()), key="tela_selecionada")
 TELAS[tela_selecionada]()

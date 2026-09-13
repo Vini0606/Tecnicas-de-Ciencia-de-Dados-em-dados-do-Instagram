@@ -150,11 +150,3 @@ def load_growth_metrics() -> pd.DataFrame:
         return get_delta_repository().load_growth_metrics()
     except FileNotFoundError:
         return pd.DataFrame()
-
-
-@st.cache_data
-def load_ugc_mentions() -> pd.DataFrame:
-    try:
-        return get_delta_repository().load_ugc_mentions()
-    except FileNotFoundError:
-        return pd.DataFrame()

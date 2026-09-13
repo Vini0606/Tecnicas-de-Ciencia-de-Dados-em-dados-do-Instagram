@@ -20,7 +20,6 @@ from __future__ import annotations
 import math
 
 import pandas as pd
-import pytest
 
 from src.modeling.growth_history import (
     MIN_PERIODS_CONFIAVEL,

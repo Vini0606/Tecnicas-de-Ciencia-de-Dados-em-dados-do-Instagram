@@ -361,34 +361,3 @@ def test_load_growth_metrics_returns_empty_dataframe_when_missing(tmp_path, monk
     _clear_caches()
 
 
-def test_load_ugc_mentions_returns_delta_table(tmp_path, monkeypatch):
-    _point_settings_at(monkeypatch, tmp_path)
-    path = settings.GOLD_DIR / "governor_ugc_mentions"
-    df = pd.DataFrame(
-        {
-            "id": ["u1"],
-            "governor_username": ["governador_a"],
-            "likesCount": [10],
-            "commentsCount": [2],
-            "is_organic": [True],
-            "data_hora": pd.to_datetime(["2026-05-01"]),
-            "_run_id": ["r1"],
-            "_generated_at": pd.to_datetime(["2026-05-01"], utc=True),
-        }
-    )
-    write_deltalake(str(path), df, mode="overwrite")
-
-    out = loaders.load_ugc_mentions()
-
-    assert "governor_username" in out.columns
-    _clear_caches()
-
-
-def test_load_ugc_mentions_returns_empty_dataframe_when_missing(tmp_path, monkeypatch):
-    _point_settings_at(monkeypatch, tmp_path)
-
-    out = loaders.load_ugc_mentions()
-
-    assert isinstance(out, pd.DataFrame)
-    assert out.empty
-    _clear_caches()
