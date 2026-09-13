@@ -353,6 +353,9 @@ continua sendo um passo manual e deliberado:
 TF_VAR_image_tag=$(git rev-parse origin/main) terraform apply
 ```
 
+> No PowerShell (Windows), a sintaxe `VAR=valor comando` não existe; use:
+> `$env:TF_VAR_image_tag = git rev-parse origin/main; terraform apply`
+
 ### Limitações conhecidas do pipeline serverless
 
 - **Sem retry nativo por etapa** — uma falha transitória em `transform` (ex.: throttling do S3)
@@ -378,7 +381,7 @@ TF_VAR_image_tag=$(git rev-parse origin/main) terraform apply
 ├── src/
 │   ├── modeling/           # PCA, AutoClusterHPO, sentimento, tópicos (BERTopic), clusterização de perfil (Fase 2) e refinamento via Gemini
 │   ├── data_extract/       # Scraper Apify (scraper.py), BronzeWriter, extract_and_land (landing zone + Bronze, ADR 0011)
-│   ├── dashboard/          # Loaders e filtros compartilhados pelos dashboards Streamlit
+│   ├── dashboard/          # Loaders, filtros, comparação entre perfis (comparisons.py) e motor de regras de recomendação (recommendations.py), compartilhados pelos dashboards Streamlit
 │   ├── features/
 │   │   ├── silver/         # Cleaners de perfis, posts, reels e comentários
 │   │   └── gold/           # Agregador de engajamento, enriquecedor de modelos
@@ -388,15 +391,15 @@ TF_VAR_image_tag=$(git rev-parse origin/main) terraform apply
 │   ├── logging_setup.py    # Setup de logging por run_id -- console INFO / arquivo DEBUG (ADR 0015)
 │   ├── run_id.py           # Geração do identificador de execução, compartilhado por pipeline.py e src/modeling/
 │   └── visualization/      # Gráficos Plotly reutilizáveis
-├── pages/                  # Dashboards Streamlit (exploratório, modelagem)
+├── pages/                  # Dashboards Streamlit: 01 explorar · 02 insights (sentimento/tópicos/clusters) · 03 performance (comparação entre governadores + auto-refresh) · 04 recommendations (regras determinísticas, ADR 0017) · 05 funil (growth RACE ↔ COBRA, ADR 0020)
 ├── lambdas/                # Pipeline serverless AWS -- mesma arquitetura Medallion, backend S3 (ver seção 3)
 │   ├── extract/            # Apify -> Bronze (S3)
 │   ├── transform/          # Bronze -> Silver (S3)
 │   ├── load/               # Silver -> Gold (governor_engagement) (S3)
 │   ├── model/              # Gold engagement -> clusterização de perfil, Fase 2 (S3)
 │   └── orchestrator/       # Invoca extract -> transform -> load -> model em sequência
-├── notebooks/              # 01 extração · 02 EDA · 03 modelagem · 04 regressão · 05 síntese
-├── tests/                  # 31 arquivos de teste (pytest)
+├── notebooks/              # 01 extração e limpeza · 02 EDA · 03 modelagem híbrida · 05 visualização e conclusões · 06/07 regressão de performance (vídeo / estático)
+├── tests/                  # 42 arquivos de teste (pytest)
 ├── data/                   # Efêmero, fora do git (.gitignore) -- ver seção 3 pra Bronze/Silver/Gold
 │   ├── landing/<run_id>/           # JSON bruto do scraper, sem schema, anterior à Bronze (ADR 0011/0014)
 │   ├── bronze/                     # Delta append-only: instagram_profiles, instagram_posts, instagram_reels
@@ -410,8 +413,12 @@ TF_VAR_image_tag=$(git rev-parse origin/main) terraform apply
 ├── reports/
 │   ├── academic/           # TCC completo em LaTeX — 7 capítulos, bibliografia, figuras
 │   └── figures/            # Figuras geradas pelos notebooks
-├── docs/adr/               # ADRs -- registro das decisões de arquitetura (0001-0015)
-└── scripts/                # run_modeling.py, refine_topics.py, run_apify_backfill.py, run_apify_calibration_test.py, run_profile_clustering_engagement.py, sync de figuras para o TCC
+├── docs/
+│   ├── adr/                # ADRs -- registro das decisões de arquitetura (0001-0020)
+│   ├── agents/             # Convenções para agentes de IA (issue tracker, labels de triagem, docs de domínio) -- ver CLAUDE.md
+│   ├── dashboard/          # Especificação da reformulação do dashboard de growth (ADR 0020)
+│   └── research/           # Notas de pesquisa (ex.: mapeamento de actors Apify para o framework COBRA)
+└── scripts/                # run_modeling.py, refine_topics.py, run_apify_backfill.py, run_apify_calibration_test.py, run_growth_metrics.py, run_profile_clustering_engagement.py, run_apify_mentions_pilot.py, inspect_runs.py, sync de figuras para o TCC
 ```
 
 A modelagem roda via `scripts/run_modeling.py` (PCA → `AutoClusterHPO` → sentimento → BERTopic, representação determinística) e `scripts/refine_topics.py` (refinamento manual dos rótulos de tópico via Gemini) — não mais pelo notebook, que virou leitura pura de Gold/checkpoint para análise e visualização (ver [ADR 0003](docs/adr/0003-desacoplar-modelagem-do-notebook-via-scripts-cli-com-checkpoint.md)).
@@ -561,9 +568,11 @@ O pipeline roda de ponta a ponta: `uv run python pipeline.py` materializa Bronze
 
 Esta seção registra honestamente o que ainda não está fechado.
 
-**O ciclo da modelagem fecha via dois scripts, não mais pelo notebook.** `scripts/run_modeling.py` lê a Silver via `DeltaRepository` e roda o estágio determinístico (PCA → `AutoClusterHPO` → sentimento → BERTopic com representação determinística via `KeyBERTInspired`, sem depender de API externa), gravando clusters e sentimento/tópicos provisórios em Gold via `ModelEnricher` sob um `run_id`, e um checkpoint local em `data/model_checkpoints/<run_id>/` (o `topic_model` do BERTopic, `df_comments`/`df_reels`, os modelos de PCA/clustering). `scripts/refine_topics.py --run-id <ID>` carrega esse checkpoint e roda o refinamento manual dos rótulos de tópico via Gemini (`GeminiDocsRefiner`) — depende de uma API key do Gemini e é uma etapa de revisão humana (o texto gerado vira citação no TCC), por isso continua separada e manual mesmo com o estágio determinístico automatizável (ver [ADR 0001](docs/adr/0001-separar-modelagem-em-etapas-deterministicas-e-refinamento-manual.md) e [ADR 0003](docs/adr/0003-desacoplar-modelagem-do-notebook-via-scripts-cli-com-checkpoint.md)); reescreve `governor_sentiment` sob um segundo `run_id` e atualiza o checkpoint com os rótulos finais. Sentimento e tópicos vivem em `governor_sentiment` (os tópicos do BERTopic viajam junto, nas colunas `Topic`/`Name` — não há uma tabela separada), e clusters em `governor_clusters`. A clusterização é por **reel** (PCA de engajamento/duração do vídeo via `AutoClusterHPO`), não por perfil — não há, e nunca houve, clusterização de governadores no projeto. `notebooks/03_modelagem_hibrida.ipynb` agora só lê (`governor_sentiment`/`governor_clusters` da Gold, mais o checkpoint para as visualizações de PCA/validação de cluster) — não dispara nenhuma escrita. O dashboard de Insights (`pages/02_insights.py`) exibe a distribuição de sentimento, os tópicos mais frequentes e os clusters de reels assim que essas tabelas existem — e se ainda não existirem, mostra instruções em vez de quebrar.
+**O ciclo da modelagem fecha via dois scripts, não mais pelo notebook.** `scripts/run_modeling.py` lê a Silver via `DeltaRepository` e roda o estágio determinístico (PCA → `AutoClusterHPO` → sentimento → BERTopic com representação determinística via `KeyBERTInspired`, sem depender de API externa), gravando clusters e sentimento/tópicos provisórios em Gold via `ModelEnricher` sob um `run_id`, e um checkpoint local em `data/model_checkpoints/<run_id>/` (o `topic_model` do BERTopic, `df_comments`/`df_reels`, os modelos de PCA/clustering). `scripts/refine_topics.py --run-id <ID>` carrega esse checkpoint e roda o refinamento manual dos rótulos de tópico via Gemini (`GeminiDocsRefiner`) — depende de uma API key do Gemini e é uma etapa de revisão humana (o texto gerado vira citação no TCC), por isso continua separada e manual mesmo com o estágio determinístico automatizável (ver [ADR 0001](docs/adr/0001-separar-modelagem-em-etapas-deterministicas-e-refinamento-manual.md) e [ADR 0003](docs/adr/0003-desacoplar-modelagem-do-notebook-via-scripts-cli-com-checkpoint.md)); reescreve `governor_sentiment` sob um segundo `run_id` e atualiza o checkpoint com os rótulos finais. Sentimento e tópicos vivem em `governor_sentiment` (os tópicos do BERTopic viajam junto, nas colunas `Topic`/`Name` — não há uma tabela separada), e clusters em `governor_clusters`. A clusterização é por **reel** (PCA de engajamento/duração do vídeo via `AutoClusterHPO`), não por perfil — não há, e nunca houve, clusterização de governadores no projeto (a clusterização *de perfil*, por engajamento, é outra tabela, `governor_profile_clusters_engagement`, gerada por `scripts/run_profile_clustering_engagement.py`, ver ADR 0020). `notebooks/03_modelagem_hibrida.ipynb` agora só lê (`governor_sentiment`/`governor_clusters` da Gold, mais o checkpoint para as visualizações de PCA/validação de cluster) — não dispara nenhuma escrita. O dashboard de Insights (`pages/02_insights.py`) exibe a distribuição de sentimento, os tópicos mais frequentes e os clusters de reels assim que essas tabelas existem — e se ainda não existirem, mostra instruções em vez de quebrar.
 
-**Notebooks já migrados para Delta.** Os 5 notebooks usam `DeltaRepository`/`run_medallion_pipeline` — nenhum lê mais `all.xlsx` como fonte de pipeline (o notebook 01 só toca Excel para ler `governadores.xlsx`, a lista de perfis a coletar, que é configuração, não dado).
+**Notebooks já migrados para Delta.** Os 6 notebooks usam `DeltaRepository`/`run_medallion_pipeline` — nenhum lê mais `all.xlsx` como fonte de pipeline (o notebook 01 só toca Excel para ler `governadores.xlsx`, a lista de perfis a coletar, que é configuração, não dado).
+
+**Dashboard reformulado como ferramenta de growth (ADR 0020, issue #94).** Além de Explorar/Insights/Performance, o app tem `pages/04_recommendations.py` — motor de regras determinístico (`src/dashboard/recommendations.py`, ADR 0017) que gera recomendações textuais por governador a partir das tabelas Gold já existentes, sem LLM — e `pages/05_funil.py`, que mapeia as métricas de growth (NSM, CMGR, ICE, prioridade de tópico) ao funil RACE (Reach/Act/Convert/Engage) cruzado com o framework COBRA (Consumir/Contribuir/Criar). Ambas são páginas *presentation-only*: só leitura + agregações triviais via `DeltaRepository`, nenhuma métrica é recalculada ali.
 
 **Pendências de documentação.** Os capítulos 6 (Resultados) e 7 (Conclusões) do TCC ainda estão no texto-modelo, embora os resultados já existam e estejam redigidos no capítulo 5.
 
@@ -593,7 +602,7 @@ Esta seção registra honestamente o que ainda não está fechado.
 | `test_transform_lambda.py` | Handler Silver retorna `200` / `silver_complete`; retorna `400` sem `S3_BUCKET` |
 | `test_load_lambda.py` | Handler Gold retorna `200` / `gold_complete`; retorna `400` sem `S3_BUCKET` |
 
-**Resultado atual: 77 testes (25 arquivos), todos passando.**
+**Resultado atual: 388 testes (42 arquivos), todos passando.** A tabela acima cobre só os arquivos mais ilustrativos do pipeline Bronze/Silver/Gold e das Lambdas; a suíte completa também cobre o dashboard reformulado (`test_dashboard_loaders.py`, `test_comparisons.py`, `test_recommendations.py`), as métricas de growth da ADR 0020 (`test_growth_history.py`, `test_nsm_scorer.py`, `test_topic_priority_scorer.py`, `test_post_performance.py`), a clusterização de perfil (`test_profile_clustering.py`) e o piloto de UGC/menções (`test_ugc_mention_cleaner.py`, `test_ugc_mentions_aggregator.py`).
 
 `.github/workflows/python-app.yml` roda a cada push e pull request na `main`: checkout, Python 3.11, `pip install -e .[dev]`, pytest com cobertura e `ruff check src/`.
 
@@ -617,4 +626,4 @@ Lista completa e versões em `pyproject.toml` e `uv.lock`.
 
 ### Legado
 
-`data/processed/all.xlsx` e o diretório `legacy/` são resquícios da implementação original baseada em Excel, anterior à migração para Delta Lake. São mantidos apenas para os notebooks 01 e 02, que ainda não foram convertidos. **Nenhum fluxo ativo depende deles.**
+O pipeline legado baseado em Excel (`data/processed/all.xlsx` e o diretório `legacy/`) já foi **removido** — ver [ADR 0013](docs/adr/0013-remover-pipeline-legado-excel-e-artefatos-de-migracao-ja-concluida.md). Nenhum notebook ou script ativo depende de Excel como fonte de dado; a única leitura de `.xlsx` que resta é `reference/governadores.xlsx`, a lista de perfis a coletar (configuração, não dado do pipeline).
