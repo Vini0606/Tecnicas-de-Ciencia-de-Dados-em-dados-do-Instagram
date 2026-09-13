@@ -1,0 +1,139 @@
+"""Camada de acesso a dado do novo dashboard (ADR 0021 / issue #110).
+
+Um wrapper `@st.cache_data(ttl=600)` por tabela Gold, delegando para os
+métodos JÁ NOMEADOS de `DeltaRepository` -- nenhum método genérico
+`.read(tabela)` é introduzido aqui (esse método não existe no repositório
+real; ver issue #110, Implementation Decisions). Mesmo padrão degradado de
+`src/dashboard/loaders.py` (o pacote antigo, ainda em uso por `app.py`/
+`pages/*.py` até a Tela 1 substituí-los): `DataFrame` vazio, nunca exceção,
+quando a tabela Gold ainda não foi gerada.
+"""
+
+from __future__ import annotations
+
+import pandas as pd
+import streamlit as st
+
+from config import settings
+from src.repositories.delta_repository import DeltaRepository
+
+_TTL_SECONDS = 600
+
+
+@st.cache_resource
+def get_repository() -> DeltaRepository:
+    return DeltaRepository(gold_dir=settings.GOLD_DIR, silver_dir=settings.SILVER_DIR)
+
+
+@st.cache_data(ttl=_TTL_SECONDS)
+def load_engagement() -> pd.DataFrame:
+    """`governor_engagement` -- 1 linha por perfil (snapshot)."""
+    try:
+        return get_repository().load_profiles()
+    except FileNotFoundError:
+        return pd.DataFrame()
+
+
+@st.cache_data(ttl=_TTL_SECONDS)
+def load_engagement_history() -> pd.DataFrame:
+    """`governor_engagement_history` -- 1 linha por perfil por execução."""
+    try:
+        return get_repository().load_engagement_history()
+    except FileNotFoundError:
+        return pd.DataFrame()
+
+
+@st.cache_data(ttl=_TTL_SECONDS)
+def load_sentiment() -> pd.DataFrame:
+    """`governor_sentiment` cru (todas as `fonte`) -- use `comments_only()`
+    para reação do público (comentários), não discurso da assessoria
+    (legenda/transcrição)."""
+    try:
+        return get_repository().load_comments()
+    except FileNotFoundError:
+        return pd.DataFrame()
+
+
+@st.cache_data(ttl=_TTL_SECONDS)
+def load_sentiment_history() -> pd.DataFrame:
+    """`governor_sentiment_history` -- idem, modo append por execução."""
+    try:
+        return get_repository().load_sentiment_history()
+    except FileNotFoundError:
+        return pd.DataFrame()
+
+
+@st.cache_data(ttl=_TTL_SECONDS)
+def load_clusters_content() -> pd.DataFrame:
+    """`governor_clusters` -- 1 linha por post/reel (`content_type`,
+    `videoPlayCount` nullable)."""
+    try:
+        return get_repository().load_clusters()
+    except FileNotFoundError:
+        return pd.DataFrame()
+
+
+@st.cache_data(ttl=_TTL_SECONDS)
+def load_clusters_profile() -> pd.DataFrame:
+    """`governor_profile_clusters_engagement` -- 1 linha por governador."""
+    try:
+        return get_repository().load_profile_clusters_engagement()
+    except FileNotFoundError:
+        return pd.DataFrame()
+
+
+@st.cache_data(ttl=_TTL_SECONDS)
+def load_discourse_topics() -> pd.DataFrame:
+    """`governor_discourse_topics` -- 1 linha por legenda/transcrição."""
+    try:
+        return get_repository().load_discourse_topics()
+    except FileNotFoundError:
+        return pd.DataFrame()
+
+
+@st.cache_data(ttl=_TTL_SECONDS)
+def load_topic_priority() -> pd.DataFrame:
+    """`topic_priority_score` -- 1 linha por tópico de comentário, ranking
+    global (não por governador)."""
+    try:
+        return get_repository().load_topic_priority_score()
+    except FileNotFoundError:
+        return pd.DataFrame()
+
+
+@st.cache_data(ttl=_TTL_SECONDS)
+def load_nsm() -> pd.DataFrame:
+    """`governor_nsm` -- 1 linha por perfil."""
+    try:
+        return get_repository().load_nsm()
+    except FileNotFoundError:
+        return pd.DataFrame()
+
+
+@st.cache_data(ttl=_TTL_SECONDS)
+def load_growth_metrics() -> pd.DataFrame:
+    """`governor_growth_metrics` -- 1 linha por perfil (`cmgr_confiavel`/
+    `retencao_confiavel` sempre precisam ser checados antes de exibir)."""
+    try:
+        return get_repository().load_growth_metrics()
+    except FileNotFoundError:
+        return pd.DataFrame()
+
+
+@st.cache_data(ttl=_TTL_SECONDS)
+def load_governors_metadata() -> pd.DataFrame:
+    """`governors_metadata` -- 1 linha por governador (nome/UF/partido)."""
+    try:
+        return get_repository().load_governors_metadata()
+    except FileNotFoundError:
+        return pd.DataFrame()
+
+
+def comments_only(df: pd.DataFrame) -> pd.DataFrame:
+    """Reação do público = só comentários (`fonte == 'comentario'`); o resto
+    de `governor_sentiment` (`legenda`, `transcricao`) é discurso da própria
+    assessoria, não reação de quem consome. Retorna cópia -- quem chama pode
+    mutar o resultado sem afetar o DataFrame original nem o cache."""
+    if df.empty or "fonte" not in df.columns:
+        return df.copy()
+    return df[df["fonte"] == "comentario"].copy()
