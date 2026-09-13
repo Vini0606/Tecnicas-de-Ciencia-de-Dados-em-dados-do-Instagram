@@ -65,8 +65,13 @@ def load_sentiment_history() -> pd.DataFrame:
 
 @st.cache_data(ttl=_TTL_SECONDS)
 def load_clusters_content() -> pd.DataFrame:
-    """`governor_clusters` -- 1 linha por post/reel (`content_type`,
-    `videoPlayCount` nullable)."""
+    """`governor_clusters` -- 1 linha por post/reel (`id_reel`/
+    `ownerUsername`/`cluster_*`/`content_type`). NÃO tem `videoPlayCount`
+    nem `inputUrl` (`GOLD_CLUSTERS_SCHEMA`) -- corrigido pela issue #114
+    (Tela 6/Funil), que precisou desse dado e descobriu a lacuna: quem
+    precisar de `videoPlayCount` por reel deve cruzar o resultado desta
+    função com `load_reels_content()` por `id`/`id_reel` (mesmo join já
+    usado em `dashboard/screens/{resumo,produzir,funil}.py`)."""
     try:
         return get_repository().load_clusters()
     except FileNotFoundError:
