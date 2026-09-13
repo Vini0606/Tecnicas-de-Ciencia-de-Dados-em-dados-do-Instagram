@@ -375,7 +375,10 @@ TF_VAR_image_tag=$(git rev-parse origin/main) terraform apply
 ## 4. Estrutura do repositório
 
 ```
-├── app.py                  # Página raiz do Streamlit
+├── dashboard/               # Dashboard Streamlit "por decisão" (ADR 0021) -- entrypoint real do produto
+│   ├── app.py               # `streamlit run dashboard/app.py` -- navegação por st.radio entre as telas de TELAS
+│   ├── core/                # data.py (loaders @st.cache_data), theme.py (paleta semafórica + chrome IESB), components.py (faixa de decisão, KPIs, rodapé), deltas.py (run-over-run + limiar de alerta de negatividade)
+│   └── screens/             # Uma tela por decisão do analista -- resumo.py (Tela 1) é a primeira, ver ADR 0021
 ├── pipeline.py             # Orquestrador ETL local (Bronze → Silver → Gold)
 ├── config/settings.py      # Caminhos e parâmetros, sobrescrevíveis por env var
 ├── src/
@@ -391,7 +394,7 @@ TF_VAR_image_tag=$(git rev-parse origin/main) terraform apply
 │   ├── logging_setup.py    # Setup de logging por run_id -- console INFO / arquivo DEBUG (ADR 0015)
 │   ├── run_id.py           # Geração do identificador de execução, compartilhado por pipeline.py e src/modeling/
 │   └── visualization/      # Gráficos Plotly reutilizáveis
-├── pages/                  # Dashboards Streamlit: 01 explorar · 02 insights (sentimento/tópicos/clusters) · 03 performance (comparação entre governadores + auto-refresh) · 04 recommendations (regras determinísticas, ADR 0017) · 05 funil (growth RACE ↔ COBRA, ADR 0020)
+├── pages/                  # Dashboard Streamlit antigo (ADR 0020, sendo substituído tela por tela pela ADR 0021): 02 insights (sentimento/tópicos/clusters) · 03 performance (comparação entre governadores + auto-refresh) · 04 recommendations (regras determinísticas, ADR 0017) · 05 funil (growth RACE ↔ COBRA) -- 01 explorar já foi substituído (ver dashboard/screens/resumo.py)
 ├── lambdas/                # Pipeline serverless AWS -- mesma arquitetura Medallion, backend S3 (ver seção 3)
 │   ├── extract/            # Apify -> Bronze (S3)
 │   ├── transform/          # Bronze -> Silver (S3)
@@ -455,7 +458,7 @@ uv run python pipeline.py --yes
 uv run python pipeline.py --run-modeling
 
 # 6. Abrir os dashboards
-uv run streamlit run app.py     # http://localhost:8501
+uv run streamlit run dashboard/app.py     # http://localhost:8501
 
 # 7. Testes e lint
 uv run pytest tests/ -v --cov=src --cov-report=term-missing
@@ -542,7 +545,7 @@ uv run python scripts/inspect_runs.py --pipeline <ID>     # extração <ID> + to
 | Adicionar dependência | `uv add <pacote>` (`--dev` para desenvolvimento) |
 | Executar script | `uv run python <script>.py` |
 | Executar testes | `uv run pytest` |
-| Executar dashboards | `uv run streamlit run app.py` |
+| Executar dashboards | `uv run streamlit run dashboard/app.py` |
 | Abrir notebooks | `uv run jupyter lab notebooks/` |
 | Atualizar lockfile | `uv lock --upgrade` |
 

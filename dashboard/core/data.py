@@ -74,6 +74,25 @@ def load_clusters_content() -> pd.DataFrame:
 
 
 @st.cache_data(ttl=_TTL_SECONDS)
+def load_reels_content() -> pd.DataFrame:
+    """`reels_clean` (Silver) -- 1 linha por reel, incluindo `Total de
+    Engajamento` (likes+comentários por reel) e `inputUrl`. Adicionado na
+    issue #111 (Tela 1): `governor_clusters` (`load_clusters_content()`) NÃO
+    grava nenhuma métrica de engajamento por post nem `inputUrl`
+    (`GOLD_CLUSTERS_SCHEMA` só tem `id_reel`/`ownerUsername`/`cluster_*`/
+    `content_type` -- conferido contra `src/features/gold/model_enricher.py`
+    `write_clusters` antes de escrever este loader), então o destaque
+    "melhor post da semana" precisa cruzar `governor_clusters` com esta
+    tabela por `id`/`id_reel` para saber QUAL reel teve mais engajamento --
+    mesmo join já usado em `src/dashboard/filters.py::build_cluster_membership`
+    e em `pages/02_insights.py`/`pages/05_funil.py`."""
+    try:
+        return get_repository().load_reels()
+    except FileNotFoundError:
+        return pd.DataFrame()
+
+
+@st.cache_data(ttl=_TTL_SECONDS)
 def load_clusters_profile() -> pd.DataFrame:
     """`governor_profile_clusters_engagement` -- 1 linha por governador."""
     try:

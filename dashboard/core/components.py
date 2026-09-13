@@ -34,14 +34,20 @@ def decision_band(text: str, level: str = "info", label: str = "Recomendação")
     )
 
 
-def kpi_row(items: Sequence[tuple[str, object, object, str | None]]) -> None:
-    """`items` = [(label, valor, delta_str, delta_dir), ...] --
+def kpi_row(items: Sequence[tuple]) -> None:
+    """`items` = [(label, valor, delta_str, delta_dir[, help_text]), ...] --
     `delta_dir` ∈ {"up", "down", None} (mantido no contrato pela
     especificação, mas não usado diretamente aqui: `st.metric` já desenha a
-    seta certa a partir do sinal de `delta`)."""
+    seta certa a partir do sinal de `delta`). Um 5º elemento opcional
+    (`help_text`) vira o tooltip de `st.metric` -- adicionado na issue #111
+    para o selo "em validação" do Engajamento qualificado (NSM), que precisa
+    de um tooltip explicando a métrica sem virar um `st.warning` inteiro.
+    Itens de 4 elementos continuam funcionando sem tooltip (`help=None`)."""
     cols = st.columns(len(items))
-    for col, (label, value, delta, _direction) in zip(cols, items, strict=True):
-        col.metric(label, value, delta=delta)
+    for col, item in zip(cols, items, strict=True):
+        label, value, delta, _direction = item[:4]
+        help_text = item[4] if len(item) > 4 else None
+        col.metric(label, value, delta=delta, help=help_text)
 
 
 def footnote(text: str = "Análise baseada em comentários de Reels.") -> None:
