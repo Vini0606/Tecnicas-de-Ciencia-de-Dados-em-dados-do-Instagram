@@ -23,7 +23,7 @@ if ROOT_DIR not in sys.path:
     sys.path.insert(0, ROOT_DIR)
 
 from dashboard.core.theme import inject_theme  # noqa: E402
-from dashboard.screens import produzir, resumo  # noqa: E402
+from dashboard.screens import produzir, radar, resumo  # noqa: E402
 
 st.set_page_config(page_title="Growth — Assessoria", layout="wide")
 inject_theme()
@@ -31,6 +31,7 @@ inject_theme()
 TELAS: dict[str, object] = {
     "Resumo da semana": resumo.render,
     "O que produzir": produzir.render,
+    "Radar de crise": radar.render,
 }
 
 st.sidebar.title("Growth — Assessoria")
