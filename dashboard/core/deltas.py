@@ -13,6 +13,26 @@ from __future__ import annotations
 
 import pandas as pd
 
+# Limiar de alerta de negatividade (ADR 0021 / issue #111). Definido aqui, e
+# não em `dashboard/screens/radar.py`, porque a Tela 1 ("Resumo da semana",
+# issue #111) precisa dele para a faixa de decisão semafórica ANTES da Tela 3
+# ("Radar de crise", issue #113) existir -- ver issue #111, user story 3
+# ("mesmo critério da Tela 3"). Quando a issue #113 for implementada, ela
+# deve IMPORTAR esta constante (`from dashboard.core.deltas import
+# LIMIAR_NEGATIVIDADE_ALERTA`), nunca redefinir um segundo valor: as duas
+# telas precisam concordar sobre o que conta como "crise" sem exigir que a
+# analista de assessoria memorize dois números diferentes para o mesmo
+# conceito.
+#
+# 0.30 (30% dos comentários avaliados como negativos) é um ponto de partida
+# documentado, não calibrado contra dado real: o projeto ainda não acumulou
+# histórico suficiente para justificar um limiar orientado a dado (mesma
+# limitação já registrada para CMGR/retenção em `governor_growth_metrics`,
+# ver `GOLD_GROWTH_METRICS_SCHEMA` / ADR 0020 Ficha 7). Escolhido por ser
+# redondo e fácil de explicar ("quase 1 em cada 3 comentários é negativo") --
+# revisar quando a Tela 3 tiver dado real suficiente para recalibrar.
+LIMIAR_NEGATIVIDADE_ALERTA = 0.30
+
 
 def week_over_week(
     df_history: pd.DataFrame,
