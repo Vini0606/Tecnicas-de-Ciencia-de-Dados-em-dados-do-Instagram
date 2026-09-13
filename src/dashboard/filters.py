@@ -195,8 +195,10 @@ def build_nsm_directory() -> pd.DataFrame:
 
 def enrich_with_nsm(df: pd.DataFrame, url_col: str = "inputUrl") -> pd.DataFrame:
     """Adiciona `nsm` a `df` via join por `url_col` normalizado -- mesmo
-    padrão de `enrich_with_profile_cluster` (issue #94, `01_explorar.py`/
-    `03_performance.py`). Left join, função pura."""
+    padrão de `enrich_with_profile_cluster` (issue #94). Chamada hoje só por
+    `pages/03_performance.py` -- `pages/01_explorar.py` também a chamava,
+    mas foi apagada pela issue #111 (Tela 1 / ADR 0021). Left join, função
+    pura."""
     directory = build_nsm_directory()
     df = df.copy()
     if url_col not in df.columns or directory.empty:
@@ -214,13 +216,14 @@ def enrich_with_nsm(df: pd.DataFrame, url_col: str = "inputUrl") -> pd.DataFrame
 
 def aggregate_ugc_by_governor(df_ugc_mentions: pd.DataFrame) -> pd.DataFrame:
     """Único ponto do dashboard que importa `GovernorUGCAggregator` (camada
-    de modelagem/ETL, `src/features/gold/`) -- `build_ugc_volume_directory`
-    abaixo e `pages/05_funil.py` chamam esta função em vez de importar o
-    agregador diretamente, para não duplicar a travessia de camada em dois
-    lugares. `aggregate_by_governor` é a "view" pura já documentada naquele
-    módulo (ADR 0020, Ficha 8 / issue #93) -- não é um cálculo novo, só a
-    agregação (contagem/média/% orgânico) já testada em
-    `tests/test_ugc_mentions_aggregator.py`."""
+    de modelagem/ETL, `src/features/gold/`) -- `pages/05_funil.py` chama esta
+    função em vez de importar o agregador diretamente, para não duplicar a
+    travessia de camada. (Até a issue #111/ADR 0021, `build_ugc_volume_directory`
+    também chamava esta função; foi apagada nessa issue por só ser usada por
+    `pages/01_explorar.py`, também apagada.) `aggregate_by_governor` é a
+    "view" pura já documentada naquele módulo (ADR 0020, Ficha 8 / issue
+    #93) -- não é um cálculo novo, só a agregação (contagem/média/%
+    orgânico) já testada em `tests/test_ugc_mentions_aggregator.py`."""
     return GovernorUGCAggregator().aggregate_by_governor(df_ugc_mentions)
 
 

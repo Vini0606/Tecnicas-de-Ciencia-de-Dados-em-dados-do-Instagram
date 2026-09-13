@@ -275,6 +275,67 @@ def test_maior_alta_negatividade_retorna_none_para_dataframe_vazio():
     assert resumo._maior_alta_negatividade(pd.DataFrame()) is None
 
 
+def _df_sentiment_history_dois_governadores():
+    """Dois governadores no mesmo histórico -- gov_b tem uma alta de
+    negatividade MUITO maior que gov_a (100% vs. 25 p.p.), pra provar que o
+    destaque 2 precisa ser calculado sobre o histórico JÁ FILTRADO ao
+    governador selecionado (`render()` faz isso via `_filtrar_por_governador`
+    antes de chamar `_maior_alta_negatividade` -- ver bug corrigido: sem esse
+    filtro, o destaque misturava os 27 perfis e sempre "vencia" o governador
+    com a pior semana, não o perfil que a analista escolheu)."""
+    gov_a = "https://www.instagram.com/gov_a/"
+    gov_b = "https://www.instagram.com/gov_b/"
+    return pd.DataFrame(
+        {
+            "inputUrl": [gov_a] * 8 + [gov_b] * 4,
+            "Topic": [0] * 8 + [5] * 4,
+            "Name": ["0_saude"] * 8 + ["5_seguranca"] * 4,
+            "sentiment_label": [
+                # gov_a, tópico 0: r1 25% negativo -> r2 50% negativo (+25 p.p.)
+                "positive",
+                "positive",
+                "positive",
+                "negative",
+                "negative",
+                "negative",
+                "positive",
+                "positive",
+                # gov_b, tópico 5: r1 0% negativo -> r2 100% negativo (+100 p.p.)
+                "positive",
+                "positive",
+                "negative",
+                "negative",
+            ],
+            "_run_id": ["r1", "r1", "r1", "r1", "r2", "r2", "r2", "r2", "r1", "r1", "r2", "r2"],
+        }
+    )
+
+
+def test_maior_alta_negatividade_ignora_outros_governadores_quando_historico_e_filtrado():
+    df_todos = _df_sentiment_history_dois_governadores()
+    gov_a = "https://www.instagram.com/gov_a/"
+
+    # Sanity check: sem filtrar por governador, a alta maior é a de gov_b
+    # (tópico 5, +100 p.p.) -- é exatamente esse resultado errado que o bug
+    # produzia quando `render()` passava o histórico inteiro (todos os 27
+    # perfis) direto para `_maior_alta_negatividade`.
+    resultado_sem_filtro = resumo._maior_alta_negatividade(df_todos)
+    assert resultado_sem_filtro is not None
+    assert resultado_sem_filtro["topic"] == 5
+
+    # Com o histórico filtrado ao governador selecionado (gov_a) -- o que
+    # `render()` agora faz antes de chamar `_maior_alta_negatividade` --, o
+    # destaque precisa ser o próprio tópico de gov_a, mesmo sendo uma alta
+    # bem menor que a de gov_b.
+    df_governador = resumo._filtrar_por_governador(df_todos, gov_a)
+    resultado_filtrado = resumo._maior_alta_negatividade(df_governador)
+
+    assert resultado_filtrado is not None
+    assert resultado_filtrado["topic"] == 0
+    assert resultado_filtrado["name"] == "0_saude"
+    assert resultado_filtrado["delta_pct_negativo"] == 25.0
+
+
 # ---------------------------------------------------------------------------
 # Destaque 3 -- alto % positivo e baixo volume de discurso
 # ---------------------------------------------------------------------------

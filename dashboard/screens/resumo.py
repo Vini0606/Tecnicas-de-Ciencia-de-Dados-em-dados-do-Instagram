@@ -291,6 +291,14 @@ def _maior_alta_negatividade(df_sentiment_history: pd.DataFrame) -> dict | None:
     de `sentiment_label == 'negative'` entre as duas execuções mais recentes
     de `governor_sentiment_history` (já filtrado a `comments_only`).
 
+    IMPORTANTE: `df_sentiment_history` deve chegar aqui já filtrado ao
+    governador selecionado (ver `render()`, `_filtrar_por_governador`) -- esta
+    função não faz nenhum filtro por `inputUrl` sozinha. Passar o histórico
+    de todos os 27 perfis produz o tópico que mais piorou entre todos os
+    governadores combinados, não o do perfil que a analista está olhando
+    (contrariaria a user story 1 da tela: "escolher o governador... para ver
+    o resumo do perfil que acompanho").
+
     `None` se não houver histórico suficiente, nenhum tópico atribuído
     (`Topic` sempre nulo -- BERTopic não rodou), ou se nenhum tópico tiver
     alta de negatividade (aumento <= 0) -- não força um "destaque" artificial
@@ -467,6 +475,13 @@ def render() -> None:
             _chave=_normalize_url(df_engagement_history["inputUrl"])
         )
     df_pct_positivo_run = _agregar_pct_positivo_por_run(df_sentiment_history)
+    # Destaque 2 (tema em alta de negatividade) precisa do histórico já
+    # filtrado a ESTE governador -- sem isso, `_maior_alta_negatividade`
+    # rankeia tópicos misturando os 27 perfis, contrariando a premissa da
+    # tela (user story 1: "escolher o governador... para ver o resumo do
+    # perfil que acompanho"). Mesmo escopo por governador que `% positivo`
+    # já aplica via `_chave` em `_agregar_pct_positivo_por_run`.
+    df_sentiment_history_governador = _filtrar_por_governador(df_sentiment_history, governor_url)
     df_nsm_governador = _filtrar_por_governador(data.load_nsm(), governor_url)
 
     prop_positivo_atual = _proporcao_label(df_sentiment_governador, "positive")
@@ -510,6 +525,10 @@ def render() -> None:
             (
                 "Engajamento qualificado · em validação",
                 _fmt_nsm(valor_nsm),
+                # `delta=None` sempre: não existe `load_nsm_history()` (fora
+                # do escopo de `dashboard/core/data.py`, issue #110) -- sem
+                # histórico, não há como chamar `week_over_week` para este
+                # KPI. Não é um esquecimento; é ausência real de dado.
                 None,
                 None,
                 (
@@ -562,7 +581,7 @@ def render() -> None:
 
     with col2:
         st.markdown("**Tema em alta de negatividade**")
-        alta_negatividade = _maior_alta_negatividade(df_sentiment_history)
+        alta_negatividade = _maior_alta_negatividade(df_sentiment_history_governador)
         if alta_negatividade is None:
             st.caption("Nenhum tema com alta de negatividade nas duas últimas execuções.")
         else:
