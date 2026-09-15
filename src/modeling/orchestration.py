@@ -20,6 +20,7 @@ from src.modeling.gemini_refiner import apply_gemini_refinement
 from src.modeling.pca import reduce_dimensions
 from src.modeling.post_performance import run_post_performance_stage
 from src.modeling.preprocessing import preprocess_comments
+from src.modeling.profile_clustering import cluster_governor_profiles
 from src.modeling.sentiment import analyze_sentiment
 from src.modeling.topics import classify_post_topics, model_topics
 from src.run_id import build_run_id
@@ -105,10 +106,17 @@ def run_deterministic_modeling(
     engajamento qualificado por perfil (ADR 0020 Ficha 5) -> tópicos de
     discurso oficial (legenda+transcrição, ADR 0020 Ficha 4) ->
     performance-por-post (representação determinística via KeyBERTInspired,
-    não via Gemini). Escreve as sete tabelas Gold (clusters, sentimento/
-    tópicos provisórios de comentário, Score ICE por tópico, NSM por
-    perfil, tópicos de discurso, coeficientes e previsão/resíduo da
-    regressão de performance-por-post) sob um único `run_id` novo.
+    não via Gemini) -> clusterização de PERFIL de governador por engajamento
+    (Fase 2, ADR 0020) -- fecha a paridade com `lambdas/model/handler.py`, que
+    já rodava esse último estágio automaticamente no pipeline serverless;
+    localmente, até aqui, só rodava via `scripts/
+    run_profile_clustering_engagement.py` manual, e a Tela 4 ("Comparar
+    perfis", ADR 0021) do dashboard ficava vazia se ninguém lembrasse de
+    rodar esse script à parte. Escreve as oito tabelas Gold (clusters,
+    sentimento/tópicos provisórios de comentário, Score ICE por tópico, NSM
+    por perfil, tópicos de discurso, coeficientes e previsão/resíduo da
+    regressão de performance-por-post, clusters de perfil por engajamento)
+    sob um único `run_id` novo.
 
     `parent_run_id`, se informado, é só rastreabilidade -- o `run_id` da
     extração/invocação de `pipeline.py` que disparou esta chamada, gravado
@@ -316,6 +324,27 @@ def run_deterministic_modeling(
         # execução -- loga e pula só a escrita Gold desta etapa.
         logger.exception(
             "[PERFORMANCE-POR-POST] Falha ao treinar/persistir -- etapa "
+            "pulada, pipeline segue com os demais estágios."
+        )
+
+    # Fase 2 (ADR 0020): clusterização de PERFIL de governador por
+    # engajamento -- só depende de `df_engagement` (já recebido por esta
+    # função, mesmo parâmetro do NSM acima). Mesmo tratamento de falha do
+    # bloco de performance-por-post: dado insuficiente (poucos perfis, ou
+    # `df_engagement` sem as colunas de `config.profile_cluster.
+    # feature_columns`) não pode derrubar os estágios que já rodaram com
+    # sucesso -- loga e pula só esta escrita.
+    logger.info("[CLUSTER-PERFIL] Agrupando perfis de governador por engajamento...")
+    try:
+        df_profile_clustered, *_profile_cluster_rest = cluster_governor_profiles(
+            df_engagement, config.profile_cluster
+        )
+        enricher.write_profile_clusters_engagement(
+            df_profile_clustered, config.gold_profile_clusters_engagement_path, run_id
+        )
+    except Exception:
+        logger.exception(
+            "[CLUSTER-PERFIL] Falha ao clusterizar/persistir -- etapa "
             "pulada, pipeline segue com os demais estágios."
         )
 

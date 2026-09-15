@@ -164,6 +164,7 @@ def test_run_deterministic_modeling_grava_clusters_e_sentimento_com_mesmo_run_id
         gold_nsm_path=tmp_path / "governor_nsm",
         gold_post_performance_coefficients_path=tmp_path / "post_performance_coefficients",
         gold_post_performance_predictions_path=tmp_path / "post_performance_predictions",
+        gold_profile_clusters_engagement_path=tmp_path / "governor_profile_clusters_engagement",
         checkpoints_dir=tmp_path / "checkpoints",
         logs_dir=tmp_path / "logs",
     )
@@ -229,6 +230,7 @@ def test_run_deterministic_modeling_grava_score_ice_por_topico_de_comentario(
         gold_nsm_path=tmp_path / "governor_nsm",
         gold_post_performance_coefficients_path=tmp_path / "post_performance_coefficients",
         gold_post_performance_predictions_path=tmp_path / "post_performance_predictions",
+        gold_profile_clusters_engagement_path=tmp_path / "governor_profile_clusters_engagement",
         checkpoints_dir=tmp_path / "checkpoints",
         logs_dir=tmp_path / "logs",
     )
@@ -276,6 +278,7 @@ def test_run_deterministic_modeling_grava_nsm_por_perfil(monkeypatch, tmp_path):
         gold_nsm_path=tmp_path / "governor_nsm",
         gold_post_performance_coefficients_path=tmp_path / "post_performance_coefficients",
         gold_post_performance_predictions_path=tmp_path / "post_performance_predictions",
+        gold_profile_clusters_engagement_path=tmp_path / "governor_profile_clusters_engagement",
         checkpoints_dir=tmp_path / "checkpoints",
         logs_dir=tmp_path / "logs",
     )
@@ -339,6 +342,7 @@ def test_run_deterministic_modeling_grava_sentimento_de_legenda_e_transcricao(
         gold_nsm_path=tmp_path / "governor_nsm",
         gold_post_performance_coefficients_path=tmp_path / "post_performance_coefficients",
         gold_post_performance_predictions_path=tmp_path / "post_performance_predictions",
+        gold_profile_clusters_engagement_path=tmp_path / "governor_profile_clusters_engagement",
         checkpoints_dir=tmp_path / "checkpoints",
         logs_dir=tmp_path / "logs",
     )
@@ -398,6 +402,7 @@ def test_run_deterministic_modeling_grava_topicos_de_discurso_separados_de_comen
         gold_nsm_path=tmp_path / "governor_nsm",
         gold_post_performance_coefficients_path=tmp_path / "post_performance_coefficients",
         gold_post_performance_predictions_path=tmp_path / "post_performance_predictions",
+        gold_profile_clusters_engagement_path=tmp_path / "governor_profile_clusters_engagement",
         checkpoints_dir=tmp_path / "checkpoints",
         logs_dir=tmp_path / "logs",
     )
@@ -454,6 +459,7 @@ def test_run_deterministic_modeling_grava_sentimento_tambem_no_historico_em_appe
         gold_nsm_path=tmp_path / "governor_nsm",
         gold_post_performance_coefficients_path=tmp_path / "post_performance_coefficients",
         gold_post_performance_predictions_path=tmp_path / "post_performance_predictions",
+        gold_profile_clusters_engagement_path=tmp_path / "governor_profile_clusters_engagement",
         checkpoints_dir=tmp_path / "checkpoints",
         logs_dir=tmp_path / "logs",
     )
@@ -500,6 +506,7 @@ def test_refine_topics_with_gemini_nao_grava_no_historico_de_sentimento(monkeypa
         gold_nsm_path=tmp_path / "governor_nsm",
         gold_post_performance_coefficients_path=tmp_path / "post_performance_coefficients",
         gold_post_performance_predictions_path=tmp_path / "post_performance_predictions",
+        gold_profile_clusters_engagement_path=tmp_path / "governor_profile_clusters_engagement",
         checkpoints_dir=tmp_path / "checkpoints",
         logs_dir=tmp_path / "logs",
     )
@@ -556,6 +563,7 @@ def test_run_deterministic_modeling_grava_parent_run_id_como_primeira_linha_do_l
         gold_nsm_path=tmp_path / "governor_nsm",
         gold_post_performance_coefficients_path=tmp_path / "post_performance_coefficients",
         gold_post_performance_predictions_path=tmp_path / "post_performance_predictions",
+        gold_profile_clusters_engagement_path=tmp_path / "governor_profile_clusters_engagement",
         checkpoints_dir=tmp_path / "checkpoints",
         logs_dir=tmp_path / "logs",
     )
@@ -606,6 +614,7 @@ def test_refine_topics_with_gemini_so_reescreve_sentimento_com_run_id_novo(
         gold_nsm_path=tmp_path / "governor_nsm",
         gold_post_performance_coefficients_path=tmp_path / "post_performance_coefficients",
         gold_post_performance_predictions_path=tmp_path / "post_performance_predictions",
+        gold_profile_clusters_engagement_path=tmp_path / "governor_profile_clusters_engagement",
         checkpoints_dir=tmp_path / "checkpoints",
         logs_dir=tmp_path / "logs",
     )
@@ -666,6 +675,7 @@ def test_refine_topics_with_gemini_recalcula_score_ice_com_topico_refinado(
         gold_nsm_path=tmp_path / "governor_nsm",
         gold_post_performance_coefficients_path=tmp_path / "post_performance_coefficients",
         gold_post_performance_predictions_path=tmp_path / "post_performance_predictions",
+        gold_profile_clusters_engagement_path=tmp_path / "governor_profile_clusters_engagement",
         checkpoints_dir=tmp_path / "checkpoints",
         logs_dir=tmp_path / "logs",
     )
@@ -784,6 +794,7 @@ def _config_performance(tmp_path):
         gold_nsm_path=tmp_path / "governor_nsm",
         gold_post_performance_coefficients_path=tmp_path / "post_performance_coefficients",
         gold_post_performance_predictions_path=tmp_path / "post_performance_predictions",
+        gold_profile_clusters_engagement_path=tmp_path / "governor_profile_clusters_engagement",
         checkpoints_dir=tmp_path / "checkpoints",
         logs_dir=tmp_path / "logs",
     )
@@ -862,6 +873,7 @@ def test_run_deterministic_modeling_degrada_sem_derrubar_pipeline_se_performance
         gold_nsm_path=tmp_path / "governor_nsm",
         gold_post_performance_coefficients_path=tmp_path / "post_performance_coefficients",
         gold_post_performance_predictions_path=tmp_path / "post_performance_predictions",
+        gold_profile_clusters_engagement_path=tmp_path / "governor_profile_clusters_engagement",
         checkpoints_dir=tmp_path / "checkpoints",
         logs_dir=tmp_path / "logs",
     )
@@ -879,3 +891,134 @@ def test_run_deterministic_modeling_degrada_sem_derrubar_pipeline_se_performance
     # A etapa pulada não deixou as tabelas novas para trás.
     assert not config.gold_post_performance_coefficients_path.exists()
     assert not config.gold_post_performance_predictions_path.exists()
+
+
+# ---------------------------------------------------------------------------
+# Fase 2 (ADR 0020): clusterização de PERFIL de governador por engajamento,
+# integrada ao estágio determinístico -- fecha a paridade com
+# `lambdas/model/handler.py` (pipeline serverless já fazia isso sozinho).
+# ---------------------------------------------------------------------------
+
+N_GOVERNADORES_CLUSTER_PERFIL = 8
+
+
+def _df_engagement_cluster_perfil():
+    """Fixture dedicada ao estágio [CLUSTER-PERFIL] -- precisa das 3
+    features de `ModelingConfig.profile_cluster` (% ENGAJAMENTO/RECENCIA/
+    FREQUENCIA), além das colunas já exigidas por `NsmScorer` (mesmo padrão
+    de `_df_engagement_performance`, mas com mais linhas: AutoClusterHPO
+    precisa de mais pontos do que o teste de NSM usa)."""
+    rng = np.random.default_rng(20)
+    ids = [f"gov{i}" for i in range(N_GOVERNADORES_CLUSTER_PERFIL)]
+    return pd.DataFrame(
+        {
+            "id": ids,
+            "username": ids,
+            "inputUrl": [f"https://instagram.com/{gov}" for gov in ids],
+            "_WC_COMENTARIO": 1.5,
+            "FREQUENCIA": rng.uniform(0.1, 2.0, size=N_GOVERNADORES_CLUSTER_PERFIL),
+            "% ENGAJAMENTO": rng.uniform(0.5, 10.0, size=N_GOVERNADORES_CLUSTER_PERFIL),
+            "RECENCIA": rng.integers(0, 30, size=N_GOVERNADORES_CLUSTER_PERFIL),
+            "followersCount": rng.integers(10_000, 500_000, size=N_GOVERNADORES_CLUSTER_PERFIL),
+            "TOTAL ENGAJAMENTO": rng.integers(100, 10_000, size=N_GOVERNADORES_CLUSTER_PERFIL),
+            "count": rng.integers(1, 50, size=N_GOVERNADORES_CLUSTER_PERFIL),
+        }
+    )
+
+
+def test_run_deterministic_modeling_grava_clusters_de_perfil_por_engajamento(
+    monkeypatch, tmp_path
+):
+    """A modelagem determinística agora também clusteriza `df_engagement`
+    por perfil (Fase 2, ADR 0020) e grava `governor_profile_clusters_engagement`
+    sob o mesmo `run_id` das demais tabelas -- antes desta issue, só
+    `scripts/run_profile_clustering_engagement.py` (manual) ou
+    `lambdas/model/handler.py` (serverless) faziam isso; a Tela 4
+    ("Comparar perfis", ADR 0021) do dashboard dependia desse passo manual e
+    ficava vazia sem ele."""
+    monkeypatch.setattr(
+        "src.modeling.orchestration.analyze_sentiment", _fake_analyze_sentiment
+    )
+    monkeypatch.setattr(
+        "src.modeling.orchestration.model_topics",
+        _make_fake_model_topics("0_provisorio", "0_refinado"),
+    )
+    _patch_post_performance_fakes(monkeypatch)
+
+    df_engagement = _df_engagement_cluster_perfil()
+    config = ModelingConfig(
+        cluster=ClusterConfig(max_evals_per_algo=10, random_state=42, max_n_clusters=5),
+        profile_cluster=ClusterConfig(
+            feature_columns=["% ENGAJAMENTO", "RECENCIA", "FREQUENCIA"],
+            max_evals_per_algo=10,
+            random_state=42,
+            max_n_clusters=5,
+        ),
+        gold_clusters_path=tmp_path / "governor_clusters",
+        gold_sentiment_path=tmp_path / "governor_sentiment",
+        gold_sentiment_history_path=tmp_path / "governor_sentiment_history",
+        gold_discourse_topics_path=tmp_path / "governor_discourse_topics",
+        gold_topic_priority_score_path=tmp_path / "topic_priority_score",
+        gold_nsm_path=tmp_path / "governor_nsm",
+        gold_post_performance_coefficients_path=tmp_path / "post_performance_coefficients",
+        gold_post_performance_predictions_path=tmp_path / "post_performance_predictions",
+        gold_profile_clusters_engagement_path=tmp_path / "governor_profile_clusters_engagement",
+        checkpoints_dir=tmp_path / "checkpoints",
+        logs_dir=tmp_path / "logs",
+    )
+
+    result = run_deterministic_modeling(
+        _df_reels(), _df_comments(), _df_posts_placeholder(), df_engagement, config
+    )
+
+    profile_clusters_out = DeltaTable(
+        str(config.gold_profile_clusters_engagement_path)
+    ).to_pandas()
+
+    assert len(profile_clusters_out) == N_GOVERNADORES_CLUSTER_PERFIL
+    assert set(profile_clusters_out["inputUrl"]) == set(df_engagement["inputUrl"])
+    assert (profile_clusters_out["_run_id"] == result.run_id).all()
+    assert profile_clusters_out["cluster_label"].notna().all()
+    assert profile_clusters_out["cluster_algo"].notna().all()
+
+
+def test_run_deterministic_modeling_degrada_sem_derrubar_pipeline_se_cluster_perfil_falhar(
+    monkeypatch, tmp_path
+):
+    """Mesmo raciocínio da degradação de performance-por-post: `df_engagement`
+    sem as colunas de `profile_cluster.feature_columns` (caso real de quem
+    ainda não gerou essas colunas, ou dado sintético incompleto) não pode
+    derrubar os estágios que já rodaram com sucesso -- a etapa só é pulada."""
+    monkeypatch.setattr(
+        "src.modeling.orchestration.analyze_sentiment", _fake_analyze_sentiment
+    )
+    monkeypatch.setattr(
+        "src.modeling.orchestration.model_topics",
+        _make_fake_model_topics("0_provisorio", "0_refinado"),
+    )
+    _patch_post_performance_fakes(monkeypatch)
+
+    config = ModelingConfig(
+        cluster=ClusterConfig(max_evals_per_algo=10, random_state=42, max_n_clusters=5),
+        gold_clusters_path=tmp_path / "governor_clusters",
+        gold_sentiment_path=tmp_path / "governor_sentiment",
+        gold_sentiment_history_path=tmp_path / "governor_sentiment_history",
+        gold_discourse_topics_path=tmp_path / "governor_discourse_topics",
+        gold_topic_priority_score_path=tmp_path / "topic_priority_score",
+        gold_nsm_path=tmp_path / "governor_nsm",
+        gold_post_performance_coefficients_path=tmp_path / "post_performance_coefficients",
+        gold_post_performance_predictions_path=tmp_path / "post_performance_predictions",
+        gold_profile_clusters_engagement_path=tmp_path / "governor_profile_clusters_engagement",
+        checkpoints_dir=tmp_path / "checkpoints",
+        logs_dir=tmp_path / "logs",
+    )
+
+    # `_df_engagement_placeholder()` não tem "% ENGAJAMENTO"/"RECENCIA" --
+    # `cluster_governor_profiles` levanta KeyError ao indexar essas colunas.
+    result = run_deterministic_modeling(
+        _df_reels(), _df_comments(), _df_posts_placeholder(), _df_engagement_placeholder(), config
+    )
+
+    clusters_out = DeltaTable(str(config.gold_clusters_path)).to_pandas()
+    assert (clusters_out["_run_id"] == result.run_id).all()
+    assert not config.gold_profile_clusters_engagement_path.exists()

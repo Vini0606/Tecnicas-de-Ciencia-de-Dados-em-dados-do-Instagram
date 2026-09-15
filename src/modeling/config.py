@@ -212,6 +212,19 @@ class ModelingConfig:
     gold_nsm_path: Path = settings.GOLD_NSM
     gold_post_performance_coefficients_path: Path = settings.GOLD_POST_PERFORMANCE_COEFFICIENTS
     gold_post_performance_predictions_path: Path = settings.GOLD_POST_PERFORMANCE_PREDICTIONS
+    # Clusterização de PERFIL de governador por engajamento (Fase 2, ADR
+    # 0020) -- distinta de `cluster` acima, que clusteriza reel/post (outra
+    # granularidade). Mesmas features/limite de `scripts/
+    # run_profile_clustering_engagement.py` e `lambdas/model/handler.py`
+    # (que já fazia isso no pipeline serverless; o local não fazia até
+    # aqui): só 27 governadores, então `max_n_clusters` pequeno evita um
+    # espaço de busca folgado demais pra esse tamanho de amostra.
+    profile_cluster: ClusterConfig = field(
+        default_factory=lambda: ClusterConfig(
+            feature_columns=["% ENGAJAMENTO", "RECENCIA", "FREQUENCIA"], max_n_clusters=6
+        )
+    )
+    gold_profile_clusters_engagement_path: Path = settings.GOLD_PROFILE_CLUSTERS_ENGAGEMENT
     checkpoints_dir: Path = settings.MODEL_CHECKPOINTS_DIR
     logs_dir: Path = settings.LOGS_DIR
 
