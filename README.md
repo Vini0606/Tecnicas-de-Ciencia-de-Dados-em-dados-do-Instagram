@@ -197,7 +197,7 @@ flowchart LR
 |---|---|---|---|---|
 | **Bronze** | `data/bronze/` | `instagram_profiles`, `instagram_posts`, `instagram_reels` | `src/data_extract/bronze_writer.py` | Imutabilidade — append-only, nada é sobrescrito |
 | **Silver** | `data/silver/` | `profiles_clean`, `posts_clean`, `reels_clean`, `comments_clean` | `src/features/silver/*_cleaner.py` | Conformidade — tipos, deduplicação, comentários explodidos |
-| **Gold** | `data/gold/` | `governor_engagement`, `governor_engagement_history`, `governor_sentiment`, `governor_sentiment_history`, `governor_clusters` | `src/features/gold/*` | Prontidão — métricas agregadas, resultados de modelagem |
+| **Gold** | `data/gold/` | `governor_engagement(_history)`, `governor_sentiment(_history)`, `governor_discourse_topics`, `governor_clusters`, `governor_profile_clusters_engagement`, `post_performance_coefficients`/`predictions`, `topic_priority_score`, `governor_nsm`, `governor_growth_metrics`, `ugc_mentions` — lista completa e colunas em `reference/dicionario_de_dados_medallion.xlsx` | `src/features/gold/*`, `src/modeling/*` | Prontidão — métricas agregadas, resultados de modelagem |
 
 `governor_engagement_history` e `governor_sentiment_history` são tabelas paralelas a
 `governor_engagement`/`governor_sentiment`, mesmo schema, escritas em modo `append` a cada execução
@@ -384,7 +384,7 @@ TF_VAR_image_tag=$(git rev-parse origin/main) terraform apply
 ├── src/
 │   ├── modeling/           # PCA, AutoClusterHPO, sentimento, tópicos (BERTopic), clusterização de perfil (Fase 2) e refinamento via Gemini
 │   ├── data_extract/       # Scraper Apify (scraper.py), BronzeWriter, extract_and_land (landing zone + Bronze, ADR 0011)
-│   ├── dashboard/          # Loaders, filtros, comparação entre perfis (comparisons.py) e motor de regras de recomendação (recommendations.py), compartilhados pelos dashboards Streamlit
+│   ├── dashboard/          # Loaders, filtros e comparação entre perfis (comparisons.py), compartilhados pelas telas do dashboard
 │   ├── features/
 │   │   ├── silver/         # Cleaners de perfis, posts, reels e comentários
 │   │   └── gold/           # Agregador de engajamento, enriquecedor de modelos
@@ -394,7 +394,7 @@ TF_VAR_image_tag=$(git rev-parse origin/main) terraform apply
 │   ├── logging_setup.py    # Setup de logging por run_id -- console INFO / arquivo DEBUG (ADR 0015)
 │   ├── run_id.py           # Geração do identificador de execução, compartilhado por pipeline.py e src/modeling/
 │   └── visualization/      # Gráficos Plotly reutilizáveis
-├── pages/                  # Dashboard Streamlit antigo (ADR 0020, sendo substituído tela por tela pela ADR 0021): 02 insights (sentimento/tópicos/clusters) · 03 performance (comparação entre governadores + auto-refresh) · 04 recommendations (regras determinísticas, ADR 0017) · 05 funil (growth RACE ↔ COBRA) -- 01 explorar já foi substituído (ver dashboard/screens/resumo.py)
+├── pages/                  # Resíduo do dashboard antigo (ADR 0020/0017), órfão -- 01 explorar, 04 recommendations e 05 funil já foram apagados (substituídos por dashboard/screens/); 02 insights e 03 performance ainda existem no disco mas não são mais servidos por nenhum entrypoint (o `app.py` da raiz que os expunha via multipágina do Streamlit foi removido)
 ├── lambdas/                # Pipeline serverless AWS -- mesma arquitetura Medallion, backend S3 (ver seção 3)
 │   ├── extract/            # Apify -> Bronze (S3)
 │   ├── transform/          # Bronze -> Silver (S3)
@@ -402,12 +402,12 @@ TF_VAR_image_tag=$(git rev-parse origin/main) terraform apply
 │   ├── model/              # Gold engagement -> clusterização de perfil, Fase 2 (S3)
 │   └── orchestrator/       # Invoca extract -> transform -> load -> model em sequência
 ├── notebooks/              # 01 extração e limpeza · 02 EDA · 03 modelagem híbrida · 05 visualização e conclusões · 06/07 regressão de performance (vídeo / estático)
-├── tests/                  # 42 arquivos de teste (pytest)
+├── tests/                  # 49 arquivos de teste (pytest)
 ├── data/                   # Efêmero, fora do git (.gitignore) -- ver seção 3 pra Bronze/Silver/Gold
 │   ├── landing/<run_id>/           # JSON bruto do scraper, sem schema, anterior à Bronze (ADR 0011/0014)
 │   ├── bronze/                     # Delta append-only: instagram_profiles, instagram_posts, instagram_reels
 │   ├── silver/                     # Delta limpo/conformado: profiles_clean, posts_clean, reels_clean, comments_clean, governors_metadata
-│   ├── gold/                       # Delta agregado: governor_engagement, governor_sentiment, governor_clusters, governor_profile_clusters_engagement
+│   ├── gold/                       # Delta agregado: governor_engagement(_history), governor_sentiment(_history), governor_discourse_topics, governor_clusters, governor_profile_clusters_engagement, post_performance_coefficients/predictions, topic_priority_score, governor_nsm, governor_growth_metrics, ugc_mentions
 │   ├── model_checkpoints/<run_id>/ # Checkpoint do estágio determinístico de modelagem -- topic_model, PCA, clustering (ADR 0003)
 │   ├── logs/<run_id>/              # Log estruturado por run_id -- console INFO / arquivo DEBUG (ADR 0015)
 │   ├── backfill/                   # Relatórios de `scripts/run_apify_backfill.py` (contagens, taxa calibrada, projeção de custo)
@@ -417,9 +417,9 @@ TF_VAR_image_tag=$(git rev-parse origin/main) terraform apply
 │   ├── academic/           # TCC completo em LaTeX — 7 capítulos, bibliografia, figuras
 │   └── figures/            # Figuras geradas pelos notebooks
 ├── docs/
-│   ├── adr/                # ADRs -- registro das decisões de arquitetura (0001-0020)
+│   ├── adr/                # ADRs -- registro das decisões de arquitetura (0001-0021)
 │   ├── agents/             # Convenções para agentes de IA (issue tracker, labels de triagem, docs de domínio) -- ver CLAUDE.md
-│   ├── dashboard/          # Especificação da reformulação do dashboard de growth (ADR 0020)
+│   ├── dashboard/          # Especificação da reformulação do dashboard de growth (ADR 0020) -- histórica, o dashboard atual segue a ADR 0021
 │   └── research/           # Notas de pesquisa (ex.: mapeamento de actors Apify para o framework COBRA)
 └── scripts/                # run_modeling.py, refine_topics.py, run_apify_backfill.py, run_apify_calibration_test.py, run_growth_metrics.py, run_profile_clustering_engagement.py, run_apify_mentions_pilot.py, inspect_runs.py, generate_data_dictionary.py, sync de figuras para o TCC
 ```
@@ -567,7 +567,7 @@ As variáveis acima de S3 são lidas diretamente pelos handlers em `lambdas/`, n
 
 ## 6. Estado atual e limitações conhecidas
 
-O pipeline roda de ponta a ponta: `uv run python pipeline.py` materializa Bronze, Silver e Gold, e ambos os dashboards carregam. As tabelas Delta não são versionadas (`data/` está no `.gitignore`), então um clone novo precisa executar o pipeline uma vez — os JSONs de `data/raw/` bastam, sem consumir créditos da API.
+O pipeline roda de ponta a ponta: `uv run python pipeline.py` materializa Bronze, Silver e Gold, e `dashboard/app.py` carrega em seguida. As tabelas Delta não são versionadas (`data/` está no `.gitignore`), então um clone novo precisa executar o pipeline uma vez — os JSONs de `data/raw/` bastam, sem consumir créditos da API.
 
 Esta seção registra honestamente o que ainda não está fechado.
 
@@ -575,7 +575,7 @@ Esta seção registra honestamente o que ainda não está fechado.
 
 **Notebooks já migrados para Delta.** Os 6 notebooks usam `DeltaRepository`/`run_medallion_pipeline` — nenhum lê mais `all.xlsx` como fonte de pipeline (o notebook 01 só toca Excel para ler `governadores.xlsx`, a lista de perfis a coletar, que é configuração, não dado).
 
-**Dashboard reformulado como ferramenta de growth (ADR 0020, issue #94).** Além de Explorar/Insights/Performance, o app tem `pages/04_recommendations.py` — motor de regras determinístico (`src/dashboard/recommendations.py`, ADR 0017) que gera recomendações textuais por governador a partir das tabelas Gold já existentes, sem LLM — e `pages/05_funil.py`, que mapeia as métricas de growth (NSM, CMGR, ICE, prioridade de tópico) ao funil RACE (Reach/Act/Convert/Engage) cruzado com o framework COBRA (Consumir/Contribuir/Criar). Ambas são páginas *presentation-only*: só leitura + agregações triviais via `DeltaRepository`, nenhuma métrica é recalculada ali.
+**Dashboard reformulado por decisão (ADR 0021).** `dashboard/app.py` é o entrypoint real do produto hoje, com seis telas registradas em `TELAS`: Resumo da semana, O que produzir, Radar de crise, Comparar perfis, Discurso x reação e Funil de engajamento — esta última o carro-chefe, mapeando as métricas de growth (NSM, CMGR, ICE, prioridade de tópico) ao funil RACE (Reach/Act/Convert/Engage) cruzado com o framework COBRA (Consumir/Contribuir/Criar). Todas as telas são *presentation-only*: só leitura + agregações triviais via `DeltaRepository`, nenhuma métrica é recalculada ali. O redesenho substituiu o motor de regras textual do dashboard anterior (`src/dashboard/recommendations.py`, ADR 0017) — as recomendações por regra determinística não foram portadas; a Tela 4 ("Comparar perfis") as substitui por comparação visual do governador contra os pares do mesmo grupo de desempenho. `pages/02_insights.py` e `pages/03_performance.py` permanecem no disco como resíduo do dashboard antigo, mas órfãos (ver seção 4).
 
 **Pendências de documentação.** Os capítulos 6 (Resultados) e 7 (Conclusões) do TCC ainda estão no texto-modelo, embora os resultados já existam e estejam redigidos no capítulo 5.
 
@@ -605,7 +605,7 @@ Esta seção registra honestamente o que ainda não está fechado.
 | `test_transform_lambda.py` | Handler Silver retorna `200` / `silver_complete`; retorna `400` sem `S3_BUCKET` |
 | `test_load_lambda.py` | Handler Gold retorna `200` / `gold_complete`; retorna `400` sem `S3_BUCKET` |
 
-**Resultado atual: 388 testes (42 arquivos), todos passando.** A tabela acima cobre só os arquivos mais ilustrativos do pipeline Bronze/Silver/Gold e das Lambdas; a suíte completa também cobre o dashboard reformulado (`test_dashboard_loaders.py`, `test_comparisons.py`, `test_recommendations.py`), as métricas de growth da ADR 0020 (`test_growth_history.py`, `test_nsm_scorer.py`, `test_topic_priority_scorer.py`, `test_post_performance.py`), a clusterização de perfil (`test_profile_clustering.py`) e o piloto de UGC/menções (`test_ugc_mention_cleaner.py`, `test_ugc_mentions_aggregator.py`).
+**Resultado atual: 564 testes (49 arquivos), todos passando.** A tabela acima cobre só os arquivos mais ilustrativos do pipeline Bronze/Silver/Gold e das Lambdas; a suíte completa também cobre o dashboard por decisão (`test_dashboard_loaders.py`, `test_dashboard_core_data.py`, `test_dashboard_core_deltas.py`, `test_comparisons.py`, `test_dashboard_screens_{resumo,produzir,radar,comparar,discurso_reacao,funil}.py`, ver ADR 0021), as métricas de growth da ADR 0020 (`test_growth_history.py`, `test_nsm_scorer.py`, `test_topic_priority_scorer.py`, `test_post_performance.py`), a clusterização de perfil (`test_profile_clustering.py`) e o piloto de UGC/menções (`test_ugc_mention_cleaner.py`, `test_ugc_mentions_aggregator.py`).
 
 `.github/workflows/python-app.yml` roda a cada push e pull request na `main`: checkout, Python 3.11, `pip install -e .[dev]`, pytest com cobertura e `ruff check src/`.
 
