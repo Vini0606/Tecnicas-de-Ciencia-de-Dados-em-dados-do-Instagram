@@ -1,8 +1,9 @@
 """
 Roda o estágio determinístico de modelagem (PCA -> clustering -> sentimento
--> tópicos de comentário -> tópicos de discurso oficial (ADR 0020 Ficha 4) ->
-performance-por-post) sobre a Silver/Gold-engagement já existentes, sem
-reprocessar Bronze/Silver/Gold-engagement. Ver ADR 0003.
+-> tópicos de comentário -> Score ICE -> NSM -> tópicos de discurso oficial
+(ADR 0020 Ficha 4) -> performance-por-post -> clusterização de PERFIL de
+governador por engajamento, Fase 2) sobre a Silver/Gold-engagement já
+existentes, sem reprocessar Bronze/Silver/Gold-engagement. Ver ADR 0003.
 """
 
 import argparse
