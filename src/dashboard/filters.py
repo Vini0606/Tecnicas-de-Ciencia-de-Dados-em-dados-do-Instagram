@@ -148,8 +148,11 @@ def build_cluster_membership() -> pd.DataFrame:
 def build_profile_cluster_directory() -> pd.DataFrame:
     """1 linha por governador: inputUrl, cluster_perfil_engajamento (Fase 2).
     Vazio (mas com essas colunas) se `governor_profile_clusters_engagement`
-    ainda não existir -- `scripts/run_profile_clustering_engagement.py` não
-    rodado é "sem dado ainda", não erro, mesmo padrão do resto do módulo."""
+    ainda não existir -- tabela gerada por `pipeline.py --run-modeling`/
+    `scripts/run_modeling.py` (via `run_deterministic_modeling`) ou,
+    isoladamente, por `scripts/run_profile_clustering_engagement.py`; se
+    nenhum dos dois já rodou, isso é "sem dado ainda", não erro, mesmo
+    padrão do resto do módulo."""
     df = load_profile_clusters_engagement()
     if df.empty:
         return pd.DataFrame(columns=["inputUrl", "cluster_perfil_engajamento"])
