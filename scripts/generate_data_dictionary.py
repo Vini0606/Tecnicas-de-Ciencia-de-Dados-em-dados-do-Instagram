@@ -55,8 +55,8 @@ TABLES: list[dict] = [
         "lido_por": "src/features/silver/profile_cleaner.py (ProfileCleaner.clean)",
         "status": "Produção",
         "adr": "ADR 0011 (landing zone/Bronze)",
-        "descricao": "Metadados de perfil (seguidores, verificação, categoria de negócio) coletados via apify/instagram-profile-scraper.",
-        "notas": "Fidelidade total ao retorno do Apify -- nenhuma limpeza aqui; campos list/dict do Apify são serializados como JSON string (BronzeWriter._add_ingestion_metadata).",
+        "descricao": "Metadados de perfil (seguidores, verificação, categoria de negócio) coletados via apify/instagram-scraper (ver aba Actors Apify), rodando em modo perfil (resultsType='details').",
+        "notas": "Fidelidade total ao retorno do Apify -- nenhuma limpeza aqui; campos list/dict do Apify são serializados como JSON string (BronzeWriter._add_ingestion_metadata). Payload bruto arquivado em data/landing/<run_id>/profiles.json (ou /tmp/landing/... na Lambda) ANTES desta escrita -- ver aba Linhagem.",
     },
     {
         "camada": "Bronze",
@@ -69,8 +69,8 @@ TABLES: list[dict] = [
         "lido_por": "src/features/silver/post_cleaner.py (PostCleaner.clean_posts)",
         "status": "Produção",
         "adr": "ADR 0011",
-        "descricao": "Posts do feed do Instagram (não-Reels) dos 27 perfis, via apify/instagram-scraper.",
-        "notas": "Não tem campo de comentário embutido (latestComments) -- por isso governor_sentiment/comments_clean só cobrem comentário de Reels, nunca de post de feed.",
+        "descricao": "Posts do feed do Instagram (não-Reels) dos 27 perfis, via apify/instagram-post-scraper (ver aba Actors Apify).",
+        "notas": "Não tem campo de comentário embutido (latestComments) -- por isso governor_sentiment/comments_clean só cobrem comentário de Reels, nunca de post de feed. Payload bruto arquivado em data/landing/<run_id>/posts.json (ou /tmp/landing/... na Lambda) ANTES desta escrita -- ver aba Linhagem.",
     },
     {
         "camada": "Bronze",
@@ -83,8 +83,8 @@ TABLES: list[dict] = [
         "lido_por": "src/features/silver/post_cleaner.py (PostCleaner.clean_reels), src/features/silver/comment_cleaner.py (CommentCleaner.clean)",
         "status": "Produção",
         "adr": "ADR 0011; ADR 0020 Ficha 3 / issue #88 (transcript)",
-        "descricao": "Reels dos 27 perfis, incluindo os comentários mais recentes embutidos (latestComments) e, quando a flag paga includeTranscript está ativa, a transcrição de fala do vídeo.",
-        "notas": "`transcript` é nullable e só vem preenchido quando a execução ligou explicitamente a flag paga do actor (custo por minuto de vídeo) -- não confundir ausência com 'sem fala'.",
+        "descricao": "Reels dos 27 perfis, via apify/instagram-reel-scraper (ver aba Actors Apify), incluindo os comentários mais recentes embutidos (latestComments) e, quando a flag paga includeTranscript está ativa, a transcrição de fala do vídeo.",
+        "notas": "`transcript` é nullable e só vem preenchido quando a execução ligou explicitamente a flag paga do actor (custo por minuto de vídeo) -- não confundir ausência com 'sem fala'. Payload bruto arquivado em data/landing/<run_id>/reels.json (ou /tmp/landing/... na Lambda) ANTES desta escrita -- ver aba Linhagem.",
     },
     {
         "camada": "Bronze",
@@ -97,8 +97,8 @@ TABLES: list[dict] = [
         "lido_por": "src/features/silver/ugc_mention_cleaner.py (testado com dado sintético)",
         "status": "PILOTO -- schema definido e testado com dado sintético, mas SEM dado real gravado em produção",
         "adr": "ADR 0020 Ficha 8 / issue #93",
-        "descricao": "UGC (user-generated content) de terceiros mencionando/marcando o governador, via apify/instagram-tagged-scraper.",
-        "notas": "O piloto obrigatório da issue #93 (scripts/run_apify_mentions_pilot.py) grava só em data/pilot/*.json, FORA do Delta Lake -- os nomes de campo abaixo seguem a especificação da issue/ADR cruzada com docs/research/apify-instagram-actors-cobra-mapping.md, mas não foram confirmados 1:1 contra um exemplo real do actor para os 27 perfis. Não rodar decisões do TCC sobre esta tabela sem primeiro confirmar o piloto.",
+        "descricao": "UGC (user-generated content) de terceiros mencionando/marcando o governador, via apify/instagram-tagged-scraper (ver aba Actors Apify -- status PILOTO).",
+        "notas": "O piloto obrigatório da issue #93 (scripts/run_apify_mentions_pilot.py) grava só em data/pilot/*.json, FORA do Delta Lake -- não passa pela landing zone data/landing/ das demais entidades Bronze, nem por BronzeWriter. Os nomes de campo abaixo seguem a especificação da issue/ADR cruzada com docs/research/apify-instagram-actors-cobra-mapping.md, mas não foram confirmados 1:1 contra um exemplo real do actor para os 27 perfis. Não rodar decisões do TCC sobre esta tabela sem primeiro confirmar o piloto.",
     },
     # ---------------------------- SILVER --------------------------------
     {
@@ -371,6 +371,59 @@ TABLES: list[dict] = [
 ]
 
 # ---------------------------------------------------------------------------
+# 1.5 Actors Apify -- origem detalhada de cada extração (quem raspa o quê,
+# com quais parâmetros, e com que confiabilidade de fonte). Curado a partir
+# de src/data_extract/scraper.py (ScraperConfig -- fonte de verdade dos IDs/
+# parâmetros REALMENTE usados em produção) cruzado com
+# docs/research/apify-instagram-actors-cobra-mapping.md (pesquisa de
+# preço/adoção/schema, consultada direto na Apify Store e API pública em
+# 2026-09-08 -- não re-verificada aqui, só citada).
+# ---------------------------------------------------------------------------
+
+APIFY_ACTORS: list[dict] = [
+    {
+        "papel": "Perfis (instagram_profiles)",
+        "actor_slug": "apify/instagram-scraper",
+        "actor_id": "shu8hvrXbJbY3Eb9W",
+        "dev": "Apify (oficial)",
+        "status": "Produção",
+        "parametros_producao": "directUrls=<links>, addParentData=False, resultsLimit=100, resultsType='details', searchType='user' (src/data_extract/scraper.py::InstagramScraper.scrape_profiles).",
+        "confiabilidade": "ID confirmado via api.apify.com/v2/acts/shu8hvrXbJbY3Eb9W -> {\"name\":\"instagram-scraper\",\"username\":\"apify\"} (docs/research/..., §0).",
+        "notas": "É o actor GENÉRICO \"canivete suíço\" da Apify, não o dedicado apify/instagram-profile-scraper -- rodado só em resultsType='details' hoje. O mesmo actor/ID também suporta resultsType='mentions'/'comments' e busca por hashtag, não explorado no pipeline atual (ver docs/research/..., §7.3, para a rota de UGC que reaproveitaria este mesmo actor sem integrar um novo).",
+    },
+    {
+        "papel": "Posts de feed (instagram_posts)",
+        "actor_slug": "apify/instagram-post-scraper",
+        "actor_id": "(resolvido pelo slug pela Apify -- não fixado como ID literal no código)",
+        "dev": "Apify (oficial)",
+        "status": "Produção",
+        "parametros_producao": "username=<usernames>, resultsLimit=30 (ScraperConfig.results_limit) + extra_run_input opcional (ex.: onlyPostsNewerThan, usado por scripts/run_apify_backfill.py para recorte incremental).",
+        "confiabilidade": "Confirmado via página do actor + input-schema (docs/research/..., §1.1) -- pay-per-event, ~$1.00/1.000 posts.",
+        "notas": "Não tem includeTranscript nem includeSharesCount (esses são do reel-scraper) -- não confundir com o actor genérico usado para perfis.",
+    },
+    {
+        "papel": "Reels (instagram_reels)",
+        "actor_slug": "apify/instagram-reel-scraper",
+        "actor_id": "(resolvido pelo slug pela Apify -- não fixado como ID literal no código)",
+        "dev": "Apify (oficial)",
+        "status": "Produção",
+        "parametros_producao": "username=<usernames>, resultsLimit=30 + includeTranscript=True SOMENTE quando ScraperConfig.include_transcript=True (default False -- flag paga, cobrada por minuto de vídeo transcrito) + extra_run_input opcional.",
+        "confiabilidade": "Confirmado via página do actor + input-schema (docs/research/..., §1.2) -- pay-per-event, ~$1.00/1.000 reels.",
+        "notas": "Também suporta includeSharesCount (plano Starter+) e includeDownloadedVideo (cobrado por MB) -- nenhuma das duas está habilitada em ScraperConfig hoje (ver docs/research/..., §1.2, achado chave sobre sharesCount).",
+    },
+    {
+        "papel": "Menções/UGC de terceiros (ugc_mentions) -- PILOTO, não produção",
+        "actor_slug": "apify/instagram-tagged-scraper",
+        "actor_id": "(resolvido pelo slug pela Apify -- não fixado como ID literal no código)",
+        "dev": "Apify (oficial)",
+        "status": "PILOTO -- schema definido e testado com dado sintético; piloto real grava só em data/pilot/*.json (scripts/run_apify_mentions_pilot.py), nunca na Bronze",
+        "parametros_producao": "username=<usernames>, resultsLimit=<baixo no piloto> (ScraperConfig.mentions_actor_id, InstagramScraper.scrape_mentions).",
+        "confiabilidade": "Escolhido sobre fetch_cat/instagram-mentions-scraper por reprodutibilidade (9.999 usuários, 5.0 estrelas vs. actor community \"under maintenance\", 2 usuários -- docs/research/..., §7.1). Schema de output confirmado por exemplo real da Apify, mas ainda NÃO confirmado 1:1 contra os 27 perfis do projeto.",
+        "notas": "docs/research/apify-instagram-actors-cobra-mapping.md (§7) também mapeia uma rota alternativa sem integrar actor novo: reconfigurar o actor de perfis já em uso (shu8hvrXbJbY3Eb9W) para resultsType='mentions' -- capacidade confirmada, schema de output dessa rota específica NÃO confirmado por exemplo primário.",
+    },
+]
+
+# ---------------------------------------------------------------------------
 # 2. Descrições de coluna -- fallback técnico comum + overrides por tabela
 # ---------------------------------------------------------------------------
 
@@ -530,21 +583,39 @@ TABLE_COLUMN_OVERRIDES: dict[str, dict[str, str]] = {
 
 LINEAGE: list[dict] = [
     {
-        "origem": "Apify (apify/instagram-profile-scraper)",
+        "origem": "Apify (apify/instagram-scraper, ID shu8hvrXbJbY3Eb9W, modo resultsType='details' -- ver aba Actors Apify)",
+        "destino": "Landing zone: data/landing/<run_id>/profiles.json (local) ou /tmp/landing/<run_id>/profiles.json (Lambda, efêmero)",
+        "transformacao": "Arquivamento do JSON bruto retornado pela Apify, SEM projeção de schema -- fidelidade total, inclusive de campos que a Bronze descarta silenciosamente. Sempre executado antes da escrita Bronze, para que uma falha nesta não implique perda do dado já raspado (e já pago).",
+        "modulo": "src/data_extract/ingestion.py (archive_raw_json / extract_and_land)",
+    },
+    {
+        "origem": "Landing zone: profiles.json",
         "destino": "Bronze: instagram_profiles",
-        "transformacao": "Ingestão bruta + metadados de execução (_ingested_at/_run_id/_source); serialização de campos list/dict para JSON string.",
+        "transformacao": "Ingestão bruta + metadados de execução (_ingested_at/_run_id/_source); serialização de campos list/dict para JSON string. Destino físico: data/bronze/instagram_profiles (local) ou s3://<bucket>/bronze/instagram_profiles (Lambda, quando infra AWS aplicada).",
         "modulo": "src/data_extract/bronze_writer.py",
     },
     {
-        "origem": "Apify (apify/instagram-scraper)",
+        "origem": "Apify (apify/instagram-post-scraper -- ver aba Actors Apify)",
+        "destino": "Landing zone: data/landing/<run_id>/posts.json (local) ou /tmp/landing/<run_id>/posts.json (Lambda, efêmero)",
+        "transformacao": "Idem profiles.json.",
+        "modulo": "src/data_extract/ingestion.py (archive_raw_json / extract_and_land)",
+    },
+    {
+        "origem": "Landing zone: posts.json",
         "destino": "Bronze: instagram_posts",
-        "transformacao": "Idem instagram_profiles.",
+        "transformacao": "Idem instagram_profiles. Destino físico: data/bronze/instagram_posts (local) ou s3://<bucket>/bronze/instagram_posts (Lambda).",
         "modulo": "src/data_extract/bronze_writer.py",
     },
     {
-        "origem": "Apify (apify/instagram-reel-scraper)",
+        "origem": "Apify (apify/instagram-reel-scraper -- ver aba Actors Apify)",
+        "destino": "Landing zone: data/landing/<run_id>/reels.json (local) ou /tmp/landing/<run_id>/reels.json (Lambda, efêmero)",
+        "transformacao": "Idem profiles.json; payload já inclui latestComments e, opcionalmente, transcript (flag paga includeTranscript).",
+        "modulo": "src/data_extract/ingestion.py (archive_raw_json / extract_and_land)",
+    },
+    {
+        "origem": "Landing zone: reels.json",
         "destino": "Bronze: instagram_reels",
-        "transformacao": "Idem instagram_profiles; inclui latestComments e, opcionalmente, transcript (flag paga includeTranscript).",
+        "transformacao": "Idem instagram_profiles; inclui latestComments e, opcionalmente, transcript (flag paga includeTranscript). Destino físico: data/bronze/instagram_reels (local) ou s3://<bucket>/bronze/instagram_reels (Lambda).",
         "modulo": "src/data_extract/bronze_writer.py",
     },
     {
@@ -774,7 +845,11 @@ def build_overview_sheet(wb: Workbook) -> None:
         ("Técnicas de NLP em Dados do Instagram -- TCC, Ciência de Dados e IA, IESB", Font(italic=True)),
         ("", None),
         ("Fonte técnica: src/schemas_delta.py (contratos PyArrow validados em runtime pelos writers). "
-         "Fonte de negócio: leitura direta dos módulos src/features/*, src/modeling/*, config/settings.py.", None),
+         "Fonte de negócio: leitura direta dos módulos src/features/*, src/modeling/*, config/settings.py. "
+         "Fonte de actors/parâmetros de extração: src/data_extract/scraper.py e src/data_extract/ingestion.py "
+         "(código realmente em produção), cruzada com a pesquisa primária em "
+         "docs/research/apify-instagram-actors-cobra-mapping.md (preço/adoção/schema, consultada na Apify Store "
+         "e API pública em 2026-09-08).", None),
         ("Gerado por: scripts/generate_data_dictionary.py -- reexecutar após qualquer mudança de schema.", None),
         ("", None),
         ("Camadas", Font(bold=True, size=12)),
@@ -795,8 +870,12 @@ def build_overview_sheet(wb: Workbook) -> None:
         ("Como navegar", Font(bold=True, size=12)),
         ("1. Aba 'Tabelas' -- visão de 1 linha por tabela (grão, escrita, leitura, status, ADR).", None),
         ("2. Abas 'Colunas - Bronze/Silver/Gold' -- 1 linha por coluna de cada tabela da camada.", None),
-        ("3. Aba 'Linhagem' -- de onde cada tabela vem e o que a transformação aplica.", None),
-        ("4. Aba 'Glossário de Métricas' -- fórmula completa de cada métrica derivada (% ENGAJAMENTO, NSM, Score ICE, "
+        ("3. Aba 'Linhagem' -- de onde cada tabela vem e o que a transformação aplica, incluindo o hop pela "
+         "landing zone (data/landing/<run_id>/*.json) ANTES de qualquer escrita Bronze.", None),
+        ("4. Aba 'Actors Apify' -- qual actor (slug + ID técnico) raspa cada entidade Bronze, com quais "
+         "parâmetros REALMENTE usados em produção (src/data_extract/scraper.py), status produção/piloto e "
+         "confiabilidade da fonte (cruzado com docs/research/apify-instagram-actors-cobra-mapping.md).", None),
+        ("5. Aba 'Glossário de Métricas' -- fórmula completa de cada métrica derivada (% ENGAJAMENTO, NSM, Score ICE, "
          "CMGR, retenção, Y da regressão, cluster_score).", None),
     ]
     for text, font in lines:
@@ -855,6 +934,23 @@ def build_lineage_sheet(wb: Workbook) -> None:
     _write_rows(ws, header, rows, widths)
 
 
+def build_actors_sheet(wb: Workbook) -> None:
+    ws = wb.create_sheet("Actors Apify")
+    header = [
+        "Papel no pipeline", "Actor (slug)", "Actor ID técnico", "Desenvolvedor",
+        "Status", "Parâmetros usados em produção", "Confiabilidade da fonte", "Notas",
+    ]
+    rows = [
+        [
+            a["papel"], a["actor_slug"], a["actor_id"], a["dev"], a["status"],
+            a["parametros_producao"], a["confiabilidade"], a["notas"],
+        ]
+        for a in APIFY_ACTORS
+    ]
+    widths = [34, 30, 30, 16, 20, 55, 50, 55]
+    _write_rows(ws, header, rows, widths)
+
+
 def build_glossary_sheet(wb: Workbook) -> None:
     ws = wb.create_sheet("Glossário de Métricas")
     header = ["Métrica", "Tabela", "Fórmula", "Interpretação", "Limitações conhecidas"]
@@ -873,6 +969,7 @@ def main() -> None:
     for camada in ("Bronze", "Silver", "Gold"):
         build_columns_sheet(wb, camada)
     build_lineage_sheet(wb)
+    build_actors_sheet(wb)
     build_glossary_sheet(wb)
 
     # Sanidade: qualquer coluna sem descrição fica visível na planilha (não
