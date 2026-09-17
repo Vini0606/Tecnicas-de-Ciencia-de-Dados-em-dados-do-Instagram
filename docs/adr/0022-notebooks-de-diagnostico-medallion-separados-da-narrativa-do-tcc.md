@@ -36,9 +36,15 @@ tratamento estatístico próprio.
   distribuições univariadas das métricas-chave; (4) evolução temporal via a `_history` irmã, quando
   existir; (5) relações com covariáveis conhecidas (partido, UF, tipo de conteúdo); (6)
   outliers/casos extremos sinalizados explicitamente; (7) nota de interpretação curta.
-- Acesso a dado exclusivamente via `DeltaRepository`, nunca leitura crua de parquet/Delta — os
-  notebooks são estritamente leitura, nunca chamam `run_medallion_pipeline`,
-  `run_deterministic_modeling` ou qualquer writer/aggregator/cleaner. Mesmo princípio que a ADR
+- Acesso a dado via `DeltaRepository` sempre que a tabela estiver coberta por ele -- é o caso de
+  toda leitura em Gold nos 7 `gold_*.ipynb`. Exceção conhecida, restrita a
+  `00_bronze_silver_overview.ipynb` e a uma célula de `gold_clusters.ipynb`: `DeltaRepository` não
+  expõe Bronze nem `profiles_clean`/`comments_clean` (Silver) diretamente -- essas leituras usam
+  `BronzeWriter.get_latest_*` (mesmo seam que `pipeline.py` já usa para Bronze) e leitura direta via
+  `deltalake.DeltaTable` (mesmo primitivo que `DeltaRepository._load` usa por baixo), nunca um
+  terceiro jeito de acessar Delta. Em todos os casos os notebooks são estritamente leitura, nunca
+  chamam `run_medallion_pipeline`, `run_deterministic_modeling` ou qualquer writer/aggregator/
+  cleaner. Mesmo princípio que a ADR
   [0003](0003-desacoplar-modelagem-do-notebook-via-scripts-cli-com-checkpoint.md) já estabeleceu:
   notebook é instrumentação de leitura, nunca gatilho de escrita.
 - Cálculos repetidos entre os notebooks (resumo de completude, join com `governors_metadata` para
