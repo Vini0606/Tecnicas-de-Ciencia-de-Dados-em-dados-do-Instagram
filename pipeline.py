@@ -7,7 +7,10 @@ from apify_client import ApifyClient
 from dotenv import load_dotenv
 
 from config import settings
-from scripts.apify_backfill_shared import estimate_cost_usd_for_results_limit
+from scripts.apify_backfill_shared import (
+    estimate_cost_usd_for_results_limit,
+    load_links,
+)
 from src.data_extract.bronze_writer import BronzeWriter
 from src.data_extract.ingestion import extract_and_land
 from src.data_extract.scraper import InstagramScraper, ScraperConfig
@@ -181,10 +184,8 @@ if __name__ == "__main__":
     run_id = build_run_id()
     attach_run_log_handler(run_id, settings.LOGS_DIR)
 
-    df_gov = pd.read_excel(settings.GOVERNADORES_FILE)
-    df_gov.columns = df_gov.columns.str.strip()
     token = os.getenv("APIFY_API_TOKEN")
-    links = list(df_gov[settings.LINK_COLUMN].str.strip().unique())
+    links = load_links()
 
     def _confirm_extraction(estimated_cost: float) -> bool:
         if args.yes:

@@ -36,6 +36,16 @@ class GovernorsMetadataCleaner:
             )
 
         df = df[list(self.COLUMN_MAP)].rename(columns=self.COLUMN_MAP)
+
+        # Um governador pode ficar temporariamente sem conta de Instagram
+        # rastreável (ex.: sucessão para um titular interino sem perfil
+        # público) -- a linha continua em governadores.xlsx para registro,
+        # mas `Link`/`inputUrl` fica em branco. `inputUrl` é NOT NULL no
+        # schema e é a chave de junção mais usada do pipeline inteiro, então
+        # a linha é descartada aqui, ANTES do cast para string (senão NaN
+        # virasse o texto literal "nan", tratado como URL real rio abaixo).
+        df = df[df["inputUrl"].notna() & (df["inputUrl"].astype(str).str.strip() != "")]
+
         for col in ("nome", "uf", "partido", "inputUrl"):
             df[col] = df[col].astype(str).str.strip()
 
