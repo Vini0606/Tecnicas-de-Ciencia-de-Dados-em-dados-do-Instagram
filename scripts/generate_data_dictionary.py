@@ -113,7 +113,7 @@ TABLES: list[dict] = [
         "status": "Produção",
         "adr": "ADR 0011",
         "descricao": "Perfis conformados ao contrato Silver: tipos fechados (int32/bool não-nulos), colunas de baixo valor analítico descartadas (biografia, URLs de foto, endereço de negócio).",
-        "notas": "Linha sem `id` é descartada (não quebra a escrita da tabela inteira); `fullName` ausente cai para `username`, depois `inputUrl`, nunca fica nulo por acidente.",
+        "notas": "Linha sem `id` é descartada (não quebra a escrita da tabela inteira) E gera um `logger.warning` com o(s) username(s) afetado(s) -- achado real: o link morto do Espírito Santo (PR #132) gerava esse descarte silenciosamente até ser descoberto manualmente; `fullName` ausente cai para `username`, depois `inputUrl`, nunca fica nulo por acidente.",
     },
     {
         "camada": "Silver",
@@ -127,7 +127,7 @@ TABLES: list[dict] = [
         "status": "Produção",
         "adr": "ADR 0011; ADR 0019 parte A (hashtags/type_raw)",
         "descricao": "Posts de feed conformados: timestamp do Apify parseado para `data_hora` (fuso America/Sao_Paulo), `Tipo` fixado em 'FEED'.",
-        "notas": "`caption`/`hashtags` são preservados aqui (mas não em reels_clean) -- Reels não têm campo de legenda coletado, limitação estrutural de dado, não de design.",
+        "notas": "`caption`/`hashtags` são preservados aqui (mas não em reels_clean) -- Reels não têm campo de legenda coletado, limitação estrutural de dado, não de design. Linha sem `id` é descartada e gera `logger.warning` (mesmo tratamento de profiles_clean).",
     },
     {
         "camada": "Silver",
@@ -141,7 +141,7 @@ TABLES: list[dict] = [
         "status": "Produção",
         "adr": "ADR 0011; ADR 0019 parte A; ADR 0020 Ficha 3 / issue #88 (transcript)",
         "descricao": "Reels conformados: `Tipo` fixado em 'REELS', `Total de Engajamento` pré-calculado (likes+comentários), `transcript` propagado sem transformação.",
-        "notas": "`Total de Engajamento` aqui é por-reel (insumo do PCA/AutoClusterHPO) -- não confundir com `TOTAL ENGAJAMENTO` (maiúsculo, com espaço) de governor_engagement, que é por-perfil agregado.",
+        "notas": "`Total de Engajamento` aqui é por-reel (insumo do PCA/AutoClusterHPO) -- não confundir com `TOTAL ENGAJAMENTO` (maiúsculo, com espaço) de governor_engagement, que é por-perfil agregado. Linha sem `id` é descartada e gera `logger.warning` (mesmo tratamento de profiles_clean).",
     },
     {
         "camada": "Silver",
