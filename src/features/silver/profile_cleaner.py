@@ -71,7 +71,12 @@ class ProfileCleaner:
 
         for col in self.BOOL_COLUMNS:
             if col in df.columns:
-                df[col] = df[col].fillna(False).astype(bool)
+                # .astype("boolean") antes do fillna evita o FutureWarning de
+                # downcast implícito do pandas em coluna dtype=object --
+                # mesmo achado de UGCMentionCleaner._cast_bools (2026-09-19),
+                # mesma causa (coluna mista True/False/None vinda do JSON
+                # bruto da Apify).
+                df[col] = df[col].astype("boolean").fillna(False).astype(bool)
 
         df = deduplicate_latest(df, id_col="id")
 
