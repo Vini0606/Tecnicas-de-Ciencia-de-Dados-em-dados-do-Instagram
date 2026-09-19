@@ -4,6 +4,7 @@ Silver post and reel cleaner
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import ClassVar
 
@@ -11,6 +12,8 @@ import pandas as pd
 
 from src.delta_io import deduplicate_latest, write_delta
 from src.schemas_delta import SILVER_POSTS_SCHEMA, SILVER_REELS_SCHEMA
+
+logger = logging.getLogger(__name__)
 
 
 class PostCleaner:
@@ -25,7 +28,7 @@ class PostCleaner:
 
     def clean_posts(self, df_bronze: pd.DataFrame) -> pd.DataFrame:
         df = df_bronze.copy()
-        df = self._drop_null_id(df)
+        df = self._drop_null_id(df, entity="post")
         df = deduplicate_latest(df, id_col="id")
         df = self._parse_timestamp(df)
         df = self._preserve_type_raw(df)
@@ -37,7 +40,7 @@ class PostCleaner:
 
     def clean_reels(self, df_bronze: pd.DataFrame) -> pd.DataFrame:
         df = df_bronze.copy()
-        df = self._drop_null_id(df)
+        df = self._drop_null_id(df, entity="reel")
         df = deduplicate_latest(df, id_col="id")
         df = self._parse_timestamp(df)
         df = self._preserve_type_raw(df)
@@ -106,11 +109,25 @@ class PostCleaner:
         cols = [c for c in self.POSTS_COLUMNS_TO_DROP if c in df.columns]
         return df.drop(columns=cols)
 
-    def _drop_null_id(self, df: pd.DataFrame) -> pd.DataFrame:
+    def _drop_null_id(self, df: pd.DataFrame, entity: str) -> pd.DataFrame:
         # Apify ocasionalmente retorna um post/reel sem `id` (item indisponível/
         # erro parcial no scrape) -- SILVER_POSTS_SCHEMA/SILVER_REELS_SCHEMA
         # exigem `id` não nulo, então uma linha assim quebraria a escrita da
         # Silver inteira em vez de só descartar o registro inválido.
         if "id" in df.columns:
+            sem_id = df[df["id"].isna()]
+            if not sem_id.empty:
+                owners = (
+                    sem_id["ownerUsername"].dropna().unique().tolist()
+                    if "ownerUsername" in sem_id.columns
+                    else []
+                )
+                logger.warning(
+                    "Descartando %d %s(s) sem `id` (erro/indisponibilidade da Apify na "
+                    "extração, ver landing zone do run_id para o payload bruto)%s",
+                    len(sem_id),
+                    entity,
+                    f" -- perfis afetados: {owners}" if owners else "",
+                )
             df = df[df["id"].notna()]
         return df

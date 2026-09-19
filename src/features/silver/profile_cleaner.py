@@ -4,6 +4,7 @@ Silver profile cleaner
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import ClassVar
 
@@ -11,6 +12,8 @@ import pandas as pd
 
 from src.delta_io import deduplicate_latest, write_delta
 from src.schemas_delta import SILVER_PROFILES_SCHEMA
+
+logger = logging.getLogger(__name__)
 
 
 class ProfileCleaner:
@@ -43,6 +46,17 @@ class ProfileCleaner:
         # nulo, então uma linha assim quebraria a escrita da Silver inteira
         # em vez de só descartar o registro inválido.
         if "id" in df.columns:
+            sem_id = df[df["id"].isna()]
+            if not sem_id.empty:
+                usernames = (
+                    sem_id["username"].dropna().tolist() if "username" in sem_id.columns else []
+                )
+                logger.warning(
+                    "Descartando %d perfil(is) sem `id` (erro/indisponibilidade da Apify na "
+                    "extração, ver landing zone do run_id para o payload bruto): %s",
+                    len(sem_id),
+                    usernames or "[username também ausente]",
+                )
             df = df[df["id"].notna()]
 
         cols_to_drop = [c for c in self.COLUMNS_TO_DROP if c in df.columns]

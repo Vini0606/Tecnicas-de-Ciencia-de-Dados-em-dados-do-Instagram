@@ -1,3 +1,5 @@
+import logging
+
 import pandas as pd
 
 from src.features.silver.comment_cleaner import CommentCleaner
@@ -36,11 +38,15 @@ def test_profile_cleaner_adds_fullname_when_missing():
     assert out.loc[0, "fullName"] == "g"
 
 
-def test_profile_cleaner_descarta_linhas_com_id_nulo():
+def test_profile_cleaner_descarta_linhas_com_id_nulo(caplog):
     """
     A Apify ocasionalmente retorna um resultado de scrape sem `id` (perfil
     indisponível/erro parcial). SILVER_PROFILES_SCHEMA exige `id` não nulo --
     sem descartar essas linhas, a escrita da Silver inteira quebraria.
+
+    O descarte não pode ficar silencioso (achado real: link do Espírito Santo
+    morto gerou 1 linha sem `id` que sumiu sem aviso até ser descoberto
+    manualmente) -- precisa logar um warning com o username afetado.
     """
     df = pd.DataFrame(
         {
@@ -52,9 +58,13 @@ def test_profile_cleaner_descarta_linhas_com_id_nulo():
         }
     )
     cleaner = ProfileCleaner()
-    out = cleaner.clean(df, run_id="r1")
+    with caplog.at_level(logging.WARNING):
+        out = cleaner.clean(df, run_id="r1")
     assert len(out) == 1
     assert out.iloc[0]["id"] == "1"
+    assert len(caplog.records) == 1
+    assert "sem_id" in caplog.records[0].message
+    assert caplog.records[0].levelname == "WARNING"
 
 
 def test_post_cleaner_feed_and_reel():
@@ -100,10 +110,11 @@ def test_comment_cleaner_explode():
     assert not out.empty
 
 
-def test_post_cleaner_descarta_linhas_com_id_nulo():
+def test_post_cleaner_descarta_linhas_com_id_nulo(caplog):
     """Mesmo cenário de dado sujo do ProfileCleaner (ver teste equivalente),
     só que para posts/reels: um item sem `id` quebraria SILVER_POSTS_SCHEMA/
-    SILVER_REELS_SCHEMA (id não-nulo) se não fosse descartado antes."""
+    SILVER_REELS_SCHEMA (id não-nulo) se não fosse descartado antes. O
+    descarte também precisa logar um warning, não ficar silencioso."""
     df = pd.DataFrame(
         {
             "id": ["p1", None],
@@ -117,13 +128,18 @@ def test_post_cleaner_descarta_linhas_com_id_nulo():
         }
     )
     pc = PostCleaner()
-    outp = pc.clean_posts(df)
+    with caplog.at_level(logging.WARNING):
+        outp = pc.clean_posts(df)
     assert len(outp) == 1
     assert outp.iloc[0]["id"] == "p1"
+    assert any("post" in r.message and "g" in r.message for r in caplog.records)
 
-    outr = pc.clean_reels(df.assign(latestComments=["[]", "[]"]))
+    caplog.clear()
+    with caplog.at_level(logging.WARNING):
+        outr = pc.clean_reels(df.assign(latestComments=["[]", "[]"]))
     assert len(outr) == 1
     assert outr.iloc[0]["id"] == "p1"
+    assert any("reel" in r.message and "g" in r.message for r in caplog.records)
 
 
 def test_post_cleaner_preserva_type_raw_e_hashtags():
