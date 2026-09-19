@@ -82,3 +82,25 @@ def test_load_links_le_e_normaliza_planilha(monkeypatch):
     links = load_links()
 
     assert links == ["https://instagram.com/a"]
+
+
+def test_load_links_filtra_governador_sem_instagram(monkeypatch):
+    """Um governador pode ficar temporariamente sem conta rastreável (ex.:
+    sucessão para titular interino sem perfil público) -- a linha continua em
+    governadores.xlsx (`Link` em branco/NaN), mas não pode virar o texto
+    literal "nan" na lista de links passada à Apify."""
+    df_fake = pd.DataFrame(
+        {
+            settings.LINK_COLUMN: [
+                "https://instagram.com/a",
+                None,
+                "https://instagram.com/b",
+            ]
+        }
+    )
+    monkeypatch.setattr("scripts.apify_backfill_shared.pd.read_excel", lambda *a, **k: df_fake)
+
+    links = load_links()
+
+    assert links == ["https://instagram.com/a", "https://instagram.com/b"]
+    assert "nan" not in links

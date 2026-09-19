@@ -55,7 +55,15 @@ def profiles_hitting_limit(items: list[dict], results_limit: int) -> list[str]:
 def load_links() -> list[str]:
     df_gov = pd.read_excel(settings.GOVERNADORES_FILE)
     df_gov.columns = df_gov.columns.str.strip()
-    return list(df_gov[settings.LINK_COLUMN].str.strip().unique())
+    links = df_gov[settings.LINK_COLUMN].str.strip()
+    # Um governador pode ficar temporariamente sem conta de Instagram
+    # rastreável (ex.: sucessão para um titular interino sem perfil público) --
+    # a linha continua em governadores.xlsx para registro/documentação, mas
+    # `Link` fica em branco. Sem este filtro, a célula vazia vira o texto
+    # literal "nan" (cast de NaN para string) e é tratada como URL real tanto
+    # aqui quanto em GovernorsMetadataCleaner.
+    links = links[links.notna() & (links.str.len() > 0)]
+    return list(links.unique())
 
 
 def estimate_cost_usd(days: int, n_governors: int) -> float:
