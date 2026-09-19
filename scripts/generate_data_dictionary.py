@@ -335,10 +335,10 @@ TABLES: list[dict] = [
         "modo_escrita": "overwrite",
         "escrito_por": "src/features/gold/nsm_scorer.py (NsmScorer)",
         "lido_por": "dashboard/screens/resumo.py (Tela 1, ADR 0021)",
-        "status": "Produção (verificação com dado real dos 27 perfis ainda pendente -- ver notas)",
+        "status": "Produção -- verificado com dado real dos 27 perfis (ver notas)",
         "adr": "ADR 0020 Ficha 5 / issue #90",
         "descricao": "North Star Metric: (comentários positivos / comentários totais) × alcance médio -- engajamento qualificado por QUALIDADE de reação, não só volume.",
-        "notas": "'alcance_medio' é proxy (TOTAL ENGAJAMENTO / count de governor_engagement), não alcance/views real -- Instagram não expõe alcance real para posts estáticos. Critério de aceite da issue #90 (ranking NSM inverter o ranking por engajamento bruto em pelo menos 1 caso real) só foi validado com dado SINTÉTICO em teste; falta confirmar contra os 27 perfis reais antes de fechar o Cap. 6 do TCC neste ponto.",
+        "notas": "'alcance_medio' é proxy (TOTAL ENGAJAMENTO / count de governor_engagement), não alcance/views real -- Instagram não expõe alcance real para posts estáticos. Critério de aceite da issue #90 (ranking NSM inverter o ranking por engajamento bruto em pelo menos 1 caso real) confirmado em 2026-09-19 contra os 27 perfis reais: 25 dos 27 mudam de posição entre os dois rankings, inclusive o 1º lugar (tarcisiogdf ultrapassa romeuzemaoficial). Ver ADR 0020, Ficha 5, para o detalhe completo.",
     },
     {
         "camada": "Gold",
@@ -761,7 +761,7 @@ GLOSSARY: list[dict] = [
         "tabela": "governor_nsm",
         "formula": "(comentários positivos / comentários totais) × alcance_medio, alcance_medio = TOTAL ENGAJAMENTO / count",
         "interpretacao": "North Star Metric de engajamento QUALIFICADO por perfil -- ADR 0020 Ficha 5.",
-        "limitacoes": "alcance_medio é proxy de intensidade de engajamento por post, não alcance/views real. Validação com os 27 perfis reais ainda pendente (ver aba Tabelas).",
+        "limitacoes": "alcance_medio é proxy de intensidade de engajamento por post, não alcance/views real. Validado contra os 27 perfis reais em 2026-09-19: 25/27 perfis mudam de posição vs. ranking por engajamento bruto (ver aba Tabelas / ADR 0020 Ficha 5).",
     },
     {
         "metrica": "CMGR (governor_growth_metrics.cmgr)",

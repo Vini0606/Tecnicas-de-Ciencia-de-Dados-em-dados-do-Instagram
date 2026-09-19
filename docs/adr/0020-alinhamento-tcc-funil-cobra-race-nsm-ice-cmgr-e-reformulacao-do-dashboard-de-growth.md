@@ -86,6 +86,18 @@ na decisão de registrar tudo numa ADR só antes de abrir issues, em vez de frag
    original), porque depende de `governor_sentiment` **e** `governor_engagement` já calculados
    juntos. Tabela nova `governor_nsm`. Entrega esperada no Cap. 6: contrastar ranking por NSM vs.
    ranking por engajamento bruto, mostrando que a ordem muda.
+
+   **Verificação com dado real (2026-09-19):** o critério de aceite da issue #90 (ranking por NSM
+   diferir do ranking por engajamento bruto em pelo menos 1 caso real, entre os 27 perfis) foi
+   confirmado após o backfill que corrigiu o link do Espírito Santo (PR #132, ver
+   `reference/governadores.xlsx`) e completou a modelagem determinística com os 27 perfis pela
+   primeira vez. Resultado: **25 dos 27 perfis mudam de posição** entre os dois
+   rankings — inclusive o próprio 1º lugar: `tarcisiogdf` (Tarcísio de Freitas) ultrapassa
+   `romeuzemaoficial` (Romeu Zema), que lidera em engajamento bruto mas tem proporção menor de
+   comentários positivos (37% vs. 55%) e alcance médio menor. Maior variação isolada:
+   `marcosrocha2oficial` sobe da 26ª para a 12ª posição por ter 100% de comentários positivos, apesar
+   de volume bruto quase nulo. Critério de aceite confirmado — dado suporta o contraste "bruto vs.
+   qualificado" proposto para o Cap. 6.
 6. **Score ICE (Priorização de Tópicos)** — `Score = Impacto × Confiança × Facilidade`; Impacto =
    alcance do tópico × proporção de sentimento positivo; Confiança = confiança média do
    classificador de sentimento no tópico; Facilidade = heurística ou fixa em 1 na v1 (decisão
