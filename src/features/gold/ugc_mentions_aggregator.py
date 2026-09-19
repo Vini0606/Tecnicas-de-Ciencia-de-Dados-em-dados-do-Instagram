@@ -34,17 +34,15 @@ class GovernorUGCAggregator:
         # Crítico (ADR 0020, Ficha 8): separa UGC orgânico de publi paga
         # ANTES de qualquer agregação -- contar publi como "apoio
         # espontâneo" infla falsamente o nível "Criar" do funil COBRA-RACE.
-        for col in ("isPaidPartnership", "isAd", "isAffiliate"):
-            if col not in df.columns:
-                df[col] = False
-        df["is_organic"] = ~(
-            df["isPaidPartnership"].fillna(False).astype(bool)
-            | df["isAd"].fillna(False).astype(bool)
-            | df["isAffiliate"].fillna(False).astype(bool)
-        )
+        # Piloto real (2026-09-19) confirmou que `paidPartnership` é o único
+        # campo de publi que o actor de fato expõe -- `isAd`/`isAffiliate`
+        # não existem como conceitos distintos nesta fonte.
+        if "paidPartnership" not in df.columns:
+            df["paidPartnership"] = False
+        df["is_organic"] = ~df["paidPartnership"].fillna(False).astype(bool)
 
         df = df.drop(
-            columns=["isPaidPartnership", "isAd", "isAffiliate", "_ingested_at", "_source_layer"],
+            columns=["paidPartnership", "_ingested_at", "_source_layer"],
             errors="ignore",
         )
         df["_run_id"] = run_id

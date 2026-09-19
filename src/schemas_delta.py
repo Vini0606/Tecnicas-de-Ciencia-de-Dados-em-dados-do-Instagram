@@ -101,30 +101,42 @@ BRONZE_UGC_MENTIONS_SCHEMA = pa.schema(
         pa.field("shortCode", pa.string(), nullable=True),
         pa.field("type", pa.string(), nullable=True),
         pa.field("caption", pa.string(), nullable=True),
-        # Lista de usernames marcados/mencionados no post (serializada como
-        # JSON string pelo `BronzeWriter._add_ingestion_metadata`, mesmo
-        # tratamento de qualquer campo list/dict) -- é o único campo com
-        # exemplo real confirmado na pesquisa (`"mentions": ["zelenskiy_..."]`),
-        # e por isso a base usada para correlacionar cada post ao governador
-        # marcado (`SILVER_UGC_MENTIONS_SCHEMA.governor_username`).
+        # Lista de usernames mencionados via @-menção em legenda/comentário
+        # (serializada como JSON string pelo `BronzeWriter`) -- confirmado
+        # pelo piloto real (2026-09-19, 27 perfis): só ~31% dos posts têm
+        # `mentions` preenchido. A MAIORIA da correlação real vem de
+        # `taggedUsers` (marcação visual), abaixo -- ver
+        # `SILVER_UGC_MENTIONS_SCHEMA.governor_username`, que cruza os dois.
         pa.field("mentions", pa.string(), nullable=True),
-        # Distingue marcação visual ("tagged") de menção textual ("mentioned")
-        # -- campo do actor rejeitado (`fetch_cat/...`) que o piloto precisa
-        # confirmar se o actor escolhido também expõe.
-        pa.field("matchTypes", pa.string(), nullable=True),
+        # Lista de objetos completos (username/full_name/is_verified/
+        # is_private por pessoa marcada visualmente na foto/vídeo),
+        # serializada como JSON string -- confirmado pelo piloto: presente em
+        # ~69% dos posts, MAIS FREQUENTE que `mentions`. Substitui o campo
+        # `matchTypes` que a especificação original (issue #93) esperava --
+        # esse campo não existe no retorno real do actor
+        # `apify/instagram-tagged-scraper`; a distinção tag-visual vs.
+        # @-menção se infere cruzando este campo com `mentions`, não lendo
+        # uma flag pronta.
+        pa.field("taggedUsers", pa.string(), nullable=True),
         pa.field("likesCount", pa.int64(), nullable=True),
         pa.field("commentsCount", pa.int64(), nullable=True),
         pa.field("videoPlayCount", pa.int64(), nullable=True),
         pa.field("timestamp", pa.string(), nullable=True),
-        pa.field("authorUsername", pa.string(), nullable=True),
+        # Autor terceiro do post de UGC. O piloto confirmou que o actor NUNCA
+        # retorna `authorUsername` (0% de presença) -- só `ownerUsername`
+        # (98%+), junto de `ownerFullName`/`ownerId`. `authorUsername`
+        # removido daqui de propósito (fidelidade Bronze ao retorno real);
+        # `UGCMentionCleaner` normaliza para `authorUsername` na Silver.
         pa.field("ownerUsername", pa.string(), nullable=True),
-        pa.field("authorIsVerified", pa.bool_(), nullable=True),
+        pa.field("ownerFullName", pa.string(), nullable=True),
+        pa.field("ownerId", pa.string(), nullable=True),
         # Crítico (ADR 0020, Ficha 8): separa UGC orgânico de publi paga --
         # sem isso, `GovernorUGCAggregator` contaria publi como "apoio
-        # espontâneo" e infla falsamente o nível "Criar" do COBRA.
-        pa.field("isPaidPartnership", pa.bool_(), nullable=True),
-        pa.field("isAd", pa.bool_(), nullable=True),
-        pa.field("isAffiliate", pa.bool_(), nullable=True),
+        # espontâneo" e infla falsamente o nível "Criar" do COBRA. O piloto
+        # confirmou que só ESTE campo existe (98%+ de presença) -- o actor
+        # não expõe `isAd`/`isAffiliate` como conceitos distintos, e o nome
+        # real não tem o prefixo "is" (`isPaidPartnership` nunca aparece).
+        pa.field("paidPartnership", pa.bool_(), nullable=True),
         pa.field("_ingested_at", pa.timestamp("us", tz="UTC"), nullable=False),
         pa.field("_run_id", pa.string(), nullable=False),
         pa.field("_source", pa.string(), nullable=False),
@@ -250,19 +262,22 @@ SILVER_UGC_MENTIONS_SCHEMA = pa.schema(
         pa.field("shortCode", pa.string(), nullable=True),
         pa.field("type", pa.string(), nullable=True),
         pa.field("caption", pa.string(), nullable=True),
-        pa.field("matchTypes", pa.string(), nullable=True),
-        # Derivado de `mentions` (Bronze) cruzado com a lista de usernames de
-        # governador informada ao cleaner -- não é um campo bruto do actor.
-        # Nulo quando `mentions` não bate com nenhum username conhecido
-        # (post não correlacionável a um governador do projeto).
+        # Derivado de `mentions` E `taggedUsers` (Bronze) cruzados com a lista
+        # de usernames de governador informada ao cleaner -- não é um campo
+        # bruto do actor. Nulo quando nenhum dos dois bate com um username
+        # conhecido (post não correlacionável a um governador do projeto).
+        # Piloto real (2026-09-19): ~69% dos posts só correlacionam via
+        # `taggedUsers` (mentions vazio) -- checar só `mentions` perderia a
+        # maioria dos casos reais.
         pa.field("governor_username", pa.string(), nullable=True),
         # Normalização de `authorUsername`/`ownerUsername` (Bronze) num só
-        # campo -- "normalização de handles" pedida pela issue #93.
+        # campo -- "normalização de handles" pedida pela issue #93. Na
+        # prática o actor real só preenche `ownerUsername` (ver Bronze).
         pa.field("authorUsername", pa.string(), nullable=True),
-        pa.field("authorIsVerified", pa.bool_(), nullable=False),
-        pa.field("isPaidPartnership", pa.bool_(), nullable=False),
-        pa.field("isAd", pa.bool_(), nullable=False),
-        pa.field("isAffiliate", pa.bool_(), nullable=False),
+        # Confirmado pelo piloto: único campo de publi que o actor de fato
+        # expõe (ver BRONZE_UGC_MENTIONS_SCHEMA.paidPartnership) --
+        # `isAd`/`isAffiliate` não existem como conceitos distintos aqui.
+        pa.field("paidPartnership", pa.bool_(), nullable=False),
         pa.field("likesCount", pa.int64(), nullable=False),
         pa.field("commentsCount", pa.int64(), nullable=False),
         pa.field("videoPlayCount", pa.int64(), nullable=True),
@@ -508,9 +523,7 @@ GOLD_UGC_MENTIONS_SCHEMA = pa.schema(
         pa.field("shortCode", pa.string(), nullable=True),
         pa.field("governor_username", pa.string(), nullable=True),
         pa.field("authorUsername", pa.string(), nullable=True),
-        pa.field("authorIsVerified", pa.bool_(), nullable=False),
         pa.field("caption", pa.string(), nullable=True),
-        pa.field("matchTypes", pa.string(), nullable=True),
         pa.field("likesCount", pa.int64(), nullable=False),
         pa.field("commentsCount", pa.int64(), nullable=False),
         pa.field("videoPlayCount", pa.int64(), nullable=True),
