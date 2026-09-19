@@ -113,7 +113,7 @@ TABLES: list[dict] = [
         "status": "Produção",
         "adr": "ADR 0011",
         "descricao": "Perfis conformados ao contrato Silver: tipos fechados (int32/bool não-nulos), colunas de baixo valor analítico descartadas (biografia, URLs de foto, endereço de negócio).",
-        "notas": "Linha sem `id` é descartada (não quebra a escrita da tabela inteira) E gera um `logger.warning` com o(s) username(s) afetado(s) -- achado real: o link morto do Espírito Santo (PR #132) gerava esse descarte silenciosamente até ser descoberto manualmente; `fullName` ausente cai para `username`, depois `inputUrl`, nunca fica nulo por acidente.",
+        "notas": "Linha sem `id` é descartada (não quebra a escrita da tabela inteira) E gera um `logger.warning` com o(s) username(s) afetado(s) -- achado real: o link morto do Espírito Santo (PR #132) gerava esse descarte silenciosamente até ser descoberto manualmente; `fullName` ausente cai para `username`, depois `inputUrl`, nunca fica nulo por acidente. `clean()` também filtra por `governor_usernames` (opcional, passado por pipeline.py via scripts.apify_backfill_shared.load_governor_usernames()) -- governador removido de governadores.xlsx some daqui e, em cascata, de toda a Gold derivada (achado original: PR #137).",
     },
     {
         "camada": "Silver",
@@ -127,7 +127,7 @@ TABLES: list[dict] = [
         "status": "Produção",
         "adr": "ADR 0011; ADR 0019 parte A (hashtags/type_raw)",
         "descricao": "Posts de feed conformados: timestamp do Apify parseado para `data_hora` (fuso America/Sao_Paulo), `Tipo` fixado em 'FEED'.",
-        "notas": "`caption`/`hashtags` são preservados aqui (mas não em reels_clean) -- Reels não têm campo de legenda coletado, limitação estrutural de dado, não de design. Linha sem `id` é descartada e gera `logger.warning` (mesmo tratamento de profiles_clean).",
+        "notas": "`caption`/`hashtags` são preservados aqui (mas não em reels_clean) -- Reels não têm campo de legenda coletado, limitação estrutural de dado, não de design. Linha sem `id` é descartada e gera `logger.warning` (mesmo tratamento de profiles_clean). `clean_posts()` também filtra por `governor_usernames` via `ownerUsername` -- mesmo tratamento de profiles_clean (achado original: PR #137).",
     },
     {
         "camada": "Silver",
@@ -141,7 +141,7 @@ TABLES: list[dict] = [
         "status": "Produção",
         "adr": "ADR 0011; ADR 0019 parte A; ADR 0020 Ficha 3 / issue #88 (transcript)",
         "descricao": "Reels conformados: `Tipo` fixado em 'REELS', `Total de Engajamento` pré-calculado (likes+comentários), `transcript` propagado sem transformação.",
-        "notas": "`Total de Engajamento` aqui é por-reel (insumo do PCA/AutoClusterHPO) -- não confundir com `TOTAL ENGAJAMENTO` (maiúsculo, com espaço) de governor_engagement, que é por-perfil agregado. Linha sem `id` é descartada e gera `logger.warning` (mesmo tratamento de profiles_clean).",
+        "notas": "`Total de Engajamento` aqui é por-reel (insumo do PCA/AutoClusterHPO) -- não confundir com `TOTAL ENGAJAMENTO` (maiúsculo, com espaço) de governor_engagement, que é por-perfil agregado. Linha sem `id` é descartada e gera `logger.warning` (mesmo tratamento de profiles_clean). `clean_reels()` também filtra por `governor_usernames` via `ownerUsername` -- mesmo tratamento de profiles_clean (achado original: PR #137).",
     },
     {
         "camada": "Silver",
@@ -155,7 +155,7 @@ TABLES: list[dict] = [
         "status": "Produção",
         "adr": "ADR 0011",
         "descricao": "Comentários de Reels explodidos de dentro do JSON `latestComments`, filtrados a menos de 512 caracteres.",
-        "notas": "Deriva EXCLUSIVAMENTE de Reels -- posts de feed não carregam comentário embutido no dado coletado, então não existe 'comentário de post' em nenhuma tabela do projeto.",
+        "notas": "Deriva EXCLUSIVAMENTE de Reels -- posts de feed não carregam comentário embutido no dado coletado, então não existe 'comentário de post' em nenhuma tabela do projeto. `clean()` também filtra por `governor_usernames`, pelo `ownerUsername` do REEL (o governador) ANTES do explode -- depois dele, `ownerUsername` passa a se referir ao autor do comentário, não ao governador (achado original: PR #137).",
     },
     {
         "camada": "Silver",
@@ -195,10 +195,10 @@ TABLES: list[dict] = [
         "modo_escrita": "overwrite",
         "escrito_por": "src/features/gold/engagement_aggregator.py (EngagementAggregator)",
         "lido_por": "pages/*; src/modeling/post_performance.py; src/features/gold/nsm_scorer.py",
-        "status": "Produção (LIMITAÇÃO CONHECIDA -- ver notas: governador removido de governadores.xlsx continua aparecendo aqui)",
+        "status": "Produção",
         "adr": "ADR 0018",
         "descricao": "Métricas de engajamento por perfil: total ponderado, taxa sobre seguidores, recência e frequência de publicação.",
-        "notas": "Sempre sobrescrita por completo a cada execução -- para série temporal, ver governor_engagement_history. LIMITAÇÃO CONHECIDA (2026-09-19): EngagementAggregator recalcula a partir de profiles_clean/posts_clean/reels_clean (Silver, que por sua vez vem de TODA a Bronze acumulada) -- não filtra contra governors_metadata/governadores.xlsx. Um governador removido da planilha (ex.: Rio de Janeiro/claudiocastrorj, sem Instagram rastreável desde 2026-03 -- ver PR #136) continua reaparecendo aqui indefinidamente, com o último snapshot real da Bronze (cada vez mais desatualizado) só recebendo um `_generated_at` novo a cada execução -- parece fresco, mas o dado por trás não é. Não afeta o seletor de governador do dashboard (vem de governors_metadata, filtra corretamente), mas PODE vazar como 'par' em telas que comparam perfis por cluster (ex.: Tela 4, via governor_profile_clusters_engagement, mesma limitação -- ver notas daquela tabela). Correção exigiria EngagementAggregator/estágio de modelagem cruzarem contra governors_metadata antes de processar -- fora de escopo até aqui, fica para decisão futura.",
+        "notas": "Sempre sobrescrita por completo a cada execução -- para série temporal, ver governor_engagement_history. LIMITAÇÃO CORRIGIDA (2026-09-19): profiles_clean/posts_clean/reels_clean/comments_clean agora filtram contra governor_usernames (scripts.apify_backfill_shared.load_governor_usernames(), a partir de governadores.xlsx atual) ANTES de qualquer Gold -- um governador removido da planilha (ex.: Rio de Janeiro/claudiocastrorj até 2026-09, ver PR #136) some de profiles_clean e, em cascata, desta tabela e de todas as demais Gold derivadas, em vez de continuar reaparecendo indefinidamente com dado cada vez mais desatualizado (achado original: PR #137).",
     },
     {
         "camada": "Gold",
@@ -279,10 +279,10 @@ TABLES: list[dict] = [
         "modo_escrita": "overwrite",
         "escrito_por": "src/features/gold/model_enricher.py (ModelEnricher.write_profile_clusters_engagement), via src/modeling/orchestration.py::run_deterministic_modeling (pipeline.py --run-modeling / scripts/run_modeling.py) ou, isoladamente, via scripts/run_profile_clustering_engagement.py",
         "lido_por": "dashboard/screens/comparar.py (Tela 4 \"Comparar perfis\", ADR 0021 -- comparação de perfil vs. pares do mesmo cluster)",
-        "status": "Produção (LIMITAÇÃO CONHECIDA -- herda de governor_engagement, ver notas)",
+        "status": "Produção",
         "adr": "ADR 0020 Fase 2 / issue #86; ADR 0004/0005 (schema próprio, não genérico)",
         "descricao": "Agrupa governadores por semelhança de padrão de engajamento (mesma pipeline PCA->AutoClusterHPO do nível de conteúdo, mas features agregadas por perfil).",
-        "notas": "Roda pós-Gold-de-engajamento (lê governor_engagement), dentro do mesmo estágio determinístico das demais tabelas de modelagem -- na Lambda serverless, é a etapa `model`, disparada depois de `load` (ver seção 3 do README). LIMITAÇÃO CONHECIDA (2026-09-19): como lê governor_engagement (que não filtra contra governadores.xlsx atual -- ver notas daquela tabela), um governador removido da planilha continua recebendo `cluster_perfil_engajamento` aqui e PODE aparecer como 'par' na Tela 4 (Comparar perfis) para outro governador do mesmo cluster, com dado cada vez mais desatualizado. Caso real: claudiocastrorj (RJ, sem Instagram rastreável desde 2026-03 -- PR #136).",
+        "notas": "Roda pós-Gold-de-engajamento (lê governor_engagement), dentro do mesmo estágio determinístico das demais tabelas de modelagem -- na Lambda serverless, é a etapa `model`, disparada depois de `load` (ver seção 3 do README). LIMITAÇÃO CORRIGIDA (2026-09-19): herdava o vazamento de governor_engagement (ver notas daquela tabela) -- agora que profiles_clean/posts_clean/reels_clean filtram contra governadores.xlsx atual, um governador removido nunca chega a ter governor_engagement calculado, então também não aparece mais aqui nem como 'par' na Tela 4 (Comparar perfis).",
     },
     {
         "camada": "Gold",

@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 from config import settings
 from scripts.apify_backfill_shared import (
     estimate_cost_usd_for_results_limit,
+    load_governor_usernames,
     load_links,
 )
 from src.data_extract.bronze_writer import BronzeWriter
@@ -87,10 +88,18 @@ def run_medallion_pipeline(
         post_cleaner = PostCleaner()
         comment_cleaner = CommentCleaner()
 
-        df_profiles_silver = profile_cleaner.clean(df_profiles, run_id)
-        df_posts_silver = post_cleaner.clean_posts(df_posts)
-        df_reels_silver = post_cleaner.clean_reels(df_reels)
-        df_comments_silver = comment_cleaner.clean(df_reels)
+        # Governador removido de governadores.xlsx (Link em branco -- ver
+        # ADR de sucessão do RJ) não pode continuar vazando o último
+        # snapshot real da Bronze indefinidamente em Silver/Gold, cada vez
+        # mais desatualizado (achado real, PR #137). Filtra aqui, o ponto
+        # único antes de qualquer Gold -- cascateia para todas as tabelas
+        # derivadas sem precisar filtrar cada uma individualmente.
+        governor_usernames = load_governor_usernames()
+
+        df_profiles_silver = profile_cleaner.clean(df_profiles, run_id, governor_usernames)
+        df_posts_silver = post_cleaner.clean_posts(df_posts, governor_usernames)
+        df_reels_silver = post_cleaner.clean_reels(df_reels, governor_usernames)
+        df_comments_silver = comment_cleaner.clean(df_reels, governor_usernames)
 
         profile_cleaner.write(df_profiles_silver, settings.SILVER_PROFILES)
         post_cleaner.write_posts(df_posts_silver, settings.SILVER_POSTS)

@@ -38,7 +38,12 @@ class ProfileCleaner:
         "joinedRecently",
     ]
 
-    def clean(self, df_bronze: pd.DataFrame, run_id: str) -> pd.DataFrame:
+    def clean(
+        self,
+        df_bronze: pd.DataFrame,
+        run_id: str,
+        governor_usernames: list[str] | None = None,
+    ) -> pd.DataFrame:
         df = df_bronze.copy()
 
         # Apify ocasionalmente retorna um resultado de scrape sem `id` (perfil
@@ -58,6 +63,16 @@ class ProfileCleaner:
                     usernames or "[username também ausente]",
                 )
             df = df[df["id"].notna()]
+
+        # Achado real (PR #137): a Bronze é append-only e nunca esquece um
+        # `id` -- sem este filtro, um governador removido de
+        # governadores.xlsx (ex.: RJ/claudiocastrorj, sem Instagram
+        # rastreável desde 2026-03) continua reaparecendo indefinidamente
+        # com o último snapshot real, cada vez mais desatualizado.
+        # `governor_usernames=None` preserva o comportamento antigo (sem
+        # filtro) -- usado pelos testes unitários deste cleaner.
+        if governor_usernames is not None and "username" in df.columns:
+            df = df[df["username"].isin(governor_usernames)]
 
         cols_to_drop = [c for c in self.COLUMNS_TO_DROP if c in df.columns]
         if cols_to_drop:
