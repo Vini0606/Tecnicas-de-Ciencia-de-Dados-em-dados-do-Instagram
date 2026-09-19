@@ -2,13 +2,18 @@ from pathlib import Path
 
 import pytest
 
-from src.data_extract.ingestion import archive_raw_json, extract_and_land
+from src.data_extract.ingestion import (
+    archive_raw_json,
+    extract_and_land,
+    extract_and_land_ugc_mentions,
+)
 
 
 class _FakeScraper:
     def __init__(self):
         self.posts_calls = []
         self.reels_calls = []
+        self.mentions_calls = []
 
     def scrape_profiles(self, links):
         return [{"inputUrl": "https://instagram.com/gov1", "username": "gov1"}]
@@ -20,6 +25,10 @@ class _FakeScraper:
     def scrape_reels(self, links, extra_run_input=None):
         self.reels_calls.append((links, extra_run_input))
         return [{"inputUrl": "https://instagram.com/gov1", "id": "r1"}]
+
+    def scrape_mentions(self, links, extra_run_input=None):
+        self.mentions_calls.append((links, extra_run_input))
+        return [{"inputUrl": "https://instagram.com/gov1", "id": "m1"}]
 
 
 class _FakeBronzeWriter:
@@ -34,6 +43,9 @@ class _FakeBronzeWriter:
 
     def write_reels(self, raw_data, run_id=None):
         self.calls.append(("reels", raw_data, run_id))
+
+    def write_ugc_mentions(self, raw_data, run_id=None):
+        self.calls.append(("ugc_mentions", raw_data, run_id))
 
 
 class _OrderCheckingBronzeWriter:
@@ -141,3 +153,35 @@ def test_extract_and_land_preserva_o_arquivado_mesmo_se_a_bronze_falhar(tmp_path
     assert (tmp_path / "run_1" / "profiles.json").exists()
     assert (tmp_path / "run_1" / "posts.json").exists()
     assert (tmp_path / "run_1" / "reels.json").exists()
+
+
+def test_extract_and_land_ugc_mentions_arquiva_e_escreve(tmp_path):
+    """ADR 0020 (Ficha 8) / issue #93 -- mesmo padrão de extract_and_land,
+    mas função separada (actor/cadência próprios, roda independente de
+    profiles/posts/reels)."""
+    scraper = _FakeScraper()
+    bronze = _FakeBronzeWriter()
+
+    result = extract_and_land_ugc_mentions(
+        scraper, bronze, tmp_path, links=["https://instagram.com/gov1"], run_id="run_ugc"
+    )
+
+    assert bronze.calls == [("ugc_mentions", result, "run_ugc")]
+    assert (tmp_path / "run_ugc" / "ugc_mentions.json").exists()
+    assert result[0]["id"] == "m1"
+
+
+def test_extract_and_land_ugc_mentions_propaga_extra_run_input(tmp_path):
+    scraper = _FakeScraper()
+    bronze = _FakeBronzeWriter()
+
+    extract_and_land_ugc_mentions(
+        scraper,
+        bronze,
+        tmp_path,
+        links=["https://instagram.com/gov1"],
+        run_id="run_1",
+        extra_run_input={"resultsLimit": 5},
+    )
+
+    assert scraper.mentions_calls[0][1] == {"resultsLimit": 5}

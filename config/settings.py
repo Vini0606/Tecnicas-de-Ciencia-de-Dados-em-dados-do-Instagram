@@ -47,6 +47,11 @@ BRONZE_DIR = DATA_DIR / "bronze"
 BRONZE_PROFILES = BRONZE_DIR / "instagram_profiles"
 BRONZE_POSTS = BRONZE_DIR / "instagram_posts"
 BRONZE_REELS = BRONZE_DIR / "instagram_reels"
+# ADR 0020 (Ficha 8) / issue #93: UGC de criação (posts de terceiros que
+# marcam/mencionam o governador) -- piloto real confirmado em 2026-09-19
+# (ver docs/adr/0020-..., nota da Ficha 8); escrita de produção via
+# BronzeWriter.write_ugc_mentions.
+BRONZE_UGC_MENTIONS = BRONZE_DIR / "ugc_mentions"
 
 SILVER_DIR = DATA_DIR / "silver"
 SILVER_PROFILES = SILVER_DIR / "profiles_clean"
@@ -54,6 +59,7 @@ SILVER_POSTS = SILVER_DIR / "posts_clean"
 SILVER_REELS = SILVER_DIR / "reels_clean"
 SILVER_COMMENTS = SILVER_DIR / "comments_clean"
 SILVER_GOVERNORS_METADATA = SILVER_DIR / "governors_metadata"
+SILVER_UGC_MENTIONS = SILVER_DIR / "ugc_mentions"
 
 GOLD_DIR = DATA_DIR / "gold"
 GOLD_ENGAGEMENT = GOLD_DIR / "governor_engagement"
@@ -92,6 +98,12 @@ GOLD_POST_PERFORMANCE_PREDICTIONS = GOLD_DIR / "post_performance_predictions"
 # `src/modeling/orchestration.py` de propósito (não depende de nenhum outro
 # estágio pós-modelagem, roda independente do restante do pipeline).
 GOLD_GROWTH_METRICS = GOLD_DIR / "governor_growth_metrics"
+# ADR 0020 (Ficha 8) / issue #93: 1 linha por post de UGC (não agregada --
+# `GovernorUGCAggregator.aggregate_by_governor` é uma view em memória sobre
+# esta tabela, não persistida). Módulo standalone
+# (`scripts/run_ugc_mentions.py`), mesmo padrão de GOLD_GROWTH_METRICS
+# acima -- coleção independente, cadência/actor próprios.
+GOLD_UGC_MENTIONS = GOLD_DIR / "governor_ugc_mentions"
 
 # Checkpoints locais do estágio determinístico de modelagem (ver ADR 0003) —
 # não são Delta, ficam fora do git.

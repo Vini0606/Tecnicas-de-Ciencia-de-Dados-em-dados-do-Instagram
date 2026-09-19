@@ -19,6 +19,7 @@ from src.schemas_delta import (
     BRONZE_POSTS_SCHEMA,
     BRONZE_PROFILES_SCHEMA,
     BRONZE_REELS_SCHEMA,
+    BRONZE_UGC_MENTIONS_SCHEMA,
 )
 
 
@@ -29,12 +30,20 @@ class BronzeWriter:
         bronze_posts_path: Path | str,
         bronze_reels_path: Path | str,
         storage_options: dict | None = None,
+        # ADR 0020 (Ficha 8) / issue #93: opcional e por último -- coleção
+        # independente (actor/cadência próprios), nem todo chamador de
+        # BronzeWriter precisa dela (ex.: lambdas/extract, pipeline.py
+        # principal). Ausente se não passado -- write_ugc_mentions levanta
+        # KeyError explícito nesse caso, em vez de aceitar um path "None".
+        bronze_ugc_mentions_path: Path | str | None = None,
     ):
         self._paths = {
             "profiles": str(bronze_profiles_path),
             "posts": str(bronze_posts_path),
             "reels": str(bronze_reels_path),
         }
+        if bronze_ugc_mentions_path is not None:
+            self._paths["ugc_mentions"] = str(bronze_ugc_mentions_path)
         self._storage_options = storage_options or {}
 
     def write_profiles(self, raw_data: list[dict], run_id: str | None = None) -> str:
@@ -47,6 +56,11 @@ class BronzeWriter:
 
     def write_reels(self, raw_data: list[dict], run_id: str | None = None) -> str:
         return self._write(raw_data, self._paths["reels"], BRONZE_REELS_SCHEMA, run_id)
+
+    def write_ugc_mentions(self, raw_data: list[dict], run_id: str | None = None) -> str:
+        return self._write(
+            raw_data, self._paths["ugc_mentions"], BRONZE_UGC_MENTIONS_SCHEMA, run_id
+        )
 
     def get_latest_profiles(self) -> pd.DataFrame:
         return self._read_latest(self._paths["profiles"])
@@ -63,6 +77,9 @@ class BronzeWriter:
 
     def get_latest_reels(self) -> pd.DataFrame:
         return self._read_latest(self._paths["reels"])
+
+    def get_latest_ugc_mentions(self) -> pd.DataFrame:
+        return self._read_latest(self._paths["ugc_mentions"])
 
     def get_history(self, entity: str) -> pd.DataFrame:
         dt = DeltaTable(self._paths[entity], storage_options=self._storage_options)
