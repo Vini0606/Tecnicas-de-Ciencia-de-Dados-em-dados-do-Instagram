@@ -67,6 +67,43 @@ def test_profile_cleaner_descarta_linhas_com_id_nulo(caplog):
     assert caplog.records[0].levelname == "WARNING"
 
 
+def test_profile_cleaner_filtra_governador_removido_da_planilha():
+    """Achado real (PR #137): sem esse filtro, um governador removido de
+    governadores.xlsx continua reaparecendo indefinidamente com o último
+    snapshot real da Bronze (ex.: RJ/claudiocastrorj, sem Instagram
+    rastreável desde 2026-03)."""
+    df = pd.DataFrame(
+        {
+            "id": ["1", "2"],
+            "username": ["governador_atual", "governador_removido"],
+            "followersCount": [100, 50],
+            "_ingested_at": pd.to_datetime(["2026-05-01", "2026-05-01"], utc=True),
+            "_run_id": ["r1", "r1"],
+        }
+    )
+    cleaner = ProfileCleaner()
+    out = cleaner.clean(df, run_id="r1", governor_usernames=["governador_atual"])
+    assert len(out) == 1
+    assert out.iloc[0]["username"] == "governador_atual"
+
+
+def test_profile_cleaner_sem_governor_usernames_nao_filtra():
+    """governor_usernames=None preserva o comportamento antigo -- sem
+    filtro nenhum (usado pelos demais testes deste cleaner)."""
+    df = pd.DataFrame(
+        {
+            "id": ["1", "2"],
+            "username": ["a", "b"],
+            "followersCount": [100, 50],
+            "_ingested_at": pd.to_datetime(["2026-05-01", "2026-05-01"], utc=True),
+            "_run_id": ["r1", "r1"],
+        }
+    )
+    cleaner = ProfileCleaner()
+    out = cleaner.clean(df, run_id="r1")
+    assert len(out) == 2
+
+
 def test_post_cleaner_feed_and_reel():
     df_posts = pd.DataFrame(
         {
@@ -110,6 +147,26 @@ def test_comment_cleaner_explode():
     assert not out.empty
 
 
+def test_comment_cleaner_filtra_governador_removido_da_planilha():
+    """Achado real (PR #137): filtra pelo `ownerUsername` do REEL (o
+    governador), ANTES do explode -- depois dele, `ownerUsername` passa a
+    se referir ao autor do comentário, não ao governador."""
+    df_reels = pd.DataFrame(
+        {
+            "id": ["r1", "r2"],
+            "ownerUsername": ["governador_atual", "governador_removido"],
+            "latestComments": [
+                '[{"id": "c1", "text": "ok"}]',
+                '[{"id": "c2", "text": "outro"}]',
+            ],
+        }
+    )
+    cc = CommentCleaner()
+    out = cc.clean(df_reels, governor_usernames=["governador_atual"])
+    assert len(out) == 1
+    assert out.iloc[0]["id_comment"] == "c1"
+
+
 def test_post_cleaner_descarta_linhas_com_id_nulo(caplog):
     """Mesmo cenário de dado sujo do ProfileCleaner (ver teste equivalente),
     só que para posts/reels: um item sem `id` quebraria SILVER_POSTS_SCHEMA/
@@ -140,6 +197,35 @@ def test_post_cleaner_descarta_linhas_com_id_nulo(caplog):
     assert len(outr) == 1
     assert outr.iloc[0]["id"] == "p1"
     assert any("reel" in r.message and "g" in r.message for r in caplog.records)
+
+
+def test_post_cleaner_filtra_governador_removido_da_planilha():
+    """Achado real (PR #137): mesmo filtro do ProfileCleaner, aplicado por
+    `ownerUsername` (quem publicou o post/reel é o governador, diferente de
+    UGC -- ver ugc_mention_cleaner.py)."""
+    df = pd.DataFrame(
+        {
+            "id": ["p1", "p2"],
+            "ownerId": ["1", "2"],
+            "ownerUsername": ["governador_atual", "governador_removido"],
+            "commentsCount": [1, 2],
+            "likesCount": [2, 3],
+            "timestamp": ["2026-05-01T00:00:00+00:00", "2026-05-01T00:00:00+00:00"],
+            "_ingested_at": pd.to_datetime(["2026-05-01", "2026-05-01"], utc=True),
+            "_run_id": ["r1", "r1"],
+        }
+    )
+    pc = PostCleaner()
+
+    outp = pc.clean_posts(df, governor_usernames=["governador_atual"])
+    assert len(outp) == 1
+    assert outp.iloc[0]["ownerUsername"] == "governador_atual"
+
+    outr = pc.clean_reels(
+        df.assign(latestComments=["[]", "[]"]), governor_usernames=["governador_atual"]
+    )
+    assert len(outr) == 1
+    assert outr.iloc[0]["ownerUsername"] == "governador_atual"
 
 
 def test_post_cleaner_preserva_type_raw_e_hashtags():

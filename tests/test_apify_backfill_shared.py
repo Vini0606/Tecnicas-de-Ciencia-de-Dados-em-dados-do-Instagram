@@ -8,6 +8,7 @@ from scripts.apify_backfill_shared import (
     default_results_limit,
     estimate_cost_usd,
     estimate_cost_usd_for_results_limit,
+    load_governor_usernames,
     load_links,
     profiles_hitting_limit,
     project_backfill_costs,
@@ -104,3 +105,20 @@ def test_load_links_filtra_governador_sem_instagram(monkeypatch):
 
     assert links == ["https://instagram.com/a", "https://instagram.com/b"]
     assert "nan" not in links
+
+
+def test_load_governor_usernames_extrai_username_puro_da_url(monkeypatch):
+    df_fake = pd.DataFrame(
+        {
+            settings.LINK_COLUMN: [
+                "https://www.instagram.com/casagrande_es/",
+                "https://www.instagram.com/fatimabezerra13/?hl=en",
+                "https://www.instagram.com/ricardoferraco",
+            ]
+        }
+    )
+    monkeypatch.setattr("scripts.apify_backfill_shared.pd.read_excel", lambda *a, **k: df_fake)
+
+    usernames = load_governor_usernames()
+
+    assert usernames == ["casagrande_es", "fatimabezerra13", "ricardoferraco"]

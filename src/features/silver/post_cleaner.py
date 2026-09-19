@@ -26,9 +26,12 @@ class PostCleaner:
         "musicInfo",
     ]
 
-    def clean_posts(self, df_bronze: pd.DataFrame) -> pd.DataFrame:
+    def clean_posts(
+        self, df_bronze: pd.DataFrame, governor_usernames: list[str] | None = None
+    ) -> pd.DataFrame:
         df = df_bronze.copy()
         df = self._drop_null_id(df, entity="post")
+        df = self._filter_delisted_governors(df, governor_usernames)
         df = deduplicate_latest(df, id_col="id")
         df = self._parse_timestamp(df)
         df = self._preserve_type_raw(df)
@@ -38,9 +41,12 @@ class PostCleaner:
         df["_source_layer"] = "bronze"
         return df
 
-    def clean_reels(self, df_bronze: pd.DataFrame) -> pd.DataFrame:
+    def clean_reels(
+        self, df_bronze: pd.DataFrame, governor_usernames: list[str] | None = None
+    ) -> pd.DataFrame:
         df = df_bronze.copy()
         df = self._drop_null_id(df, entity="reel")
+        df = self._filter_delisted_governors(df, governor_usernames)
         df = deduplicate_latest(df, id_col="id")
         df = self._parse_timestamp(df)
         df = self._preserve_type_raw(df)
@@ -130,4 +136,17 @@ class PostCleaner:
                     f" -- perfis afetados: {owners}" if owners else "",
                 )
             df = df[df["id"].notna()]
+        return df
+
+    def _filter_delisted_governors(
+        self, df: pd.DataFrame, governor_usernames: list[str] | None
+    ) -> pd.DataFrame:
+        # Achado real (PR #137): a Bronze é append-only e nunca esquece um
+        # `id` -- sem este filtro, um governador removido de
+        # governadores.xlsx continua reaparecendo indefinidamente com o
+        # último post/reel real, cada vez mais desatualizado.
+        # `governor_usernames=None` preserva o comportamento antigo (sem
+        # filtro) -- usado pelos testes unitários deste cleaner.
+        if governor_usernames is not None and "ownerUsername" in df.columns:
+            df = df[df["ownerUsername"].isin(governor_usernames)]
         return df

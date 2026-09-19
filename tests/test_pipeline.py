@@ -60,6 +60,10 @@ def _patch_medallion_dependencies(monkeypatch, df_reels_silver, df_comments_silv
     monkeypatch.setattr(
         "pipeline.pd.read_excel", lambda *a, **k: pd.DataFrame({"Link": ["u1"]})
     )
+    # load_governor_usernames() é importado por nome em pipeline.py (não
+    # `scripts.apify_backfill_shared.pd.read_excel`) -- mockar aqui evita que
+    # o teste leia o governadores.xlsx REAL do repo, quebrando o isolamento.
+    monkeypatch.setattr("pipeline.load_governor_usernames", lambda: ["u1"])
 
     fake_run_deterministic_modeling = MagicMock()
     monkeypatch.setattr("pipeline.run_deterministic_modeling", fake_run_deterministic_modeling)
@@ -78,6 +82,30 @@ def test_run_medallion_pipeline_nao_roda_modelagem_por_padrao(monkeypatch):
     pipeline.run_medallion_pipeline(apify_api_token="token", links=["l"], run_id="r1")
 
     fake_modeling.assert_not_called()
+
+
+def test_run_medallion_pipeline_propaga_governor_usernames_aos_cleaners_silver(monkeypatch):
+    """Achado real (PR #137): sem passar governor_usernames aos cleaners
+    Silver, um governador removido de governadores.xlsx continua
+    reaparecendo indefinidamente em Gold com dado cada vez mais
+    desatualizado. Confirma que pipeline.py de fato conecta
+    load_governor_usernames() aos 4 cleaners que agora aceitam o filtro."""
+    import pipeline
+
+    df_reels_silver = pd.DataFrame({"id": ["1"]})
+    df_comments_silver = pd.DataFrame({"text": ["oi"]})
+    _patch_medallion_dependencies(monkeypatch, df_reels_silver, df_comments_silver)
+
+    pipeline.run_medallion_pipeline(apify_api_token="token", links=["l"], run_id="r1")
+
+    profile_cleaner = pipeline.ProfileCleaner()
+    post_cleaner = pipeline.PostCleaner()
+    comment_cleaner = pipeline.CommentCleaner()
+
+    assert profile_cleaner.clean.call_args.args[2] == ["u1"]
+    assert post_cleaner.clean_posts.call_args.args[1] == ["u1"]
+    assert post_cleaner.clean_reels.call_args.args[1] == ["u1"]
+    assert comment_cleaner.clean.call_args.args[1] == ["u1"]
 
 
 def test_run_medallion_pipeline_com_run_modeling_chama_estagio_deterministico(monkeypatch):

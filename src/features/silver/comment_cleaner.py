@@ -27,11 +27,25 @@ class CommentCleaner:
         "coauthorProducers",
     ]
 
-    def clean(self, df_reels_bronze: pd.DataFrame) -> pd.DataFrame:
+    def clean(
+        self,
+        df_reels_bronze: pd.DataFrame,
+        governor_usernames: list[str] | None = None,
+    ) -> pd.DataFrame:
         if "latestComments" not in df_reels_bronze.columns:
             return pd.DataFrame()
 
         df = df_reels_bronze.copy()
+
+        # Achado real (PR #137): filtra pelo `ownerUsername` do REEL (o
+        # governador) ANTES do explode/join abaixo -- depois deles,
+        # `ownerUsername` passa a se referir ao autor do COMENTÁRIO, não ao
+        # governador (ver `_promote_comment_columns`). `governor_usernames=
+        # None` preserva o comportamento antigo (sem filtro), usado pelos
+        # testes unitários deste cleaner.
+        if governor_usernames is not None and "ownerUsername" in df.columns:
+            df = df[df["ownerUsername"].isin(governor_usernames)]
+
         df["latestComments"] = df["latestComments"].apply(
             lambda v: json.loads(v) if isinstance(v, str) else (v or [])
         )

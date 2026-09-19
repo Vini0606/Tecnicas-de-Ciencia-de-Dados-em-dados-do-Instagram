@@ -7,6 +7,7 @@ executavel, so um modulo de import.
 
 import sys
 from pathlib import Path
+from urllib.parse import urlparse
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
@@ -64,6 +65,25 @@ def load_links() -> list[str]:
     # aqui quanto em GovernorsMetadataCleaner.
     links = links[links.notna() & (links.str.len() > 0)]
     return list(links.unique())
+
+
+def _username_from_url(url: str) -> str:
+    """Extrai o username puro de uma URL de perfil do Instagram, robusto a
+    query string (`?hl=en`, visto em dado real) e a segmentos extras de path
+    (`/reels/`, achado real -- ver PR #132) -- sempre o primeiro segmento
+    depois do domínio."""
+    path = urlparse(url).path
+    return path.strip("/").split("/")[0]
+
+
+def load_governor_usernames() -> list[str]:
+    """Usernames (não URLs) dos governadores atualmente rastreáveis --
+    mesma fonte de `load_links()` (já filtra `Link` em branco/NaN, ver ADR
+    de sucessão do RJ), só que extraindo o username de cada URL. Usado para
+    filtrar Silver/Gold contra `governadores.xlsx` atual (achado: um
+    governador removido da planilha continuava vazando dado cada vez mais
+    velho em Silver/Gold indefinidamente -- ver PR #137)."""
+    return [_username_from_url(link) for link in load_links()]
 
 
 def estimate_cost_usd(days: int, n_governors: int) -> float:
