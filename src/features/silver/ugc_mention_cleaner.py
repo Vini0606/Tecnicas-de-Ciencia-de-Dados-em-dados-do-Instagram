@@ -23,12 +23,7 @@ from src.schemas_delta import SILVER_UGC_MENTIONS_SCHEMA
 
 
 class UGCMentionCleaner:
-    BOOL_COLUMNS: ClassVar[list[str]] = [
-        "authorIsVerified",
-        "isPaidPartnership",
-        "isAd",
-        "isAffiliate",
-    ]
+    BOOL_COLUMNS: ClassVar[list[str]] = ["paidPartnership"]
     INT64_COLUMNS: ClassVar[list[str]] = ["likesCount", "commentsCount"]
 
     def clean(
@@ -102,33 +97,53 @@ class UGCMentionCleaner:
     def _resolve_governor_username(
         self, df: pd.DataFrame, governor_usernames: list[str]
     ) -> pd.DataFrame:
-        # `mentions` chega como JSON string (BronzeWriter serializa qualquer
-        # list/dict) -- ex.: '["governador_x", "outro_perfil"]'. Resolve o
-        # governador marcado cruzando contra `governor_usernames`; nulo se o
-        # campo faltar, vier vazio/inválido, ou não bater com nenhum
-        # username conhecido (post não correlacionável a um governador do
-        # projeto -- ver limitação declarada na ADR 0020, Ficha 8).
+        # `mentions` (@-menção em legenda/comentário) e `taggedUsers`
+        # (marcação visual, lista de objetos com `username` por pessoa)
+        # chegam como JSON string (BronzeWriter serializa qualquer list/dict).
+        # Piloto real (2026-09-19, 27 perfis) confirmou que ~69% dos posts só
+        # correlacionam via `taggedUsers` -- `mentions` vem vazio na maioria
+        # dos casos. Checa os dois; nulo se nenhum bater com um username
+        # conhecido (post não correlacionável a um governador do projeto --
+        # ver limitação declarada na ADR 0020, Ficha 8).
         known = set(governor_usernames)
 
-        def _resolve(raw_mentions) -> str | None:
-            if not known or raw_mentions is None or (isinstance(raw_mentions, float) and pd.isna(raw_mentions)):
-                return None
+        def _usernames_from_mentions(raw) -> list:
+            if raw is None or (isinstance(raw, float) and pd.isna(raw)):
+                return []
             try:
-                mentioned = json.loads(raw_mentions) if isinstance(raw_mentions, str) else raw_mentions
+                parsed = json.loads(raw) if isinstance(raw, str) else raw
             except (json.JSONDecodeError, TypeError):
+                return []
+            return parsed if isinstance(parsed, list) else []
+
+        def _usernames_from_tagged(raw) -> list:
+            if raw is None or (isinstance(raw, float) and pd.isna(raw)):
+                return []
+            try:
+                parsed = json.loads(raw) if isinstance(raw, str) else raw
+            except (json.JSONDecodeError, TypeError):
+                return []
+            if not isinstance(parsed, list):
+                return []
+            return [
+                person.get("username")
+                for person in parsed
+                if isinstance(person, dict) and person.get("username")
+            ]
+
+        def _resolve(row) -> str | None:
+            if not known:
                 return None
-            if not isinstance(mentioned, list):
-                return None
-            for username in mentioned:
+            candidates = _usernames_from_mentions(row.get("mentions")) + _usernames_from_tagged(
+                row.get("taggedUsers")
+            )
+            for username in candidates:
                 if username in known:
                     return username
             return None
 
-        if "mentions" in df.columns:
-            df["governor_username"] = df["mentions"].map(_resolve)
-        else:
-            df["governor_username"] = pd.NA
-        return df.drop(columns=["mentions"], errors="ignore")
+        df["governor_username"] = df.apply(_resolve, axis=1)
+        return df.drop(columns=["mentions", "taggedUsers"], errors="ignore")
 
     def _parse_timestamp(self, df: pd.DataFrame) -> pd.DataFrame:
         # Mesmo cuidado de `PostCleaner._parse_timestamp`: format="ISO8601"
@@ -145,12 +160,11 @@ class UGCMentionCleaner:
         return df.drop(columns=["timestamp"], errors="ignore")
 
     def _cast_bools(self, df: pd.DataFrame) -> pd.DataFrame:
-        # Ausência de flag de publi (`isPaidPartnership`/`isAd`/`isAffiliate`)
-        # é tratada como False (orgânico) -- mesmo padrão de
-        # `ProfileCleaner.BOOL_COLUMNS`. Isso é uma decisão de default, não
-        # uma confirmação do piloto: se o actor de fato nunca preencher esses
-        # campos, todo UGC seria classificado como orgânico por omissão --
-        # risco a revisar quando o piloto rodar de verdade.
+        # Ausência de `paidPartnership` é tratada como False (orgânico) --
+        # mesmo padrão de `ProfileCleaner.BOOL_COLUMNS`. Piloto real
+        # (2026-09-19) confirmou que o actor preenche este campo em 98%+ dos
+        # posts -- o risco de "tudo vira orgânico por omissão" citado aqui
+        # antes do piloto rodar não se confirmou na prática.
         for col in self.BOOL_COLUMNS:
             if col in df.columns:
                 df[col] = df[col].fillna(False).astype(bool)

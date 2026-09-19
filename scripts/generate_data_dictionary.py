@@ -95,10 +95,10 @@ TABLES: list[dict] = [
         "modo_escrita": "append (planejado)",
         "escrito_por": "Nenhum -- schema definido em src/schemas_delta.py para a issue #93, mas nenhum writer de produção grava esta tabela ainda",
         "lido_por": "src/features/silver/ugc_mention_cleaner.py (testado com dado sintético)",
-        "status": "PILOTO -- schema definido e testado com dado sintético, mas SEM dado real gravado em produção",
+        "status": "PILOTO -- schema CORRIGIDO contra dado real (2026-09-19), mas SEM dado gravado em produção (Bronze) ainda",
         "adr": "ADR 0020 Ficha 8 / issue #93",
         "descricao": "UGC (user-generated content) de terceiros mencionando/marcando o governador, via apify/instagram-tagged-scraper (ver aba Actors Apify -- status PILOTO).",
-        "notas": "O piloto obrigatório da issue #93 (scripts/run_apify_mentions_pilot.py) grava só em data/pilot/*.json, FORA do Delta Lake -- não passa pela landing zone data/landing/ das demais entidades Bronze, nem por BronzeWriter. Os nomes de campo abaixo seguem a especificação da issue/ADR cruzada com docs/research/apify-instagram-actors-cobra-mapping.md, mas não foram confirmados 1:1 contra um exemplo real do actor para os 27 perfis. Não rodar decisões do TCC sobre esta tabela sem primeiro confirmar o piloto.",
+        "notas": "O piloto obrigatório da issue #93 (scripts/run_apify_mentions_pilot.py) rodou de verdade em 2026-09-19 contra os 26 perfis com Instagram rastreável (119 posts, data/pilot/mentions_pilot_20260919T030401Z.json) -- grava em data/pilot/*.json, FORA do Delta Lake, não passa pela landing zone nem por BronzeWriter. O schema abaixo foi CORRIGIDO a partir desse resultado real: `authorUsername`/`authorIsVerified`/`isPaidPartnership`/`isAd`/`isAffiliate`/`matchTypes` da especificação original (issue #93) NÃO existem no retorno do actor -- removidos/substituídos por `ownerUsername`/`ownerFullName`/`ownerId`/`paidPartnership`/`taggedUsers` (nomes reais). Ainda sem writer de produção (`BronzeWriter.write_ugc_mentions` não existe) -- essa etapa falta antes de fechar a Ficha 8.",
     },
     # ---------------------------- SILVER --------------------------------
     {
@@ -182,8 +182,8 @@ TABLES: list[dict] = [
         "lido_por": "src/features/gold/ugc_mentions_aggregator.py (testado com dado sintético)",
         "status": "PILOTO -- mesma ressalva da Bronze ugc_mentions",
         "adr": "ADR 0020 Ficha 8 / issue #93",
-        "descricao": "UGC de terceiros já limpo: `governor_username` derivado de `mentions` cruzado com a lista de usernames conhecidos; `authorUsername` normaliza `authorUsername`/`ownerUsername` brutos num só campo.",
-        "notas": "`id`/`shortCode` são nullable aqui (ao contrário do padrão NOT NULL de profiles/posts/reels) porque o piloto ainda não confirmou presença garantida de `id` no actor escolhido -- o cleaner descarta linha sem os dois.",
+        "descricao": "UGC de terceiros já limpo: `governor_username` derivado de `mentions` E `taggedUsers` (Bronze) cruzados com a lista de usernames conhecidos; `authorUsername` normaliza o handle do autor terceiro (na prática, sempre a partir de `ownerUsername` -- ver Bronze).",
+        "notas": "`id`/`shortCode` são nullable aqui (ao contrário do padrão NOT NULL de profiles/posts/reels) porque o piloto ainda não confirmou presença garantida de `id` no actor escolhido -- o cleaner descarta linha sem os dois. Piloto real (2026-09-19) confirmou que checar só `mentions` perderia ~69% dos posts correlacionáveis -- a maioria só tem a marcação visual em `taggedUsers`, não @-menção em texto.",
     },
     # ----------------------------- GOLD ----------------------------------
     {
@@ -351,8 +351,8 @@ TABLES: list[dict] = [
         "lido_por": "Nenhum consumidor de produção hoje -- dashboard/screens/funil.py (Tela 6, ADR 0021) proíbe estruturalmente qualquer referência a esta tabela (ver teste test_funil_module_never_references_ugc_tables); src/dashboard/filters.py tem a função de agregação, mas não é chamada por nenhuma tela atual",
         "status": "PILOTO -- mesma ressalva de Bronze/Silver ugc_mentions",
         "adr": "ADR 0020 Ficha 8 / issue #93",
-        "descricao": "UGC orgânico vs. publi paga por post, com `is_organic` derivado de isPaidPartnership/isAd/isAffiliate -- separa apoio espontâneo de publi paga ANTES de qualquer agregação.",
-        "notas": "`GovernorUGCAggregator.aggregate_by_governor` (a 'view' de contagem/engajamento médio por governador) nunca expõe `authorUsername` individual no agregado, por desenho -- privacidade de quem menciona o governador, não só do próprio governador.",
+        "descricao": "UGC orgânico vs. publi paga por post, com `is_organic` derivado de `paidPartnership` -- separa apoio espontâneo de publi paga ANTES de qualquer agregação.",
+        "notas": "`GovernorUGCAggregator.aggregate_by_governor` (a 'view' de contagem/engajamento médio por governador) nunca expõe `authorUsername` individual no agregado, por desenho -- privacidade de quem menciona o governador, não só do próprio governador. Piloto real (2026-09-19) confirmou que `paidPartnership` é o único campo de publi que o actor expõe -- `isAd`/`isAffiliate` não existem como conceitos distintos, removidos do schema.",
     },
     {
         "camada": "Gold",
@@ -466,15 +466,14 @@ COMMON_TECH: dict[str, str] = {
     "cluster_score": "Score CVI combinado (Silhouette + Calinski-Harabasz normalizado + Davies-Bouldin invertido) do algoritmo eleito -- ver src/modeling/clustering.py.",
     "content_type": "Discrimina se a linha é de 'reel' ou 'feed' dentro de governor_clusters (ADR 0020 Ficha 2 / issue #87).",
     "grupo": "Discrimina o grupo da regressão de performance-por-post: 'video' (Reels) ou 'estatico' (posts de imagem/carrossel).",
-    "authorUsername": "Username de quem publicou o post de UGC (autor, distinto do governador mencionado).",
-    "authorIsVerified": "Se o autor do post de UGC tem selo de verificação.",
-    "isPaidPartnership": "Flag de parceria paga (publi) declarada pelo Instagram no post.",
-    "isAd": "Flag de anúncio pago.",
-    "isAffiliate": "Flag de conteúdo de afiliado.",
-    "is_organic": "Derivado de isPaidPartnership/isAd/isAffiliate: True quando NENHuma das três é True -- separa apoio espontâneo de publi paga.",
-    "governor_username": "Username do governador mencionado/marcado, resolvido a partir de `mentions` cruzado com a lista de perfis conhecidos.",
-    "matchTypes": "Tipo de correlação do UGC ao perfil: marcação visual ('tagged') vs. menção textual ('mentioned').",
-    "mentions": "Lista de usernames marcados/mencionados no post de UGC, serializada como JSON string.",
+    "authorUsername": "Username de quem publicou o post de UGC (autor, distinto do governador mencionado) -- campo normalizado na Silver; na Bronze o actor real só preenche `ownerUsername` (ver override específico de ugc_mentions, coluna `ownerUsername` colide de nome com posts/reels/comentários).",
+    "ownerFullName": "Nome completo de quem publicou o post de UGC (Bronze, confirmado pelo piloto real).",
+    "ownerId": "Id do perfil de quem publicou o post de UGC (Bronze, confirmado pelo piloto real).",
+    "paidPartnership": "Flag de parceria paga (publi) declarada pelo Instagram no post de UGC -- único campo de publi que o actor real expõe (piloto 2026-09-19); `isAd`/`isAffiliate` da especificação original não existem.",
+    "is_organic": "Derivado de `paidPartnership`: True quando ausente/False -- separa apoio espontâneo de publi paga.",
+    "governor_username": "Username do governador mencionado/marcado, resolvido cruzando `mentions` E `taggedUsers` (Bronze) com a lista de perfis conhecidos -- piloto real confirmou que ~69% dos posts só correlacionam via `taggedUsers`.",
+    "mentions": "Lista de usernames @-mencionados em legenda/comentário do post de UGC, serializada como JSON string -- só ~31% dos posts reais têm este campo preenchido.",
+    "taggedUsers": "Lista de objetos (um por pessoa marcada visualmente na foto/vídeo, com `username`/`full_name`/`is_verified`/`is_private`) do post de UGC, serializada como JSON string -- substitui o campo `matchTypes` (não existe no actor real); presente em ~69% dos posts, mais frequente que `mentions`.",
     "isSponsored": "Flag de conteúdo patrocinado no Reel (bruto do Apify).",
     "isCommentsDisabled": "Se os comentários estão desabilitados no post/reel.",
     "isPinned": "Se o reel está fixado no perfil.",
@@ -570,6 +569,13 @@ TABLE_COLUMN_OVERRIDES: dict[str, dict[str, str]] = {
         "retencao_motivo": "Motivo da retenção ser NaN, quando aplicável (mesmas categorias do cmgr_motivo).",
         "ilustrativo": "True enquanto o pipeline não tiver acumulado histórico real suficiente -- sinaliza que o valor valida a FÓRMULA, não sustenta conclusão definitiva no TCC.",
         "nota": "Texto explicando por que o resultado é (ou não) ilustrativo, para exibição direta em dashboard/relatório sem reprocessar nada.",
+    },
+    "ugc_mentions (schema definido, ainda não materializado)": {
+        # `ownerUsername` aqui é o AUTOR TERCEIRO do UGC (quem marcou/mencionou
+        # o governador), não o próprio governador -- diferente do significado
+        # genérico em COMMON_TECH (posts/reels/comentários, onde ownerUsername
+        # É o governador). Override específico para não confundir os dois.
+        "ownerUsername": "Username de quem publicou o post de UGC (autor terceiro que marcou/mencionou o governador -- Bronze, nome real do actor apify/instagram-tagged-scraper). Normalizado para `authorUsername` na Silver.",
     },
     "governor_ugc_mentions (schema definido, ainda não materializado)": {
         "caption": "Legenda do post de UGC (do autor terceiro, não do governador).",

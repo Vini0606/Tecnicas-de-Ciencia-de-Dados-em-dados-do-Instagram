@@ -14,13 +14,9 @@ def _silver_row(**overrides) -> dict:
         "shortCode": "abc123",
         "type": "Image",
         "caption": "apoio total!",
-        "matchTypes": "mentioned",
         "governor_username": "governador_x",
         "authorUsername": "eleitor_1",
-        "authorIsVerified": False,
-        "isPaidPartnership": False,
-        "isAd": False,
-        "isAffiliate": False,
+        "paidPartnership": False,
         "likesCount": 10,
         "commentsCount": 2,
         "videoPlayCount": pd.NA,
@@ -39,9 +35,8 @@ def test_enrich_marca_organico_quando_nenhuma_flag_de_publi():
     assert bool(out.iloc[0]["is_organic"]) is True
 
 
-@pytest.mark.parametrize("flag", ["isPaidPartnership", "isAd", "isAffiliate"])
-def test_enrich_marca_nao_organico_quando_qualquer_flag_de_publi_verdadeira(flag):
-    df = pd.DataFrame([_silver_row(**{flag: True})])
+def test_enrich_marca_nao_organico_quando_paid_partnership_verdadeiro():
+    df = pd.DataFrame([_silver_row(paidPartnership=True)])
     out = GovernorUGCAggregator().enrich(df, run_id="r1")
     assert bool(out.iloc[0]["is_organic"]) is False
 
@@ -54,7 +49,9 @@ def test_enrich_preenche_run_id_e_generated_at():
 
 
 def test_enrich_conforma_ao_contrato_gold():
-    df = pd.DataFrame([_silver_row(), _silver_row(id="m2", shortCode="def456", isAd=True)])
+    df = pd.DataFrame(
+        [_silver_row(), _silver_row(id="m2", shortCode="def456", paidPartnership=True)]
+    )
     out = GovernorUGCAggregator().enrich(df, run_id="r1")
     table = conform_to_schema(out, GOLD_UGC_MENTIONS_SCHEMA)
     assert table.num_rows == 2
