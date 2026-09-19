@@ -66,3 +66,22 @@ def extract_and_land(
     bronze.write_reels(reels, run_id=run_id)
 
     return {"profiles": profiles, "posts": posts, "reels": reels}
+
+
+def extract_and_land_ugc_mentions(
+    scraper: InstagramScraper,
+    bronze: BronzeWriter,
+    landing_dir: Path | str,
+    links: list[str],
+    run_id: str,
+    extra_run_input: dict | None = None,
+) -> list[dict]:
+    """Raspa UGC de menções (ADR 0020, Ficha 8 / issue #93), arquiva na
+    landing zone e escreve na Bronze -- mesmo padrão de `extract_and_land`,
+    mas separado dele de propósito: UGC tem actor/cadência próprios,
+    coletado independentemente de profiles/posts/reels (`bronze` aqui
+    precisa ter sido construído com `bronze_ugc_mentions_path`)."""
+    mentions = scraper.scrape_mentions(links, extra_run_input=extra_run_input)
+    archive_raw_json(landing_dir, "ugc_mentions", mentions, run_id)
+    bronze.write_ugc_mentions(mentions, run_id=run_id)
+    return mentions
