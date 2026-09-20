@@ -7,6 +7,7 @@ mesmo padrão de `tests/test_dashboard_core_data.py`/`test_dashboard_loaders.py`
 reais escritas em `tmp_path`, mesmo padrão dos dois arquivos acima."""
 
 import datetime
+import inspect
 
 import pandas as pd
 import streamlit as st
@@ -395,6 +396,26 @@ def test_intervalo_disponivel_none_sem_coluna_timestamp():
 
 def test_intervalo_disponivel_none_com_dataframe_vazio():
     assert resumo._intervalo_disponivel(pd.DataFrame()) is None
+
+
+# ---------------------------------------------------------------------------
+# ADR 0023, user story 10: o filtro de calendário do destaque de
+# negatividade NÃO pode vazar para a faixa de decisão nem para a tendência
+# de engajamento/seguidores -- prova estrutural de que essas funções nunca
+# ganham parâmetro de intervalo de datas.
+# ---------------------------------------------------------------------------
+
+
+def test_faixa_de_decisao_e_tendencia_de_engajamento_nao_aceitam_filtro_de_calendario():
+    funcoes_fora_do_filtro = (
+        resumo._nivel_semaforo,
+        resumo._frase_decisao,
+        resumo._delta_para_governador,
+        resumo._ultimas_execucoes,
+    )
+    for fn in funcoes_fora_do_filtro:
+        params = set(inspect.signature(fn).parameters)
+        assert not params & {"data_inicio", "data_fim"}, fn.__name__
 
 
 # ---------------------------------------------------------------------------

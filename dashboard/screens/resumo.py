@@ -22,6 +22,9 @@ from dashboard.core.components import decision_band, footnote, kpi_row, stage_la
 from dashboard.core.deltas import (
     LIMIAR_NEGATIVIDADE_ALERTA,
     deduplicate_by_first_seen,
+    filter_by_date_range,
+    normalize_date_input_range,
+    parse_publication_dates,
     week_over_week,
 )
 
@@ -333,12 +336,8 @@ def _maior_alta_negatividade(
         return None
 
     df = deduplicate_by_first_seen(df)
-    datas = pd.to_datetime(df["timestamp"], errors="coerce", utc=True, format="ISO8601").dt.date
-    df = df.assign(_data_publicacao=datas).dropna(subset=["_data_publicacao"])
-    if data_inicio is not None:
-        df = df[df["_data_publicacao"] >= data_inicio]
-    if data_fim is not None:
-        df = df[df["_data_publicacao"] <= data_fim]
+    df = df.assign(_data_publicacao=parse_publication_dates(df)).dropna(subset=["_data_publicacao"])
+    df = filter_by_date_range(df, "_data_publicacao", data_inicio, data_fim)
     if df.empty:
         return None
 
@@ -369,8 +368,7 @@ def _intervalo_disponivel(
     estiver vazio, sem `timestamp_col`, ou sem nenhuma data parseável."""
     if df.empty or timestamp_col not in df.columns:
         return None
-    datas = pd.to_datetime(df[timestamp_col], errors="coerce", utc=True, format="ISO8601").dt.date
-    datas = datas.dropna()
+    datas = parse_publication_dates(df, timestamp_col=timestamp_col).dropna()
     if datas.empty:
         return None
     return datas.min(), datas.max()
@@ -637,9 +635,7 @@ def render() -> None:
                 max_value=data_max,
                 key="resumo_intervalo_tema_negatividade",
             )
-            data_inicio, data_fim = (
-                (intervalo[0], intervalo[-1]) if len(intervalo) == 2 else (intervalo[0], intervalo[0])
-            )
+            data_inicio, data_fim = normalize_date_input_range(intervalo)
             alta_negatividade = _maior_alta_negatividade(
                 df_sentiment_history_governador, data_inicio, data_fim
             )

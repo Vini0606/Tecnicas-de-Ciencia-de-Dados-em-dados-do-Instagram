@@ -101,6 +101,55 @@ def deduplicate_by_first_seen(
     return df_history.sort_values(run_col).drop_duplicates(subset=[id_col], keep="first")
 
 
+def parse_publication_dates(
+    df: pd.DataFrame, timestamp_col: str = "timestamp"
+) -> pd.Series:
+    """`timestamp_col` (string ISO 8601, ex.: `governor_sentiment*.timestamp`)
+    parseado para `datetime.date` (ADR 0023) -- mesma lógica de
+    `src/features/silver/post_cleaner.py::_parse_timestamp`, reaproveitada
+    aqui e em `dashboard/screens/resumo.py` para não duplicar o parse em cada
+    lugar que precisa da data real de publicação. Valores não parseáveis
+    viram `NaT`, nunca lançam exceção. Série vazia se `timestamp_col` estiver
+    ausente."""
+    if timestamp_col not in df.columns:
+        return pd.Series(dtype="object")
+    return pd.to_datetime(df[timestamp_col], errors="coerce", utc=True, format="ISO8601").dt.date
+
+
+def filter_by_date_range(
+    df: pd.DataFrame,
+    date_col: str,
+    data_inicio: object | None,
+    data_fim: object | None,
+) -> pd.DataFrame:
+    """Restringe `df` ao intervalo `[data_inicio, data_fim]` em `date_col`,
+    inclusive (ADR 0023) -- compartilhada entre a linha do tempo do Radar
+    (filtra o `DataFrame` já agregado por dia) e o destaque de sentimento do
+    Resumo (filtra linhas de comentário individuais antes de agregar por
+    tópico). `None` em qualquer lado não corta aquele lado. `DataFrame`
+    vazio permanece vazio, nunca lança exceção."""
+    if df.empty:
+        return df
+    filtrado = df
+    if data_inicio is not None:
+        filtrado = filtrado[filtrado[date_col] >= data_inicio]
+    if data_fim is not None:
+        filtrado = filtrado[filtrado[date_col] <= data_fim]
+    return filtrado.reset_index(drop=True)
+
+
+def normalize_date_input_range(intervalo: tuple) -> tuple[object, object]:
+    """Normaliza o retorno de `st.date_input(..., value=(min, max))` (ADR
+    0023) -- o Streamlit devolve uma tupla de 1 elemento enquanto a analista
+    ainda não escolheu a segunda data do intervalo; esta função sempre
+    devolve `(data_inicio, data_fim)`, usando a mesma data nos dois lados
+    nesse caso intermediário. Compartilhada entre `dashboard/screens/radar.py`
+    e `dashboard/screens/resumo.py`, que têm o mesmo widget."""
+    if len(intervalo) == 2:
+        return intervalo[0], intervalo[1]
+    return intervalo[0], intervalo[0]
+
+
 def aggregate_pct_negative_by_publication_day(
     df_history: pd.DataFrame,
     timestamp_col: str = "timestamp",
@@ -113,23 +162,22 @@ def aggregate_pct_negative_by_publication_day(
     `id_col`/menor `run_col` (ver `deduplicate_by_first_seen`) para não contar
     duas vezes um comentário recoletado em execuções sobrepostas.
 
-    `timestamp_col` é parseado como em `src/features/silver/post_cleaner.py::
-    _parse_timestamp`; linhas com data não parseável (`NaT`) são excluídas do
-    resultado, nunca levantam exceção. `DataFrame` vazio (colunas
-    `data`/`pct_negativo`, nunca exceção) se faltar coluna obrigatória ou não
-    houver linha válida."""
+    `timestamp_col` é parseado via `parse_publication_dates`; linhas com data
+    não parseável (`NaT`) são excluídas do resultado, nunca levantam
+    exceção. `DataFrame` vazio (colunas `data`/`pct_negativo`, nunca
+    exceção) se faltar coluna obrigatória ou não houver linha válida."""
     colunas = ["data", "pct_negativo"]
     required = {timestamp_col, sentiment_col, id_col, run_col}
     if df_history.empty or not required.issubset(df_history.columns):
         return pd.DataFrame(columns=colunas)
 
     df = deduplicate_by_first_seen(df_history, id_col=id_col, run_col=run_col)
-    datas = pd.to_datetime(df[timestamp_col], errors="coerce", utc=True, format="ISO8601")
-    df = df.assign(_data_publicacao=datas).dropna(subset=["_data_publicacao"])
+    df = df.assign(data=parse_publication_dates(df, timestamp_col=timestamp_col)).dropna(
+        subset=["data"]
+    )
     if df.empty:
         return pd.DataFrame(columns=colunas)
 
-    df = df.assign(data=df["_data_publicacao"].dt.date)
     agregado = (
         df.groupby("data")[sentiment_col]
         .apply(lambda s: (s == "negative").mean())

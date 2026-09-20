@@ -15,6 +15,7 @@ que a tabela de origem tenha a coluna. Não remover nem enfraquecer.
 """
 
 import datetime
+import inspect
 
 import pandas as pd
 import streamlit as st
@@ -140,6 +141,51 @@ def test_quebrar_em_segmentos_nao_quebra_quando_gap_menor_ou_igual_ao_limiar():
 
 def test_quebrar_em_segmentos_com_dataframe_vazio():
     assert radar._quebrar_em_segmentos(pd.DataFrame(columns=["data", "pct_negativo"])) == []
+
+
+# ---------------------------------------------------------------------------
+# _cores_marcador (ADR 0023 -- só o ponto que cruza o limiar é marcado,
+# nunca o segmento da linha inteiro)
+# ---------------------------------------------------------------------------
+
+
+def test_cores_marcador_vermelho_no_ponto_que_cruza_o_limiar():
+    cores = radar._cores_marcador(pd.Series([10.0, 35.0, 20.0]), limiar_pct=30.0)
+    assert cores == [
+        radar.COLORS["muted"],
+        radar.COLORS["danger"]["fg"],
+        radar.COLORS["muted"],
+    ]
+
+
+def test_cores_marcador_vermelho_no_limiar_exato():
+    cores = radar._cores_marcador(pd.Series([30.0]), limiar_pct=30.0)
+    assert cores == [radar.COLORS["danger"]["fg"]]
+
+
+def test_cores_marcador_lista_vazia_com_serie_vazia():
+    assert radar._cores_marcador(pd.Series([], dtype=float), limiar_pct=30.0) == []
+
+
+# ---------------------------------------------------------------------------
+# ADR 0023, user story 8: o filtro de calendário da linha do tempo NÃO pode
+# vazar para a frase de decisão nem para a lista de comentários -- prova
+# estrutural de que essas funções nunca ganham parâmetro de intervalo de
+# datas (se ganhassem, seria sinal de que o filtro vazou pra fora do
+# gráfico).
+# ---------------------------------------------------------------------------
+
+
+def test_frase_decisao_e_lista_de_comentarios_nao_aceitam_filtro_de_calendario():
+    funcoes_fora_do_filtro = (
+        radar._nivel_semaforo,
+        radar._tema_maior_alta_negatividade,
+        radar._frase_decisao,
+        radar._comentarios_negativos_recentes,
+    )
+    for fn in funcoes_fora_do_filtro:
+        params = set(inspect.signature(fn).parameters)
+        assert not params & {"data_inicio", "data_fim"}, fn.__name__
 
 
 # ---------------------------------------------------------------------------

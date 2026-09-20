@@ -62,6 +62,8 @@ from dashboard.core.components import decision_band, footnote, stage_label
 from dashboard.core.deltas import (
     LIMIAR_NEGATIVIDADE_ALERTA,
     aggregate_pct_negative_by_publication_day,
+    filter_by_date_range,
+    normalize_date_input_range,
     week_over_week,
 )
 from dashboard.core.theme import COLORS
@@ -277,17 +279,21 @@ def _filtrar_por_intervalo(
     data_fim: object | None,
 ) -> pd.DataFrame:
     """Restringe `df_timeline` (colunas `data`/`pct_negativo`, já agregado por
-    dia de publicação) ao intervalo `[data_inicio, data_fim]`, inclusive.
-    `None` em qualquer um dos dois lados não corta aquele lado. `DataFrame`
-    vazio permanece vazio, nunca lança exceção."""
-    if df_timeline.empty:
-        return df_timeline
-    filtrado = df_timeline
-    if data_inicio is not None:
-        filtrado = filtrado[filtrado["data"] >= data_inicio]
-    if data_fim is not None:
-        filtrado = filtrado[filtrado["data"] <= data_fim]
-    return filtrado.reset_index(drop=True)
+    dia de publicação) ao intervalo `[data_inicio, data_fim]`, inclusive --
+    fina camada sobre `deltas.filter_by_date_range` (compartilhada com o
+    destaque de sentimento do Resumo, ADR 0023) fixando a coluna de data
+    desta tela."""
+    return filter_by_date_range(df_timeline, "data", data_inicio, data_fim)
+
+
+def _cores_marcador(valores_pct: pd.Series, limiar_pct: float) -> list[str]:
+    """Cor de cada marcador da linha do tempo (ADR 0023): vermelho
+    (`COLORS["danger"]["fg"]`) se o ponto cruzou `limiar_pct`, cor neutra
+    (`COLORS["muted"]`) caso contrário -- nunca a linha em si, que
+    permanece sempre neutra (ver docstring de `render()`: colorir o
+    segmento inteiro entre dois pontos distantes sugeriria uma tendência
+    que o dado real não sustenta)."""
+    return [COLORS["danger"]["fg"] if v >= limiar_pct else COLORS["muted"] for v in valores_pct]
 
 
 def _quebrar_em_segmentos(
@@ -450,10 +456,7 @@ def render() -> None:
             min_value=data_min,
             max_value=data_max,
         )
-        data_inicio, data_fim = (intervalo[0], intervalo[-1]) if len(intervalo) == 2 else (
-            intervalo[0],
-            intervalo[0],
-        )
+        data_inicio, data_fim = normalize_date_input_range(intervalo)
         df_timeline = _filtrar_por_intervalo(df_timeline_completo, data_inicio, data_fim)
 
         if df_timeline.empty:
@@ -463,10 +466,7 @@ def render() -> None:
             fig = go.Figure()
             for segmento in _quebrar_em_segmentos(df_timeline):
                 valores_pct = (segmento["pct_negativo"] * 100).round(1)
-                cores_marcador = [
-                    COLORS["danger"]["fg"] if v >= limiar_pct else COLORS["muted"]
-                    for v in valores_pct
-                ]
+                cores_marcador = _cores_marcador(valores_pct, limiar_pct)
                 fig.add_trace(
                     go.Scatter(
                         x=segmento["data"],

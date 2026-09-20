@@ -1,8 +1,13 @@
+import datetime
+
 import pandas as pd
 
 from dashboard.core.deltas import (
     aggregate_pct_negative_by_publication_day,
     deduplicate_by_first_seen,
+    filter_by_date_range,
+    normalize_date_input_range,
+    parse_publication_dates,
     run_dates,
     week_over_week,
 )
@@ -186,3 +191,78 @@ def test_aggregate_pct_negative_by_publication_day_returns_empty_df_when_history
     resultado = aggregate_pct_negative_by_publication_day(df_history)
 
     assert resultado.empty
+
+
+# ---------------------------------------------------------------------------
+# parse_publication_dates (ADR 0023 -- reusada por
+# aggregate_pct_negative_by_publication_day e por dashboard/screens/resumo.py,
+# em vez de cada chamador reimplementar o mesmo parse de timestamp)
+# ---------------------------------------------------------------------------
+
+
+def test_parse_publication_dates_converte_timestamp_iso_para_date():
+    df = pd.DataFrame({"timestamp": ["2026-08-01T10:00:00.000Z", "2026-08-02T11:00:00.000Z"]})
+    datas = parse_publication_dates(df)
+    assert datas.tolist() == [datetime.date(2026, 8, 1), datetime.date(2026, 8, 2)]
+
+
+def test_parse_publication_dates_timestamp_invalido_vira_nat():
+    df = pd.DataFrame({"timestamp": ["not-a-date"]})
+    datas = parse_publication_dates(df)
+    assert pd.isna(datas.iloc[0])
+
+
+def test_parse_publication_dates_coluna_ausente_retorna_serie_vazia():
+    datas = parse_publication_dates(pd.DataFrame({"outra_coluna": [1]}))
+    assert datas.empty
+
+
+# ---------------------------------------------------------------------------
+# filter_by_date_range (ADR 0023 -- compartilhada entre a linha do tempo do
+# Radar, já agregada por dia, e o destaque de sentimento do Resumo, que
+# filtra linhas de comentário individuais antes de agregar por tópico)
+# ---------------------------------------------------------------------------
+
+
+def test_filter_by_date_range_restringe_ao_intervalo_informado():
+    df = pd.DataFrame(
+        {
+            "data": [datetime.date(2026, 8, 1), datetime.date(2026, 8, 3), datetime.date(2026, 8, 20)],
+            "valor": [1, 2, 3],
+        }
+    )
+    resultado = filter_by_date_range(
+        df, "data", datetime.date(2026, 8, 1), datetime.date(2026, 8, 3)
+    )
+    assert resultado["valor"].tolist() == [1, 2]
+
+
+def test_filter_by_date_range_sem_limites_retorna_tudo():
+    df = pd.DataFrame({"data": [datetime.date(2026, 8, 1)], "valor": [1]})
+    resultado = filter_by_date_range(df, "data", None, None)
+    assert len(resultado) == 1
+
+
+def test_filter_by_date_range_com_dataframe_vazio():
+    resultado = filter_by_date_range(pd.DataFrame(columns=["data", "valor"]), "data", None, None)
+    assert resultado.empty
+
+
+# ---------------------------------------------------------------------------
+# normalize_date_input_range (ADR 0023 -- normaliza o valor de retorno de
+# `st.date_input(..., value=(min, max))`, que o Streamlit devolve como
+# tupla de 1 elemento enquanto a analista ainda não escolheu a segunda data)
+# ---------------------------------------------------------------------------
+
+
+def test_normalize_date_input_range_com_duas_datas():
+    inicio, fim = normalize_date_input_range(
+        (datetime.date(2026, 8, 1), datetime.date(2026, 8, 10))
+    )
+    assert inicio == datetime.date(2026, 8, 1)
+    assert fim == datetime.date(2026, 8, 10)
+
+
+def test_normalize_date_input_range_com_uma_data_so():
+    inicio, fim = normalize_date_input_range((datetime.date(2026, 8, 1),))
+    assert inicio == fim == datetime.date(2026, 8, 1)
