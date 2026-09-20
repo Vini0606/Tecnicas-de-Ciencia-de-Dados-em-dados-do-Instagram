@@ -82,6 +82,65 @@ def week_over_week(
     return resultado
 
 
+def deduplicate_by_first_seen(
+    df_history: pd.DataFrame,
+    id_col: str = "id_comment",
+    run_col: str = "_run_id",
+) -> pd.DataFrame:
+    """Mantém só a linha de menor `run_col` por `id_col` -- a primeira vez que o
+    registro foi coletado (ADR 0023). `governor_sentiment_history` é gravado em
+    modo append a cada execução; o mesmo comentário pode ser recoletado (e
+    reaparecer) numa execução futura se ela voltar a puxar posts já vistos
+    antes. Sem esta deduplicação, agregar por data de publicação em vez de por
+    `run_col` contaria esse comentário mais de uma vez.
+
+    Retorna `df_history` inalterado se `id_col`/`run_col` estiverem ausentes --
+    nunca lança exceção."""
+    if df_history.empty or id_col not in df_history.columns or run_col not in df_history.columns:
+        return df_history
+    return df_history.sort_values(run_col).drop_duplicates(subset=[id_col], keep="first")
+
+
+def aggregate_pct_negative_by_publication_day(
+    df_history: pd.DataFrame,
+    timestamp_col: str = "timestamp",
+    sentiment_col: str = "sentiment_label",
+    id_col: str = "id_comment",
+    run_col: str = "_run_id",
+) -> pd.DataFrame:
+    """1 linha por dia de publicação (não execução -- ADR 0023): `% negativo =
+    count(sentiment_label == 'negative') / count(*)`, já deduplicado por
+    `id_col`/menor `run_col` (ver `deduplicate_by_first_seen`) para não contar
+    duas vezes um comentário recoletado em execuções sobrepostas.
+
+    `timestamp_col` é parseado como em `src/features/silver/post_cleaner.py::
+    _parse_timestamp`; linhas com data não parseável (`NaT`) são excluídas do
+    resultado, nunca levantam exceção. `DataFrame` vazio (colunas
+    `data`/`pct_negativo`, nunca exceção) se faltar coluna obrigatória ou não
+    houver linha válida."""
+    colunas = ["data", "pct_negativo"]
+    required = {timestamp_col, sentiment_col, id_col, run_col}
+    if df_history.empty or not required.issubset(df_history.columns):
+        return pd.DataFrame(columns=colunas)
+
+    df = deduplicate_by_first_seen(df_history, id_col=id_col, run_col=run_col)
+    datas = pd.to_datetime(df[timestamp_col], errors="coerce", utc=True, format="ISO8601")
+    df = df.assign(_data_publicacao=datas).dropna(subset=["_data_publicacao"])
+    if df.empty:
+        return pd.DataFrame(columns=colunas)
+
+    df = df.assign(data=df["_data_publicacao"].dt.date)
+    agregado = (
+        df.groupby("data")[sentiment_col]
+        .apply(lambda s: (s == "negative").mean())
+        .rename("pct_negativo")
+        .reset_index()
+        .sort_values("data")
+        .reset_index(drop=True)
+    )
+    return agregado[colunas]
+
+
 def run_dates(
     df_history: pd.DataFrame,
     run_col: str = "_run_id",
