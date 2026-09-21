@@ -14,13 +14,16 @@ nunca vaza `ownerUsername` (ou qualquer outra coluna de identidade), mesmo
 que a tabela de origem tenha a coluna. Não remover nem enfraquecer.
 """
 
+import datetime
+import inspect
+
 import pandas as pd
 import streamlit as st
 from deltalake.writer import write_deltalake
 
 from config import settings
 from dashboard.core import data
-from dashboard.core.deltas import LIMIAR_NEGATIVIDADE_ALERTA
+from dashboard.core.deltas import LIMIAR_NEGATIVIDADE_ALERTA, aggregate_pct_negative_by_publication_day
 from dashboard.screens import radar
 
 
@@ -78,46 +81,111 @@ def test_nivel_semaforo_respeita_limiar_customizado():
 
 
 # ---------------------------------------------------------------------------
-# _agregar_pct_negativo_por_run (linha do tempo)
+# _filtrar_por_intervalo / _quebrar_em_segmentos (linha do tempo, ADR 0023 --
+# substitui a antiga agregação por execução, issue #113)
 # ---------------------------------------------------------------------------
 
 
-def test_agregar_pct_negativo_por_run_calcula_proporcao_por_execucao():
-    df = pd.DataFrame(
+def _df_timeline_publicacao():
+    return pd.DataFrame(
         {
-            "sentiment_label": ["negative", "positive", "negative", "negative"],
-            "_run_id": ["run_1", "run_1", "run_2", "run_2"],
-            "_generated_at": pd.to_datetime(
-                ["2026-09-01", "2026-09-01", "2026-09-08", "2026-09-08"]
-            ),
+            "data": [
+                datetime.date(2026, 8, 1),
+                datetime.date(2026, 8, 3),
+                datetime.date(2026, 8, 20),
+            ],
+            "pct_negativo": [0.10, 0.50, 0.90],
         }
     )
-    resultado = radar._agregar_pct_negativo_por_run(df).set_index("_run_id")
-    assert resultado.loc["run_1", "pct_negativo"] == 0.5
-    assert resultado.loc["run_2", "pct_negativo"] == 1.0
 
 
-def test_agregar_pct_negativo_por_run_ordena_do_mais_antigo_para_o_mais_recente():
+def test_filtrar_por_intervalo_restringe_ao_periodo_escolhido():
+    resultado = radar._filtrar_por_intervalo(
+        _df_timeline_publicacao(), datetime.date(2026, 8, 1), datetime.date(2026, 8, 3)
+    )
+    assert resultado["data"].tolist() == [datetime.date(2026, 8, 1), datetime.date(2026, 8, 3)]
+
+
+def test_filtrar_por_intervalo_sem_limites_retorna_tudo():
+    resultado = radar._filtrar_por_intervalo(_df_timeline_publicacao(), None, None)
+    assert len(resultado) == 3
+
+
+def test_filtrar_por_intervalo_com_dataframe_vazio():
+    resultado = radar._filtrar_por_intervalo(
+        pd.DataFrame(columns=["data", "pct_negativo"]), None, None
+    )
+    assert resultado.empty
+
+
+def test_quebrar_em_segmentos_quebra_quando_gap_maior_que_limiar():
+    segmentos = radar._quebrar_em_segmentos(_df_timeline_publicacao(), gap_dias=7)
+    # 1/ago -> 3/ago: gap de 2 dias, continua no mesmo segmento.
+    # 3/ago -> 20/ago: gap de 17 dias, > 7 -> novo segmento.
+    assert len(segmentos) == 2
+    assert segmentos[0]["data"].tolist() == [datetime.date(2026, 8, 1), datetime.date(2026, 8, 3)]
+    assert segmentos[1]["data"].tolist() == [datetime.date(2026, 8, 20)]
+
+
+def test_quebrar_em_segmentos_nao_quebra_quando_gap_menor_ou_igual_ao_limiar():
     df = pd.DataFrame(
         {
-            "sentiment_label": ["negative", "negative"],
-            "_run_id": ["run_2", "run_1"],
-            "_generated_at": pd.to_datetime(["2026-09-08", "2026-09-01"]),
+            "data": [datetime.date(2026, 8, 1), datetime.date(2026, 8, 8)],
+            "pct_negativo": [0.10, 0.20],
         }
     )
-    resultado = radar._agregar_pct_negativo_por_run(df)
-    assert resultado["_run_id"].tolist() == ["run_1", "run_2"]
+    segmentos = radar._quebrar_em_segmentos(df, gap_dias=7)
+    assert len(segmentos) == 1
+    assert len(segmentos[0]) == 2
 
 
-def test_agregar_pct_negativo_por_run_vazio_sem_coluna_obrigatoria():
-    resultado = radar._agregar_pct_negativo_por_run(pd.DataFrame({"_run_id": ["run_1"]}))
-    assert resultado.empty
-    assert list(resultado.columns) == ["_run_id", "_generated_at", "pct_negativo"]
+def test_quebrar_em_segmentos_com_dataframe_vazio():
+    assert radar._quebrar_em_segmentos(pd.DataFrame(columns=["data", "pct_negativo"])) == []
 
 
-def test_agregar_pct_negativo_por_run_vazio_com_dataframe_vazio():
-    resultado = radar._agregar_pct_negativo_por_run(pd.DataFrame())
-    assert resultado.empty
+# ---------------------------------------------------------------------------
+# _cores_marcador (ADR 0023 -- só o ponto que cruza o limiar é marcado,
+# nunca o segmento da linha inteiro)
+# ---------------------------------------------------------------------------
+
+
+def test_cores_marcador_vermelho_no_ponto_que_cruza_o_limiar():
+    cores = radar._cores_marcador(pd.Series([10.0, 35.0, 20.0]), limiar_pct=30.0)
+    assert cores == [
+        radar.COLORS["muted"],
+        radar.COLORS["danger"]["fg"],
+        radar.COLORS["muted"],
+    ]
+
+
+def test_cores_marcador_vermelho_no_limiar_exato():
+    cores = radar._cores_marcador(pd.Series([30.0]), limiar_pct=30.0)
+    assert cores == [radar.COLORS["danger"]["fg"]]
+
+
+def test_cores_marcador_lista_vazia_com_serie_vazia():
+    assert radar._cores_marcador(pd.Series([], dtype=float), limiar_pct=30.0) == []
+
+
+# ---------------------------------------------------------------------------
+# ADR 0023, user story 8: o filtro de calendário da linha do tempo NÃO pode
+# vazar para a frase de decisão nem para a lista de comentários -- prova
+# estrutural de que essas funções nunca ganham parâmetro de intervalo de
+# datas (se ganhassem, seria sinal de que o filtro vazou pra fora do
+# gráfico).
+# ---------------------------------------------------------------------------
+
+
+def test_frase_decisao_e_lista_de_comentarios_nao_aceitam_filtro_de_calendario():
+    funcoes_fora_do_filtro = (
+        radar._nivel_semaforo,
+        radar._tema_maior_alta_negatividade,
+        radar._frase_decisao,
+        radar._comentarios_negativos_recentes,
+    )
+    for fn in funcoes_fora_do_filtro:
+        params = set(inspect.signature(fn).parameters)
+        assert not params & {"data_inicio", "data_fim"}, fn.__name__
 
 
 # ---------------------------------------------------------------------------
@@ -332,6 +400,7 @@ def test_filtrar_por_governador_normaliza_barra_final_e_caixa():
 def _df_sentiment_history_dois_runs_dois_temas():
     return pd.DataFrame(
         {
+            "id_comment": [f"c{i}" for i in range(8)],
             "text": [f"comentário {i}" for i in range(8)],
             "inputUrl": ["https://www.instagram.com/gov_a/"] * 8,
             "ownerUsername": [f"usuario_{i}" for i in range(8)],
@@ -360,6 +429,18 @@ def _df_sentiment_history_dois_runs_dois_temas():
                     "2026-09-08",
                 ]
             ),
+            # Data real de publicação do comentário (ADR 0023) -- distinta de
+            # `_generated_at` (data da coleta), embora coincida neste fixture.
+            "timestamp": [
+                "2026-09-01T10:00:00.000Z",
+                "2026-09-01T10:05:00.000Z",
+                "2026-09-08T10:00:00.000Z",
+                "2026-09-08T10:05:00.000Z",
+                "2026-09-01T11:00:00.000Z",
+                "2026-09-01T11:05:00.000Z",
+                "2026-09-08T11:00:00.000Z",
+                "2026-09-08T11:05:00.000Z",
+            ],
             "fonte": ["comentario"] * 8,
         }
     )
@@ -384,9 +465,9 @@ def test_radar_contra_tabela_delta_real_de_sentiment_history(tmp_path, monkeypat
     assert tema_em_alta is not None
     assert tema_em_alta["topic"] == 1
 
-    df_timeline = radar._agregar_pct_negativo_por_run(df_history_governador)
+    df_timeline = aggregate_pct_negative_by_publication_day(df_history_governador)
     assert not df_timeline.empty
-    assert set(df_timeline["_run_id"]) == {"run_1", "run_2"}
+    assert set(df_timeline["data"]) == {datetime.date(2026, 9, 1), datetime.date(2026, 9, 8)}
     _clear_caches()
 
 

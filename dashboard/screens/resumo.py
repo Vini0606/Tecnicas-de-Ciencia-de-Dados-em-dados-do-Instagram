@@ -19,7 +19,14 @@ import streamlit as st
 
 from dashboard.core import data
 from dashboard.core.components import decision_band, footnote, kpi_row, stage_label
-from dashboard.core.deltas import LIMIAR_NEGATIVIDADE_ALERTA, week_over_week
+from dashboard.core.deltas import (
+    LIMIAR_NEGATIVIDADE_ALERTA,
+    deduplicate_by_first_seen,
+    filter_by_date_range,
+    normalize_date_input_range,
+    parse_publication_dates,
+    week_over_week,
+)
 
 _PLACEHOLDER_SEM_GOVERNADOR = "—"
 
@@ -286,24 +293,41 @@ def _melhor_post(
 # ---------------------------------------------------------------------------
 
 
-def _maior_alta_negatividade(df_sentiment_history: pd.DataFrame) -> dict | None:
-    """Tópico de comentário (`Topic`/`Name`) com maior AUMENTO na proporção
-    de `sentiment_label == 'negative'` entre as duas execuções mais recentes
-    de `governor_sentiment_history` (já filtrado a `comments_only`).
+def _maior_alta_negatividade(
+    df_sentiment_history: pd.DataFrame,
+    data_inicio: object | None = None,
+    data_fim: object | None = None,
+) -> dict | None:
+    """Tópico de comentário (`Topic`/`Name`) com maior `% negativo` agregado
+    no intervalo `[data_inicio, data_fim]` de datas de PUBLICAÇÃO (ADR 0023).
+
+    MUDANÇA DE SEMÂNTICA (substitui o critério anterior desta função, issue
+    #111): antes comparava as 2 execuções mais recentes ("maior aumento
+    entre atual e anterior"); agora não existe mais essa noção de "atual vs.
+    anterior" quando o eixo passa a ser a data real de publicação do
+    comentário -- o comentário mais antigo e o mais novo do período filtrado
+    podem ter vindo da mesma execução, ou de execuções bem diferentes. O
+    critério vira simplesmente "qual tópico concentrou mais negatividade no
+    período escolhido pela analista" -- `data_inicio`/`data_fim` `None`
+    (default) usa todo o histórico disponível.
 
     IMPORTANTE: `df_sentiment_history` deve chegar aqui já filtrado ao
     governador selecionado (ver `render()`, `_filtrar_por_governador`) -- esta
     função não faz nenhum filtro por `inputUrl` sozinha. Passar o histórico
-    de todos os 27 perfis produz o tópico que mais piorou entre todos os
-    governadores combinados, não o do perfil que a analista está olhando
+    de todos os 27 perfis produz o tópico com mais negatividade entre todos
+    os governadores combinados, não o do perfil que a analista está olhando
     (contrariaria a user story 1 da tela: "escolher o governador... para ver
     o resumo do perfil que acompanho").
 
-    `None` se não houver histórico suficiente, nenhum tópico atribuído
-    (`Topic` sempre nulo -- BERTopic não rodou), ou se nenhum tópico tiver
-    alta de negatividade (aumento <= 0) -- não força um "destaque" artificial
-    quando a semana foi estável ou melhorou em todos os tópicos."""
-    required = {"Topic", "Name", "sentiment_label", "_run_id"}
+    Deduplica por `id_comment`/menor `_run_id` antes de agregar (ver
+    `dashboard.core.deltas.deduplicate_by_first_seen`) -- evita contar duas
+    vezes um comentário recoletado em execuções sobrepostas.
+
+    `None` se não houver dado suficiente (nenhum tópico atribuído -- BERTopic
+    não rodou --, nenhum comentário no intervalo filtrado, ou nenhum tópico
+    com negatividade > 0) -- não força um "destaque" artificial quando o
+    período foi estável ou positivo em todos os tópicos."""
+    required = {"Topic", "Name", "sentiment_label", "timestamp", "id_comment", "_run_id"}
     if df_sentiment_history.empty or not required.issubset(df_sentiment_history.columns):
         return None
 
@@ -311,37 +335,43 @@ def _maior_alta_negatividade(df_sentiment_history: pd.DataFrame) -> dict | None:
     if df.empty:
         return None
 
-    runs = sorted(df["_run_id"].unique())
-    if len(runs) < 2:
+    df = deduplicate_by_first_seen(df)
+    df = df.assign(_data_publicacao=parse_publication_dates(df)).dropna(subset=["_data_publicacao"])
+    df = filter_by_date_range(df, "_data_publicacao", data_inicio, data_fim)
+    if df.empty:
         return None
-    atual_id, anterior_id = runs[-1], runs[-2]
 
     agregado = (
-        df.groupby(["_run_id", "Topic", "Name"])["sentiment_label"]
+        df.groupby(["Topic", "Name"])["sentiment_label"]
         .apply(lambda s: (s == "negative").mean())
         .rename("pct_negativo")
         .reset_index()
     )
-    atual = agregado[agregado["_run_id"] == atual_id].set_index("Topic")["pct_negativo"]
-    anterior = agregado[agregado["_run_id"] == anterior_id].set_index("Topic")["pct_negativo"]
-
-    comuns = atual.index.intersection(anterior.index)
-    if comuns.empty:
+    candidatos = agregado[agregado["pct_negativo"] > 0]
+    if candidatos.empty:
         return None
 
-    delta = (atual.loc[comuns] - anterior.loc[comuns]).sort_values(ascending=False)
-    if delta.empty or delta.iloc[0] <= 0:
-        return None
-
-    topic_id = delta.index[0]
-    nome = agregado.loc[
-        (agregado["_run_id"] == atual_id) & (agregado["Topic"] == topic_id), "Name"
-    ].iloc[0]
+    linha = candidatos.sort_values("pct_negativo", ascending=False).iloc[0]
     return {
-        "topic": topic_id,
-        "name": nome,
-        "delta_pct_negativo": delta.iloc[0] * 100,
+        "topic": linha["Topic"],
+        "name": linha["Name"],
+        "pct_negativo": linha["pct_negativo"] * 100,
     }
+
+
+def _intervalo_disponivel(
+    df: pd.DataFrame, timestamp_col: str = "timestamp"
+) -> tuple[object, object] | None:
+    """`(data_min, data_max)` de `timestamp_col` parseado em `df` -- limites
+    default do filtro de calendário do destaque de negatividade (ADR 0023:
+    abre com todo o período disponível, sem corte padrão). `None` se `df`
+    estiver vazio, sem `timestamp_col`, ou sem nenhuma data parseável."""
+    if df.empty or timestamp_col not in df.columns:
+        return None
+    datas = parse_publication_dates(df, timestamp_col=timestamp_col).dropna()
+    if datas.empty:
+        return None
+    return datas.min(), datas.max()
 
 
 # ---------------------------------------------------------------------------
@@ -501,6 +531,15 @@ def render() -> None:
     # ---- Frase de decisão ----
     nivel = _nivel_semaforo(delta_positivo, delta_engajamento, prop_negativo_atual)
     decision_band(_frase_decisao(nivel, delta_positivo, delta_engajamento), level=nivel)
+    # ADR 0023: engajamento/seguidores não têm data de publicação por linha
+    # (só `_run_id`/`_generated_at`) -- diferente do destaque de negatividade
+    # abaixo, que respeita o filtro de calendário, esta faixa e os KPIs de
+    # engajamento continuam sempre "vs. última coleta".
+    st.caption(
+        "Engajamento, seguidores e % positivo sempre refletem a coleta mais "
+        "recente, independente do período filtrado no destaque de "
+        "negatividade abaixo."
+    )
 
     # ---- KPIs ----
     df_governador_engagement = _filtrar_por_governador(df_engagement, governor_url)
@@ -581,15 +620,33 @@ def render() -> None:
 
     with col2:
         st.markdown("**Tema em alta de negatividade**")
-        alta_negatividade = _maior_alta_negatividade(df_sentiment_history_governador)
-        if alta_negatividade is None:
-            st.caption("Nenhum tema com alta de negatividade nas duas últimas execuções.")
+        # ADR 0023: único filtro de calendário da tela, afetando só este
+        # destaque -- por data real de publicação do comentário, abrindo com
+        # todo o período disponível (sem corte padrão).
+        intervalo_disponivel = _intervalo_disponivel(df_sentiment_history_governador)
+        if intervalo_disponivel is None:
+            st.caption("Sem histórico de sentimento suficiente para este destaque.")
         else:
-            st.write(
-                f"**{alta_negatividade['name']}** -- negatividade subiu "
-                f"{alta_negatividade['delta_pct_negativo']:.1f} p.p."
+            data_min, data_max = intervalo_disponivel
+            intervalo = st.date_input(
+                "Período (tema em alta)",
+                value=(data_min, data_max),
+                min_value=data_min,
+                max_value=data_max,
+                key="resumo_intervalo_tema_negatividade",
             )
-            st.caption("Ver mais na tela Radar de crise (em construção).")
+            data_inicio, data_fim = normalize_date_input_range(intervalo)
+            alta_negatividade = _maior_alta_negatividade(
+                df_sentiment_history_governador, data_inicio, data_fim
+            )
+            if alta_negatividade is None:
+                st.caption("Nenhum tema com negatividade no período selecionado.")
+            else:
+                st.write(
+                    f"**{alta_negatividade['name']}** -- "
+                    f"{alta_negatividade['pct_negativo']:.1f}% de negatividade no período."
+                )
+                st.caption("Ver mais na tela Radar de crise.")
 
     with col3:
         st.markdown("**Alto potencial, pouco discurso**")

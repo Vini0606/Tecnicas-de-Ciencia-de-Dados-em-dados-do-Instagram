@@ -59,8 +59,16 @@ import streamlit as st
 
 from dashboard.core import data
 from dashboard.core.components import decision_band, footnote, stage_label
-from dashboard.core.deltas import LIMIAR_NEGATIVIDADE_ALERTA, week_over_week
+from dashboard.core.deltas import (
+    LIMIAR_NEGATIVIDADE_ALERTA,
+    aggregate_pct_negative_by_publication_day,
+    filter_by_date_range,
+    normalize_date_input_range,
+    week_over_week,
+)
 from dashboard.core.theme import COLORS
+
+_GAP_DIAS_QUEBRA_LINHA = 7
 
 _PLACEHOLDER_SEM_GOVERNADOR = "—"
 _PLACEHOLDER_SEM_TEMA = "—"
@@ -253,36 +261,63 @@ def _frase_decisao(nivel: str, tema: dict | None) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Linha do tempo (% negativo agregado por execução disponível)
+# Linha do tempo (% negativo agregado por DIA DE PUBLICAÇÃO -- ADR 0023,
+# substitui a agregação por execução da issue #113 original: comentários e
+# discurso têm data real de publicação, independente de quando a coleta
+# rodou -- ver módulo docstring de `dashboard/core/deltas.py`). A agregação
+# em si (dedup + groupby por dia) vem de
+# `deltas.aggregate_pct_negative_by_publication_day`; as duas funções abaixo
+# só recortam essa série pro que a tela precisa: o intervalo escolhido pela
+# analista, e a quebra em segmentos pra não desenhar uma linha contínua
+# entre dois dias distantes sem dado real entre eles.
 # ---------------------------------------------------------------------------
 
 
-def _agregar_pct_negativo_por_run(df_sentiment_history: pd.DataFrame) -> pd.DataFrame:
-    """1 linha por `_run_id`: `% negativo = count(sentiment_label ==
-    'negative') / count(*)` (issue #113, Implementation Decisions) --
-    agregado pelas execuções REALMENTE disponíveis no histórico, nunca um
-    calendário fixo de 14 dias corridos (ver docstring do módulo, decisão
-    3). Ordenado da execução mais antiga para a mais recente (ordem certa
-    para o gráfico de linha do tempo). `DataFrame` vazio (colunas
-    `_run_id`/`_generated_at`/`pct_negativo`, nunca exceção) se faltar
-    coluna obrigatória."""
-    colunas = ["_run_id", "_generated_at", "pct_negativo"]
-    required = {"sentiment_label", "_run_id"}
-    if df_sentiment_history.empty or not required.issubset(df_sentiment_history.columns):
-        return pd.DataFrame(columns=colunas)
+def _filtrar_por_intervalo(
+    df_timeline: pd.DataFrame,
+    data_inicio: object | None,
+    data_fim: object | None,
+) -> pd.DataFrame:
+    """Restringe `df_timeline` (colunas `data`/`pct_negativo`, já agregado por
+    dia de publicação) ao intervalo `[data_inicio, data_fim]`, inclusive --
+    fina camada sobre `deltas.filter_by_date_range` (compartilhada com o
+    destaque de sentimento do Resumo, ADR 0023) fixando a coluna de data
+    desta tela."""
+    return filter_by_date_range(df_timeline, "data", data_inicio, data_fim)
 
-    tem_data = "_generated_at" in df_sentiment_history.columns
-    agg_kwargs = {"pct_negativo": ("sentiment_label", lambda s: (s == "negative").mean())}
-    if tem_data:
-        agg_kwargs["_generated_at"] = ("_generated_at", "first")
 
-    agregado = df_sentiment_history.groupby("_run_id").agg(**agg_kwargs).reset_index()
-    if not tem_data:
-        agregado["_generated_at"] = pd.NaT
+def _cores_marcador(valores_pct: pd.Series, limiar_pct: float) -> list[str]:
+    """Cor de cada marcador da linha do tempo (ADR 0023): vermelho
+    (`COLORS["danger"]["fg"]`) se o ponto cruzou `limiar_pct`, cor neutra
+    (`COLORS["muted"]`) caso contrário -- nunca a linha em si, que
+    permanece sempre neutra (ver docstring de `render()`: colorir o
+    segmento inteiro entre dois pontos distantes sugeriria uma tendência
+    que o dado real não sustenta)."""
+    return [COLORS["danger"]["fg"] if v >= limiar_pct else COLORS["muted"] for v in valores_pct]
 
-    ordenar_por = "_generated_at" if tem_data else "_run_id"
-    agregado = agregado.sort_values(ordenar_por).reset_index(drop=True)
-    return agregado[colunas]
+
+def _quebrar_em_segmentos(
+    df_timeline: pd.DataFrame, gap_dias: int = _GAP_DIAS_QUEBRA_LINHA
+) -> list[pd.DataFrame]:
+    """Divide `df_timeline` (colunas `data`/`pct_negativo`, ordenado por dia
+    de publicação) numa lista de segmentos contínuos -- um novo segmento
+    sempre que o intervalo entre duas datas consecutivas com dado ultrapassar
+    `gap_dias` (ADR 0023). Uma linha contínua ligando dois pontos distantes
+    sugeriria uma tendência que o dado real não sustenta, já que não há
+    nenhum comentário no meio do intervalo. Lista vazia se `df_timeline`
+    estiver vazio."""
+    if df_timeline.empty:
+        return []
+    df = df_timeline.sort_values("data").reset_index(drop=True)
+    segmentos: list[pd.DataFrame] = []
+    inicio = 0
+    for i in range(1, len(df)):
+        gap = (df["data"].iloc[i] - df["data"].iloc[i - 1]).days
+        if gap > gap_dias:
+            segmentos.append(df.iloc[inicio:i].reset_index(drop=True))
+            inicio = i
+    segmentos.append(df.iloc[inicio:].reset_index(drop=True))
+    return segmentos
 
 
 # ---------------------------------------------------------------------------
@@ -403,37 +438,59 @@ def render() -> None:
     decision_band(_frase_decisao(nivel, tema_em_alta), level=nivel)
 
     # ---- Linha do tempo ----
-    st.markdown("#### % de comentários negativos por execução")
-    df_timeline = _agregar_pct_negativo_por_run(df_sentiment_history_governador)
-    if df_timeline.empty:
+    # ADR 0023: eixo por data real de publicação do comentário, não por
+    # execução -- o filtro de calendário abaixo afeta SÓ este gráfico, nunca
+    # a frase de decisão ou a lista de comentários (ver docstring do módulo).
+    st.markdown("#### % de comentários negativos por data de publicação")
+    df_timeline_completo = aggregate_pct_negative_by_publication_day(
+        df_sentiment_history_governador
+    )
+    if df_timeline_completo.empty:
         st.caption("Sem histórico suficiente para mostrar uma linha do tempo ainda.")
     else:
-        limiar_pct = LIMIAR_NEGATIVIDADE_ALERTA * 100
-        valores_pct = (df_timeline["pct_negativo"] * 100).round(1)
-        cores = [
-            COLORS["danger"]["fg"] if v >= limiar_pct else COLORS["muted"] for v in valores_pct
-        ]
-        fig = go.Figure()
-        fig.add_bar(
-            x=df_timeline["_run_id"],
-            y=valores_pct,
-            marker_color=cores,
-            name="% negativo",
+        data_min = df_timeline_completo["data"].min()
+        data_max = df_timeline_completo["data"].max()
+        intervalo = st.date_input(
+            "Período (data de publicação)",
+            value=(data_min, data_max),
+            min_value=data_min,
+            max_value=data_max,
         )
-        fig.add_hline(
-            y=limiar_pct,
-            line_dash="dash",
-            line_color=COLORS["danger"]["fg"],
-            annotation_text=f"Limite de alerta ({round(limiar_pct)}%)",
-            annotation_position="top left",
-        )
-        fig.update_layout(
-            yaxis_title="% negativo",
-            xaxis_title="Execução",
-            showlegend=False,
-            margin={"t": 30, "b": 10},
-        )
-        st.plotly_chart(fig, use_container_width=True)
+        data_inicio, data_fim = normalize_date_input_range(intervalo)
+        df_timeline = _filtrar_por_intervalo(df_timeline_completo, data_inicio, data_fim)
+
+        if df_timeline.empty:
+            st.caption("Nenhum comentário publicado no período selecionado.")
+        else:
+            limiar_pct = LIMIAR_NEGATIVIDADE_ALERTA * 100
+            fig = go.Figure()
+            for segmento in _quebrar_em_segmentos(df_timeline):
+                valores_pct = (segmento["pct_negativo"] * 100).round(1)
+                cores_marcador = _cores_marcador(valores_pct, limiar_pct)
+                fig.add_trace(
+                    go.Scatter(
+                        x=segmento["data"],
+                        y=valores_pct,
+                        mode="lines+markers",
+                        line={"color": COLORS["muted"]},
+                        marker={"color": cores_marcador, "size": 8},
+                        showlegend=False,
+                    )
+                )
+            fig.add_hline(
+                y=limiar_pct,
+                line_dash="dash",
+                line_color=COLORS["danger"]["fg"],
+                annotation_text=f"Limite de alerta ({round(limiar_pct)}%)",
+                annotation_position="top left",
+            )
+            fig.update_layout(
+                yaxis_title="% negativo",
+                xaxis_title="Data de publicação",
+                showlegend=False,
+                margin={"t": 30, "b": 10},
+            )
+            st.plotly_chart(fig, use_container_width=True)
 
     # ---- Lista de comentários negativos mais recentes ----
     st.markdown("#### Comentários negativos mais recentes")

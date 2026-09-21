@@ -6,6 +6,9 @@ mesmo padrão de `tests/test_dashboard_core_data.py`/`test_dashboard_loaders.py`
 (issue #50). Um bloco final testa alguns desses caminhos contra tabelas Delta
 reais escritas em `tmp_path`, mesmo padrão dos dois arquivos acima."""
 
+import datetime
+import inspect
+
 import pandas as pd
 import streamlit as st
 from deltalake.writer import write_deltalake
@@ -218,56 +221,107 @@ def test_melhor_post_retorna_none_sem_reel_do_governador():
 
 
 # ---------------------------------------------------------------------------
-# Destaque 2 -- maior alta de negatividade
+# Destaque 2 -- tema com maior % negativo no período de publicação (ADR 0023
+# -- SUBSTITUI o critério anterior de "maior aumento entre as 2 execuções
+# mais recentes": não há mais noção de "atual vs. anterior" quando o eixo
+# passa a ser a data real de publicação do comentário, ver docstring de
+# `_maior_alta_negatividade`).
 # ---------------------------------------------------------------------------
 
 
-def _df_sentiment_history_topicos():
+def _df_sentiment_history_topicos_por_publicacao():
     return pd.DataFrame(
         {
+            "id_comment": [f"c{i}" for i in range(8)],
             "Topic": [0, 0, 0, 0, 1, 1, 1, 1],
             "Name": ["0_saude"] * 4 + ["1_seguranca"] * 4,
             "sentiment_label": [
-                # Tópico 0: r1 100% positivo -> r2 100% negativo (alta forte)
-                "positive",
-                "positive",
+                # Tópico 0: 3/4 negativo no período = 75%
                 "negative",
                 "negative",
-                # Tópico 1: estável (50% negativo nas duas execuções)
-                "positive",
                 "negative",
                 "positive",
+                # Tópico 1: 1/4 negativo no período = 25%
                 "negative",
+                "positive",
+                "positive",
+                "positive",
             ],
-            "_run_id": ["r1", "r1", "r2", "r2", "r1", "r1", "r2", "r2"],
+            "timestamp": [
+                "2026-08-01T10:00:00.000Z",
+                "2026-08-02T10:00:00.000Z",
+                "2026-08-03T10:00:00.000Z",
+                "2026-08-04T10:00:00.000Z",
+                "2026-08-01T11:00:00.000Z",
+                "2026-08-02T11:00:00.000Z",
+                "2026-08-03T11:00:00.000Z",
+                "2026-08-04T11:00:00.000Z",
+            ],
+            "_run_id": ["r1"] * 8,
         }
     )
 
 
-def test_maior_alta_negatividade_encontra_o_topico_que_mais_piorou():
-    resultado = resumo._maior_alta_negatividade(_df_sentiment_history_topicos())
+def test_maior_alta_negatividade_escolhe_topico_com_maior_pct_negativo_no_periodo():
+    resultado = resumo._maior_alta_negatividade(_df_sentiment_history_topicos_por_publicacao())
 
     assert resultado is not None
     assert resultado["topic"] == 0
     assert resultado["name"] == "0_saude"
-    assert resultado["delta_pct_negativo"] == 100.0
+    assert resultado["pct_negativo"] == 75.0
 
 
-def test_maior_alta_negatividade_retorna_none_sem_historico_suficiente():
-    df_uma_execucao = _df_sentiment_history_topicos()
-    df_uma_execucao = df_uma_execucao[df_uma_execucao["_run_id"] == "r1"]
-    assert resumo._maior_alta_negatividade(df_uma_execucao) is None
+def test_maior_alta_negatividade_respeita_filtro_de_intervalo():
+    df = _df_sentiment_history_topicos_por_publicacao()
+
+    # Restringindo ao dia 1/ago só: tópico 0 tem 1 comentário negativo (100%),
+    # tópico 1 tem 1 comentário negativo (100%) -- empate, mas cortar o
+    # período muda o resultado em relação ao período completo (onde tópico 0
+    # vence com folga, 75% vs. 25%) -- prova que o filtro de fato altera
+    # o dado agregado, não só decora a chamada.
+    resultado_periodo_completo = resumo._maior_alta_negatividade(df)
+    resultado_um_dia = resumo._maior_alta_negatividade(
+        df, data_inicio=datetime.date(2026, 8, 4), data_fim=datetime.date(2026, 8, 4)
+    )
+
+    assert resultado_periodo_completo["topic"] == 0
+    # Só o dia 4/ago: tópico 0 tem 1 comentário positivo (0% negativo, fora
+    # dos candidatos); tópico 1 tem 1 comentário positivo (0% negativo,
+    # também fora) -- nenhum tópico com negatividade > 0 nesse recorte.
+    assert resultado_um_dia is None
 
 
-def test_maior_alta_negatividade_retorna_none_quando_nada_piora():
+def test_maior_alta_negatividade_deduplica_comentario_recoletado_entre_execucoes():
     df = pd.DataFrame(
         {
-            "Topic": [0, 0, 0, 0],
-            "Name": ["0_saude"] * 4,
-            "sentiment_label": ["negative", "negative", "positive", "positive"],
-            "_run_id": ["r1", "r1", "r2", "r2"],
+            # Mesmo comentário (c1) recoletado em r1 e r2 -- sem dedup,
+            # contaria 2x como negativo no mesmo dia, inflando o tópico 0.
+            "id_comment": ["c1", "c1", "c2"],
+            "Topic": [0, 0, 1],
+            "Name": ["0_saude", "0_saude", "1_seguranca"],
+            "sentiment_label": ["negative", "negative", "negative"],
+            "timestamp": ["2026-08-01T10:00:00.000Z"] * 2 + ["2026-08-01T11:00:00.000Z"],
+            "_run_id": ["r1", "r2", "r1"],
         }
     )
+    resultado = resumo._maior_alta_negatividade(df)
+
+    # Com dedup, tópico 0 e tópico 1 têm 1 comentário negativo cada (100%) --
+    # empate resolvido por ordem estável, mas o ponto é que tópico 0 NÃO
+    # domina com "2 comentários negativos" que na verdade são o mesmo.
+    assert resultado is not None
+    assert resultado["pct_negativo"] == 100.0
+
+
+def test_maior_alta_negatividade_retorna_none_sem_topico_atribuido():
+    df = _df_sentiment_history_topicos_por_publicacao()
+    df["Topic"] = None
+    assert resumo._maior_alta_negatividade(df) is None
+
+
+def test_maior_alta_negatividade_retorna_none_quando_nenhum_topico_tem_negatividade():
+    df = _df_sentiment_history_topicos_por_publicacao()
+    df["sentiment_label"] = "positive"
     assert resumo._maior_alta_negatividade(df) is None
 
 
@@ -276,47 +330,36 @@ def test_maior_alta_negatividade_retorna_none_para_dataframe_vazio():
 
 
 def _df_sentiment_history_dois_governadores():
-    """Dois governadores no mesmo histórico -- gov_b tem uma alta de
-    negatividade MUITO maior que gov_a (100% vs. 25 p.p.), pra provar que o
-    destaque 2 precisa ser calculado sobre o histórico JÁ FILTRADO ao
-    governador selecionado (`render()` faz isso via `_filtrar_por_governador`
-    antes de chamar `_maior_alta_negatividade` -- ver bug corrigido: sem esse
-    filtro, o destaque misturava os 27 perfis e sempre "vencia" o governador
-    com a pior semana, não o perfil que a analista escolheu)."""
+    """Dois governadores no mesmo histórico -- gov_b tem % negativo no
+    período MUITO maior que gov_a (100% vs. 75%), pra provar que o destaque 2
+    precisa ser calculado sobre o histórico JÁ FILTRADO ao governador
+    selecionado (`render()` faz isso via `_filtrar_por_governador` antes de
+    chamar `_maior_alta_negatividade` -- ver bug corrigido: sem esse filtro,
+    o destaque misturava os 27 perfis e sempre "vencia" o governador com a
+    pior semana, não o perfil que a analista escolheu)."""
     gov_a = "https://www.instagram.com/gov_a/"
     gov_b = "https://www.instagram.com/gov_b/"
-    return pd.DataFrame(
+    df = _df_sentiment_history_topicos_por_publicacao().assign(inputUrl=gov_a)
+    df_b = pd.DataFrame(
         {
-            "inputUrl": [gov_a] * 8 + [gov_b] * 4,
-            "Topic": [0] * 8 + [5] * 4,
-            "Name": ["0_saude"] * 8 + ["5_seguranca"] * 4,
-            "sentiment_label": [
-                # gov_a, tópico 0: r1 25% negativo -> r2 50% negativo (+25 p.p.)
-                "positive",
-                "positive",
-                "positive",
-                "negative",
-                "negative",
-                "negative",
-                "positive",
-                "positive",
-                # gov_b, tópico 5: r1 0% negativo -> r2 100% negativo (+100 p.p.)
-                "positive",
-                "positive",
-                "negative",
-                "negative",
-            ],
-            "_run_id": ["r1", "r1", "r1", "r1", "r2", "r2", "r2", "r2", "r1", "r1", "r2", "r2"],
+            "id_comment": ["b1", "b2"],
+            "inputUrl": [gov_b] * 2,
+            "Topic": [5, 5],
+            "Name": ["5_seguranca"] * 2,
+            "sentiment_label": ["negative", "negative"],
+            "timestamp": ["2026-08-01T12:00:00.000Z", "2026-08-02T12:00:00.000Z"],
+            "_run_id": ["r1"] * 2,
         }
     )
+    return pd.concat([df, df_b], ignore_index=True)
 
 
 def test_maior_alta_negatividade_ignora_outros_governadores_quando_historico_e_filtrado():
     df_todos = _df_sentiment_history_dois_governadores()
     gov_a = "https://www.instagram.com/gov_a/"
 
-    # Sanity check: sem filtrar por governador, a alta maior é a de gov_b
-    # (tópico 5, +100 p.p.) -- é exatamente esse resultado errado que o bug
+    # Sanity check: sem filtrar por governador, o tópico vencedor é o de
+    # gov_b (100% negativo) -- é exatamente esse resultado errado que o bug
     # produzia quando `render()` passava o histórico inteiro (todos os 27
     # perfis) direto para `_maior_alta_negatividade`.
     resultado_sem_filtro = resumo._maior_alta_negatividade(df_todos)
@@ -325,15 +368,54 @@ def test_maior_alta_negatividade_ignora_outros_governadores_quando_historico_e_f
 
     # Com o histórico filtrado ao governador selecionado (gov_a) -- o que
     # `render()` agora faz antes de chamar `_maior_alta_negatividade` --, o
-    # destaque precisa ser o próprio tópico de gov_a, mesmo sendo uma alta
-    # bem menor que a de gov_b.
+    # destaque precisa ser o próprio tópico de gov_a, mesmo sendo uma
+    # negatividade menor que a de gov_b.
     df_governador = resumo._filtrar_por_governador(df_todos, gov_a)
     resultado_filtrado = resumo._maior_alta_negatividade(df_governador)
 
     assert resultado_filtrado is not None
     assert resultado_filtrado["topic"] == 0
     assert resultado_filtrado["name"] == "0_saude"
-    assert resultado_filtrado["delta_pct_negativo"] == 25.0
+    assert resultado_filtrado["pct_negativo"] == 75.0
+
+
+# ---------------------------------------------------------------------------
+# _intervalo_disponivel -- limites do filtro de calendário do destaque 2
+# ---------------------------------------------------------------------------
+
+
+def test_intervalo_disponivel_retorna_data_minima_e_maxima():
+    df = _df_sentiment_history_topicos_por_publicacao()
+    intervalo = resumo._intervalo_disponivel(df)
+    assert intervalo == (datetime.date(2026, 8, 1), datetime.date(2026, 8, 4))
+
+
+def test_intervalo_disponivel_none_sem_coluna_timestamp():
+    assert resumo._intervalo_disponivel(pd.DataFrame({"Topic": [0]})) is None
+
+
+def test_intervalo_disponivel_none_com_dataframe_vazio():
+    assert resumo._intervalo_disponivel(pd.DataFrame()) is None
+
+
+# ---------------------------------------------------------------------------
+# ADR 0023, user story 10: o filtro de calendário do destaque de
+# negatividade NÃO pode vazar para a faixa de decisão nem para a tendência
+# de engajamento/seguidores -- prova estrutural de que essas funções nunca
+# ganham parâmetro de intervalo de datas.
+# ---------------------------------------------------------------------------
+
+
+def test_faixa_de_decisao_e_tendencia_de_engajamento_nao_aceitam_filtro_de_calendario():
+    funcoes_fora_do_filtro = (
+        resumo._nivel_semaforo,
+        resumo._frase_decisao,
+        resumo._delta_para_governador,
+        resumo._ultimas_execucoes,
+    )
+    for fn in funcoes_fora_do_filtro:
+        params = set(inspect.signature(fn).parameters)
+        assert not params & {"data_inicio", "data_fim"}, fn.__name__
 
 
 # ---------------------------------------------------------------------------
