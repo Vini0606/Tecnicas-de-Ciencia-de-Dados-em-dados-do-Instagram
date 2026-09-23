@@ -58,6 +58,15 @@ texto completo):
    tempo agregada por `_run_id`) continua valendo só para o GRÁFICO; o
    critério que alimenta a frase de decisão/nível do semáforo agora é este.
    O ramo "danger" (limiar absoluto `LIMIAR_NEGATIVIDADE_ALERTA`) não muda.
+7. **2ª leitura exploratória: tema mais negativo no período (ADR 0026 /
+   issue #154).** `_maior_alta_negatividade` foi portada sem redesenho de
+   `resumo.py` (que perdeu o destaque "Tema em alta de negatividade" na
+   mesma issue) -- responde "qual tópico concentrou mais negatividade no
+   período escolhido pela analista", reaproveitando o MESMO `st.date_input`
+   já usado pela linha do tempo (decisão 3), nunca um segundo widget.
+   Visual e funcionalmente distinta da frase de decisão no topo (que usa
+   `_tema_maior_alta_negatividade`, decisão 6): uma é alerta automático de
+   tendência recente, a outra é consulta livre de período.
 """
 
 from __future__ import annotations
@@ -75,6 +84,7 @@ from dashboard.core.deltas import (
     deduplicate_by_first_seen,
     filter_by_date_range,
     normalize_date_input_range,
+    parse_publication_dates,
     quebrar_em_segmentos,
 )
 from dashboard.core.theme import COLORS
@@ -130,6 +140,31 @@ def _filtrar_por_governador(
 # Agregação por tema (para a frase de decisão -- tema em maior ascensão)
 # ---------------------------------------------------------------------------
 
+_COLUNAS_OBRIGATORIAS_TOPICO = {
+    "Topic", "Name", "sentiment_label", "timestamp", "id_comment", "_run_id"
+}
+
+
+def _comentarios_com_topico_deduplicados(df_sentiment_history: pd.DataFrame) -> pd.DataFrame | None:
+    """Preparação compartilhada pelas duas leituras de "tema em maior
+    negatividade" desta tela (`_tema_maior_alta_negatividade`, o alerta
+    principal por janela fixa, e `_maior_alta_negatividade`, a 2ª leitura
+    exploratória por período livre -- ADR 0026 / issue #154): valida as
+    colunas obrigatórias, descarta comentários sem `Topic` atribuído
+    (BERTopic não rodou) e deduplica por `id_comment`/menor `_run_id` (ver
+    `deltas.deduplicate_by_first_seen`) -- evita contar duas vezes um
+    comentário recoletado em execuções sobrepostas. `None` (nunca exceção)
+    se `df_sentiment_history` estiver vazio, faltar coluna obrigatória, ou
+    nenhum comentário tiver `Topic`."""
+    if df_sentiment_history.empty or not _COLUNAS_OBRIGATORIAS_TOPICO.issubset(
+        df_sentiment_history.columns
+    ):
+        return None
+    df = df_sentiment_history.dropna(subset=["Topic"])
+    if df.empty:
+        return None
+    return deduplicate_by_first_seen(df)
+
 
 def _tema_maior_alta_negatividade(df_sentiment_history: pd.DataFrame) -> dict | None:
     """Tema (`Topic`) com a maior variação POSITIVA de `% negativo` entre a
@@ -150,14 +185,9 @@ def _tema_maior_alta_negatividade(df_sentiment_history: pd.DataFrame) -> dict | 
     (todo `delta_percentual` nulo, zero ou negativo) -- nunca força um "tema
     em alta" artificial quando a negatividade está estável ou caindo em
     todos os temas com dado real."""
-    required = {"Topic", "Name", "sentiment_label", "timestamp", "id_comment", "_run_id"}
-    if df_sentiment_history.empty or not required.issubset(df_sentiment_history.columns):
+    df = _comentarios_com_topico_deduplicados(df_sentiment_history)
+    if df is None:
         return None
-
-    df = df_sentiment_history.dropna(subset=["Topic"])
-    if df.empty:
-        return None
-    df = deduplicate_by_first_seen(df)
     df = df.assign(_is_negative=(df["sentiment_label"] == "negative").astype(float))
 
     resultado = compare_publication_window(df, value_col="_is_negative", key_col="Topic")
@@ -182,6 +212,71 @@ def _tema_maior_alta_negatividade(df_sentiment_history: pd.DataFrame) -> dict | 
         "pct_atual": pct_atual,
         "pct_anterior": pct_anterior,
         "delta_percentual": delta_percentual,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Tema mais negativo NO PERÍODO -- 2ª leitura exploratória (ADR 0026 / issue
+# #154), portada sem redesenho de `resumo.py::_maior_alta_negatividade`
+# (mesma lógica/assinatura/testes, só realocada). DIFERENTE de
+# `_tema_maior_alta_negatividade` acima: esta função responde "qual tópico
+# concentrou mais negatividade no período que a analista escolheu" (consulta
+# exploratória, sem noção de "atual vs. anterior"); aquela responde "qual
+# tópico subiu mais na janela fixa de `deltas.JANELA_ALERTA_NEGATIVIDADE_DIAS`
+# dias" (alerta automático). `render()` chama esta reaproveitando o MESMO
+# `st.date_input` já usado pela linha do tempo -- nunca um segundo widget de
+# calendário.
+# ---------------------------------------------------------------------------
+
+
+def _maior_alta_negatividade(
+    df_sentiment_history: pd.DataFrame,
+    data_inicio: object | None = None,
+    data_fim: object | None = None,
+) -> dict | None:
+    """Tópico de comentário (`Topic`/`Name`) com maior `% negativo` agregado
+    no intervalo `[data_inicio, data_fim]` de datas de PUBLICAÇÃO (ADR 0023).
+
+    `data_inicio`/`data_fim` `None` (default) usa todo o histórico
+    disponível.
+
+    IMPORTANTE: `df_sentiment_history` deve chegar aqui já filtrado ao
+    governador selecionado (ver `render()`, `_filtrar_por_governador`) -- esta
+    função não faz nenhum filtro por `inputUrl` sozinha. Passar o histórico
+    de todos os 27 perfis produz o tópico com mais negatividade entre todos
+    os governadores combinados, não o do perfil que a analista está olhando.
+
+    Deduplica por `id_comment`/menor `_run_id` antes de agregar (ver
+    `deltas.deduplicate_by_first_seen`) -- evita contar duas vezes um
+    comentário recoletado em execuções sobrepostas.
+
+    `None` se não houver dado suficiente (nenhum tópico atribuído -- BERTopic
+    não rodou --, nenhum comentário no intervalo filtrado, ou nenhum tópico
+    com negatividade > 0) -- não força um "destaque" artificial quando o
+    período foi estável ou positivo em todos os tópicos."""
+    df = _comentarios_com_topico_deduplicados(df_sentiment_history)
+    if df is None:
+        return None
+    df = df.assign(_data_publicacao=parse_publication_dates(df)).dropna(subset=["_data_publicacao"])
+    df = filter_by_date_range(df, "_data_publicacao", data_inicio, data_fim)
+    if df.empty:
+        return None
+
+    agregado = (
+        df.groupby(["Topic", "Name"])["sentiment_label"]
+        .apply(lambda s: (s == "negative").mean())
+        .rename("pct_negativo")
+        .reset_index()
+    )
+    candidatos = agregado[agregado["pct_negativo"] > 0]
+    if candidatos.empty:
+        return None
+
+    linha = candidatos.sort_values("pct_negativo", ascending=False).iloc[0]
+    return {
+        "topic": linha["Topic"],
+        "name": linha["Name"],
+        "pct_negativo": linha["pct_negativo"] * 100,
     }
 
 
@@ -413,6 +508,11 @@ def render() -> None:
     df_timeline_completo = aggregate_pct_negative_by_publication_day(
         df_sentiment_history_governador
     )
+    # ADR 0026 / issue #154: `data_inicio`/`data_fim` inicializados aqui
+    # (fora do `if`/`else` abaixo) porque a 2ª leitura exploratória logo
+    # depois da linha do tempo reaproveita o MESMO `st.date_input` -- nunca
+    # um segundo widget de calendário.
+    data_inicio = data_fim = None
     if df_timeline_completo.empty:
         st.caption("Sem histórico suficiente para mostrar uma linha do tempo ainda.")
     else:
@@ -459,6 +559,26 @@ def render() -> None:
                 margin={"t": 30, "b": 10},
             )
             st.plotly_chart(fig, use_container_width=True)
+
+    # ---- Tema mais negativo no período (2ª leitura -- ADR 0026 / issue #154) ----
+    # Consulta exploratória, visual e funcionalmente distinta da frase de
+    # decisão no topo (alerta automático de tendência recente): reaproveita
+    # o MESMO `data_inicio`/`data_fim` do filtro de calendário acima, nunca
+    # um segundo widget. Ver docstring de `_maior_alta_negatividade`.
+    st.markdown("#### Tema mais negativo no período")
+    st.caption(
+        "Leitura exploratória do período selecionado acima -- não é um "
+        "alerta automático, é uma consulta livre (diferente da frase de "
+        "decisão no topo da tela)."
+    )
+    tema_periodo = _maior_alta_negatividade(df_sentiment_history_governador, data_inicio, data_fim)
+    if tema_periodo is None:
+        st.caption("Nenhum tema com negatividade no período selecionado.")
+    else:
+        st.write(
+            f"**{tema_periodo['name']}** -- "
+            f"{tema_periodo['pct_negativo']:.1f}% de negatividade no período."
+        )
 
     # ---- Lista de comentários negativos mais recentes ----
     st.markdown("#### Comentários negativos mais recentes")

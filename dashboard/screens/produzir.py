@@ -18,10 +18,17 @@ ADR 0024 acrescentou uma seção "Evidência histórica de desempenho" logo
 ANTES do rodapé, depois da prova (fila + cartões) -- puramente aditiva: zero
 mudança na lógica de recomendação acima (fila de prioridade, cartões de
 formato, recomendação principal), que continua baseada só no snapshot atual
-de `governor_clusters` (reel-only). A nova seção deixa a analista comparar
-essa recomendação contra a série real de curtidas/comentários/visualizações/
-quantidade de publicações por data de publicação (posts de feed + reels),
-com filtro de calendário próprio, independente do Resumo.
+de `governor_clusters` (reel-only). ADR 0026 / issue #154 migrou essa seção
+INTEIRA de volta para o Resumo (vira a "prova" de lá) -- aqui ficou só um
+link "Ver evidência completa no Resumo" no lugar onde ela estava. A lógica
+de dado (`load_posts_content()`, agregação por dia, `quebrar_em_segmentos`)
+continua intocada, só a tela que a renderiza mudou.
+
+ADR 0026 / issue #154 também trouxe para cá 2 dos 4 antigos "Destaques da
+execução" do Resumo -- "Melhor post" e "Alto potencial, pouco discurso" --
+portados sem redesenho (mesma lógica/assinatura), posicionados logo depois
+de "Formatos de Reel" e antes do link de volta ao Resumo: ambas são
+perguntas de "o que produzir", não de "como estamos indo" (ver ADR 0021).
 
 Ambiguidade de spec resolvida nesta issue (ver PR): `topic_priority_score`
 NÃO tem `inputUrl` -- é um ranking GLOBAL de tópicos de comentário sobre os
@@ -41,50 +48,12 @@ artificialmente quando o governador selecionado tem poucos tópicos próprios
 from __future__ import annotations
 
 import pandas as pd
-import plotly.graph_objects as go
 import streamlit as st
 
 from dashboard.core import data
 from dashboard.core.components import decision_band, footnote, stage_label
-from dashboard.core.deltas import (
-    aggregate_metric_by_publication_day,
-    filter_by_date_range,
-    normalize_date_input_range,
-    quebrar_em_segmentos,
-)
-from dashboard.core.theme import COLORS
 
 _PLACEHOLDER_SEM_GOVERNADOR = "—"
-
-# ---------------------------------------------------------------------------
-# Evidência histórica de desempenho por publicação (ADR 0024) -- seção
-# puramente aditiva, abaixo da recomendação existente (fila + cartões).
-# Substitui o antigo gráfico "por coleta" do rodapé do Resumo.
-# ---------------------------------------------------------------------------
-
-TIPO_AMBOS = "Ambos"
-TIPO_POSTS = "Posts"
-TIPO_REELS = "Reels"
-_ORDEM_TIPOS_CONTEUDO = [TIPO_AMBOS, TIPO_POSTS, TIPO_REELS]
-
-METRICA_QUANTIDADE = "Quantidade de publicações"
-METRICA_CURTIDAS = "Curtidas"
-METRICA_COMENTARIOS = "Comentários"
-METRICA_VISUALIZACOES = "Visualizações"
-_ORDEM_METRICAS = [METRICA_QUANTIDADE, METRICA_CURTIDAS, METRICA_COMENTARIOS, METRICA_VISUALIZACOES]
-
-# `None` (não uma string vazia) sinaliza "sem coluna de métrica" pra
-# `aggregate_metric_by_publication_day(..., agg="count")` -- quantidade de
-# publicações conta linhas, não soma nenhuma coluna.
-_METRICA_PARA_COLUNA = {
-    METRICA_QUANTIDADE: None,
-    METRICA_CURTIDAS: "likesCount",
-    METRICA_COMENTARIOS: "commentsCount",
-    # `videoPlayCount` só existe em reels (`SILVER_REELS_SCHEMA`) -- posts de
-    # feed puro nunca vão ter essa coluna, degradando pro estado vazio em
-    # `_serie_desempenho_por_publicacao` (nunca uma exceção).
-    METRICA_VISUALIZACOES: "videoPlayCount",
-}
 
 # Rótulos de negócio dos 3 cartões de formato (ver CONTEXT.md, "Grupo de
 # desempenho") -- únicas strings usadas para identificar um grupo de cluster
@@ -248,7 +217,7 @@ def _clusters_reel_do_governador(
     """Reels do governador (`content_type == 'reel'`) com `cluster_label`,
     `Total de Engajamento` e `videoDuration` juntos numa linha -- mesmo join
     `id`/`id_reel` de `governor_clusters` com `reels_clean` já usado em
-    `resumo.py::_melhor_post` (ver docstring de `data.load_reels_content`:
+    `_melhor_post` abaixo (ver docstring de `data.load_reels_content`:
     `governor_clusters` sozinha não tem `inputUrl` nem métrica de
     engajamento por post). `DataFrame` vazio (nunca exceção) se qualquer
     tabela estiver vazia, sem match, ou sem as colunas esperadas."""
@@ -459,40 +428,102 @@ def _recomendacao_principal(
     return {"topic_name": topico["Name"], "grupo": grupo}
 
 
-def _conteudo_do_governador_por_tipo(
-    df_reels: pd.DataFrame, df_posts: pd.DataFrame, governor_url: str, tipo: str
-) -> pd.DataFrame:
-    """`DataFrame` combinado (reels e/ou posts de feed, conforme `tipo` --
-    um dos `TIPO_*` acima) do governador selecionado, já filtrado por
-    `inputUrl` (ADR 0024). `DataFrame` vazio (nunca exceção) se a(s)
-    fonte(s) pedida(s) estiverem vazias ou sem match para este governador."""
-    fontes = []
-    if tipo in (TIPO_REELS, TIPO_AMBOS):
-        fontes.append(df_reels)
-    if tipo in (TIPO_POSTS, TIPO_AMBOS):
-        fontes.append(df_posts)
-
-    partes = [_filtrar_por_governador(df, governor_url) for df in fontes]
-    partes = [p for p in partes if not p.empty]
-    if not partes:
-        return pd.DataFrame()
-    return pd.concat(partes, ignore_index=True)
+# ---------------------------------------------------------------------------
+# Destaques (ADR 0026 / issue #154) -- "Melhor post" e "Alto potencial,
+# pouco discurso", portados sem redesenho do Resumo (mesma lógica/
+# assinatura/testes, só realocados -- ambos respondem "o que produzir?").
+# ---------------------------------------------------------------------------
 
 
-def _serie_desempenho_por_publicacao(df_conteudo: pd.DataFrame, metrica: str) -> pd.DataFrame:
-    """Série agregada por dia de publicação (colunas `data`/`valor`) para
-    `metrica` (um dos `METRICA_*` acima) -- `ADR 0024`, generaliza a
-    agregação por dia já usada no Radar (`aggregate_pct_negative_by_
-    publication_day`, ADR 0023) via `aggregate_metric_by_publication_day`.
+def _melhor_post(
+    df_clusters: pd.DataFrame, df_reels: pd.DataFrame, governor_url: str
+) -> dict | None:
+    """Reel do governador (`content_type == 'reel'`) com maior `Total de
+    Engajamento` na execução mais recente de `reels_clean`.
 
-    Contagem de linhas (`agg="count"`) para `METRICA_QUANTIDADE`, soma
-    (`agg="sum"`) para as demais. `DataFrame` vazio (colunas `data`/`valor`,
-    nunca exceção) se `df_conteudo` estiver vazio ou sem a coluna da métrica
-    pedida -- caso real e esperado quando `metrica == METRICA_VISUALIZACOES`
-    e `tipo == TIPO_POSTS` (posts de feed não têm `videoPlayCount`)."""
-    coluna = _METRICA_PARA_COLUNA[metrica]
-    agg = "count" if metrica == METRICA_QUANTIDADE else "sum"
-    return aggregate_metric_by_publication_day(df_conteudo, metric_col=coluna, agg=agg)
+    `governor_clusters` (`df_clusters`) não grava nenhuma métrica de
+    engajamento por post nem `inputUrl` (ver docstring de
+    `dashboard.core.data.load_reels_content`) -- por isso este destaque cruza
+    `df_clusters` com `reels_clean` (`df_reels`) por `id`/`id_reel`, mesmo
+    join já usado em `_clusters_reel_do_governador` acima. `None` se
+    qualquer uma das tabelas estiver vazia ou sem match -- nunca lança
+    exceção."""
+    if df_clusters.empty or df_reels.empty or not governor_url:
+        return None
+    if "content_type" not in df_clusters.columns or "id_reel" not in df_clusters.columns:
+        return None
+
+    clusters_reel = df_clusters[df_clusters["content_type"] == "reel"]
+    if clusters_reel.empty:
+        return None
+
+    reels_governador = _filtrar_por_governador(df_reels, governor_url)
+    if reels_governador.empty or "Total de Engajamento" not in reels_governador.columns:
+        return None
+    if "id" not in reels_governador.columns:
+        return None
+
+    merged = reels_governador.merge(clusters_reel, left_on="id", right_on="id_reel", how="inner")
+    if merged.empty:
+        return None
+
+    linha = merged.sort_values("Total de Engajamento", ascending=False).iloc[0]
+    return {
+        "id": linha.get("id"),
+        "shortCode": linha.get("shortCode"),
+        "total_engajamento": linha["Total de Engajamento"],
+    }
+
+
+SEM_DADO_DISCURSO = "sem_dado_discurso"
+"""Sentinela retornada por `_topico_alto_positivo_baixo_discurso` quando
+`load_discourse_topics()` vier vazia -- distinta de `None` (que também pode
+significar "sem tópico prioritário calculável") para que `render()` mostre a
+mensagem amigável específica ("dado de discurso ainda não disponível") em
+vez de um estado vazio genérico."""
+
+
+def _topico_alto_positivo_baixo_discurso(
+    df_topic_priority: pd.DataFrame, df_discourse_topics: pd.DataFrame
+) -> dict | str | None:
+    """Tópico de comentário com `proporcao_sentimento_positivo` acima da
+    mediana E menor volume de menções no discurso oficial
+    (`governor_discourse_topics`) -- "falamos pouco sobre algo que o público
+    recebe bem".
+
+    Retorna `SEM_DADO_DISCURSO` (não `None`) se `df_discourse_topics` vier
+    vazia -- degrada para uma mensagem amigável em vez de quebrar. Retorna
+    `None` só quando não há tópico prioritário calculável mesmo com as duas
+    tabelas presentes."""
+    if df_topic_priority.empty or "proporcao_sentimento_positivo" not in df_topic_priority.columns:
+        return None
+    if df_discourse_topics.empty:
+        return SEM_DADO_DISCURSO
+    if "Topic" not in df_discourse_topics.columns:
+        return SEM_DADO_DISCURSO
+
+    volume = (
+        df_discourse_topics.dropna(subset=["Topic"])
+        .groupby("Topic")
+        .size()
+        .rename("volume_discurso")
+        .reset_index()
+    )
+    merged = df_topic_priority.merge(volume, on="Topic", how="left")
+    merged["volume_discurso"] = merged["volume_discurso"].fillna(0)
+
+    limiar_positivo = merged["proporcao_sentimento_positivo"].median()
+    candidatos = merged[merged["proporcao_sentimento_positivo"] >= limiar_positivo]
+    if candidatos.empty:
+        return None
+
+    linha = candidatos.sort_values("volume_discurso", ascending=True).iloc[0]
+    return {
+        "topic": linha["Topic"],
+        "name": linha.get("Name"),
+        "proporcao_positivo": linha["proporcao_sentimento_positivo"],
+        "volume_discurso": linha["volume_discurso"],
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -597,73 +628,53 @@ def render() -> None:
                 st.write(f"{stats['n']} reel(s)")
                 st.caption(f"Engajamento médio: {_fmt_int_br(stats['engajamento_medio'])}")
 
-    # ---- Evidência histórica de desempenho (ADR 0024) ----
-    # Seção puramente aditiva -- não influencia a recomendação acima (fila +
-    # cartões, calculada só sobre o snapshot atual). Substitui o antigo
-    # gráfico de tendência "por coleta" que vivia no rodapé do Resumo; filtro
-    # de calendário próprio, independente do Resumo.
-    st.markdown("#### Evidência histórica de desempenho")
-    # `load_reels_content()`/`load_posts_content()` retornam TODOS os 27
-    # perfis -- `_conteudo_do_governador_por_tipo` filtra por `governor_url`
-    # internamente.
-    df_reels_conteudo = data.load_reels_content()
-    df_posts_conteudo = data.load_posts_content()
+    # ---- Destaques (ADR 0026 / issue #154) ----
+    # Posicionados logo depois de "Formatos de Reel" e antes do link de
+    # volta ao Resumo -- exatamente onde a evidência histórica estava (ver
+    # docstring do módulo).
+    st.markdown("#### Destaques")
+    col1, col2 = st.columns(2)
 
-    col_tipo, col_metrica = st.columns(2)
-    with col_tipo:
-        tipo_selecionado = st.selectbox(
-            "Tipo de conteúdo", options=_ORDEM_TIPOS_CONTEUDO, key="produzir_tipo_conteudo"
-        )
-    with col_metrica:
-        metrica_selecionada = st.selectbox(
-            "Métrica", options=_ORDEM_METRICAS, key="produzir_metrica_desempenho"
-        )
-
-    df_conteudo = _conteudo_do_governador_por_tipo(
-        df_reels_conteudo, df_posts_conteudo, governor_url, tipo_selecionado
-    )
-    df_serie_completa = _serie_desempenho_por_publicacao(df_conteudo, metrica_selecionada)
-
-    if df_serie_completa.empty:
-        st.caption(
-            "Sem dado disponível para essa combinação de tipo de conteúdo e "
-            "métrica ainda -- comum quando \"Visualizações\" é escolhida com "
-            "\"Posts\" (posts de feed não têm contagem de visualização)."
-        )
-    else:
-        data_min = df_serie_completa["data"].min()
-        data_max = df_serie_completa["data"].max()
-        intervalo = st.date_input(
-            "Período (data de publicação)",
-            value=(data_min, data_max),
-            min_value=data_min,
-            max_value=data_max,
-            key="produzir_intervalo_desempenho",
-        )
-        data_inicio, data_fim = normalize_date_input_range(intervalo)
-        df_serie = filter_by_date_range(df_serie_completa, "data", data_inicio, data_fim)
-
-        if df_serie.empty:
-            st.caption("Nenhuma publicação no período selecionado.")
+    with col1:
+        st.markdown("**Melhor post**")
+        # `data.load_reels_content()` retorna TODOS os 27 perfis --
+        # `_melhor_post` filtra por `governor_url` internamente.
+        df_reels_conteudo = data.load_reels_content()
+        melhor = _melhor_post(data.load_clusters_content(), df_reels_conteudo, governor_url)
+        if melhor is None:
+            st.caption("Sem reel com dado de engajamento suficiente nesta execução.")
         else:
-            fig = go.Figure()
-            for segmento in quebrar_em_segmentos(df_serie):
-                fig.add_trace(
-                    go.Scatter(
-                        x=segmento["data"],
-                        y=segmento["valor"],
-                        mode="lines+markers",
-                        line={"color": COLORS["muted"]},
-                        marker={"color": COLORS["muted"], "size": 6},
-                        showlegend=False,
-                    )
-                )
-            fig.update_layout(
-                yaxis_title=metrica_selecionada,
-                xaxis_title="Data de publicação",
-                showlegend=False,
-                margin={"t": 30, "b": 10},
+            shortcode, id_reel = melhor["shortCode"], melhor["id"]
+            if pd.notna(shortcode):
+                identificador = shortcode
+            elif pd.notna(id_reel):
+                identificador = id_reel
+            else:
+                identificador = _PLACEHOLDER_SEM_GOVERNADOR
+            st.write(f"`{identificador}` -- {_fmt_int_br(melhor['total_engajamento'])} de engajamento")
+
+    with col2:
+        st.markdown("**Alto potencial, pouco discurso**")
+        # `df_topic_priority` (já carregada acima) e `load_discourse_topics()`
+        # SEM filtro de governador -- mesmo comportamento de quando esta
+        # função vivia em `resumo.py` (portada sem redesenho).
+        topico = _topico_alto_positivo_baixo_discurso(
+            df_topic_priority, data.load_discourse_topics()
+        )
+        if topico == SEM_DADO_DISCURSO:
+            st.caption("Dado de discurso ainda não disponível.")
+        elif topico is None:
+            st.caption("Sem tópico prioritário identificável nesta execução.")
+        else:
+            st.write(
+                f"**{topico['name']}** -- {_fmt_pct(topico['proporcao_positivo'])} positivo, "
+                f"{int(topico['volume_discurso'])} menção(ões) no discurso oficial."
             )
-            st.plotly_chart(fig, use_container_width=True)
+
+    # ---- Link de volta (ADR 0026 / issue #154) ----
+    # A evidência histórica de desempenho (seletores de tipo/métrica +
+    # gráfico + filtro de calendário próprio) migrou inteira pro Resumo, que
+    # vira a "prova" de lá -- zero cópia aqui.
+    st.caption("Ver evidência completa no Resumo.")
 
     footnote()

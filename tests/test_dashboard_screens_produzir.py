@@ -8,8 +8,23 @@ renderização Streamlit em si, mesmo padrão de
 import inspect
 
 import pandas as pd
+import streamlit as st
+from deltalake.writer import write_deltalake
 
+from config import settings
+from dashboard.core import data
 from dashboard.screens import produzir
+
+
+def _clear_caches():
+    st.cache_resource.clear()
+    st.cache_data.clear()
+
+
+def _point_settings_at(monkeypatch, tmp_path):
+    monkeypatch.setattr(settings, "GOLD_DIR", tmp_path / "gold")
+    monkeypatch.setattr(settings, "SILVER_DIR", tmp_path / "silver")
+    _clear_caches()
 
 # ---------------------------------------------------------------------------
 # _selo_prioridade / _cortes_tercis (selo de prioridade, nunca o score bruto)
@@ -419,123 +434,102 @@ def test_fmt_int_br_usa_separador_de_milhar():
 
 
 # ---------------------------------------------------------------------------
-# Evidência histórica de desempenho (ADR 0024) -- seção aditiva, não deve
-# mudar nenhum resultado das funções de recomendação testadas acima.
+# Destaques (ADR 0026 / issue #154) -- "Melhor post" e "Alto potencial,
+# pouco discurso", portados sem mudança de comportamento de resumo.py.
 # ---------------------------------------------------------------------------
 
 _GOV_URL = "https://www.instagram.com/gov_a/"
 
 
-def _df_reels_desempenho():
+def _df_clusters_conteudo():
     return pd.DataFrame(
         {
-            "inputUrl": [_GOV_URL, _GOV_URL],
-            "likesCount": [100, 50],
-            "commentsCount": [10, 5],
-            "videoPlayCount": [1000, 2000],
-            "data_hora": pd.to_datetime(["2026-08-01", "2026-08-02"]),
+            "id_reel": ["r1", "r2", "p1"],
+            "ownerUsername": ["gov_a", "gov_a", "gov_a"],
+            "cluster_label": [0, 1, 0],
+            "content_type": ["reel", "reel", "feed"],
+            "_run_id": ["run1", "run1", "run1"],
         }
     )
 
 
-def _df_posts_desempenho():
+def _df_reels_conteudo():
     return pd.DataFrame(
         {
-            "inputUrl": [_GOV_URL],
-            "likesCount": [30],
-            "commentsCount": [3],
-            "data_hora": pd.to_datetime(["2026-08-01"]),
+            "id": ["r1", "r2", "p1"],
+            "inputUrl": [_GOV_URL] * 3,
+            "shortCode": ["abc", "xyz", "feed1"],
+            "Total de Engajamento": [100, 500, 900],
         }
     )
 
 
-def test_conteudo_do_governador_por_tipo_reels():
-    resultado = produzir._conteudo_do_governador_por_tipo(
-        _df_reels_desempenho(), _df_posts_desempenho(), _GOV_URL, produzir.TIPO_REELS
+def test_melhor_post_escolhe_maior_engajamento_entre_reels_do_governador():
+    resultado = produzir._melhor_post(_df_clusters_conteudo(), _df_reels_conteudo(), _GOV_URL)
+    assert resultado is not None
+    assert resultado["shortCode"] == "xyz"
+    assert resultado["total_engajamento"] == 500
+
+
+def test_melhor_post_retorna_none_quando_tabelas_vazias():
+    assert produzir._melhor_post(pd.DataFrame(), pd.DataFrame(), _GOV_URL) is None
+    assert produzir._melhor_post(_df_clusters_conteudo(), pd.DataFrame(), _GOV_URL) is None
+
+
+def test_melhor_post_retorna_none_sem_reel_do_governador():
+    resultado = produzir._melhor_post(
+        _df_clusters_conteudo(), _df_reels_conteudo(), "https://www.instagram.com/outro/"
     )
-    assert len(resultado) == 2
-    assert "videoPlayCount" in resultado.columns
+    assert resultado is None
 
 
-def test_conteudo_do_governador_por_tipo_posts():
-    resultado = produzir._conteudo_do_governador_por_tipo(
-        _df_reels_desempenho(), _df_posts_desempenho(), _GOV_URL, produzir.TIPO_POSTS
-    )
-    assert len(resultado) == 1
-
-
-def test_conteudo_do_governador_por_tipo_ambos_combina_as_duas_fontes():
-    resultado = produzir._conteudo_do_governador_por_tipo(
-        _df_reels_desempenho(), _df_posts_desempenho(), _GOV_URL, produzir.TIPO_AMBOS
-    )
-    assert len(resultado) == 3
-
-
-def test_conteudo_do_governador_por_tipo_filtra_por_governador():
-    resultado = produzir._conteudo_do_governador_por_tipo(
-        _df_reels_desempenho(), _df_posts_desempenho(), "https://www.instagram.com/outro/",
-        produzir.TIPO_AMBOS,
-    )
-    assert resultado.empty
-
-
-def test_serie_desempenho_por_publicacao_soma_curtidas():
-    df_conteudo = _conteudo_ambos_conhecido()
-    resultado = produzir._serie_desempenho_por_publicacao(df_conteudo, produzir.METRICA_CURTIDAS)
-    assert resultado["valor"].sum() == 180  # 100 + 50 (reels) + 30 (post)
-
-
-def test_serie_desempenho_por_publicacao_conta_quantidade_de_publicacoes():
-    df_conteudo = _conteudo_ambos_conhecido()
-    resultado = produzir._serie_desempenho_por_publicacao(
-        df_conteudo, produzir.METRICA_QUANTIDADE
-    )
-    assert resultado["valor"].sum() == 3
-
-
-def test_serie_desempenho_por_publicacao_visualizacoes_vazio_para_posts_puros():
-    # ADR 0024: posts de feed não têm videoPlayCount -- combinação sem
-    # sentido degrada pra série vazia, nunca uma exceção.
-    resultado = produzir._serie_desempenho_por_publicacao(
-        _df_posts_desempenho(), produzir.METRICA_VISUALIZACOES
-    )
-    assert resultado.empty
-
-
-def test_serie_desempenho_por_publicacao_quebra_em_segmentos_com_gap_maior_que_7_dias():
-    # ADR 0024: a nova seção reusa `quebrar_em_segmentos` (extraída do
-    # Radar, ver `deltas.py`) sobre a série que `_serie_desempenho_por_
-    # publicacao` produz -- prova que as duas funções compõem corretamente
-    # no fluxo real de `render()` (linha 650), não só isoladas.
-    df_reels = pd.DataFrame(
+def _df_topic_priority():
+    return pd.DataFrame(
         {
-            "inputUrl": [_GOV_URL, _GOV_URL],
-            "likesCount": [100, 50],
-            "data_hora": pd.to_datetime(["2026-08-01", "2026-08-20"]),
+            "Topic": [0, 1, 2],
+            "Name": ["0_saude", "1_seguranca", "2_educacao"],
+            "proporcao_sentimento_positivo": [0.9, 0.5, 0.2],
         }
     )
-    df_conteudo = produzir._conteudo_do_governador_por_tipo(
-        df_reels, pd.DataFrame(), _GOV_URL, produzir.TIPO_REELS
+
+
+def test_topico_alto_positivo_baixo_discurso_escolhe_positivo_com_pouco_volume():
+    df_discurso = pd.DataFrame({"Topic": [0, 0, 1, 1, 1, 1, 1]})
+
+    resultado = produzir._topico_alto_positivo_baixo_discurso(_df_topic_priority(), df_discurso)
+
+    assert resultado is not None
+    # Tópico 0 tem % positivo alto (0.9, acima da mediana) e só 2 menções no
+    # discurso -- menos do que o tópico 1 (5 menções), então vence.
+    assert resultado["topic"] == 0
+    assert resultado["volume_discurso"] == 2
+
+
+def test_topico_alto_positivo_baixo_discurso_degrada_quando_discurso_vazio():
+    resultado = produzir._topico_alto_positivo_baixo_discurso(
+        _df_topic_priority(), pd.DataFrame()
     )
-    serie = produzir._serie_desempenho_por_publicacao(df_conteudo, produzir.METRICA_CURTIDAS)
-
-    segmentos = produzir.quebrar_em_segmentos(serie)
-
-    assert len(segmentos) == 2
-    assert len(segmentos[0]) == 1
-    assert len(segmentos[1]) == 1
+    assert resultado == produzir.SEM_DADO_DISCURSO
 
 
-def _conteudo_ambos_conhecido():
-    return produzir._conteudo_do_governador_por_tipo(
-        _df_reels_desempenho(), _df_posts_desempenho(), _GOV_URL, produzir.TIPO_AMBOS
+def test_topico_alto_positivo_baixo_discurso_retorna_none_sem_topic_priority():
+    resultado = produzir._topico_alto_positivo_baixo_discurso(
+        pd.DataFrame(), pd.DataFrame({"Topic": [0]})
     )
+    assert resultado is None
 
 
-def test_evidencia_de_desempenho_nao_altera_logica_de_recomendacao_existente():
-    # Prova estrutural (ADR 0024): a nova seção é puramente aditiva -- as
-    # funções de recomendação não ganham nenhum parâmetro relacionado a tipo
-    # de conteúdo/métrica/data de publicação.
+def test_evidencia_de_desempenho_nao_esta_mais_em_produzir():
+    # ADR 0026 / issue #154: a evidência histórica de desempenho migrou
+    # inteira para o Resumo -- prova estrutural de que não sobrou duplicata
+    # morta aqui.
+    assert not hasattr(produzir, "_conteudo_do_governador_por_tipo")
+    assert not hasattr(produzir, "_serie_desempenho_por_publicacao")
+
+
+def test_destaques_nao_alteram_logica_de_recomendacao_existente():
+    # Prova estrutural: os destaques portados são puramente aditivos -- as
+    # funções de recomendação não ganham nenhum parâmetro relacionado a eles.
     funcoes_recomendacao = (
         produzir._grupo_maior_engajamento,
         produzir._mapear_grupos_para_cartoes,
@@ -546,3 +540,29 @@ def test_evidencia_de_desempenho_nao_altera_logica_de_recomendacao_existente():
     for fn in funcoes_recomendacao:
         params = set(inspect.signature(fn).parameters)
         assert not params & parametros_novos, fn.__name__
+
+
+# ---------------------------------------------------------------------------
+# _melhor_post contra tabelas Delta reais (tmp_path) -- portado de
+# tests/test_dashboard_screens_resumo.py junto com a função (ADR 0026 / issue
+# #154), mesmo padrão de tests/test_dashboard_core_data.py.
+# ---------------------------------------------------------------------------
+
+
+def test_melhor_post_contra_tabelas_delta_reais(tmp_path, monkeypatch):
+    _point_settings_at(monkeypatch, tmp_path)
+
+    clusters_path = settings.GOLD_DIR / "governor_clusters_reels"
+    write_deltalake(str(clusters_path), _df_clusters_conteudo(), mode="overwrite")
+
+    reels_path = settings.SILVER_DIR / "reels_clean"
+    write_deltalake(str(reels_path), _df_reels_conteudo(), mode="overwrite")
+
+    df_clusters = data.load_clusters_content()
+    df_reels = data.load_reels_content()
+
+    resultado = produzir._melhor_post(df_clusters, df_reels, _GOV_URL)
+
+    assert resultado is not None
+    assert resultado["shortCode"] == "xyz"
+    _clear_caches()
