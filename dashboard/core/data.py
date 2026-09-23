@@ -98,6 +98,19 @@ def load_reels_content() -> pd.DataFrame:
 
 
 @st.cache_data(ttl=_TTL_SECONDS)
+def load_posts_content() -> pd.DataFrame:
+    """`posts_clean` (Silver) -- 1 linha por post de feed (foto/carrossel),
+    incluindo `data_hora` (publicação real), `likesCount`, `commentsCount` e
+    `inputUrl`. Espelha `load_reels_content()` (ADR 0024) -- sem
+    `videoPlayCount`/`Total de Engajamento` (campos exclusivos de reel, ver
+    `SILVER_POSTS_SCHEMA`/`SILVER_REELS_SCHEMA` em `src/schemas_delta.py`)."""
+    try:
+        return get_repository().load_posts()
+    except FileNotFoundError:
+        return pd.DataFrame()
+
+
+@st.cache_data(ttl=_TTL_SECONDS)
 def load_clusters_profile() -> pd.DataFrame:
     """`governor_profile_clusters_engagement` -- 1 linha por governador."""
     try:

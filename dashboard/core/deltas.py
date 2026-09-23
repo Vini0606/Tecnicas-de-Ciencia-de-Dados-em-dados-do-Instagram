@@ -189,6 +189,91 @@ def aggregate_pct_negative_by_publication_day(
     return agregado[colunas]
 
 
+GAP_DIAS_QUEBRA_LINHA = 7
+"""Gap (em dias) acima do qual uma linha de série temporal por data de
+publicação quebra visualmente em vez de conectar dois pontos distantes (ADR
+0023) -- compartilhado entre `dashboard/screens/radar.py` (linha do tempo de
+negatividade) e a seção de evidência de desempenho de
+`dashboard/screens/produzir.py` (ADR 0024)."""
+
+
+def quebrar_em_segmentos(
+    df_timeline: pd.DataFrame, gap_dias: int = GAP_DIAS_QUEBRA_LINHA
+) -> list[pd.DataFrame]:
+    """Divide `df_timeline` (coluna `data`, ordenado por dia de publicação)
+    numa lista de segmentos contínuos -- um novo segmento sempre que o
+    intervalo entre duas datas consecutivas com dado ultrapassar `gap_dias`
+    (ADR 0023). Uma linha contínua ligando dois pontos distantes sugeriria
+    uma tendência que o dado real não sustenta, já que não há nenhum dado no
+    meio do intervalo.
+
+    Extraída de `dashboard/screens/radar.py` para cá (ADR 0024) quando a
+    seção de evidência de desempenho de `dashboard/screens/produzir.py`
+    virou um segundo consumidor real -- indiferente ao nome da segunda
+    coluna (`pct_negativo`, `valor`, etc.), só olha pra `data`.
+
+    Lista vazia se `df_timeline` estiver vazio."""
+    if df_timeline.empty:
+        return []
+    df = df_timeline.sort_values("data").reset_index(drop=True)
+    segmentos: list[pd.DataFrame] = []
+    inicio = 0
+    for i in range(1, len(df)):
+        gap = (df["data"].iloc[i] - df["data"].iloc[i - 1]).days
+        if gap > gap_dias:
+            segmentos.append(df.iloc[inicio:i].reset_index(drop=True))
+            inicio = i
+    segmentos.append(df.iloc[inicio:].reset_index(drop=True))
+    return segmentos
+
+
+def aggregate_metric_by_publication_day(
+    df: pd.DataFrame,
+    metric_col: str | None,
+    timestamp_col: str = "data_hora",
+    agg: str = "sum",
+) -> pd.DataFrame:
+    """1 linha por dia de publicação (colunas `data`/`valor`) -- generaliza
+    `aggregate_pct_negative_by_publication_day` (ADR 0023) para qualquer
+    métrica de post/reel (curtidas, comentários, visualizações, quantidade
+    de publicações -- ADR 0024).
+
+    Dois modos de agregação por dia:
+    - `agg="sum"` (default): soma de `metric_col` no dia (curtidas,
+      comentários, visualizações).
+    - `agg="count"`: contagem de linhas no dia, ignora `metric_col` (pode
+      ser `None`) -- quantidade de publicações.
+
+    `timestamp_col` default `data_hora` -- já é `datetime` real na Silver
+    (`reels_clean`/`posts_clean`), diferente do `timestamp` string ISO de
+    `governor_sentiment*` que `parse_publication_dates` trata; por isso o
+    parse aqui é direto (`pd.to_datetime`), sem o `format="ISO8601"`/`utc`
+    específico daquela função.
+
+    `DataFrame` vazio (colunas `data`/`valor`, nunca exceção) se faltar
+    coluna obrigatória ou não houver linha com data parseável."""
+    colunas = ["data", "valor"]
+    required = {timestamp_col} | (set() if agg == "count" else {metric_col})
+    if df.empty or not required.issubset(df.columns):
+        return pd.DataFrame(columns=colunas)
+
+    dias = pd.to_datetime(df[timestamp_col], errors="coerce").dt.date
+    df = df.assign(_dia=dias).dropna(subset=["_dia"])
+    if df.empty:
+        return pd.DataFrame(columns=colunas)
+
+    if agg == "count":
+        agregado = df.groupby("_dia").size().rename("valor").reset_index()
+    else:
+        agregado = df.groupby("_dia")[metric_col].sum().rename("valor").reset_index()
+
+    return (
+        agregado.rename(columns={"_dia": "data"})
+        .sort_values("data")
+        .reset_index(drop=True)[colunas]
+    )
+
+
 def run_dates(
     df_history: pd.DataFrame,
     run_col: str = "_run_id",

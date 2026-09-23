@@ -1,7 +1,7 @@
 """Testes da Tela 1 ("Resumo da semana", ADR 0021 / issue #111).
 
 Só a lógica pura de `dashboard/screens/resumo.py` é testada aqui (nível do
-semáforo, seleção dos 3 destaques) -- nunca a renderização Streamlit em si,
+semáforo, seleção dos 4 destaques) -- nunca a renderização Streamlit em si,
 mesmo padrão de `tests/test_dashboard_core_data.py`/`test_dashboard_loaders.py`
 (issue #50). Um bloco final testa alguns desses caminhos contra tabelas Delta
 reais escritas em `tmp_path`, mesmo padrão dos dois arquivos acima."""
@@ -151,7 +151,7 @@ def test_delta_para_governador_usa_week_over_week_e_ignora_governador_ausente():
         agregado, "pct_positivo", "https://www.instagram.com/gov_a/"
     )
     assert resultado is not None
-    valor_atual, delta = resultado
+    valor_atual, _delta = resultado
     assert valor_atual == 1.0
 
     resultado_ausente = resumo._delta_para_governador(
@@ -399,6 +399,75 @@ def test_intervalo_disponivel_none_com_dataframe_vazio():
 
 
 # ---------------------------------------------------------------------------
+# Destaque 4 -- contagem de publicações recentes (ADR 0024, substitui o
+# gráfico de tendência "por coleta" que vivia no rodapé)
+# ---------------------------------------------------------------------------
+
+
+def _df_reels_com_data(datas: list, governor_url: str = "https://www.instagram.com/gov_a/"):
+    return pd.DataFrame(
+        {
+            "inputUrl": [governor_url] * len(datas),
+            "data_hora": pd.to_datetime(datas),
+        }
+    )
+
+
+def test_contagem_publicacoes_recentes_conta_reels_e_posts_combinados():
+    df_reels = _df_reels_com_data(["2026-08-01", "2026-08-05"])
+    df_posts = _df_reels_com_data(["2026-08-04"])
+
+    resultado = resumo._contagem_publicacoes_recentes(
+        df_reels, df_posts, "https://www.instagram.com/gov_a/"
+    )
+
+    assert resultado is not None
+    quantidade, janela_dias = resultado
+    # Janela termina na data mais recente disponível (5/ago, não "hoje") e
+    # olha pra trás `_JANELA_DESTAQUE_PUBLICACOES_DIAS` dias -- as 3
+    # publicações (1/ago, 4/ago, 5/ago) caem dentro dos 7 dias antes de 5/ago.
+    assert quantidade == 3
+    assert janela_dias == resumo._JANELA_DESTAQUE_PUBLICACOES_DIAS
+
+
+def test_contagem_publicacoes_recentes_ignora_publicacao_fora_da_janela():
+    df_reels = _df_reels_com_data(["2026-07-01", "2026-08-20"])
+
+    resultado = resumo._contagem_publicacoes_recentes(
+        df_reels, pd.DataFrame(), "https://www.instagram.com/gov_a/"
+    )
+
+    assert resultado is not None
+    quantidade, _ = resultado
+    # A janela termina em 20/ago (data mais recente); 1/jul fica muito antes
+    # dos 7 dias de janela e não deve ser contada.
+    assert quantidade == 1
+
+
+def test_contagem_publicacoes_recentes_filtra_por_governador():
+    df_reels = _df_reels_com_data(["2026-08-01"], governor_url="https://www.instagram.com/outro/")
+
+    resultado = resumo._contagem_publicacoes_recentes(
+        df_reels, pd.DataFrame(), "https://www.instagram.com/gov_a/"
+    )
+
+    assert resultado is None
+
+
+def test_contagem_publicacoes_recentes_none_quando_tabelas_vazias():
+    assert resumo._contagem_publicacoes_recentes(
+        pd.DataFrame(), pd.DataFrame(), "https://www.instagram.com/gov_a/"
+    ) is None
+
+
+def test_contagem_publicacoes_recentes_none_sem_coluna_data_hora():
+    df_sem_data = pd.DataFrame({"inputUrl": ["https://www.instagram.com/gov_a/"]})
+    assert resumo._contagem_publicacoes_recentes(
+        df_sem_data, pd.DataFrame(), "https://www.instagram.com/gov_a/"
+    ) is None
+
+
+# ---------------------------------------------------------------------------
 # ADR 0023, user story 10: o filtro de calendário do destaque de
 # negatividade NÃO pode vazar para a faixa de decisão nem para a tendência
 # de engajamento/seguidores -- prova estrutural de que essas funções nunca
@@ -411,7 +480,7 @@ def test_faixa_de_decisao_e_tendencia_de_engajamento_nao_aceitam_filtro_de_calen
         resumo._nivel_semaforo,
         resumo._frase_decisao,
         resumo._delta_para_governador,
-        resumo._ultimas_execucoes,
+        resumo._contagem_publicacoes_recentes,
     )
     for fn in funcoes_fora_do_filtro:
         params = set(inspect.signature(fn).parameters)
@@ -537,6 +606,6 @@ def test_delta_positivo_contra_tabela_delta_real_de_sentiment_history(tmp_path, 
     )
 
     assert resultado is not None
-    valor_atual, delta = resultado
+    valor_atual, _delta = resultado
     assert valor_atual == 1.0
     _clear_caches()
