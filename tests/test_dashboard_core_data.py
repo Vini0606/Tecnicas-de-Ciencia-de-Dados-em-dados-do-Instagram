@@ -187,6 +187,39 @@ def test_load_clusters_content_returns_empty_dataframe_when_missing(tmp_path, mo
     _clear_caches()
 
 
+def test_load_posts_content_returns_delta_table(tmp_path, monkeypatch):
+    # ADR 0024: load_posts_content() espelha load_reels_content(), lendo
+    # `posts_clean` (Silver) em vez de `reels_clean`.
+    _point_settings_at(monkeypatch, tmp_path)
+    path = settings.SILVER_DIR / "posts_clean"
+    df = pd.DataFrame(
+        {
+            "id": ["p1"],
+            "inputUrl": ["https://www.instagram.com/governador_a/"],
+            "likesCount": [10],
+            "commentsCount": [2],
+            "data_hora": pd.to_datetime(["2026-05-01"]),
+            "_run_id": ["r1"],
+        }
+    )
+    write_deltalake(str(path), df, mode="overwrite")
+
+    out = data.load_posts_content()
+
+    assert "data_hora" in out.columns
+    _clear_caches()
+
+
+def test_load_posts_content_returns_empty_dataframe_when_missing(tmp_path, monkeypatch):
+    _point_settings_at(monkeypatch, tmp_path)
+
+    out = data.load_posts_content()
+
+    assert isinstance(out, pd.DataFrame)
+    assert out.empty
+    _clear_caches()
+
+
 def test_load_clusters_profile_returns_delta_table(tmp_path, monkeypatch):
     _point_settings_at(monkeypatch, tmp_path)
     path = settings.GOLD_DIR / "governor_profile_clusters_engagement"

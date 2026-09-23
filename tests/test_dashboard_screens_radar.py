@@ -23,7 +23,10 @@ from deltalake.writer import write_deltalake
 
 from config import settings
 from dashboard.core import data
-from dashboard.core.deltas import LIMIAR_NEGATIVIDADE_ALERTA, aggregate_pct_negative_by_publication_day
+from dashboard.core.deltas import (
+    LIMIAR_NEGATIVIDADE_ALERTA,
+    aggregate_pct_negative_by_publication_day,
+)
 from dashboard.screens import radar
 
 
@@ -118,30 +121,10 @@ def test_filtrar_por_intervalo_com_dataframe_vazio():
     assert resultado.empty
 
 
-def test_quebrar_em_segmentos_quebra_quando_gap_maior_que_limiar():
-    segmentos = radar._quebrar_em_segmentos(_df_timeline_publicacao(), gap_dias=7)
-    # 1/ago -> 3/ago: gap de 2 dias, continua no mesmo segmento.
-    # 3/ago -> 20/ago: gap de 17 dias, > 7 -> novo segmento.
-    assert len(segmentos) == 2
-    assert segmentos[0]["data"].tolist() == [datetime.date(2026, 8, 1), datetime.date(2026, 8, 3)]
-    assert segmentos[1]["data"].tolist() == [datetime.date(2026, 8, 20)]
-
-
-def test_quebrar_em_segmentos_nao_quebra_quando_gap_menor_ou_igual_ao_limiar():
-    df = pd.DataFrame(
-        {
-            "data": [datetime.date(2026, 8, 1), datetime.date(2026, 8, 8)],
-            "pct_negativo": [0.10, 0.20],
-        }
-    )
-    segmentos = radar._quebrar_em_segmentos(df, gap_dias=7)
-    assert len(segmentos) == 1
-    assert len(segmentos[0]) == 2
-
-
-def test_quebrar_em_segmentos_com_dataframe_vazio():
-    assert radar._quebrar_em_segmentos(pd.DataFrame(columns=["data", "pct_negativo"])) == []
-
+# `_quebrar_em_segmentos` foi extraída pra `dashboard/core/deltas.py`
+# (`quebrar_em_segmentos`) pela ADR 0024, quando ganhou um segundo
+# consumidor real (a seção de evidência de desempenho de `produzir.py`) --
+# ver `tests/test_dashboard_core_deltas.py` pelos testes correspondentes.
 
 # ---------------------------------------------------------------------------
 # _cores_marcador (ADR 0023 -- só o ponto que cruza o limiar é marcado,

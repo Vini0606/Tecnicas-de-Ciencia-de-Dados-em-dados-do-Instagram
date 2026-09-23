@@ -5,10 +5,11 @@ prioridade, mapeamento cluster -> cartão, recomendação principal) -- nunca a
 renderização Streamlit em si, mesmo padrão de
 `tests/test_dashboard_screens_resumo.py` (issue #111)."""
 
+import inspect
+
 import pandas as pd
 
 from dashboard.screens import produzir
-
 
 # ---------------------------------------------------------------------------
 # _selo_prioridade / _cortes_tercis (selo de prioridade, nunca o score bruto)
@@ -415,3 +416,109 @@ def test_fmt_pct_com_none_mostra_placeholder():
 
 def test_fmt_int_br_usa_separador_de_milhar():
     assert produzir._fmt_int_br(12345.6) == "12.346"
+
+
+# ---------------------------------------------------------------------------
+# Evidência histórica de desempenho (ADR 0024) -- seção aditiva, não deve
+# mudar nenhum resultado das funções de recomendação testadas acima.
+# ---------------------------------------------------------------------------
+
+_GOV_URL = "https://www.instagram.com/gov_a/"
+
+
+def _df_reels_desempenho():
+    return pd.DataFrame(
+        {
+            "inputUrl": [_GOV_URL, _GOV_URL],
+            "likesCount": [100, 50],
+            "commentsCount": [10, 5],
+            "videoPlayCount": [1000, 2000],
+            "data_hora": pd.to_datetime(["2026-08-01", "2026-08-02"]),
+        }
+    )
+
+
+def _df_posts_desempenho():
+    return pd.DataFrame(
+        {
+            "inputUrl": [_GOV_URL],
+            "likesCount": [30],
+            "commentsCount": [3],
+            "data_hora": pd.to_datetime(["2026-08-01"]),
+        }
+    )
+
+
+def test_conteudo_do_governador_por_tipo_reels():
+    resultado = produzir._conteudo_do_governador_por_tipo(
+        _df_reels_desempenho(), _df_posts_desempenho(), _GOV_URL, produzir.TIPO_REELS
+    )
+    assert len(resultado) == 2
+    assert "videoPlayCount" in resultado.columns
+
+
+def test_conteudo_do_governador_por_tipo_posts():
+    resultado = produzir._conteudo_do_governador_por_tipo(
+        _df_reels_desempenho(), _df_posts_desempenho(), _GOV_URL, produzir.TIPO_POSTS
+    )
+    assert len(resultado) == 1
+
+
+def test_conteudo_do_governador_por_tipo_ambos_combina_as_duas_fontes():
+    resultado = produzir._conteudo_do_governador_por_tipo(
+        _df_reels_desempenho(), _df_posts_desempenho(), _GOV_URL, produzir.TIPO_AMBOS
+    )
+    assert len(resultado) == 3
+
+
+def test_conteudo_do_governador_por_tipo_filtra_por_governador():
+    resultado = produzir._conteudo_do_governador_por_tipo(
+        _df_reels_desempenho(), _df_posts_desempenho(), "https://www.instagram.com/outro/",
+        produzir.TIPO_AMBOS,
+    )
+    assert resultado.empty
+
+
+def test_serie_desempenho_por_publicacao_soma_curtidas():
+    df_conteudo = _conteudo_ambos_conhecido()
+    resultado = produzir._serie_desempenho_por_publicacao(df_conteudo, produzir.METRICA_CURTIDAS)
+    assert resultado["valor"].sum() == 180  # 100 + 50 (reels) + 30 (post)
+
+
+def test_serie_desempenho_por_publicacao_conta_quantidade_de_publicacoes():
+    df_conteudo = _conteudo_ambos_conhecido()
+    resultado = produzir._serie_desempenho_por_publicacao(
+        df_conteudo, produzir.METRICA_QUANTIDADE
+    )
+    assert resultado["valor"].sum() == 3
+
+
+def test_serie_desempenho_por_publicacao_visualizacoes_vazio_para_posts_puros():
+    # ADR 0024: posts de feed não têm videoPlayCount -- combinação sem
+    # sentido degrada pra série vazia, nunca uma exceção.
+    resultado = produzir._serie_desempenho_por_publicacao(
+        _df_posts_desempenho(), produzir.METRICA_VISUALIZACOES
+    )
+    assert resultado.empty
+
+
+def _conteudo_ambos_conhecido():
+    return produzir._conteudo_do_governador_por_tipo(
+        _df_reels_desempenho(), _df_posts_desempenho(), _GOV_URL, produzir.TIPO_AMBOS
+    )
+
+
+def test_evidencia_de_desempenho_nao_altera_logica_de_recomendacao_existente():
+    # Prova estrutural (ADR 0024): a nova seção é puramente aditiva -- as
+    # funções de recomendação não ganham nenhum parâmetro relacionado a tipo
+    # de conteúdo/métrica/data de publicação.
+    funcoes_recomendacao = (
+        produzir._grupo_maior_engajamento,
+        produzir._mapear_grupos_para_cartoes,
+        produzir._recomendacao_principal,
+        produzir._estatisticas_por_grupo,
+    )
+    parametros_novos = {"tipo", "metrica", "data_inicio", "data_fim"}
+    for fn in funcoes_recomendacao:
+        params = set(inspect.signature(fn).parameters)
+        assert not params & parametros_novos, fn.__name__

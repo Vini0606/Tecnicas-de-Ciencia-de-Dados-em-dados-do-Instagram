@@ -3,11 +3,13 @@ import datetime
 import pandas as pd
 
 from dashboard.core.deltas import (
+    aggregate_metric_by_publication_day,
     aggregate_pct_negative_by_publication_day,
     deduplicate_by_first_seen,
     filter_by_date_range,
     normalize_date_input_range,
     parse_publication_dates,
+    quebrar_em_segmentos,
     run_dates,
     week_over_week,
 )
@@ -266,3 +268,114 @@ def test_normalize_date_input_range_com_duas_datas():
 def test_normalize_date_input_range_com_uma_data_so():
     inicio, fim = normalize_date_input_range((datetime.date(2026, 8, 1),))
     assert inicio == fim == datetime.date(2026, 8, 1)
+
+
+# ---------------------------------------------------------------------------
+# quebrar_em_segmentos (ADR 0023, extraída de radar.py pela ADR 0024 quando
+# ganhou um segundo consumidor real -- os testes abaixo eram
+# `test_quebrar_em_segmentos_*` em tests/test_dashboard_screens_radar.py)
+# ---------------------------------------------------------------------------
+
+
+def _df_timeline_publicacao():
+    return pd.DataFrame(
+        {
+            "data": [
+                datetime.date(2026, 8, 1),
+                datetime.date(2026, 8, 3),
+                datetime.date(2026, 8, 20),
+            ],
+            "pct_negativo": [0.10, 0.50, 0.90],
+        }
+    )
+
+
+def test_quebrar_em_segmentos_quebra_quando_gap_maior_que_limiar():
+    segmentos = quebrar_em_segmentos(_df_timeline_publicacao(), gap_dias=7)
+    # 1/ago -> 3/ago: gap de 2 dias, continua no mesmo segmento.
+    # 3/ago -> 20/ago: gap de 17 dias, > 7 -> novo segmento.
+    assert len(segmentos) == 2
+    assert segmentos[0]["data"].tolist() == [datetime.date(2026, 8, 1), datetime.date(2026, 8, 3)]
+    assert segmentos[1]["data"].tolist() == [datetime.date(2026, 8, 20)]
+
+
+def test_quebrar_em_segmentos_nao_quebra_quando_gap_menor_ou_igual_ao_limiar():
+    df = pd.DataFrame(
+        {
+            "data": [datetime.date(2026, 8, 1), datetime.date(2026, 8, 8)],
+            "pct_negativo": [0.10, 0.20],
+        }
+    )
+    segmentos = quebrar_em_segmentos(df, gap_dias=7)
+    assert len(segmentos) == 1
+    assert len(segmentos[0]) == 2
+
+
+def test_quebrar_em_segmentos_com_dataframe_vazio():
+    assert quebrar_em_segmentos(pd.DataFrame(columns=["data", "pct_negativo"])) == []
+
+
+def test_quebrar_em_segmentos_indiferente_ao_nome_da_segunda_coluna():
+    # ADR 0024: a nova seção de "O que produzir" agrega numa coluna `valor`,
+    # não `pct_negativo" -- a função só olha pra `data`.
+    df = pd.DataFrame(
+        {
+            "data": [datetime.date(2026, 8, 1), datetime.date(2026, 8, 20)],
+            "valor": [10, 20],
+        }
+    )
+    segmentos = quebrar_em_segmentos(df, gap_dias=7)
+    assert len(segmentos) == 2
+
+
+# ---------------------------------------------------------------------------
+# aggregate_metric_by_publication_day (ADR 0024 -- generaliza
+# aggregate_pct_negative_by_publication_day pra curtidas/comentários/
+# visualizações (soma) e quantidade de publicações (contagem))
+# ---------------------------------------------------------------------------
+
+
+def _df_conteudo_por_dia():
+    return pd.DataFrame(
+        {
+            "likesCount": [10, 20, 5],
+            "data_hora": pd.to_datetime(
+                ["2026-08-01 10:00", "2026-08-01 18:00", "2026-08-03 09:00"]
+            ),
+        }
+    )
+
+
+def test_aggregate_metric_by_publication_day_soma_por_dia():
+    resultado = aggregate_metric_by_publication_day(
+        _df_conteudo_por_dia(), metric_col="likesCount", agg="sum"
+    )
+    assert resultado["data"].tolist() == [datetime.date(2026, 8, 1), datetime.date(2026, 8, 3)]
+    assert resultado["valor"].tolist() == [30, 5]
+
+
+def test_aggregate_metric_by_publication_day_conta_linhas_por_dia():
+    resultado = aggregate_metric_by_publication_day(
+        _df_conteudo_por_dia(), metric_col=None, agg="count"
+    )
+    assert resultado["data"].tolist() == [datetime.date(2026, 8, 1), datetime.date(2026, 8, 3)]
+    assert resultado["valor"].tolist() == [2, 1]
+
+
+def test_aggregate_metric_by_publication_day_dataframe_vazio():
+    resultado = aggregate_metric_by_publication_day(pd.DataFrame(), metric_col="likesCount")
+    assert resultado.empty
+    assert list(resultado.columns) == ["data", "valor"]
+
+
+def test_aggregate_metric_by_publication_day_sem_coluna_metrica_retorna_vazio():
+    df = pd.DataFrame({"data_hora": pd.to_datetime(["2026-08-01"])})
+    resultado = aggregate_metric_by_publication_day(df, metric_col="likesCount", agg="sum")
+    assert resultado.empty
+
+
+def test_aggregate_metric_by_publication_day_ignora_data_nao_parseavel():
+    df = pd.DataFrame({"likesCount": [10, 20], "data_hora": ["2026-08-01", "nao-e-data"]})
+    resultado = aggregate_metric_by_publication_day(df, metric_col="likesCount", agg="sum")
+    assert resultado["data"].tolist() == [datetime.date(2026, 8, 1)]
+    assert resultado["valor"].tolist() == [10]

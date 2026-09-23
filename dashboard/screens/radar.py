@@ -64,11 +64,10 @@ from dashboard.core.deltas import (
     aggregate_pct_negative_by_publication_day,
     filter_by_date_range,
     normalize_date_input_range,
+    quebrar_em_segmentos,
     week_over_week,
 )
 from dashboard.core.theme import COLORS
-
-_GAP_DIAS_QUEBRA_LINHA = 7
 
 _PLACEHOLDER_SEM_GOVERNADOR = "—"
 _PLACEHOLDER_SEM_TEMA = "—"
@@ -296,28 +295,9 @@ def _cores_marcador(valores_pct: pd.Series, limiar_pct: float) -> list[str]:
     return [COLORS["danger"]["fg"] if v >= limiar_pct else COLORS["muted"] for v in valores_pct]
 
 
-def _quebrar_em_segmentos(
-    df_timeline: pd.DataFrame, gap_dias: int = _GAP_DIAS_QUEBRA_LINHA
-) -> list[pd.DataFrame]:
-    """Divide `df_timeline` (colunas `data`/`pct_negativo`, ordenado por dia
-    de publicação) numa lista de segmentos contínuos -- um novo segmento
-    sempre que o intervalo entre duas datas consecutivas com dado ultrapassar
-    `gap_dias` (ADR 0023). Uma linha contínua ligando dois pontos distantes
-    sugeriria uma tendência que o dado real não sustenta, já que não há
-    nenhum comentário no meio do intervalo. Lista vazia se `df_timeline`
-    estiver vazio."""
-    if df_timeline.empty:
-        return []
-    df = df_timeline.sort_values("data").reset_index(drop=True)
-    segmentos: list[pd.DataFrame] = []
-    inicio = 0
-    for i in range(1, len(df)):
-        gap = (df["data"].iloc[i] - df["data"].iloc[i - 1]).days
-        if gap > gap_dias:
-            segmentos.append(df.iloc[inicio:i].reset_index(drop=True))
-            inicio = i
-    segmentos.append(df.iloc[inicio:].reset_index(drop=True))
-    return segmentos
+# Quebra de linha em gap > `deltas.GAP_DIAS_QUEBRA_LINHA` dias: usa
+# `deltas.quebrar_em_segmentos` (extraída daqui pela ADR 0024, quando ganhou
+# um segundo consumidor real em `produzir.py`).
 
 
 # ---------------------------------------------------------------------------
@@ -464,7 +444,7 @@ def render() -> None:
         else:
             limiar_pct = LIMIAR_NEGATIVIDADE_ALERTA * 100
             fig = go.Figure()
-            for segmento in _quebrar_em_segmentos(df_timeline):
+            for segmento in quebrar_em_segmentos(df_timeline):
                 valores_pct = (segmento["pct_negativo"] * 100).round(1)
                 cores_marcador = _cores_marcador(valores_pct, limiar_pct)
                 fig.add_trace(

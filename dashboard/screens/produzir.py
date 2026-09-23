@@ -14,6 +14,15 @@ funções puras nomeadas abaixo, testadas em
 Streamlit sobre o resultado dessas funções, nunca calcula nada sozinho (mesmo
 padrão da Tela 1).
 
+ADR 0024 acrescentou uma seção "Evidência histórica de desempenho" logo
+ANTES do rodapé, depois da prova (fila + cartões) -- puramente aditiva: zero
+mudança na lógica de recomendação acima (fila de prioridade, cartões de
+formato, recomendação principal), que continua baseada só no snapshot atual
+de `governor_clusters` (reel-only). A nova seção deixa a analista comparar
+essa recomendação contra a série real de curtidas/comentários/visualizações/
+quantidade de publicações por data de publicação (posts de feed + reels),
+com filtro de calendário próprio, independente do Resumo.
+
 Ambiguidade de spec resolvida nesta issue (ver PR): `topic_priority_score`
 NÃO tem `inputUrl` -- é um ranking GLOBAL de tópicos de comentário sobre os
 27 perfis combinados (ver `src/features/gold/topic_priority_scorer.py`,
@@ -32,12 +41,50 @@ artificialmente quando o governador selecionado tem poucos tópicos próprios
 from __future__ import annotations
 
 import pandas as pd
+import plotly.graph_objects as go
 import streamlit as st
 
 from dashboard.core import data
 from dashboard.core.components import decision_band, footnote, stage_label
+from dashboard.core.deltas import (
+    aggregate_metric_by_publication_day,
+    filter_by_date_range,
+    normalize_date_input_range,
+    quebrar_em_segmentos,
+)
+from dashboard.core.theme import COLORS
 
 _PLACEHOLDER_SEM_GOVERNADOR = "—"
+
+# ---------------------------------------------------------------------------
+# Evidência histórica de desempenho por publicação (ADR 0024) -- seção
+# puramente aditiva, abaixo da recomendação existente (fila + cartões).
+# Substitui o antigo gráfico "por coleta" do rodapé do Resumo.
+# ---------------------------------------------------------------------------
+
+TIPO_AMBOS = "Ambos"
+TIPO_POSTS = "Posts"
+TIPO_REELS = "Reels"
+_ORDEM_TIPOS_CONTEUDO = [TIPO_AMBOS, TIPO_POSTS, TIPO_REELS]
+
+METRICA_QUANTIDADE = "Quantidade de publicações"
+METRICA_CURTIDAS = "Curtidas"
+METRICA_COMENTARIOS = "Comentários"
+METRICA_VISUALIZACOES = "Visualizações"
+_ORDEM_METRICAS = [METRICA_QUANTIDADE, METRICA_CURTIDAS, METRICA_COMENTARIOS, METRICA_VISUALIZACOES]
+
+# `None` (não uma string vazia) sinaliza "sem coluna de métrica" pra
+# `aggregate_metric_by_publication_day(..., agg="count")` -- quantidade de
+# publicações conta linhas, não soma nenhuma coluna.
+_METRICA_PARA_COLUNA = {
+    METRICA_QUANTIDADE: None,
+    METRICA_CURTIDAS: "likesCount",
+    METRICA_COMENTARIOS: "commentsCount",
+    # `videoPlayCount` só existe em reels (`SILVER_REELS_SCHEMA`) -- posts de
+    # feed puro nunca vão ter essa coluna, degradando pro estado vazio em
+    # `_serie_desempenho_por_publicacao` (nunca uma exceção).
+    METRICA_VISUALIZACOES: "videoPlayCount",
+}
 
 # Rótulos de negócio dos 3 cartões de formato (ver CONTEXT.md, "Grupo de
 # desempenho") -- únicas strings usadas para identificar um grupo de cluster
@@ -110,7 +157,7 @@ def _fmt_pct(valor: float | None) -> str:
 def _fmt_int_br(valor: float | None) -> str:
     if valor is None or pd.isna(valor):
         return _PLACEHOLDER_SEM_GOVERNADOR
-    return f"{int(round(valor)):,}".replace(",", ".")
+    return f"{round(valor):,}".replace(",", ".")
 
 
 # ---------------------------------------------------------------------------
@@ -412,6 +459,42 @@ def _recomendacao_principal(
     return {"topic_name": topico["Name"], "grupo": grupo}
 
 
+def _conteudo_do_governador_por_tipo(
+    df_reels: pd.DataFrame, df_posts: pd.DataFrame, governor_url: str, tipo: str
+) -> pd.DataFrame:
+    """`DataFrame` combinado (reels e/ou posts de feed, conforme `tipo` --
+    um dos `TIPO_*` acima) do governador selecionado, já filtrado por
+    `inputUrl` (ADR 0024). `DataFrame` vazio (nunca exceção) se a(s)
+    fonte(s) pedida(s) estiverem vazias ou sem match para este governador."""
+    fontes = []
+    if tipo in (TIPO_REELS, TIPO_AMBOS):
+        fontes.append(df_reels)
+    if tipo in (TIPO_POSTS, TIPO_AMBOS):
+        fontes.append(df_posts)
+
+    partes = [_filtrar_por_governador(df, governor_url) for df in fontes]
+    partes = [p for p in partes if not p.empty]
+    if not partes:
+        return pd.DataFrame()
+    return pd.concat(partes, ignore_index=True)
+
+
+def _serie_desempenho_por_publicacao(df_conteudo: pd.DataFrame, metrica: str) -> pd.DataFrame:
+    """Série agregada por dia de publicação (colunas `data`/`valor`) para
+    `metrica` (um dos `METRICA_*` acima) -- `ADR 0024`, generaliza a
+    agregação por dia já usada no Radar (`aggregate_pct_negative_by_
+    publication_day`, ADR 0023) via `aggregate_metric_by_publication_day`.
+
+    Contagem de linhas (`agg="count"`) para `METRICA_QUANTIDADE`, soma
+    (`agg="sum"`) para as demais. `DataFrame` vazio (colunas `data`/`valor`,
+    nunca exceção) se `df_conteudo` estiver vazio ou sem a coluna da métrica
+    pedida -- caso real e esperado quando `metrica == METRICA_VISUALIZACOES`
+    e `tipo == TIPO_POSTS` (posts de feed não têm `videoPlayCount`)."""
+    coluna = _METRICA_PARA_COLUNA[metrica]
+    agg = "count" if metrica == METRICA_QUANTIDADE else "sum"
+    return aggregate_metric_by_publication_day(df_conteudo, metric_col=coluna, agg=agg)
+
+
 # ---------------------------------------------------------------------------
 # render()
 # ---------------------------------------------------------------------------
@@ -513,5 +596,74 @@ def render() -> None:
             else:
                 st.write(f"{stats['n']} reel(s)")
                 st.caption(f"Engajamento médio: {_fmt_int_br(stats['engajamento_medio'])}")
+
+    # ---- Evidência histórica de desempenho (ADR 0024) ----
+    # Seção puramente aditiva -- não influencia a recomendação acima (fila +
+    # cartões, calculada só sobre o snapshot atual). Substitui o antigo
+    # gráfico de tendência "por coleta" que vivia no rodapé do Resumo; filtro
+    # de calendário próprio, independente do Resumo.
+    st.markdown("#### Evidência histórica de desempenho")
+    # `load_reels_content()`/`load_posts_content()` retornam TODOS os 27
+    # perfis -- `_conteudo_do_governador_por_tipo` filtra por `governor_url`
+    # internamente.
+    df_reels_conteudo = data.load_reels_content()
+    df_posts_conteudo = data.load_posts_content()
+
+    col_tipo, col_metrica = st.columns(2)
+    with col_tipo:
+        tipo_selecionado = st.selectbox(
+            "Tipo de conteúdo", options=_ORDEM_TIPOS_CONTEUDO, key="produzir_tipo_conteudo"
+        )
+    with col_metrica:
+        metrica_selecionada = st.selectbox(
+            "Métrica", options=_ORDEM_METRICAS, key="produzir_metrica_desempenho"
+        )
+
+    df_conteudo = _conteudo_do_governador_por_tipo(
+        df_reels_conteudo, df_posts_conteudo, governor_url, tipo_selecionado
+    )
+    df_serie_completa = _serie_desempenho_por_publicacao(df_conteudo, metrica_selecionada)
+
+    if df_serie_completa.empty:
+        st.caption(
+            "Sem dado disponível para essa combinação de tipo de conteúdo e "
+            "métrica ainda -- comum quando \"Visualizações\" é escolhida com "
+            "\"Posts\" (posts de feed não têm contagem de visualização)."
+        )
+    else:
+        data_min = df_serie_completa["data"].min()
+        data_max = df_serie_completa["data"].max()
+        intervalo = st.date_input(
+            "Período (data de publicação)",
+            value=(data_min, data_max),
+            min_value=data_min,
+            max_value=data_max,
+            key="produzir_intervalo_desempenho",
+        )
+        data_inicio, data_fim = normalize_date_input_range(intervalo)
+        df_serie = filter_by_date_range(df_serie_completa, "data", data_inicio, data_fim)
+
+        if df_serie.empty:
+            st.caption("Nenhuma publicação no período selecionado.")
+        else:
+            fig = go.Figure()
+            for segmento in quebrar_em_segmentos(df_serie):
+                fig.add_trace(
+                    go.Scatter(
+                        x=segmento["data"],
+                        y=segmento["valor"],
+                        mode="lines+markers",
+                        line={"color": COLORS["muted"]},
+                        marker={"color": COLORS["muted"], "size": 6},
+                        showlegend=False,
+                    )
+                )
+            fig.update_layout(
+                yaxis_title=metrica_selecionada,
+                xaxis_title="Data de publicação",
+                showlegend=False,
+                margin={"t": 30, "b": 10},
+            )
+            st.plotly_chart(fig, use_container_width=True)
 
     footnote()
