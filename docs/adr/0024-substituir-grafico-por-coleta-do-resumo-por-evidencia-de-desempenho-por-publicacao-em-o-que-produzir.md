@@ -2,6 +2,12 @@
 status: accepted
 ---
 
+> **Nota (superseded parcial):** a decisão de ONDE a seção "Evidência histórica de desempenho" mora foi
+> revertida pela ADR [0026](0026-resumo-perde-destaques-ganha-evidencia-e-kpis-de-crescimento-redistribuicao-produzir-radar.md)
+> -- a seção migrou de "O que produzir" de volta para o Resumo. A decisão de AGREGAÇÃO/DADO desta ADR
+> (`load_posts_content()`, agregação genérica por dia, `quebrar_em_segmentos` compartilhada) continua
+> válida e não foi afetada.
+
 # Substituir gráfico "por coleta" do Resumo por evidência de desempenho por publicação em "O que produzir"
 
 ## Contexto
