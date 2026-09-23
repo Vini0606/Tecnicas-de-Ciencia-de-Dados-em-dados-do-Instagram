@@ -39,10 +39,20 @@ def test_load_profiles_returns_delta_table(tmp_path, monkeypatch):
     _clear_caches()
 
 
-def test_load_clusters_returns_empty_dataframe_when_missing(tmp_path, monkeypatch):
+def test_load_clusters_reels_returns_empty_dataframe_when_missing(tmp_path, monkeypatch):
     _point_settings_at(monkeypatch, tmp_path)
 
-    out = loaders.load_clusters()
+    out = loaders.load_clusters_reels()
+
+    assert isinstance(out, pd.DataFrame)
+    assert out.empty
+    _clear_caches()
+
+
+def test_load_clusters_posts_returns_empty_dataframe_when_missing(tmp_path, monkeypatch):
+    _point_settings_at(monkeypatch, tmp_path)
+
+    out = loaders.load_clusters_posts()
 
     assert isinstance(out, pd.DataFrame)
     assert out.empty

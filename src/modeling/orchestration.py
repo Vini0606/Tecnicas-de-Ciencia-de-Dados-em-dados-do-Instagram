@@ -162,18 +162,26 @@ def run_deterministic_modeling(
     df_comments_final = _merge_topic_info(df_comments_preprocessed, document_info)
 
     enricher = ModelEnricher()
-    # `content_type` (ADR 0020, Ficha 2) distingue as duas granularidades na
-    # mesma tabela `governor_clusters` -- as duas são combinadas antes de
-    # uma única escrita (overwrite), para que reels e feed coexistam sem uma
-    # sobrescrever a outra.
-    df_clusters_combined = pd.concat(
-        [
-            df_reels_clustered.assign(content_type="reel"),
-            df_posts_clustered.assign(content_type="feed"),
-        ],
-        ignore_index=True,
+    # issue #152: `governor_clusters` era uma tabela única discriminada por
+    # `content_type`, combinando os dois DataFrames via `pd.concat` antes de
+    # uma única escrita -- mas `posts_clean`/`reels_clean` (Silver) se
+    # sobrepõem (um Reel também é capturado pelo post-scraper genérico no
+    # grid do perfil), então o mesmo post real entrava como 2 linhas dessa
+    # tabela, às vezes com `cluster_label` diferente entre os dois
+    # pipelines. Duas tabelas Gold separadas, uma por formato, eliminam a
+    # sobreposição por construção: os dois clusterings continuam sendo
+    # análises legitimamente diferentes sobre o mesmo post, cada uma na sua
+    # própria tabela/linha.
+    enricher.write_clusters(
+        df_reels_clustered.assign(content_type="reel"),
+        config.gold_clusters_reels_path,
+        run_id,
     )
-    enricher.write_clusters(df_clusters_combined, config.gold_clusters_path, run_id)
+    enricher.write_clusters(
+        df_posts_clustered.assign(content_type="feed"),
+        config.gold_clusters_posts_path,
+        run_id,
+    )
     # `generated_at` calculado uma vez e repassado às duas escritas de
     # sentimento abaixo, para que governor_sentiment e
     # governor_sentiment_history carimbem o mesmo timestamp -- mesmo

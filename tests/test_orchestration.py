@@ -156,7 +156,8 @@ def test_run_deterministic_modeling_grava_clusters_e_sentimento_com_mesmo_run_id
 
     config = ModelingConfig(
         cluster=ClusterConfig(max_evals_per_algo=10, random_state=42, max_n_clusters=5),
-        gold_clusters_path=tmp_path / "governor_clusters",
+        gold_clusters_reels_path=tmp_path / "governor_clusters_reels",
+        gold_clusters_posts_path=tmp_path / "governor_clusters_posts",
         gold_sentiment_path=tmp_path / "governor_sentiment",
         gold_sentiment_history_path=tmp_path / "governor_sentiment_history",
         gold_discourse_topics_path=tmp_path / "governor_discourse_topics",
@@ -173,21 +174,20 @@ def test_run_deterministic_modeling_grava_clusters_e_sentimento_com_mesmo_run_id
         _df_reels(), _df_comments(), _df_posts_placeholder(), _df_engagement_placeholder(), config
     )
 
-    clusters_out = DeltaTable(str(config.gold_clusters_path)).to_pandas()
+    clusters_reels_out = DeltaTable(str(config.gold_clusters_reels_path)).to_pandas()
+    clusters_posts_out = DeltaTable(str(config.gold_clusters_posts_path)).to_pandas()
     sentiment_out = DeltaTable(str(config.gold_sentiment_path)).to_pandas()
 
-    # ADR 0020 (Ficha 2 / issue #87): governor_clusters agora grava reels e
-    # posts do feed juntos, discriminados por `content_type`.
-    assert len(clusters_out) == len(_df_reels()) + len(_df_posts_placeholder())
-    assert set(clusters_out["content_type"].unique()) == {"reel", "feed"}
-    assert (
-        clusters_out.loc[clusters_out["content_type"] == "reel"].shape[0] == len(_df_reels())
-    )
-    assert (
-        clusters_out.loc[clusters_out["content_type"] == "feed"].shape[0]
-        == len(_df_posts_placeholder())
-    )
-    assert (clusters_out["_run_id"] == result.run_id).all()
+    # issue #152: `governor_clusters` deixou de ser uma tabela única
+    # combinando reels e posts do feed via `pd.concat` (que duplicava
+    # posts sobrepostos entre `posts_clean`/`reels_clean`) e virou duas
+    # tabelas Gold separadas, uma por formato.
+    assert len(clusters_reels_out) == len(_df_reels())
+    assert len(clusters_posts_out) == len(_df_posts_placeholder())
+    assert (clusters_reels_out["content_type"] == "reel").all()
+    assert (clusters_posts_out["content_type"] == "feed").all()
+    assert (clusters_reels_out["_run_id"] == result.run_id).all()
+    assert (clusters_posts_out["_run_id"] == result.run_id).all()
     assert (sentiment_out["_run_id"] == result.run_id).all()
     # ADR 0020 (Ficha 3) / issue #88: `governor_sentiment` agora também
     # recebe legenda/transcrição (fonte "legenda"/"transcricao") -- só a
@@ -222,7 +222,8 @@ def test_run_deterministic_modeling_grava_score_ice_por_topico_de_comentario(
 
     config = ModelingConfig(
         cluster=ClusterConfig(max_evals_per_algo=10, random_state=42, max_n_clusters=5),
-        gold_clusters_path=tmp_path / "governor_clusters",
+        gold_clusters_reels_path=tmp_path / "governor_clusters_reels",
+        gold_clusters_posts_path=tmp_path / "governor_clusters_posts",
         gold_sentiment_path=tmp_path / "governor_sentiment",
         gold_sentiment_history_path=tmp_path / "governor_sentiment_history",
         gold_discourse_topics_path=tmp_path / "governor_discourse_topics",
@@ -270,7 +271,8 @@ def test_run_deterministic_modeling_grava_nsm_por_perfil(monkeypatch, tmp_path):
 
     config = ModelingConfig(
         cluster=ClusterConfig(max_evals_per_algo=10, random_state=42, max_n_clusters=5),
-        gold_clusters_path=tmp_path / "governor_clusters",
+        gold_clusters_reels_path=tmp_path / "governor_clusters_reels",
+        gold_clusters_posts_path=tmp_path / "governor_clusters_posts",
         gold_sentiment_path=tmp_path / "governor_sentiment",
         gold_sentiment_history_path=tmp_path / "governor_sentiment_history",
         gold_discourse_topics_path=tmp_path / "governor_discourse_topics",
@@ -334,7 +336,8 @@ def test_run_deterministic_modeling_grava_sentimento_de_legenda_e_transcricao(
 
     config = ModelingConfig(
         cluster=ClusterConfig(max_evals_per_algo=10, random_state=42, max_n_clusters=5),
-        gold_clusters_path=tmp_path / "governor_clusters",
+        gold_clusters_reels_path=tmp_path / "governor_clusters_reels",
+        gold_clusters_posts_path=tmp_path / "governor_clusters_posts",
         gold_sentiment_path=tmp_path / "governor_sentiment",
         gold_sentiment_history_path=tmp_path / "governor_sentiment_history",
         gold_discourse_topics_path=tmp_path / "governor_discourse_topics",
@@ -394,7 +397,8 @@ def test_run_deterministic_modeling_grava_topicos_de_discurso_separados_de_comen
 
     config = ModelingConfig(
         cluster=ClusterConfig(max_evals_per_algo=10, random_state=42, max_n_clusters=5),
-        gold_clusters_path=tmp_path / "governor_clusters",
+        gold_clusters_reels_path=tmp_path / "governor_clusters_reels",
+        gold_clusters_posts_path=tmp_path / "governor_clusters_posts",
         gold_sentiment_path=tmp_path / "governor_sentiment",
         gold_sentiment_history_path=tmp_path / "governor_sentiment_history",
         gold_discourse_topics_path=tmp_path / "governor_discourse_topics",
@@ -451,7 +455,8 @@ def test_run_deterministic_modeling_grava_sentimento_tambem_no_historico_em_appe
 
     config = ModelingConfig(
         cluster=ClusterConfig(max_evals_per_algo=10, random_state=42, max_n_clusters=5),
-        gold_clusters_path=tmp_path / "governor_clusters",
+        gold_clusters_reels_path=tmp_path / "governor_clusters_reels",
+        gold_clusters_posts_path=tmp_path / "governor_clusters_posts",
         gold_sentiment_path=tmp_path / "governor_sentiment",
         gold_sentiment_history_path=tmp_path / "governor_sentiment_history",
         gold_discourse_topics_path=tmp_path / "governor_discourse_topics",
@@ -498,7 +503,8 @@ def test_refine_topics_with_gemini_nao_grava_no_historico_de_sentimento(monkeypa
 
     config = ModelingConfig(
         cluster=ClusterConfig(max_evals_per_algo=10, random_state=42, max_n_clusters=5),
-        gold_clusters_path=tmp_path / "governor_clusters",
+        gold_clusters_reels_path=tmp_path / "governor_clusters_reels",
+        gold_clusters_posts_path=tmp_path / "governor_clusters_posts",
         gold_sentiment_path=tmp_path / "governor_sentiment",
         gold_sentiment_history_path=tmp_path / "governor_sentiment_history",
         gold_discourse_topics_path=tmp_path / "governor_discourse_topics",
@@ -555,7 +561,8 @@ def test_run_deterministic_modeling_grava_parent_run_id_como_primeira_linha_do_l
 
     config = ModelingConfig(
         cluster=ClusterConfig(max_evals_per_algo=10, random_state=42, max_n_clusters=5),
-        gold_clusters_path=tmp_path / "governor_clusters",
+        gold_clusters_reels_path=tmp_path / "governor_clusters_reels",
+        gold_clusters_posts_path=tmp_path / "governor_clusters_posts",
         gold_sentiment_path=tmp_path / "governor_sentiment",
         gold_sentiment_history_path=tmp_path / "governor_sentiment_history",
         gold_discourse_topics_path=tmp_path / "governor_discourse_topics",
@@ -606,7 +613,8 @@ def test_refine_topics_with_gemini_so_reescreve_sentimento_com_run_id_novo(
 
     config = ModelingConfig(
         cluster=ClusterConfig(max_evals_per_algo=10, random_state=42, max_n_clusters=5),
-        gold_clusters_path=tmp_path / "governor_clusters",
+        gold_clusters_reels_path=tmp_path / "governor_clusters_reels",
+        gold_clusters_posts_path=tmp_path / "governor_clusters_posts",
         gold_sentiment_path=tmp_path / "governor_sentiment",
         gold_sentiment_history_path=tmp_path / "governor_sentiment_history",
         gold_discourse_topics_path=tmp_path / "governor_discourse_topics",
@@ -634,15 +642,16 @@ def test_refine_topics_with_gemini_so_reescreve_sentimento_com_run_id_novo(
     assert refinement.run_id != result.run_id
 
     sentiment_out = DeltaTable(str(gemini_config.gold_sentiment_path)).to_pandas()
-    clusters_out = DeltaTable(str(config.gold_clusters_path)).to_pandas()
+    clusters_reels_out = DeltaTable(str(config.gold_clusters_reels_path)).to_pandas()
 
     # A segunda escrita é overwrite: só o run_id do refinamento sobra em
     # governor_sentiment, com os rótulos finais.
     assert (sentiment_out["_run_id"] == refinement.run_id).all()
     assert (sentiment_out["Name"] == "0_refinado").all()
 
-    # governor_clusters não é tocado pelo refinamento de tópicos.
-    assert (clusters_out["_run_id"] == result.run_id).all()
+    # governor_clusters_reels/governor_clusters_posts não são tocadas pelo
+    # refinamento de tópicos.
+    assert (clusters_reels_out["_run_id"] == result.run_id).all()
 
 
 def test_refine_topics_with_gemini_recalcula_score_ice_com_topico_refinado(
@@ -667,7 +676,8 @@ def test_refine_topics_with_gemini_recalcula_score_ice_com_topico_refinado(
 
     config = ModelingConfig(
         cluster=ClusterConfig(max_evals_per_algo=10, random_state=42, max_n_clusters=5),
-        gold_clusters_path=tmp_path / "governor_clusters",
+        gold_clusters_reels_path=tmp_path / "governor_clusters_reels",
+        gold_clusters_posts_path=tmp_path / "governor_clusters_posts",
         gold_sentiment_path=tmp_path / "governor_sentiment",
         gold_sentiment_history_path=tmp_path / "governor_sentiment_history",
         gold_discourse_topics_path=tmp_path / "governor_discourse_topics",
@@ -786,7 +796,8 @@ def _config_performance(tmp_path):
     return ModelingConfig(
         cluster=ClusterConfig(max_evals_per_algo=10, random_state=42, max_n_clusters=5),
         post_performance=PostPerformanceConfig(holdout_governors_count=2, lasso_cv_folds=2),
-        gold_clusters_path=tmp_path / "governor_clusters",
+        gold_clusters_reels_path=tmp_path / "governor_clusters_reels",
+        gold_clusters_posts_path=tmp_path / "governor_clusters_posts",
         gold_sentiment_path=tmp_path / "governor_sentiment",
         gold_sentiment_history_path=tmp_path / "governor_sentiment_history",
         gold_discourse_topics_path=tmp_path / "governor_discourse_topics",
@@ -865,7 +876,8 @@ def test_run_deterministic_modeling_degrada_sem_derrubar_pipeline_se_performance
 
     config = ModelingConfig(
         cluster=ClusterConfig(max_evals_per_algo=10, random_state=42, max_n_clusters=5),
-        gold_clusters_path=tmp_path / "governor_clusters",
+        gold_clusters_reels_path=tmp_path / "governor_clusters_reels",
+        gold_clusters_posts_path=tmp_path / "governor_clusters_posts",
         gold_sentiment_path=tmp_path / "governor_sentiment",
         gold_sentiment_history_path=tmp_path / "governor_sentiment_history",
         gold_discourse_topics_path=tmp_path / "governor_discourse_topics",
@@ -883,8 +895,8 @@ def test_run_deterministic_modeling_degrada_sem_derrubar_pipeline_se_performance
     )
 
     # Os demais estágios completaram normalmente, apesar da falha.
-    clusters_out = DeltaTable(str(config.gold_clusters_path)).to_pandas()
-    assert (clusters_out["_run_id"] == result.run_id).all()
+    clusters_reels_out = DeltaTable(str(config.gold_clusters_reels_path)).to_pandas()
+    assert (clusters_reels_out["_run_id"] == result.run_id).all()
     checkpoint_dir = config.checkpoints_dir / result.run_id
     assert (checkpoint_dir / "metadata.json").exists()
 
@@ -954,7 +966,8 @@ def test_run_deterministic_modeling_grava_clusters_de_perfil_por_engajamento(
             random_state=42,
             max_n_clusters=5,
         ),
-        gold_clusters_path=tmp_path / "governor_clusters",
+        gold_clusters_reels_path=tmp_path / "governor_clusters_reels",
+        gold_clusters_posts_path=tmp_path / "governor_clusters_posts",
         gold_sentiment_path=tmp_path / "governor_sentiment",
         gold_sentiment_history_path=tmp_path / "governor_sentiment_history",
         gold_discourse_topics_path=tmp_path / "governor_discourse_topics",
@@ -1000,7 +1013,8 @@ def test_run_deterministic_modeling_degrada_sem_derrubar_pipeline_se_cluster_per
 
     config = ModelingConfig(
         cluster=ClusterConfig(max_evals_per_algo=10, random_state=42, max_n_clusters=5),
-        gold_clusters_path=tmp_path / "governor_clusters",
+        gold_clusters_reels_path=tmp_path / "governor_clusters_reels",
+        gold_clusters_posts_path=tmp_path / "governor_clusters_posts",
         gold_sentiment_path=tmp_path / "governor_sentiment",
         gold_sentiment_history_path=tmp_path / "governor_sentiment_history",
         gold_discourse_topics_path=tmp_path / "governor_discourse_topics",
@@ -1019,6 +1033,6 @@ def test_run_deterministic_modeling_degrada_sem_derrubar_pipeline_se_cluster_per
         _df_reels(), _df_comments(), _df_posts_placeholder(), _df_engagement_placeholder(), config
     )
 
-    clusters_out = DeltaTable(str(config.gold_clusters_path)).to_pandas()
-    assert (clusters_out["_run_id"] == result.run_id).all()
+    clusters_reels_out = DeltaTable(str(config.gold_clusters_reels_path)).to_pandas()
+    assert (clusters_reels_out["_run_id"] == result.run_id).all()
     assert not config.gold_profile_clusters_engagement_path.exists()

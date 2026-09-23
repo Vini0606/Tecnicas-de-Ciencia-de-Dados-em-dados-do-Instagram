@@ -566,7 +566,7 @@ def test_filtrar_por_governador_normaliza_barra_final_e_caixa():
 def test_melhor_post_contra_tabelas_delta_reais(tmp_path, monkeypatch):
     _point_settings_at(monkeypatch, tmp_path)
 
-    clusters_path = settings.GOLD_DIR / "governor_clusters"
+    clusters_path = settings.GOLD_DIR / "governor_clusters_reels"
     write_deltalake(str(clusters_path), _df_clusters_conteudo(), mode="overwrite")
 
     reels_path = settings.SILVER_DIR / "reels_clean"

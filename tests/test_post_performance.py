@@ -264,6 +264,37 @@ def test_run_post_performance_stage_usa_o_mesmo_holdout_nos_dois_grupos():
     assert coef_estatico["n_holdout"].iloc[0] == n_holdout_estatico_esperado
 
 
+def test_run_post_performance_stage_exclui_id_sobreposto_do_grupo_estatico():
+    """issue #152: um Reel também aparece no grid geral do perfil, então o
+    post-scraper genérico (`df_posts`) pode capturar o MESMO post real que
+    o reel-scraper (`df_reels`), com o mesmo `id`. Sem exclusão, esse post
+    real entraria como observação nos dois grupos simultaneamente, cada um
+    sob um desenho de alvo diferente -- violando o agrupamento mutuamente
+    exclusivo que a ADR 0019 pressupõe ao decidir "por tabela de origem".
+    O `id` sobreposto deve sobreviver só no grupo vídeo (reel-scraper é a
+    fonte autoritativa para esse conteúdo)."""
+    df_engagement = _df_engagement()
+    df_reels = _df_reels(df_engagement)
+    df_posts = _df_posts(df_engagement)
+
+    id_sobreposto = df_reels["id"].iloc[0]
+    df_posts.loc[df_posts.index[0], "id"] = id_sobreposto
+
+    config = _config()
+    resultado = run_post_performance_stage(df_posts, df_reels, df_engagement, config)
+
+    ids_estatico = set(
+        resultado.predictions.loc[resultado.predictions["grupo"] == GRUPO_ESTATICO, "id"]
+    )
+    ids_video = set(
+        resultado.predictions.loc[resultado.predictions["grupo"] == GRUPO_VIDEO, "id"]
+    )
+    assert id_sobreposto not in ids_estatico
+    assert id_sobreposto in ids_video
+    # Nenhum outro post do grupo estático foi descartado por engano.
+    assert len(resultado.predictions) == len(df_reels) + len(df_posts) - 1
+
+
 def test_check_circularity_passa_com_preditores_reais_do_grupo_video():
     df_engagement = _df_engagement()
     config = _config()

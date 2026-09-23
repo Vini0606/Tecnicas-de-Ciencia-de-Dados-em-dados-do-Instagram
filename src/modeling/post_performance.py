@@ -301,7 +301,19 @@ def run_post_performance_stage(
 
     `df_posts` precisa já ter passado por
     `src.modeling.topics.classify_post_topics` (issue B) -- é de lá que vem
-    a coluna `Topic` (Tema)."""
+    a coluna `Topic` (Tema).
+
+    `df_posts`/`df_reels` (Silver) podem se sobrepor: um Reel também
+    aparece no grid geral do perfil, então o post-scraper genérico às
+    vezes captura o MESMO post real que o reel-scraper, com o mesmo `id`
+    (issue #152). Sem tratamento, esse post entraria como observação nos
+    dois grupos simultaneamente, cada um sob um desenho de alvo diferente
+    -- violando o agrupamento mutuamente exclusivo que esta função já
+    pressupõe ao treinar "vídeo"/"estático" por tabela de origem. O `id`
+    sobreposto sobrevive só no grupo vídeo (reel-scraper é a fonte
+    autoritativa para esse conteúdo -- é semanticamente um Reel)."""
+    df_posts = df_posts[~df_posts["id"].isin(df_reels["id"])]
+
     holdout_governors = select_holdout_governors(df_engagement["id"], config)
 
     resultados: list[GroupModelResult] = []

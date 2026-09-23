@@ -50,7 +50,8 @@ SILVER_TABLES = {
 GOLD_TABLES = {
     "governor_engagement": settings.GOLD_ENGAGEMENT,
     "governor_sentiment": settings.GOLD_SENTIMENT,
-    "governor_clusters": settings.GOLD_CLUSTERS,
+    "governor_clusters_reels": settings.GOLD_CLUSTERS_REELS,
+    "governor_clusters_posts": settings.GOLD_CLUSTERS_POSTS,
     "governor_profile_clusters_engagement": settings.GOLD_PROFILE_CLUSTERS_ENGAGEMENT,
 }
 # governor_engagement e escrito por toda invocacao de run_medallion_pipeline,
@@ -58,7 +59,8 @@ GOLD_TABLES = {
 # outros tres (saida de run_deterministic_modeling/lambdas/model).
 GOLD_MODELING_TABLES = {
     "governor_sentiment",
-    "governor_clusters",
+    "governor_clusters_reels",
+    "governor_clusters_posts",
     "governor_profile_clusters_engagement",
 }
 

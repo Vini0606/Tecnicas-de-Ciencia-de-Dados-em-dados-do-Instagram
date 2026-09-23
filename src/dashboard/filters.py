@@ -29,7 +29,7 @@ import pandas as pd
 import streamlit as st
 
 from src.dashboard.loaders import (
-    load_clusters,
+    load_clusters_reels,
     load_governors_metadata,
     load_nsm,
     load_profile_clusters_engagement,
@@ -132,12 +132,18 @@ def build_cluster_membership() -> pd.DataFrame:
     `reels_clean` (Silver) é uma tabela "core" do pipeline (existe desde que
     o Silver tenha rodado alguma vez), mas o filtro de cluster é opcional --
     então tratamos a ausência dela aqui como "sem dado ainda", não como erro,
-    para não derrubar `exploratory`/`modeling` por causa de um filtro opcional."""
+    para não derrubar `exploratory`/`modeling` por causa de um filtro opcional.
+
+    Lê `governor_clusters_reels` (issue #152) em vez da antiga
+    `governor_clusters` combinada -- como `posts_clean`/`reels_clean` se
+    sobrepõem, o merge `how="inner"` contra uma tabela combinada arriscava
+    leque (1 reel casando com 2 linhas, uma por `content_type`); a tabela só
+    de reels garante no máximo 1 linha de cluster por `id`."""
     try:
         df_reels = load_reels()
     except FileNotFoundError:
         return pd.DataFrame(columns=["inputUrl", "cluster_label"])
-    df_clusters = load_clusters()
+    df_clusters = load_clusters_reels()
     if df_reels.empty or df_clusters.empty:
         return pd.DataFrame(columns=["inputUrl", "cluster_label"])
     merged = df_reels.merge(df_clusters, left_on="id", right_on="id_reel", how="inner")

@@ -319,27 +319,25 @@ def test_write_clusters_falha_com_mensagem_clara_se_faltar_content_type(tmp_path
         ModelEnricher().write_clusters(df_incompleto, tmp_path / "governor_clusters", run_id="r1")
 
 
-def test_write_clusters_grava_reel_e_feed_juntos_sem_colidir(tmp_path):
-    """ADR 0020 (Ficha 2 / issue #87): a clusterização de posts do feed
-    grava em `governor_clusters` (tabela existente) ao lado das linhas de
-    reel já existentes, discriminadas por `content_type` -- não uma tabela
-    nova. Uma única escrita combinando os dois DataFrames (o padrão que
-    `run_deterministic_modeling` usa) precisa preservar as linhas das duas
-    granularidades."""
-    path = tmp_path / "governor_clusters"
-    df_combinado = pd.concat(
-        [_reels_clusterizados(), _feed_clusterizados()], ignore_index=True
-    )
+def test_write_clusters_grava_reel_e_feed_em_tabelas_separadas_sem_colidir(tmp_path):
+    """issue #152: `posts_clean`/`reels_clean` (Silver) se sobrepõem (um
+    Reel também é capturado pelo post-scraper genérico no grid do perfil),
+    então uma única tabela combinada por `pd.concat` duplicava o mesmo post
+    real sob dois `content_type`. `run_deterministic_modeling` passou a
+    chamar `write_clusters` uma vez por formato, cada um com seu próprio
+    `path` -- as duas escritas não podem colidir nem se sobrescrever."""
+    path_reels = tmp_path / "governor_clusters_reels"
+    path_posts = tmp_path / "governor_clusters_posts"
 
-    ModelEnricher().write_clusters(df_combinado, path, run_id="r1")
+    ModelEnricher().write_clusters(_reels_clusterizados(), path_reels, run_id="r1")
+    ModelEnricher().write_clusters(_feed_clusterizados(), path_posts, run_id="r1")
 
-    out = DeltaTable(str(path)).to_pandas()
-    assert len(out) == 4
-    assert set(out["content_type"].unique()) == {"reel", "feed"}
-    assert set(out.loc[out["content_type"] == "reel", "id_reel"]) == {"r1", "r2"}
-    assert set(out.loc[out["content_type"] == "feed", "id_reel"]) == {"p1", "p2"}
-    # Nenhuma linha perdida/sobrescrita entre as duas granularidades.
-    assert out["id_reel"].nunique() == 4
+    out_reels = DeltaTable(str(path_reels)).to_pandas()
+    out_posts = DeltaTable(str(path_posts)).to_pandas()
+    assert set(out_reels["id_reel"]) == {"r1", "r2"}
+    assert (out_reels["content_type"] == "reel").all()
+    assert set(out_posts["id_reel"]) == {"p1", "p2"}
+    assert (out_posts["content_type"] == "feed").all()
 
 
 def _perfis_clusterizados():

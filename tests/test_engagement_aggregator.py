@@ -138,3 +138,80 @@ def test_wc_e_o_mesmo_para_todas_as_linhas_da_execucao():
     mesma execução carrega o mesmo valor."""
     df = EngagementAggregator().aggregate(_perfis(), _publicacoes(), pd.DataFrame(), "r1")
     assert df["_WC_COMENTARIO"].nunique() == 1
+
+
+def test_deduplica_post_sobreposto_entre_posts_e_reels_por_id():
+    """issue #152: um Reel também aparece no grid geral do perfil, então o
+    post-scraper genérico (`df_posts_silver`) e o reel-scraper
+    (`df_reels_silver`) capturam o MESMO post real com o mesmo `id` --
+    `likesCount`/`commentsCount` são o mesmo contador ao vivo do Instagram
+    lido duas vezes, não dois públicos diferentes. Somar os dois (como o
+    `pd.concat` fazia antes) infla `TOTAL ENGAJAMENTO` e conta a publicação
+    duas vezes em `count`/`FREQUENCIA`. A dedup mantém o valor mais
+    completo (max) por campo e conta o post sobreposto uma única vez."""
+    posts = pd.DataFrame(
+        {
+            "id": ["p1"],
+            "ownerId": ["1"],
+            "ownerUsername": ["ativo"],
+            "commentsCount": [10],
+            "likesCount": [100],
+            "data_hora": pd.to_datetime(["2026-05-01"]),
+            "Tipo": ["FEED"],
+        }
+    )
+    # Mesmo `id` (mesmo shortCode real), snapshot levemente mais completo
+    # capturado pelo reel-scraper (fonte autoritativa para este conteúdo).
+    reels = pd.DataFrame(
+        {
+            "id": ["p1"],
+            "ownerId": ["1"],
+            "ownerUsername": ["ativo"],
+            "commentsCount": [12],
+            "likesCount": [110],
+            "data_hora": pd.to_datetime(["2026-05-01"]),
+            "Tipo": ["REEL"],
+        }
+    )
+
+    df = EngagementAggregator().aggregate(_perfis(), posts, reels, "r1")
+
+    ativo = df.loc[df["username"] == "ativo"].iloc[0]
+    assert ativo["likesSum"] == 110
+    assert ativo["commentsSum"] == 12
+    assert ativo["count"] == 1
+    assert ativo["TOTAL ENGAJAMENTO"] == 122
+
+
+def test_nao_deduplica_ids_distintos_entre_posts_e_reels():
+    """Posts/reels sem sobreposição real (ids diferentes) continuam somando
+    normalmente -- a dedup só age sobre `id` repetido entre as duas fontes."""
+    posts = pd.DataFrame(
+        {
+            "id": ["p1"],
+            "ownerId": ["1"],
+            "ownerUsername": ["ativo"],
+            "commentsCount": [10],
+            "likesCount": [100],
+            "data_hora": pd.to_datetime(["2026-05-01"]),
+            "Tipo": ["FEED"],
+        }
+    )
+    reels = pd.DataFrame(
+        {
+            "id": ["r1"],
+            "ownerId": ["1"],
+            "ownerUsername": ["ativo"],
+            "commentsCount": [5],
+            "likesCount": [50],
+            "data_hora": pd.to_datetime(["2026-05-02"]),
+            "Tipo": ["REEL"],
+        }
+    )
+
+    df = EngagementAggregator().aggregate(_perfis(), posts, reels, "r1")
+
+    ativo = df.loc[df["username"] == "ativo"].iloc[0]
+    assert ativo["likesSum"] == 150
+    assert ativo["commentsSum"] == 15
+    assert ativo["count"] == 2
