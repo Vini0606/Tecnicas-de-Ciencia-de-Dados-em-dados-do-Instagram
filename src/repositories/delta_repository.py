@@ -103,6 +103,21 @@ class DeltaRepository(DataRepository):
         (Ficha 5) / issue #90."""
         return self._load(_join(self._gold_dir, "governor_nsm"))
 
+    def load_nsm_history(self) -> pd.DataFrame:
+        """Histórico de NSM (mode append, uma linha por perfil por execução)
+        -- ADR 0025 / issue #153, espelha `load_engagement_history()`.
+
+        NOTA: em 2026-09, `NsmScorer.write` grava `governor_nsm` em modo
+        `overwrite` por padrão (ver `src/modeling/orchestration.py`, chamada
+        sem `mode="append"`) -- nenhum código do pipeline escreve
+        `governor_nsm_history` hoje. Este accessor existe para que
+        `dashboard/core/data.py::load_nsm_history()` já tenha onde ler assim
+        que o lado da pipeline for ajustado (mudança maior, fora do escopo
+        da issue #153 -- ver Implementation Decisions/Out of Scope da
+        issue); até lá, degrada para `DataFrame` vazio via `FileNotFoundError`
+        como qualquer outra tabela Gold ainda não gerada."""
+        return self._load(_join(self._gold_dir, "governor_nsm_history"))
+
     def load_growth_metrics(self) -> pd.DataFrame:
         """CMGR e retenção sobre o histórico acumulado -- ADR 0020 (Ficha 7)
         / issue #92. Resultado declaradamente ilustrativo enquanto pouco

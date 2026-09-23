@@ -49,6 +49,15 @@ texto completo):
    impossível vazar `ownerUsername` (ou qualquer outra coluna de identidade)
    por esquecimento futuro. Ver teste dedicado em
    `tests/test_dashboard_screens_radar.py`.
+6. **Critério de alerta ("warn") por janela de publicação (ADR 0025 / issue
+   #153).** `_tema_maior_alta_negatividade` deixou de comparar as 2
+   execuções mais recentes (`week_over_week`) e passou a comparar a janela
+   atual de `deltas.JANELA_ALERTA_NEGATIVIDADE_DIAS` dias por data de
+   PUBLICAÇÃO contra a janela imediatamente anterior
+   (`deltas.compare_publication_window`) -- a decisão 3 acima (linha do
+   tempo agregada por `_run_id`) continua valendo só para o GRÁFICO; o
+   critério que alimenta a frase de decisão/nível do semáforo agora é este.
+   O ramo "danger" (limiar absoluto `LIMIAR_NEGATIVIDADE_ALERTA`) não muda.
 """
 
 from __future__ import annotations
@@ -62,10 +71,11 @@ from dashboard.core.components import decision_band, footnote, stage_label
 from dashboard.core.deltas import (
     LIMIAR_NEGATIVIDADE_ALERTA,
     aggregate_pct_negative_by_publication_day,
+    compare_publication_window,
+    deduplicate_by_first_seen,
     filter_by_date_range,
     normalize_date_input_range,
     quebrar_em_segmentos,
-    week_over_week,
 )
 from dashboard.core.theme import COLORS
 
@@ -121,72 +131,51 @@ def _filtrar_por_governador(
 # ---------------------------------------------------------------------------
 
 
-def _agregar_pct_negativo_por_tema_por_run(df_sentiment_history: pd.DataFrame) -> pd.DataFrame:
-    """1 linha por (`Topic`, `Name`, `_run_id`): proporção de
-    `sentiment_label == 'negative'` -- pré-agregação exigida porque
-    `week_over_week` espera 1 valor já pronto por chave por execução, não
-    comentários individuais (mesmo padrão de
-    `resumo._agregar_pct_positivo_por_run`). `DataFrame` vazio (colunas
-    presentes, nunca exceção) se faltar coluna obrigatória ou se nenhum
-    comentário tiver `Topic` atribuído (BERTopic não rodou)."""
-    colunas = ["Topic", "Name", "_run_id", "pct_negativo"]
-    required = {"Topic", "Name", "sentiment_label", "_run_id"}
+def _tema_maior_alta_negatividade(df_sentiment_history: pd.DataFrame) -> dict | None:
+    """Tema (`Topic`) com a maior variação POSITIVA de `% negativo` entre a
+    janela atual de `deltas.JANELA_ALERTA_NEGATIVIDADE_DIAS` dias (por data
+    de PUBLICAÇÃO) e a janela imediatamente anterior, via
+    `core.deltas.compare_publication_window` (ADR 0025 / issue #153) --
+    substitui a comparação por execução (`week_over_week`) usada antes desta
+    ADR (ver issue #113 original), porque o pipeline não tem cadência fixa
+    de execução (ADR 0021, ponto de atrito 4).
+
+    `df_sentiment_history` já filtrado ao governador selecionado (ver
+    `render()`). Deduplica por `id_comment`/menor `_run_id` antes de agregar
+    (ver `deltas.deduplicate_by_first_seen`) -- evita contar duas vezes um
+    comentário recoletado em execuções sobrepostas.
+
+    `None` se não houver histórico suficiente na janela atual (menos de 1
+    janela completa de dado) ou se nenhum tema tiver alta de negatividade
+    (todo `delta_percentual` nulo, zero ou negativo) -- nunca força um "tema
+    em alta" artificial quando a negatividade está estável ou caindo em
+    todos os temas com dado real."""
+    required = {"Topic", "Name", "sentiment_label", "timestamp", "id_comment", "_run_id"}
     if df_sentiment_history.empty or not required.issubset(df_sentiment_history.columns):
-        return pd.DataFrame(columns=colunas)
+        return None
 
     df = df_sentiment_history.dropna(subset=["Topic"])
     if df.empty:
-        return pd.DataFrame(columns=colunas)
-
-    agregado = (
-        df.groupby(["Topic", "Name", "_run_id"])["sentiment_label"]
-        .apply(lambda s: (s == "negative").mean())
-        .rename("pct_negativo")
-        .reset_index()
-    )
-    return agregado[colunas]
-
-
-def _tema_maior_alta_negatividade(df_agregado_tema: pd.DataFrame) -> dict | None:
-    """Tema (`Topic`) com a maior variação POSITIVA de `pct_negativo` entre
-    as duas execuções mais recentes, via `core.deltas.week_over_week`
-    (issue #113, Implementation Decisions: "core/deltas.week_over_week
-    aplicado por tema") -- não pontos percentuais absolutos calculados à
-    mão, a variação relatada é a mesma `delta_percentual` que
-    `week_over_week` já usa em toda outra tela do dashboard.
-
-    `None` se não houver histórico suficiente (menos de 2 execuções) ou se
-    nenhum tema tiver alta de negatividade (todo `delta_percentual` nulo,
-    zero ou negativo) -- nunca força um "tema em alta" artificial quando a
-    negatividade está estável ou caindo em todos os temas com dado real."""
-    if df_agregado_tema.empty:
         return None
+    df = deduplicate_by_first_seen(df)
+    df = df.assign(_is_negative=(df["sentiment_label"] == "negative").astype(float))
 
-    resultado = week_over_week(
-        df_agregado_tema, value_col="pct_negativo", key_col="Topic", run_col="_run_id"
-    )
+    resultado = compare_publication_window(df, value_col="_is_negative", key_col="Topic")
     if not resultado:
         return None
 
     candidatos = {
-        topic: (atual, delta)
-        for topic, (atual, delta) in resultado.items()
+        topic: (atual, delta, anterior)
+        for topic, (atual, delta, anterior) in resultado.items()
         if delta is not None and not pd.isna(delta) and delta > 0
     }
     if not candidatos:
         return None
 
     topic_id = max(candidatos, key=lambda t: candidatos[t][1])
-    pct_atual, delta_percentual = candidatos[topic_id]
+    pct_atual, delta_percentual, pct_anterior = candidatos[topic_id]
 
-    runs = sorted(df_agregado_tema["_run_id"].unique())
-    anterior_id = runs[-2]
-    linha_anterior = df_agregado_tema[
-        (df_agregado_tema["_run_id"] == anterior_id) & (df_agregado_tema["Topic"] == topic_id)
-    ]
-    pct_anterior = linha_anterior["pct_negativo"].iloc[0] if not linha_anterior.empty else None
-
-    nome = df_agregado_tema.loc[df_agregado_tema["Topic"] == topic_id, "Name"].iloc[-1]
+    nome = df.loc[df["Topic"] == topic_id, "Name"].iloc[-1]
     return {
         "topic": topic_id,
         "name": nome,
@@ -407,8 +396,7 @@ def render() -> None:
     )
     df_topic_priority = data.load_topic_priority()
 
-    df_agregado_tema = _agregar_pct_negativo_por_tema_por_run(df_sentiment_history_governador)
-    tema_em_alta = _tema_maior_alta_negatividade(df_agregado_tema)
+    tema_em_alta = _tema_maior_alta_negatividade(df_sentiment_history_governador)
 
     pct_negativo_atual = tema_em_alta["pct_atual"] if tema_em_alta else None
     delta_percentual = tema_em_alta["delta_percentual"] if tema_em_alta else None

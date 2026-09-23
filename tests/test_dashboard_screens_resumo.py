@@ -136,35 +136,68 @@ def _df_sentiment_history_dois_runs():
     )
 
 
-def test_agregar_pct_positivo_por_run_pre_agrega_por_chave_e_execucao():
-    agregado = resumo._agregar_pct_positivo_por_run(_df_sentiment_history_dois_runs())
+def _df_sentiment_history_governador_por_janela_publicacao():
+    # ADR 0025 / issue #153: `_delta_janela_publicacao_para_governador` usa
+    # data de PUBLICAÇÃO, não `_run_id` -- âncora = 2026-09-08 (maior data).
+    # Janela atual [09-02, 09-08] = 100% positivo; janela anterior
+    # [08-26, 09-01] = 50% positivo.
+    return pd.DataFrame(
+        {
+            "sentiment_label": ["positive", "negative", "positive", "positive"],
+            "timestamp": [
+                "2026-09-01T10:00:00.000Z",
+                "2026-09-01T10:05:00.000Z",
+                "2026-09-08T10:00:00.000Z",
+                "2026-09-08T10:05:00.000Z",
+            ],
+        }
+    )
 
-    assert set(agregado["_run_id"]) == {"r1", "r2"}
-    linha_r2 = agregado[agregado["_run_id"] == "r2"].iloc[0]
-    assert linha_r2["pct_positivo"] == 1.0
+
+def test_delta_janela_publicacao_para_governador_compara_por_data_de_publicacao():
+    resultado = resumo._delta_janela_publicacao_para_governador(
+        _df_sentiment_history_governador_por_janela_publicacao()
+    )
+    assert resultado is not None
+    valor_atual, delta_percentual, valor_anterior = resultado
+    assert valor_atual == 1.0
+    assert valor_anterior == 0.5
+    assert delta_percentual > 0
 
 
-def test_delta_para_governador_usa_week_over_week_e_ignora_governador_ausente():
-    agregado = resumo._agregar_pct_positivo_por_run(_df_sentiment_history_dois_runs())
+def test_delta_janela_publicacao_para_governador_none_para_dataframe_vazio():
+    assert resumo._delta_janela_publicacao_para_governador(pd.DataFrame()) is None
 
-    resultado = resumo._delta_para_governador(
-        agregado, "pct_positivo", "https://www.instagram.com/gov_a/"
+
+def test_delta_vs_media_historica_para_governador_usa_media_e_ignora_governador_ausente():
+    df_history = pd.DataFrame(
+        {
+            "_chave": ["gov_a", "gov_a"],
+            "_run_id": ["r1", "r2"],
+            "pct_positivo": [0.5, 1.0],
+        }
+    )
+
+    resultado = resumo._delta_vs_media_historica_para_governador(
+        df_history, "pct_positivo", "gov_a"
     )
     assert resultado is not None
     valor_atual, _delta = resultado
     assert valor_atual == 1.0
 
-    resultado_ausente = resumo._delta_para_governador(
-        agregado, "pct_positivo", "https://www.instagram.com/gov_desconhecido/"
+    resultado_ausente = resumo._delta_vs_media_historica_para_governador(
+        df_history, "pct_positivo", "gov_desconhecido"
     )
     assert resultado_ausente is None
 
 
-def test_delta_para_governador_retorna_none_com_uma_execucao_so():
+def test_delta_vs_media_historica_para_governador_retorna_none_com_uma_execucao_so():
     df_uma_execucao = pd.DataFrame(
         {"_chave": ["gov_a"], "_run_id": ["r1"], "pct_positivo": [0.5]}
     )
-    resultado = resumo._delta_para_governador(df_uma_execucao, "pct_positivo", "gov_a")
+    resultado = resumo._delta_vs_media_historica_para_governador(
+        df_uma_execucao, "pct_positivo", "gov_a"
+    )
     assert resultado is None
 
 
@@ -479,7 +512,8 @@ def test_faixa_de_decisao_e_tendencia_de_engajamento_nao_aceitam_filtro_de_calen
     funcoes_fora_do_filtro = (
         resumo._nivel_semaforo,
         resumo._frase_decisao,
-        resumo._delta_para_governador,
+        resumo._delta_vs_media_historica_para_governador,
+        resumo._delta_janela_publicacao_para_governador,
         resumo._contagem_publicacoes_recentes,
     )
     for fn in funcoes_fora_do_filtro:
@@ -596,16 +630,18 @@ def test_delta_positivo_contra_tabela_delta_real_de_sentiment_history(tmp_path, 
     _point_settings_at(monkeypatch, tmp_path)
 
     history_path = settings.GOLD_DIR / "governor_sentiment_history"
-    df_history = _df_sentiment_history_dois_runs().assign(fonte="comentario")
+    df_history = _df_sentiment_history_governador_por_janela_publicacao().assign(
+        inputUrl="https://www.instagram.com/gov_a/", fonte="comentario"
+    )
     write_deltalake(str(history_path), df_history, mode="overwrite")
 
     df_sentiment_history = data.comments_only(data.load_sentiment_history())
-    agregado = resumo._agregar_pct_positivo_por_run(df_sentiment_history)
-    resultado = resumo._delta_para_governador(
-        agregado, "pct_positivo", "https://www.instagram.com/gov_a/"
+    df_sentiment_history_governador = resumo._filtrar_por_governador(
+        df_sentiment_history, "https://www.instagram.com/gov_a/"
     )
+    resultado = resumo._delta_janela_publicacao_para_governador(df_sentiment_history_governador)
 
     assert resultado is not None
-    valor_atual, _delta = resultado
+    valor_atual, _delta, _anterior = resultado
     assert valor_atual == 1.0
     _clear_caches()

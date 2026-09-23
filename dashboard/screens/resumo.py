@@ -26,12 +26,14 @@ import streamlit as st
 from dashboard.core import data
 from dashboard.core.components import decision_band, footnote, kpi_row, stage_label
 from dashboard.core.deltas import (
+    JANELA_ALERTA_NEGATIVIDADE_DIAS,
     LIMIAR_NEGATIVIDADE_ALERTA,
+    compare_publication_window,
+    compare_vs_historical_average,
     deduplicate_by_first_seen,
     filter_by_date_range,
     normalize_date_input_range,
     parse_publication_dates,
-    week_over_week,
 )
 
 _PLACEHOLDER_SEM_GOVERNADOR = "—"
@@ -208,44 +210,60 @@ def _proporcao_label(df_comments: pd.DataFrame, label: str) -> float | None:
     return (df_comments["sentiment_label"] == label).sum() / total
 
 
-def _agregar_pct_positivo_por_run(df_sentiment_history: pd.DataFrame) -> pd.DataFrame:
-    """1 linha por (`_chave`, `_run_id`): proporção de `sentiment_label ==
-    'positive'` -- pré-agregação exigida porque `week_over_week` espera 1
-    valor já pronto por chave por execução, não comentários individuais.
-    `_chave` é `inputUrl` normalizado (ver `_normalize_url`)."""
-    required = {"inputUrl", "sentiment_label", "_run_id"}
-    if df_sentiment_history.empty or not required.issubset(df_sentiment_history.columns):
-        return pd.DataFrame(columns=["_chave", "_run_id", "pct_positivo"])
+# ---------------------------------------------------------------------------
+# Deltas dos KPIs (ADR 0025 / issue #153): duas famílias de comparação --
+# CONTEÚDO (% positivo, tem data de publicação real por comentário) compara
+# por janela móvel; PERFIL (% engajamento, Seguidores, NSM -- só um valor
+# observado por execução) compara vs. média histórica. Ver docstring de
+# `dashboard/core/deltas.py` para a justificativa completa.
+# ---------------------------------------------------------------------------
 
-    df = df_sentiment_history.assign(_chave=_normalize_url(df_sentiment_history["inputUrl"]))
-    agregado = (
-        df.groupby(["_chave", "_run_id"])["sentiment_label"]
-        .apply(lambda s: (s == "positive").mean())
-        .rename("pct_positivo")
-        .reset_index()
+
+def _delta_janela_publicacao_para_governador(
+    df_sentiment_history_governador: pd.DataFrame,
+) -> tuple[object, float | None, float | None] | None:
+    """`(valor_atual, delta_percentual, valor_anterior)` de `% positivo`
+    para o governador já filtrado, via `deltas.compare_publication_window`
+    (janela atual de `deltas.JANELA_ALERTA_NEGATIVIDADE_DIAS` dias por data
+    de publicação do comentário vs. a janela anterior) -- ADR 0025, substitui
+    a comparação por execução (`week_over_week`) usada antes desta ADR.
+    `None` se não houver dado suficiente -- chamador trata como "sem seta de
+    variação", nunca como erro."""
+    if (
+        df_sentiment_history_governador.empty
+        or "sentiment_label" not in df_sentiment_history_governador.columns
+    ):
+        return None
+    df = df_sentiment_history_governador.assign(
+        _is_positive=(df_sentiment_history_governador["sentiment_label"] == "positive").astype(
+            float
+        )
     )
-    return agregado
+    resultado = compare_publication_window(df, value_col="_is_positive", key_col=None)
+    if resultado is None:
+        return None
+    return resultado.get(None)
 
 
-# ---------------------------------------------------------------------------
-# Delta genérico contra histórico (engajamento/seguidores/% positivo)
-# ---------------------------------------------------------------------------
-
-
-def _delta_para_governador(
+def _delta_vs_media_historica_para_governador(
     df_history: pd.DataFrame,
     value_col: str,
     governor_url: str,
     key_col: str = "_chave",
     run_col: str = "_run_id",
 ) -> tuple[object, float | None] | None:
-    """`(valor_atual, delta_percentual)` de `value_col` para `governor_url`,
-    via `week_over_week`. `None` se não houver histórico suficiente (2+
-    execuções) ou se `governor_url` não aparecer no histórico -- chamador
-    trata `None` como "sem seta de variação", nunca como erro."""
+    """`(valor_atual, delta_percentual)` de `value_col` (métrica de PERFIL:
+    % engajamento, Seguidores, NSM) para `governor_url`, via
+    `deltas.compare_vs_historical_average` (ADR 0025) -- substitui
+    `week_over_week`/"vs. última coleta" para essas 3 métricas, resiliente a
+    qualquer espaçamento real entre execuções. `None` se não houver
+    histórico suficiente ou se `governor_url` não aparecer no histórico --
+    chamador trata `None` como "sem seta de variação", nunca como erro."""
     if df_history.empty or key_col not in df_history.columns:
         return None
-    resultado = week_over_week(df_history, value_col=value_col, key_col=key_col, run_col=run_col)
+    resultado = compare_vs_historical_average(
+        df_history, value_col=value_col, key_col=key_col, run_col=run_col
+    )
     if resultado is None:
         return None
     chave = _normalize_url(pd.Series([governor_url])).iloc[0]
@@ -564,22 +582,33 @@ def render() -> None:
         df_engagement_history = df_engagement_history.assign(
             _chave=_normalize_url(df_engagement_history["inputUrl"])
         )
-    df_pct_positivo_run = _agregar_pct_positivo_por_run(df_sentiment_history)
-    # `df_sentiment_history_governador` (usado pelo destaque 2) já foi
-    # calculado antes do cabeçalho, junto com o filtro de calendário que
-    # agora vive em `header_col2` (ADR 0024) -- não recalcular aqui.
+    df_nsm_history = data.load_nsm_history()
+    if not df_nsm_history.empty and "inputUrl" in df_nsm_history.columns:
+        df_nsm_history = df_nsm_history.assign(_chave=_normalize_url(df_nsm_history["inputUrl"]))
+    # `df_sentiment_history_governador` (usado pelo destaque 2 e, desde a ADR
+    # 0025, pelo delta de "% positivo" abaixo) já foi calculado antes do
+    # cabeçalho, junto com o filtro de calendário que vive em `header_col2`
+    # (ADR 0024) -- não recalcular aqui.
     df_nsm_governador = _filtrar_por_governador(data.load_nsm(), governor_url)
 
     prop_positivo_atual = _proporcao_label(df_sentiment_governador, "positive")
     prop_negativo_atual = _proporcao_label(df_sentiment_governador, "negative")
 
-    resultado_engajamento = _delta_para_governador(
+    # ADR 0025: % engajamento/Seguidores/NSM (métricas de PERFIL) comparam
+    # vs. média histórica; % positivo (métrica de CONTEÚDO) compara por
+    # janela de data de publicação -- ver docstring das duas funções acima.
+    resultado_engajamento = _delta_vs_media_historica_para_governador(
         df_engagement_history, "% ENGAJAMENTO", governor_url
     )
-    resultado_seguidores = _delta_para_governador(
+    resultado_seguidores = _delta_vs_media_historica_para_governador(
         df_engagement_history, "followersCount", governor_url
     )
-    resultado_positivo = _delta_para_governador(df_pct_positivo_run, "pct_positivo", governor_url)
+    resultado_nsm = _delta_vs_media_historica_para_governador(
+        df_nsm_history, "nsm", governor_url
+    )
+    resultado_positivo = _delta_janela_publicacao_para_governador(
+        df_sentiment_history_governador
+    )
 
     delta_engajamento = resultado_engajamento[1] if resultado_engajamento else None
     delta_positivo = resultado_positivo[1] if resultado_positivo else None
@@ -587,14 +616,20 @@ def render() -> None:
     # ---- Frase de decisão ----
     nivel = _nivel_semaforo(delta_positivo, delta_engajamento, prop_negativo_atual)
     decision_band(_frase_decisao(nivel, delta_positivo, delta_engajamento), level=nivel)
-    # ADR 0023: engajamento/seguidores não têm data de publicação por linha
-    # (só `_run_id`/`_generated_at`) -- diferente do destaque de negatividade
-    # abaixo, que respeita o filtro de calendário, esta faixa e os KPIs de
-    # engajamento continuam sempre "vs. última coleta".
+    # ADR 0025: engajamento/seguidores/NSM não têm data de publicação por
+    # linha (só `_run_id`/`_generated_at`) -- comparam vs. MÉDIA HISTÓRICA de
+    # execuções, nunca "vs. última coleta". % positivo tem data de
+    # publicação real por comentário -- compara por janela de
+    # `deltas.JANELA_ALERTA_NEGATIVIDADE_DIAS` dias, independente do período
+    # filtrado no destaque de negatividade abaixo (que é uma seleção livre
+    # de intervalo, não a janela fixa da comparação).
     st.caption(
-        "Engajamento, seguidores e % positivo sempre refletem a coleta mais "
-        "recente, independente do período filtrado no destaque de "
-        "negatividade abaixo."
+        "Engajamento, seguidores e NSM comparam contra a média histórica de "
+        "execuções. % positivo compara os últimos "
+        f"{JANELA_ALERTA_NEGATIVIDADE_DIAS} dias de publicação vs. os "
+        f"{JANELA_ALERTA_NEGATIVIDADE_DIAS} dias anteriores -- ambos "
+        "independentes do período filtrado no destaque de negatividade "
+        "abaixo."
     )
 
     # ---- KPIs ----
@@ -620,11 +655,16 @@ def render() -> None:
             (
                 "Engajamento qualificado · em validação",
                 _fmt_nsm(valor_nsm),
-                # `delta=None` sempre: não existe `load_nsm_history()` (fora
-                # do escopo de `dashboard/core/data.py`, issue #110) -- sem
-                # histórico, não há como chamar `week_over_week` para este
-                # KPI. Não é um esquecimento; é ausência real de dado.
-                None,
+                # ADR 0025 / issue #153: `load_nsm_history()` já existe
+                # (espelha `load_engagement_history()`), mas a pipeline
+                # ainda não escreve `governor_nsm_history` hoje
+                # (`NsmScorer.write` grava `governor_nsm` em modo
+                # `overwrite`, sem variante de histórico -- ver
+                # `src/repositories/delta_repository.py::load_nsm_history`).
+                # `resultado_nsm` degrada para `None` graciosamente até essa
+                # mudança de pipeline (fora do escopo desta issue) acontecer
+                # -- não é um esquecimento, é ausência real de dado.
+                _fmt_delta_pct(resultado_nsm[1] if resultado_nsm else None),
                 None,
                 (
                     "North Star Metric (NSM): comentários positivos sobre "
