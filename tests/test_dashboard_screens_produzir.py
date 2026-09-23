@@ -502,6 +502,30 @@ def test_serie_desempenho_por_publicacao_visualizacoes_vazio_para_posts_puros():
     assert resultado.empty
 
 
+def test_serie_desempenho_por_publicacao_quebra_em_segmentos_com_gap_maior_que_7_dias():
+    # ADR 0024: a nova seção reusa `quebrar_em_segmentos` (extraída do
+    # Radar, ver `deltas.py`) sobre a série que `_serie_desempenho_por_
+    # publicacao` produz -- prova que as duas funções compõem corretamente
+    # no fluxo real de `render()` (linha 650), não só isoladas.
+    df_reels = pd.DataFrame(
+        {
+            "inputUrl": [_GOV_URL, _GOV_URL],
+            "likesCount": [100, 50],
+            "data_hora": pd.to_datetime(["2026-08-01", "2026-08-20"]),
+        }
+    )
+    df_conteudo = produzir._conteudo_do_governador_por_tipo(
+        df_reels, pd.DataFrame(), _GOV_URL, produzir.TIPO_REELS
+    )
+    serie = produzir._serie_desempenho_por_publicacao(df_conteudo, produzir.METRICA_CURTIDAS)
+
+    segmentos = produzir.quebrar_em_segmentos(serie)
+
+    assert len(segmentos) == 2
+    assert len(segmentos[0]) == 1
+    assert len(segmentos[1]) == 1
+
+
 def _conteudo_ambos_conhecido():
     return produzir._conteudo_do_governador_por_tipo(
         _df_reels_desempenho(), _df_posts_desempenho(), _GOV_URL, produzir.TIPO_AMBOS
