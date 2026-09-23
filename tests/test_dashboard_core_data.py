@@ -158,7 +158,7 @@ def test_load_sentiment_history_returns_empty_dataframe_when_missing(tmp_path, m
 
 def test_load_clusters_content_returns_delta_table(tmp_path, monkeypatch):
     _point_settings_at(monkeypatch, tmp_path)
-    path = settings.GOLD_DIR / "governor_clusters"
+    path = settings.GOLD_DIR / "governor_clusters_reels"
     df = pd.DataFrame(
         {
             "inputUrl": ["https://www.instagram.com/governador_a/"],

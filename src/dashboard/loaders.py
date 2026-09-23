@@ -18,7 +18,8 @@ def get_delta_repository() -> DeltaRepository:
     repo = get_repository()
     if not isinstance(repo, DeltaRepository):
         raise TypeError(
-            f"load_clusters() exige DeltaRepository (clusters só existem no Gold via Delta); "
+            f"load_clusters_reels()/load_clusters_posts() exigem DeltaRepository "
+            f"(clusters só existem no Gold via Delta); "
             f"get_repository() retornou {type(repo).__name__}."
         )
     return repo
@@ -42,7 +43,7 @@ def load_reels() -> pd.DataFrame:
 @st.cache_data
 def load_posts() -> pd.DataFrame:
     # ADR 0020 (Ficha 2) / issue #94: posts do Feed (Silver), necessários
-    # para juntar com `governor_clusters` (content_type=="feed") em
+    # para juntar com `governor_clusters_posts` (issue #152) em
     # `02_insights.py` -- "Padrões de conteúdo (Reels e Feed)". Mesmo
     # contrato degradado de `load_clusters`/`load_profile_clusters_engagement`,
     # não os de `load_comments`/`load_reels` (que não tratam
@@ -57,9 +58,17 @@ def load_posts() -> pd.DataFrame:
 
 
 @st.cache_data
-def load_clusters() -> pd.DataFrame:
+def load_clusters_reels() -> pd.DataFrame:
     try:
-        return get_delta_repository().load_clusters()
+        return get_delta_repository().load_clusters_reels()
+    except FileNotFoundError:
+        return pd.DataFrame()
+
+
+@st.cache_data
+def load_clusters_posts() -> pd.DataFrame:
+    try:
+        return get_delta_repository().load_clusters_posts()
     except FileNotFoundError:
         return pd.DataFrame()
 

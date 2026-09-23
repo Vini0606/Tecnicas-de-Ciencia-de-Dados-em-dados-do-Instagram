@@ -70,8 +70,19 @@ class DeltaRepository(DataRepository):
         execuções acumuladas, não só a última)."""
         return self._load(_join(self._gold_dir, "governor_sentiment_history"))
 
-    def load_clusters(self) -> pd.DataFrame:
-        return self._load(_join(self._gold_dir, "governor_clusters"))
+    def load_clusters_reels(self) -> pd.DataFrame:
+        """`governor_clusters_reels` -- clusterização de conteúdo, granularidade
+        de Reel. Tabela separada de `load_clusters_posts()` desde a issue #152:
+        `posts_clean`/`reels_clean` (Silver) se sobrepõem (um Reel também é
+        capturado pelo post-scraper genérico no grid do perfil), então uma
+        tabela única discriminada por `content_type` duplicava o mesmo post
+        real sob os dois pipelines de clusterização."""
+        return self._load(_join(self._gold_dir, "governor_clusters_reels"))
+
+    def load_clusters_posts(self) -> pd.DataFrame:
+        """`governor_clusters_posts` -- clusterização de conteúdo, granularidade
+        de post de feed. Ver `load_clusters_reels()`."""
+        return self._load(_join(self._gold_dir, "governor_clusters_posts"))
 
     def load_profile_clusters_engagement(self) -> pd.DataFrame:
         return self._load(_join(self._gold_dir, "governor_profile_clusters_engagement"))

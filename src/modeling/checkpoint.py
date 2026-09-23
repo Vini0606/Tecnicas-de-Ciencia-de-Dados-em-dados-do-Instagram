@@ -48,8 +48,9 @@ def save_checkpoint(
     """Grava o checkpoint de `run_id` em `<checkpoints_dir>/<run_id>/`.
 
     `df_reels` (com `PC1_Engajamento_videoPlay`/`PC2_videoDuration`/
-    `Clusters (AutoClusterHPO)`) é persistido porque `governor_clusters` no
-    Gold só guarda `cluster_label`, não as coordenadas de PCA — sem isso o
+    `Clusters (AutoClusterHPO)`) é persistido porque `governor_clusters_reels`
+    no Gold (issue #152; antes da separação por formato, `governor_clusters`)
+    só guarda `cluster_label`, não as coordenadas de PCA — sem isso o
     notebook não conseguiria reproduzir o gráfico de validação do cluster
     sem reprocessar a Silver.
 

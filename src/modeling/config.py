@@ -195,7 +195,11 @@ class ModelingConfig:
         default_factory=DiscourseTopicModelConfig
     )
     post_performance: PostPerformanceConfig = field(default_factory=PostPerformanceConfig)
-    gold_clusters_path: Path = settings.GOLD_CLUSTERS
+    # issue #152: duas tabelas por formato (reel/feed) em vez de uma única
+    # `governor_clusters` combinada -- ver `GOLD_CLUSTERS_REELS`/
+    # `GOLD_CLUSTERS_POSTS`.
+    gold_clusters_reels_path: Path = settings.GOLD_CLUSTERS_REELS
+    gold_clusters_posts_path: Path = settings.GOLD_CLUSTERS_POSTS
     gold_sentiment_path: Path = settings.GOLD_SENTIMENT
     # Tabela paralela de histórico (mode append) -- ver issue #52 / ADR 0017.
     gold_sentiment_history_path: Path = settings.GOLD_SENTIMENT_HISTORY

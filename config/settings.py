@@ -77,7 +77,15 @@ GOLD_SENTIMENT_HISTORY = GOLD_DIR / "governor_sentiment_history"
 # `governor_sentiment` (granularidades conceitualmente distintas: fala da
 # assessoria vs. reação do público, decisão de schema já fechada na ADR).
 GOLD_DISCOURSE_TOPICS = GOLD_DIR / "governor_discourse_topics"
-GOLD_CLUSTERS = GOLD_DIR / "governor_clusters"
+# issue #152: `governor_clusters` era uma tabela única discriminada por
+# `content_type`, concatenando os clusterings de reel e de feed via
+# `pd.concat` -- como `posts_clean`/`reels_clean` (Silver) se sobrepõem
+# (mesmo Reel capturado por dois actors Apify distintos), isso duplicava
+# ~1/3 das linhas sob dois `content_type` diferentes. Duas tabelas
+# separadas, uma por formato, eliminam a sobreposição por construção (cada
+# post real cai em exatamente uma delas).
+GOLD_CLUSTERS_REELS = GOLD_DIR / "governor_clusters_reels"
+GOLD_CLUSTERS_POSTS = GOLD_DIR / "governor_clusters_posts"
 # ADR 0020 (Ficha 6) / issue #91: Score ICE de priorização de tópicos de
 # comentário -- estágio pós-modelagem, mesma posição/dependência da NSM
 # (Ficha 5), ambas lendo `governor_sentiment` já pronto.

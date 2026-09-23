@@ -23,6 +23,22 @@ class EngagementAggregator:
     ) -> pd.DataFrame:
         df_combined = pd.concat([df_posts_silver, df_reels_silver], axis=0)
 
+        # issue #152: um Reel também aparece no grid geral do perfil, então o
+        # post-scraper genérico (`df_posts_silver`) e o reel-scraper
+        # (`df_reels_silver`) capturam o MESMO post real sob o mesmo `id` --
+        # `likesCount`/`commentsCount` são o mesmo contador ao vivo do
+        # Instagram lido duas vezes, não dois públicos diferentes. Sem dedup,
+        # o `groupby` abaixo soma/conta esse post duas vezes. Mantém o valor
+        # mais completo (max) por campo antes de agrupar por governador --
+        # `data_hora`/`ownerId`/`ownerUsername` já são idênticos entre as
+        # duas linhas da mesma publicação, então a escolha de qual linha
+        # sobrevive não afeta o agregado.
+        if "id" in df_combined.columns:
+            df_combined[["likesCount", "commentsCount"]] = df_combined.groupby("id")[
+                ["likesCount", "commentsCount"]
+            ].transform("max")
+            df_combined = df_combined.drop_duplicates(subset="id", keep="first")
+
         grouped = (
             df_combined.groupby(["ownerId", "ownerUsername"])
             .agg(

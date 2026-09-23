@@ -94,15 +94,18 @@ class ModelEnricher:
         path: Path | str,
         run_id: str,
     ) -> None:
-        """Grava clusters de posts (reel ou feed) via AutoClusterHPO. Espera as
-        colunas produzidas pelo notebook 03 / `run_autocluster`: id,
-        ownerUsername, 'Clusters (AutoClusterHPO)', algo_name, score,
-        content_type. `content_type` ("reel"/"feed") é a coluna
-        discriminadora da ADR 0020 (Ficha 2, issue #87) -- o chamador
-        (`run_deterministic_modeling`) monta um único DataFrame combinando
-        reels e posts do feed antes de chamar este método, para que as duas
-        granularidades sejam escritas juntas numa única escrita (overwrite)
-        de `governor_clusters`, sem uma sobrescrever a outra."""
+        """Grava clusters de posts (reel ou feed) via AutoClusterHPO num
+        `path` de destino. Espera as colunas produzidas pelo notebook 03 /
+        `run_autocluster`: id, ownerUsername, 'Clusters (AutoClusterHPO)',
+        algo_name, score, content_type. `content_type` ("reel"/"feed") é a
+        coluna discriminadora da ADR 0020 (Ficha 2, issue #87) -- desde a
+        issue #152, `run_deterministic_modeling` chama este método uma vez
+        por formato, cada um com seu próprio `path`
+        (`governor_clusters_reels`/`governor_clusters_posts`), em vez de
+        combinar os dois DataFrames numa única tabela: `posts_clean`/
+        `reels_clean` (Silver) se sobrepõem (um Reel também é capturado
+        pelo post-scraper genérico), então uma tabela combinada duplicava o
+        mesmo post real sob dois `content_type`."""
         required = {
             "id",
             "ownerUsername",
