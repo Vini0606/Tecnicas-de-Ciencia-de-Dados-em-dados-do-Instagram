@@ -11,7 +11,17 @@ o nome da função.
 
 from __future__ import annotations
 
+import os
+
 import pandas as pd
+from dotenv import load_dotenv
+
+# Primeira leitura de `.env` pelo pacote `dashboard/` (ADR 0025 / issue
+# #153) -- decisão explícita de manter a variável abaixo lida aqui, não em
+# `config/settings.py`, para preservar a autocontenção do pacote do
+# dashboard já estabelecida pela ADR 0021 (nenhuma dependência cruzada
+# dashboard -> `config/`).
+load_dotenv()
 
 # Limiar de alerta de negatividade (ADR 0021 / issue #111). Definido aqui, e
 # não em `dashboard/screens/radar.py`, porque a Tela 1 ("Resumo da semana",
@@ -32,6 +42,18 @@ import pandas as pd
 # redondo e fácil de explicar ("quase 1 em cada 3 comentários é negativo") --
 # revisar quando a Tela 3 tiver dado real suficiente para recalibrar.
 LIMIAR_NEGATIVIDADE_ALERTA = 0.30
+
+JANELA_ALERTA_NEGATIVIDADE_DIAS = int(os.environ.get("JANELA_ALERTA_NEGATIVIDADE_DIAS", 7))
+"""Tamanho (em dias) da janela móvel ancorada na data de PUBLICAÇÃO usada por
+`compare_publication_window` (ADR 0025 / issue #153) -- substitui a
+comparação por execução (`week_over_week`) para métricas de CONTEÚDO
+(curtidas, comentários, visualizações, % positivo/negativo de comentário):
+o pipeline não tem cadência fixa (ADR 0021, ponto de atrito 4), então
+"execução atual vs. anterior" podia significar um dia ou vários meses de
+intervalo. Configurável via `.env` (`JANELA_ALERTA_NEGATIVIDADE_DIAS`,
+padrão 7) -- ver `.env.example`. Só o ramo "warn" do Radar de crise usa esta
+janela para o critério de alerta; o ramo "danger" continua um limiar
+absoluto (`LIMIAR_NEGATIVIDADE_ALERTA`), sem mudança."""
 
 
 def week_over_week(
@@ -78,6 +100,140 @@ def week_over_week(
             resultado[chave] = (valor_atual, None)
             continue
         delta_percentual = (valor_atual - valor_anterior) / valor_anterior * 100
+        resultado[chave] = (valor_atual, delta_percentual)
+    return resultado
+
+
+def compare_publication_window(
+    df: pd.DataFrame,
+    value_col: str,
+    key_col: str | None = None,
+    timestamp_col: str = "timestamp",
+    window_days: int = JANELA_ALERTA_NEGATIVIDADE_DIAS,
+    agg: str = "mean",
+) -> dict[object, tuple[float, float | None, float | None]] | None:
+    """Compara a janela atual de `window_days` dias (por data de PUBLICAÇÃO,
+    âncora = maior data disponível em `df` -- nunca `datetime.date.today()`,
+    mesmo raciocínio de `resumo._contagem_publicacoes_recentes`: o pipeline
+    não roda com cadência fixa) contra a janela imediatamente anterior de
+    mesmo tamanho (ADR 0025 / issue #153).
+
+    Generaliza o critério que antes vivia só em
+    `radar.py::_tema_maior_alta_negatividade` (comparação por execução via
+    `week_over_week`) para que Resumo (`% positivo`) e Radar (tema em maior
+    ascensão de negatividade) compartilhem a mesma primitiva -- métricas de
+    CONTEÚDO têm data de publicação real por linha, diferente das métricas
+    de PERFIL (ver `compare_vs_historical_average`).
+
+    `key_col=None` (default) trata `df` inteiro como um único grupo -- o
+    resultado tem uma única entrada sob a chave `None` (uso do Resumo, já
+    filtrado a 1 governador). Com `key_col`, uma entrada por valor distinto
+    dessa coluna (uso do Radar, `key_col="Topic"`). `agg` agrega `value_col`
+    dentro de cada janela (`"mean"` para proporção, `"sum"` para
+    contagem/soma).
+
+    Retorna `{chave: (valor_atual, delta_percentual, valor_anterior)}`.
+    `None` (nunca exceção) se `df` estiver vazio, faltar coluna obrigatória,
+    ou não houver nenhuma linha com data parseável na janela atual -- não há
+    o que comparar. Por chave, `delta_percentual=None` (nunca um delta
+    fabricado) se a chave não tiver dado na janela anterior, ou se o valor
+    da janela anterior for nulo/zero (divisão por zero) -- mesma convenção
+    de degradação graciosa de `week_over_week`."""
+    required = {value_col, timestamp_col} | ({key_col} if key_col else set())
+    if df.empty or not required.issubset(df.columns):
+        return None
+
+    dados = df.assign(
+        _data=parse_publication_dates(df, timestamp_col=timestamp_col)
+    ).dropna(subset=["_data"])
+    if dados.empty:
+        return None
+
+    ancora = dados["_data"].max()
+    inicio_atual = ancora - pd.Timedelta(days=window_days - 1)
+    fim_anterior = inicio_atual - pd.Timedelta(days=1)
+    inicio_anterior = fim_anterior - pd.Timedelta(days=window_days - 1)
+
+    janela_atual = dados[(dados["_data"] >= inicio_atual) & (dados["_data"] <= ancora)]
+    janela_anterior = dados[
+        (dados["_data"] >= inicio_anterior) & (dados["_data"] <= fim_anterior)
+    ]
+    if janela_atual.empty:
+        return None
+
+    def _agregar(subset: pd.DataFrame) -> pd.Series:
+        if key_col:
+            return subset.groupby(key_col)[value_col].agg(agg)
+        return pd.Series({None: subset[value_col].agg(agg)})
+
+    serie_atual = _agregar(janela_atual)
+    serie_anterior = (
+        _agregar(janela_anterior) if not janela_anterior.empty else pd.Series(dtype="float64")
+    )
+
+    resultado: dict[object, tuple[float, float | None, float | None]] = {}
+    for chave, valor_atual in serie_atual.items():
+        if chave not in serie_anterior.index:
+            resultado[chave] = (valor_atual, None, None)
+            continue
+        valor_anterior = serie_anterior.loc[chave]
+        if pd.isna(valor_anterior) or valor_anterior == 0:
+            resultado[chave] = (valor_atual, None, valor_anterior)
+            continue
+        delta_percentual = (valor_atual - valor_anterior) / valor_anterior * 100
+        resultado[chave] = (valor_atual, delta_percentual, valor_anterior)
+    return resultado
+
+
+def compare_vs_historical_average(
+    df_history: pd.DataFrame,
+    value_col: str,
+    key_col: str = "inputUrl",
+    run_col: str = "_run_id",
+) -> dict[object, tuple[object, float | None]] | None:
+    """Compara o valor da execução mais recente de cada chave contra a MÉDIA
+    de todos os valores de execuções ANTERIORES daquela chave (ADR 0025 /
+    issue #153) -- substitui `week_over_week`/"vs. última coleta" para
+    métricas de PERFIL (Seguidores, % engajamento, NSM): não têm data de
+    publicação própria (só um valor observado no momento da coleta), então
+    uma comparação "vs. média histórica" é resiliente a qualquer
+    espaçamento real entre execuções, ao contrário de "vs. execução
+    anterior" (ver docstring do módulo).
+
+    `None` (nunca exceção) se `df_history` estiver vazio, faltar `run_col`,
+    ou houver menos de 2 execuções no histórico total -- mesmo critério de
+    `week_over_week`, a tela deve ocultar a seta de variação nesse caso.
+
+    Por chave, `delta_percentual=None` (nunca uma média fabricada de 1 valor
+    só) se a chave não tiver nenhuma execução ANTERIOR à mais recente, ou se
+    a média histórica for nula/zero (divisão por zero)."""
+    if df_history.empty or run_col not in df_history.columns:
+        return None
+    runs = sorted(df_history[run_col].unique())
+    if len(runs) < 2:
+        return None
+    atual_id = runs[-1]
+
+    serie_atual = (
+        df_history[df_history[run_col] == atual_id]
+        .drop_duplicates(subset=[key_col], keep="last")
+        .set_index(key_col)[value_col]
+    )
+    historico_anterior = df_history[df_history[run_col] != atual_id]
+
+    resultado: dict[object, tuple[object, float | None]] = {}
+    for chave, valor_atual in serie_atual.items():
+        valores_anteriores = historico_anterior.loc[
+            historico_anterior[key_col] == chave, value_col
+        ].dropna()
+        if valores_anteriores.empty:
+            resultado[chave] = (valor_atual, None)
+            continue
+        media_historica = valores_anteriores.mean()
+        if pd.isna(media_historica) or media_historica == 0:
+            resultado[chave] = (valor_atual, None)
+            continue
+        delta_percentual = (valor_atual - media_historica) / media_historica * 100
         resultado[chave] = (valor_atual, delta_percentual)
     return resultado
 

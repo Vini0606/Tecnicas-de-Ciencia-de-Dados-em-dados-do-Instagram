@@ -1,10 +1,13 @@
 import datetime
 
 import pandas as pd
+import pytest
 
 from dashboard.core.deltas import (
     aggregate_metric_by_publication_day,
     aggregate_pct_negative_by_publication_day,
+    compare_publication_window,
+    compare_vs_historical_average,
     deduplicate_by_first_seen,
     filter_by_date_range,
     normalize_date_input_range,
@@ -379,3 +382,207 @@ def test_aggregate_metric_by_publication_day_ignora_data_nao_parseavel():
     resultado = aggregate_metric_by_publication_day(df, metric_col="likesCount", agg="sum")
     assert resultado["data"].tolist() == [datetime.date(2026, 8, 1)]
     assert resultado["valor"].tolist() == [10]
+
+
+# ---------------------------------------------------------------------------
+# compare_publication_window (ADR 0025 / issue #153) -- janela atual de N
+# dias por data de publicação vs. janela anterior de N dias.
+# ---------------------------------------------------------------------------
+
+
+def _df_janela_publicacao(datas: list[str], valores: list[float], chaves: list[str] | None = None):
+    dados = {
+        "timestamp": [f"{d}T10:00:00.000Z" for d in datas],
+        "_valor": valores,
+    }
+    if chaves is not None:
+        dados["_chave"] = chaves
+    return pd.DataFrame(dados)
+
+
+def test_compare_publication_window_com_gap_maior_que_janela_calcula_atual_vs_anterior():
+    # Âncora = maior data (2026-09-08). Janela atual (7 dias, padrão) =
+    # [09-02, 09-08]; janela anterior = [08-26, 09-01]. O gap entre elas e um
+    # 3º bloco de dado ainda mais antigo (não entra em nenhuma das duas
+    # janelas) não deve quebrar o cálculo.
+    df = _df_janela_publicacao(
+        datas=["2026-08-01", "2026-09-01", "2026-09-08"],
+        valores=[0.9, 0.2, 0.8],
+    )
+    resultado = compare_publication_window(df, value_col="_valor", window_days=7)
+
+    assert resultado is not None
+    valor_atual, delta_percentual, valor_anterior = resultado[None]
+    assert valor_atual == 0.8
+    assert valor_anterior == 0.2
+    assert delta_percentual == pytest.approx(300.0)
+
+
+def test_compare_publication_window_com_chave_agrega_por_grupo():
+    df = _df_janela_publicacao(
+        datas=["2026-09-01", "2026-09-01", "2026-09-08", "2026-09-08"],
+        valores=[0.5, 1.0, 0.45, 1.0],
+        chaves=["saude", "seguranca", "saude", "seguranca"],
+    )
+    resultado = compare_publication_window(df, value_col="_valor", key_col="_chave", window_days=7)
+
+    assert resultado is not None
+    assert resultado["saude"][1] < 0  # caiu (0.5 -> 0.45)
+    assert resultado["seguranca"][1] == 0.0  # estável (1.0 -> 1.0)
+
+
+def test_compare_publication_window_dado_insuficiente_delta_none_sem_quebrar():
+    # Só a janela atual tem dado (menos de 2 janelas completas) -- delta
+    # degrada para None, nunca fabrica uma comparação.
+    df = _df_janela_publicacao(datas=["2026-09-08"], valores=[0.5])
+    resultado = compare_publication_window(df, value_col="_valor", window_days=7)
+
+    assert resultado is not None
+    valor_atual, delta_percentual, valor_anterior = resultado[None]
+    assert valor_atual == 0.5
+    assert delta_percentual is None
+    assert valor_anterior is None
+
+
+def test_compare_publication_window_none_com_dataframe_vazio():
+    assert compare_publication_window(pd.DataFrame(), value_col="_valor") is None
+
+
+def test_compare_publication_window_none_sem_coluna_obrigatoria():
+    df = pd.DataFrame({"timestamp": ["2026-09-08T10:00:00.000Z"]})
+    assert compare_publication_window(df, value_col="_valor") is None
+
+
+def test_compare_publication_window_divisao_por_zero_retorna_delta_none():
+    df = _df_janela_publicacao(datas=["2026-09-01", "2026-09-08"], valores=[0.0, 0.5])
+    resultado = compare_publication_window(df, value_col="_valor", window_days=7)
+
+    assert resultado is not None
+    valor_atual, delta_percentual, valor_anterior = resultado[None]
+    assert valor_atual == 0.5
+    assert delta_percentual is None
+    assert valor_anterior == 0.0
+
+
+def test_compare_publication_window_ignora_data_nao_parseavel_sem_quebrar():
+    df = pd.DataFrame(
+        {"timestamp": ["2026-09-08T10:00:00.000Z", "nao-e-data"], "_valor": [0.5, 99.0]}
+    )
+    resultado = compare_publication_window(df, value_col="_valor", window_days=7)
+
+    assert resultado is not None
+    assert resultado[None][0] == 0.5
+
+
+# ---------------------------------------------------------------------------
+# compare_vs_historical_average (ADR 0025 / issue #153) -- valor da execução
+# mais recente vs. média de todas as execuções anteriores daquela chave.
+# ---------------------------------------------------------------------------
+
+
+def test_compare_vs_historical_average_none_com_uma_execucao_no_total():
+    df = pd.DataFrame({"inputUrl": ["a"], "seguidores": [100], "_run_id": ["r1"]})
+    assert compare_vs_historical_average(df, value_col="seguidores") is None
+
+
+def test_compare_vs_historical_average_calcula_media_correta_com_duas_execucoes():
+    df = pd.DataFrame(
+        {
+            "inputUrl": ["a", "a"],
+            "seguidores": [10, 20],
+            "_run_id": ["r1", "r2"],
+        }
+    )
+    resultado = compare_vs_historical_average(df, value_col="seguidores")
+
+    assert resultado is not None
+    valor_atual, delta_percentual = resultado["a"]
+    assert valor_atual == 20
+    assert delta_percentual == 100.0  # média anterior = 10 -> 20 é +100%
+
+
+def test_compare_vs_historical_average_usa_media_de_todas_execucoes_anteriores():
+    df = pd.DataFrame(
+        {
+            "inputUrl": ["a", "a", "a"],
+            "seguidores": [10, 20, 30],
+            "_run_id": ["r1", "r2", "r3"],
+        }
+    )
+    resultado = compare_vs_historical_average(df, value_col="seguidores")
+
+    assert resultado is not None
+    valor_atual, delta_percentual = resultado["a"]
+    assert valor_atual == 30
+    assert delta_percentual == 100.0  # média de [10, 20] = 15 -> 30 é +100%
+
+
+def test_compare_vs_historical_average_chave_sem_execucao_anterior_delta_none():
+    df = pd.DataFrame(
+        {
+            "inputUrl": ["a", "a", "b"],
+            "seguidores": [10, 20, 5],
+            "_run_id": ["r1", "r2", "r2"],
+        }
+    )
+    resultado = compare_vs_historical_average(df, value_col="seguidores")
+
+    assert resultado is not None
+    # "b" só aparece na execução mais recente (r2) -- nunca fabrica uma
+    # média de 1 valor só.
+    valor_atual_b, delta_b = resultado["b"]
+    assert valor_atual_b == 5
+    assert delta_b is None
+
+
+def test_compare_vs_historical_average_media_historica_zero_retorna_delta_none():
+    df = pd.DataFrame(
+        {
+            "inputUrl": ["a", "a"],
+            "seguidores": [0, 20],
+            "_run_id": ["r1", "r2"],
+        }
+    )
+    resultado = compare_vs_historical_average(df, value_col="seguidores")
+
+    assert resultado is not None
+    valor_atual, delta_percentual = resultado["a"]
+    assert valor_atual == 20
+    assert delta_percentual is None
+
+
+def test_compare_vs_historical_average_none_com_dataframe_vazio():
+    assert compare_vs_historical_average(pd.DataFrame(), value_col="seguidores") is None
+
+
+# ---------------------------------------------------------------------------
+# JANELA_ALERTA_NEGATIVIDADE_DIAS (ADR 0025 / issue #153) -- lida de `.env`
+# diretamente neste módulo, padrão 7.
+# ---------------------------------------------------------------------------
+
+
+def test_janela_alerta_negatividade_dias_usa_padrao_quando_env_ausente(monkeypatch):
+    import importlib
+
+    from dashboard.core import deltas as deltas_module
+
+    monkeypatch.delenv("JANELA_ALERTA_NEGATIVIDADE_DIAS", raising=False)
+    try:
+        importlib.reload(deltas_module)
+        assert deltas_module.JANELA_ALERTA_NEGATIVIDADE_DIAS == 7
+    finally:
+        importlib.reload(deltas_module)
+
+
+def test_janela_alerta_negatividade_dias_respeita_override_de_ambiente(monkeypatch):
+    import importlib
+
+    from dashboard.core import deltas as deltas_module
+
+    monkeypatch.setenv("JANELA_ALERTA_NEGATIVIDADE_DIAS", "14")
+    try:
+        importlib.reload(deltas_module)
+        assert deltas_module.JANELA_ALERTA_NEGATIVIDADE_DIAS == 14
+    finally:
+        monkeypatch.delenv("JANELA_ALERTA_NEGATIVIDADE_DIAS", raising=False)
+        importlib.reload(deltas_module)

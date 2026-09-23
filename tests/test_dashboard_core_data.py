@@ -341,6 +341,46 @@ def test_load_nsm_returns_empty_dataframe_when_missing(tmp_path, monkeypatch):
     _clear_caches()
 
 
+def test_load_nsm_history_returns_delta_table(tmp_path, monkeypatch):
+    # ADR 0025 / issue #153.
+    _point_settings_at(monkeypatch, tmp_path)
+    path = settings.GOLD_DIR / "governor_nsm_history"
+    df_r1 = pd.DataFrame(
+        {
+            "inputUrl": ["https://www.instagram.com/governador_a/"],
+            "nsm": [0.1],
+            "_run_id": ["r1"],
+            "_generated_at": pd.to_datetime(["2026-05-01"], utc=True),
+        }
+    )
+    df_r2 = pd.DataFrame(
+        {
+            "inputUrl": ["https://www.instagram.com/governador_a/"],
+            "nsm": [0.2],
+            "_run_id": ["r2"],
+            "_generated_at": pd.to_datetime(["2026-05-02"], utc=True),
+        }
+    )
+    write_deltalake(str(path), df_r1, mode="overwrite")
+    write_deltalake(str(path), df_r2, mode="append")
+
+    out = data.load_nsm_history()
+
+    assert len(out) == 2
+    assert set(out["_run_id"]) == {"r1", "r2"}
+    _clear_caches()
+
+
+def test_load_nsm_history_returns_empty_dataframe_when_missing(tmp_path, monkeypatch):
+    _point_settings_at(monkeypatch, tmp_path)
+
+    out = data.load_nsm_history()
+
+    assert isinstance(out, pd.DataFrame)
+    assert out.empty
+    _clear_caches()
+
+
 def test_load_growth_metrics_returns_delta_table(tmp_path, monkeypatch):
     _point_settings_at(monkeypatch, tmp_path)
     path = settings.GOLD_DIR / "governor_growth_metrics"

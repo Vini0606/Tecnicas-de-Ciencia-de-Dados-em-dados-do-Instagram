@@ -156,6 +156,22 @@ def load_nsm() -> pd.DataFrame:
 
 
 @st.cache_data(ttl=_TTL_SECONDS)
+def load_nsm_history() -> pd.DataFrame:
+    """`governor_nsm_history` -- 1 linha por perfil por execução (ADR 0025 /
+    issue #153), espelha `load_engagement_history()`. NOTA: em 2026-09 a
+    pipeline ainda não escreve esta tabela (`NsmScorer.write` grava
+    `governor_nsm` em modo `overwrite`, sem variante de histórico -- ver
+    `src/repositories/delta_repository.py::load_nsm_history`); até essa
+    mudança de pipeline acontecer (fora do escopo da issue #153), esta
+    função sempre degrada para `DataFrame` vazio, e o KPI de NSM no Resumo
+    fica sem seta de variação -- comportamento esperado, não um bug."""
+    try:
+        return get_repository().load_nsm_history()
+    except FileNotFoundError:
+        return pd.DataFrame()
+
+
+@st.cache_data(ttl=_TTL_SECONDS)
 def load_growth_metrics() -> pd.DataFrame:
     """`governor_growth_metrics` -- 1 linha por perfil (`cmgr_confiavel`/
     `retencao_confiavel` sempre precisam ser checados antes de exibir)."""

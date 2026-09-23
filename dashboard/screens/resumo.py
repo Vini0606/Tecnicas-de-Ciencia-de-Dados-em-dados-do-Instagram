@@ -2,17 +2,26 @@
 
 Home do novo dashboard: substitui o `app.py` antigo (raiz) e
 `pages/01_explorar.py`. Estrutura fixa (ver ADR 0021, Princípio de design):
-cabeçalho (governador + filtro de calendário) -> frase de decisão semafórica
--> 4 KPIs com variação -> 4 destaques -> rodapé.
+cabeçalho (só governador) -> frase de decisão semafórica -> KPIs (4
+existentes + 2 de crescimento) -> prova (evidência histórica de desempenho)
+-> rodapé.
 
-ADR 0024 substituiu o antigo gráfico de tendência "por coleta" (rodapé) por
-um 4º destaque curto ("Publicações recentes", contagem por data de
-publicação) que aponta pra evidência completa na Tela 2 ("O que produzir") --
-o filtro de calendário que antes vivia dentro do destaque de negatividade
-subiu pro cabeçalho, no lugar do antigo seletor "Período".
+ADR 0026 / issue #154 substituiu os antigos "Destaques da execução" (4
+cartões narrativos) pela seção "Evidência histórica de desempenho" migrada
+INTEIRA de "O que produzir" (vira a nova "prova" desta tela) + uma 2ª linha
+de KPIs de crescimento (CMGR/retenção, sem delta). Das 2 informações
+realmente exclusivas dos antigos destaques: "Melhor post" e "Alto potencial,
+pouco discurso" migraram para "O que produzir" (critério idêntico, portado
+sem redesenho); "Tema em alta de negatividade" virou uma 2ª leitura
+exploratória no Radar de crise, reaproveitando o filtro de calendário que já
+existe lá; "Publicações recentes" simplesmente desapareceu (já coberto pela
+opção "Quantidade de publicações" do gráfico de evidência). O filtro de
+calendário que antes vivia no cabeçalho (issue #150/ADR 0024) foi junto com
+o destaque de negatividade -- o cabeçalho volta a ser só o seletor de
+governador.
 
-Toda a lógica de decisão (nível do semáforo, seleção dos 4 destaques) vive em
-funções puras nomeadas abaixo, testadas em
+Toda a lógica de decisão (nível do semáforo, deltas, série de evidência)
+vive em funções puras nomeadas abaixo, testadas em
 `tests/test_dashboard_screens_resumo.py` -- `render()` só orquestra I/O do
 Streamlit sobre o resultado dessas funções, nunca calcula nada sozinho (ver
 issue #111, Testing Decisions).
@@ -21,18 +30,22 @@ issue #111, Testing Decisions).
 from __future__ import annotations
 
 import pandas as pd
+import plotly.graph_objects as go
 import streamlit as st
 
 from dashboard.core import data
 from dashboard.core.components import decision_band, footnote, kpi_row, stage_label
 from dashboard.core.deltas import (
+    JANELA_ALERTA_NEGATIVIDADE_DIAS,
     LIMIAR_NEGATIVIDADE_ALERTA,
-    deduplicate_by_first_seen,
+    aggregate_metric_by_publication_day,
+    compare_publication_window,
+    compare_vs_historical_average,
     filter_by_date_range,
     normalize_date_input_range,
-    parse_publication_dates,
-    week_over_week,
+    quebrar_em_segmentos,
 )
+from dashboard.core.theme import COLORS
 
 _PLACEHOLDER_SEM_GOVERNADOR = "—"
 
@@ -208,44 +221,60 @@ def _proporcao_label(df_comments: pd.DataFrame, label: str) -> float | None:
     return (df_comments["sentiment_label"] == label).sum() / total
 
 
-def _agregar_pct_positivo_por_run(df_sentiment_history: pd.DataFrame) -> pd.DataFrame:
-    """1 linha por (`_chave`, `_run_id`): proporção de `sentiment_label ==
-    'positive'` -- pré-agregação exigida porque `week_over_week` espera 1
-    valor já pronto por chave por execução, não comentários individuais.
-    `_chave` é `inputUrl` normalizado (ver `_normalize_url`)."""
-    required = {"inputUrl", "sentiment_label", "_run_id"}
-    if df_sentiment_history.empty or not required.issubset(df_sentiment_history.columns):
-        return pd.DataFrame(columns=["_chave", "_run_id", "pct_positivo"])
+# ---------------------------------------------------------------------------
+# Deltas dos KPIs (ADR 0025 / issue #153): duas famílias de comparação --
+# CONTEÚDO (% positivo, tem data de publicação real por comentário) compara
+# por janela móvel; PERFIL (% engajamento, Seguidores, NSM -- só um valor
+# observado por execução) compara vs. média histórica. Ver docstring de
+# `dashboard/core/deltas.py` para a justificativa completa.
+# ---------------------------------------------------------------------------
 
-    df = df_sentiment_history.assign(_chave=_normalize_url(df_sentiment_history["inputUrl"]))
-    agregado = (
-        df.groupby(["_chave", "_run_id"])["sentiment_label"]
-        .apply(lambda s: (s == "positive").mean())
-        .rename("pct_positivo")
-        .reset_index()
+
+def _delta_janela_publicacao_para_governador(
+    df_sentiment_history_governador: pd.DataFrame,
+) -> tuple[object, float | None, float | None] | None:
+    """`(valor_atual, delta_percentual, valor_anterior)` de `% positivo`
+    para o governador já filtrado, via `deltas.compare_publication_window`
+    (janela atual de `deltas.JANELA_ALERTA_NEGATIVIDADE_DIAS` dias por data
+    de publicação do comentário vs. a janela anterior) -- ADR 0025, substitui
+    a comparação por execução (`week_over_week`) usada antes desta ADR.
+    `None` se não houver dado suficiente -- chamador trata como "sem seta de
+    variação", nunca como erro."""
+    if (
+        df_sentiment_history_governador.empty
+        or "sentiment_label" not in df_sentiment_history_governador.columns
+    ):
+        return None
+    df = df_sentiment_history_governador.assign(
+        _is_positive=(df_sentiment_history_governador["sentiment_label"] == "positive").astype(
+            float
+        )
     )
-    return agregado
+    resultado = compare_publication_window(df, value_col="_is_positive", key_col=None)
+    if resultado is None:
+        return None
+    return resultado.get(None)
 
 
-# ---------------------------------------------------------------------------
-# Delta genérico contra histórico (engajamento/seguidores/% positivo)
-# ---------------------------------------------------------------------------
-
-
-def _delta_para_governador(
+def _delta_vs_media_historica_para_governador(
     df_history: pd.DataFrame,
     value_col: str,
     governor_url: str,
     key_col: str = "_chave",
     run_col: str = "_run_id",
 ) -> tuple[object, float | None] | None:
-    """`(valor_atual, delta_percentual)` de `value_col` para `governor_url`,
-    via `week_over_week`. `None` se não houver histórico suficiente (2+
-    execuções) ou se `governor_url` não aparecer no histórico -- chamador
-    trata `None` como "sem seta de variação", nunca como erro."""
+    """`(valor_atual, delta_percentual)` de `value_col` (métrica de PERFIL:
+    % engajamento, Seguidores, NSM) para `governor_url`, via
+    `deltas.compare_vs_historical_average` (ADR 0025) -- substitui
+    `week_over_week`/"vs. última coleta" para essas 3 métricas, resiliente a
+    qualquer espaçamento real entre execuções. `None` se não houver
+    histórico suficiente ou se `governor_url` não aparecer no histórico --
+    chamador trata `None` como "sem seta de variação", nunca como erro."""
     if df_history.empty or key_col not in df_history.columns:
         return None
-    resultado = week_over_week(df_history, value_col=value_col, key_col=key_col, run_col=run_col)
+    resultado = compare_vs_historical_average(
+        df_history, value_col=value_col, key_col=key_col, run_col=run_col
+    )
     if resultado is None:
         return None
     chave = _normalize_url(pd.Series([governor_url])).iloc[0]
@@ -253,232 +282,98 @@ def _delta_para_governador(
 
 
 # ---------------------------------------------------------------------------
-# Destaque 1 -- melhor post/reel da execução (issue #111, user story 7)
+# Evidência histórica de desempenho (ADR 0026 / issue #154) -- migrada
+# INTEIRA de `produzir.py` (ADR 0024) para virar a nova "prova" desta tela;
+# zero mudança na lógica de agregação (mesmas constantes/funções, só
+# realocadas). Ver `dashboard/screens/produzir.py` para o link de volta.
 # ---------------------------------------------------------------------------
 
+TIPO_AMBOS = "Ambos"
+TIPO_POSTS = "Posts"
+TIPO_REELS = "Reels"
+_ORDEM_TIPOS_CONTEUDO = [TIPO_AMBOS, TIPO_POSTS, TIPO_REELS]
 
-def _melhor_post(
-    df_clusters: pd.DataFrame, df_reels: pd.DataFrame, governor_url: str
-) -> dict | None:
-    """Reel do governador (`content_type == 'reel'`) com maior `Total de
-    Engajamento` na execução mais recente de `reels_clean`.
+METRICA_QUANTIDADE = "Quantidade de publicações"
+METRICA_CURTIDAS = "Curtidas"
+METRICA_COMENTARIOS = "Comentários"
+METRICA_VISUALIZACOES = "Visualizações"
+_ORDEM_METRICAS = [METRICA_QUANTIDADE, METRICA_CURTIDAS, METRICA_COMENTARIOS, METRICA_VISUALIZACOES]
 
-    `governor_clusters` (`df_clusters`) não grava nenhuma métrica de
-    engajamento por post nem `inputUrl` (ver docstring de
-    `dashboard.core.data.load_reels_content`) -- por isso este destaque cruza
-    `df_clusters` com `reels_clean` (`df_reels`) por `id`/`id_reel`, mesmo
-    join já usado em `src/dashboard/filters.py::build_cluster_membership`.
-    `None` se qualquer uma das tabelas estiver vazia ou sem match -- nunca
-    lança exceção."""
-    if df_clusters.empty or df_reels.empty or not governor_url:
-        return None
-    if "content_type" not in df_clusters.columns or "id_reel" not in df_clusters.columns:
-        return None
-
-    clusters_reel = df_clusters[df_clusters["content_type"] == "reel"]
-    if clusters_reel.empty:
-        return None
-
-    reels_governador = _filtrar_por_governador(df_reels, governor_url)
-    if reels_governador.empty or "Total de Engajamento" not in reels_governador.columns:
-        return None
-    if "id" not in reels_governador.columns:
-        return None
-
-    merged = reels_governador.merge(clusters_reel, left_on="id", right_on="id_reel", how="inner")
-    if merged.empty:
-        return None
-
-    linha = merged.sort_values("Total de Engajamento", ascending=False).iloc[0]
-    return {
-        "id": linha.get("id"),
-        "shortCode": linha.get("shortCode"),
-        "total_engajamento": linha["Total de Engajamento"],
-    }
+# `None` (não uma string vazia) sinaliza "sem coluna de métrica" pra
+# `aggregate_metric_by_publication_day(..., agg="count")` -- quantidade de
+# publicações conta linhas, não soma nenhuma coluna.
+_METRICA_PARA_COLUNA = {
+    METRICA_QUANTIDADE: None,
+    METRICA_CURTIDAS: "likesCount",
+    METRICA_COMENTARIOS: "commentsCount",
+    # `videoPlayCount` só existe em reels (`SILVER_REELS_SCHEMA`) -- posts de
+    # feed puro nunca vão ter essa coluna, degradando pro estado vazio em
+    # `_serie_desempenho_por_publicacao` (nunca uma exceção).
+    METRICA_VISUALIZACOES: "videoPlayCount",
+}
 
 
-# ---------------------------------------------------------------------------
-# Destaque 2 -- tema com maior alta de negatividade (issue #111, user story 7)
-# ---------------------------------------------------------------------------
+def _conteudo_do_governador_por_tipo(
+    df_reels: pd.DataFrame, df_posts: pd.DataFrame, governor_url: str, tipo: str
+) -> pd.DataFrame:
+    """`DataFrame` combinado (reels e/ou posts de feed, conforme `tipo` --
+    um dos `TIPO_*` acima) do governador selecionado, já filtrado por
+    `inputUrl` (ADR 0024). `DataFrame` vazio (nunca exceção) se a(s)
+    fonte(s) pedida(s) estiverem vazias ou sem match para este governador."""
+    fontes = []
+    if tipo in (TIPO_REELS, TIPO_AMBOS):
+        fontes.append(df_reels)
+    if tipo in (TIPO_POSTS, TIPO_AMBOS):
+        fontes.append(df_posts)
 
-
-def _maior_alta_negatividade(
-    df_sentiment_history: pd.DataFrame,
-    data_inicio: object | None = None,
-    data_fim: object | None = None,
-) -> dict | None:
-    """Tópico de comentário (`Topic`/`Name`) com maior `% negativo` agregado
-    no intervalo `[data_inicio, data_fim]` de datas de PUBLICAÇÃO (ADR 0023).
-
-    MUDANÇA DE SEMÂNTICA (substitui o critério anterior desta função, issue
-    #111): antes comparava as 2 execuções mais recentes ("maior aumento
-    entre atual e anterior"); agora não existe mais essa noção de "atual vs.
-    anterior" quando o eixo passa a ser a data real de publicação do
-    comentário -- o comentário mais antigo e o mais novo do período filtrado
-    podem ter vindo da mesma execução, ou de execuções bem diferentes. O
-    critério vira simplesmente "qual tópico concentrou mais negatividade no
-    período escolhido pela analista" -- `data_inicio`/`data_fim` `None`
-    (default) usa todo o histórico disponível.
-
-    IMPORTANTE: `df_sentiment_history` deve chegar aqui já filtrado ao
-    governador selecionado (ver `render()`, `_filtrar_por_governador`) -- esta
-    função não faz nenhum filtro por `inputUrl` sozinha. Passar o histórico
-    de todos os 27 perfis produz o tópico com mais negatividade entre todos
-    os governadores combinados, não o do perfil que a analista está olhando
-    (contrariaria a user story 1 da tela: "escolher o governador... para ver
-    o resumo do perfil que acompanho").
-
-    Deduplica por `id_comment`/menor `_run_id` antes de agregar (ver
-    `dashboard.core.deltas.deduplicate_by_first_seen`) -- evita contar duas
-    vezes um comentário recoletado em execuções sobrepostas.
-
-    `None` se não houver dado suficiente (nenhum tópico atribuído -- BERTopic
-    não rodou --, nenhum comentário no intervalo filtrado, ou nenhum tópico
-    com negatividade > 0) -- não força um "destaque" artificial quando o
-    período foi estável ou positivo em todos os tópicos."""
-    required = {"Topic", "Name", "sentiment_label", "timestamp", "id_comment", "_run_id"}
-    if df_sentiment_history.empty or not required.issubset(df_sentiment_history.columns):
-        return None
-
-    df = df_sentiment_history.dropna(subset=["Topic"])
-    if df.empty:
-        return None
-
-    df = deduplicate_by_first_seen(df)
-    df = df.assign(_data_publicacao=parse_publication_dates(df)).dropna(subset=["_data_publicacao"])
-    df = filter_by_date_range(df, "_data_publicacao", data_inicio, data_fim)
-    if df.empty:
-        return None
-
-    agregado = (
-        df.groupby(["Topic", "Name"])["sentiment_label"]
-        .apply(lambda s: (s == "negative").mean())
-        .rename("pct_negativo")
-        .reset_index()
-    )
-    candidatos = agregado[agregado["pct_negativo"] > 0]
-    if candidatos.empty:
-        return None
-
-    linha = candidatos.sort_values("pct_negativo", ascending=False).iloc[0]
-    return {
-        "topic": linha["Topic"],
-        "name": linha["Name"],
-        "pct_negativo": linha["pct_negativo"] * 100,
-    }
-
-
-def _intervalo_disponivel(
-    df: pd.DataFrame, timestamp_col: str = "timestamp"
-) -> tuple[object, object] | None:
-    """`(data_min, data_max)` de `timestamp_col` parseado em `df` -- limites
-    default do filtro de calendário do destaque de negatividade (ADR 0023:
-    abre com todo o período disponível, sem corte padrão). `None` se `df`
-    estiver vazio, sem `timestamp_col`, ou sem nenhuma data parseável."""
-    if df.empty or timestamp_col not in df.columns:
-        return None
-    datas = parse_publication_dates(df, timestamp_col=timestamp_col).dropna()
-    if datas.empty:
-        return None
-    return datas.min(), datas.max()
-
-
-# ---------------------------------------------------------------------------
-# Destaque 3 -- alto % positivo e baixo volume de discurso (user story 7)
-# ---------------------------------------------------------------------------
-
-SEM_DADO_DISCURSO = "sem_dado_discurso"
-"""Sentinela retornada por `_topico_alto_positivo_baixo_discurso` quando
-`load_discourse_topics()` vier vazia -- distinta de `None` (que também pode
-significar "sem tópico prioritário calculável") para que `render()` mostre a
-mensagem amigável específica pedida pela issue #111 ("dado de discurso ainda
-não disponível") em vez de um estado vazio genérico."""
-
-
-def _topico_alto_positivo_baixo_discurso(
-    df_topic_priority: pd.DataFrame, df_discourse_topics: pd.DataFrame
-) -> dict | str | None:
-    """Tópico de comentário com `proporcao_sentimento_positivo` acima da
-    mediana E menor volume de menções no discurso oficial
-    (`governor_discourse_topics`) -- "falamos pouco sobre algo que o público
-    recebe bem".
-
-    Retorna `SEM_DADO_DISCURSO` (não `None`) se `df_discourse_topics` vier
-    vazia -- degrada para uma mensagem amigável em vez de quebrar (issue
-    #111, Testing Decisions). Retorna `None` só quando não há tópico
-    prioritário calculável mesmo com as duas tabelas presentes."""
-    if df_topic_priority.empty or "proporcao_sentimento_positivo" not in df_topic_priority.columns:
-        return None
-    if df_discourse_topics.empty:
-        return SEM_DADO_DISCURSO
-    if "Topic" not in df_discourse_topics.columns:
-        return SEM_DADO_DISCURSO
-
-    volume = (
-        df_discourse_topics.dropna(subset=["Topic"])
-        .groupby("Topic")
-        .size()
-        .rename("volume_discurso")
-        .reset_index()
-    )
-    merged = df_topic_priority.merge(volume, on="Topic", how="left")
-    merged["volume_discurso"] = merged["volume_discurso"].fillna(0)
-
-    limiar_positivo = merged["proporcao_sentimento_positivo"].median()
-    candidatos = merged[merged["proporcao_sentimento_positivo"] >= limiar_positivo]
-    if candidatos.empty:
-        return None
-
-    linha = candidatos.sort_values("volume_discurso", ascending=True).iloc[0]
-    return {
-        "topic": linha["Topic"],
-        "name": linha.get("Name"),
-        "proporcao_positivo": linha["proporcao_sentimento_positivo"],
-        "volume_discurso": linha["volume_discurso"],
-    }
-
-
-# ---------------------------------------------------------------------------
-# Destaque 4 -- quantidade de publicações recentes (ADR 0024)
-# ---------------------------------------------------------------------------
-
-_JANELA_DESTAQUE_PUBLICACOES_DIAS = 7
-
-
-def _contagem_publicacoes_recentes(
-    df_reels: pd.DataFrame, df_posts: pd.DataFrame, governor_url: str
-) -> tuple[int, int] | None:
-    """`(quantidade, janela_em_dias)` de publicações (reels + posts de feed,
-    `data_hora`) do governador nos `_JANELA_DESTAQUE_PUBLICACOES_DIAS` dias
-    mais recentes -- ADR 0024.
-
-    A janela termina na data de publicação MAIS RECENTE disponível no dado
-    (nunca `datetime.date.today()`): o pipeline não roda com cadência fixa
-    (ADR 0021, ponto de atrito 4) -- ancorar em "hoje" faria uma lacuna de
-    coleta parecer "o governador não postou nada" quando só significa "não
-    coletamos recentemente".
-
-    `None` (nunca `0` fabricado) se nenhuma das duas tabelas tiver
-    publicação com `data_hora` parseável para este governador -- `render()`
-    mostra uma mensagem amigável nesse caso, nunca um "0 publicações" que
-    pareça um erro de cálculo."""
-    partes = [
-        _filtrar_por_governador(df, governor_url)
-        for df in (df_reels, df_posts)
-        if not df.empty and "data_hora" in df.columns
-    ]
-    partes = [p[["data_hora"]] for p in partes if not p.empty]
+    partes = [_filtrar_por_governador(df, governor_url) for df in fontes]
+    partes = [p for p in partes if not p.empty]
     if not partes:
-        return None
+        return pd.DataFrame()
+    return pd.concat(partes, ignore_index=True)
 
-    datas = pd.to_datetime(pd.concat(partes, ignore_index=True)["data_hora"], errors="coerce")
-    datas = datas.dropna()
-    if datas.empty:
-        return None
 
-    data_corte = datas.max() - pd.Timedelta(days=_JANELA_DESTAQUE_PUBLICACOES_DIAS)
-    quantidade = int((datas > data_corte).sum())
-    return quantidade, _JANELA_DESTAQUE_PUBLICACOES_DIAS
+def _serie_desempenho_por_publicacao(df_conteudo: pd.DataFrame, metrica: str) -> pd.DataFrame:
+    """Série agregada por dia de publicação (colunas `data`/`valor`) para
+    `metrica` (um dos `METRICA_*` acima) -- `ADR 0024`, generaliza a
+    agregação por dia já usada no Radar (`aggregate_pct_negative_by_
+    publication_day`, ADR 0023) via `aggregate_metric_by_publication_day`.
+
+    Contagem de linhas (`agg="count"`) para `METRICA_QUANTIDADE`, soma
+    (`agg="sum"`) para as demais. `DataFrame` vazio (colunas `data`/`valor`,
+    nunca exceção) se `df_conteudo` estiver vazio ou sem a coluna da métrica
+    pedida -- caso real e esperado quando `metrica == METRICA_VISUALIZACOES`
+    e `tipo == TIPO_POSTS` (posts de feed não têm contagem de visualização)."""
+    coluna = _METRICA_PARA_COLUNA[metrica]
+    agg = "count" if metrica == METRICA_QUANTIDADE else "sum"
+    return aggregate_metric_by_publication_day(df_conteudo, metric_col=coluna, agg=agg)
+
+
+# ---------------------------------------------------------------------------
+# KPIs de crescimento (CMGR/retenção) -- ADR 0026 / issue #154
+# ---------------------------------------------------------------------------
+
+
+def _kpi_crescimento(
+    nome_base: str,
+    valor: float | None,
+    confiavel: bool | None,
+    motivo: str | None,
+) -> tuple[str, str, None, None, str | None]:
+    """Monta a entrada de `kpi_row` para um KPI de crescimento (CMGR/retenção,
+    de `data.load_growth_metrics()`) -- ADR 0026, user stories 4-5: valor +
+    selo de confiabilidade, NUNCA delta (`items[2]=None` sempre -- já são
+    métricas de tendência, uma variação de uma taxa seria confusa).
+
+    Rótulo ganha o sufixo "· ilustrativo" e `help_text` ganha `motivo`
+    quando `confiavel is False` (mesmo padrão visual do selo "em validação"
+    já usado pelo KPI de NSM) -- `confiavel=None` (sem linha pro governador,
+    `load_growth_metrics()` vazio) degrada para rótulo limpo com valor em
+    branco, nunca um "ilustrativo" fabricado por falta de dado."""
+    pouco_confiavel = confiavel is False
+    label = f"{nome_base} · ilustrativo" if pouco_confiavel else nome_base
+    help_text = motivo if pouco_confiavel and motivo else None
+    return (label, _fmt_pct(valor), None, None, help_text)
 
 
 # ---------------------------------------------------------------------------
@@ -498,53 +393,16 @@ def render() -> None:
         urls = df_engagement["inputUrl"].dropna().unique().tolist()
         options = {url: url for url in urls}
 
-    header_col1, header_col2 = st.columns([2, 1])
-    with header_col1:
-        if not options:
-            st.selectbox("Governador", options=[_PLACEHOLDER_SEM_GOVERNADOR], disabled=True)
-            governor_url = None
-        else:
-            nome_selecionado = st.selectbox("Governador", options=list(options.keys()))
-            governor_url = options[nome_selecionado]
-
-    # `df_sentiment_history_governador` precisa existir ANTES do cabeçalho
-    # terminar de renderizar -- ADR 0024 move o filtro de calendário que
-    # antes vivia só dentro do destaque 2 pra `header_col2`, e esse filtro
-    # precisa da data mínima/máxima do histórico deste governador pra
-    # calcular seus limites (`_intervalo_disponivel`).
-    df_sentiment_history = data.comments_only(data.load_sentiment_history())
-    df_sentiment_history_governador = (
-        _filtrar_por_governador(df_sentiment_history, governor_url)
-        if governor_url is not None
-        else df_sentiment_history.iloc[0:0]
-    )
-
-    with header_col2:
-        intervalo_disponivel = _intervalo_disponivel(df_sentiment_history_governador)
-        if intervalo_disponivel is None:
-            st.selectbox(
-                "Período (tema em alta de negatividade)",
-                options=[_PLACEHOLDER_SEM_GOVERNADOR],
-                disabled=True,
-                help=(
-                    "Filtro de calendário do destaque \"tema em alta de "
-                    "negatividade\" abaixo -- disponível quando houver "
-                    "histórico de comentários deste governador."
-                ),
-            )
-            data_inicio_negatividade, data_fim_negatividade = None, None
-        else:
-            data_min, data_max = intervalo_disponivel
-            intervalo = st.date_input(
-                "Período (tema em alta de negatividade)",
-                value=(data_min, data_max),
-                min_value=data_min,
-                max_value=data_max,
-                key="resumo_intervalo_tema_negatividade",
-            )
-            data_inicio_negatividade, data_fim_negatividade = normalize_date_input_range(
-                intervalo
-            )
+    # ADR 0026 / issue #154: cabeçalho volta a ser só o seletor de
+    # governador -- o filtro de calendário que vivia numa 2ª coluna (ADR
+    # 0024) era específico do destaque de negatividade, que saiu desta tela
+    # (virou 2ª leitura no Radar de crise, com o próprio filtro dele).
+    if not options:
+        st.selectbox("Governador", options=[_PLACEHOLDER_SEM_GOVERNADOR], disabled=True)
+        governor_url = None
+    else:
+        nome_selecionado = st.selectbox("Governador", options=list(options.keys()))
+        governor_url = options[nome_selecionado]
     stage_label("Visão do funil inteiro")
 
     if governor_url is None:
@@ -556,6 +414,8 @@ def render() -> None:
         return
 
     # ---- Dado bruto ----
+    df_sentiment_history = data.comments_only(data.load_sentiment_history())
+    df_sentiment_history_governador = _filtrar_por_governador(df_sentiment_history, governor_url)
     df_sentiment_governador = _filtrar_por_governador(
         data.comments_only(data.load_sentiment()), governor_url
     )
@@ -564,22 +424,31 @@ def render() -> None:
         df_engagement_history = df_engagement_history.assign(
             _chave=_normalize_url(df_engagement_history["inputUrl"])
         )
-    df_pct_positivo_run = _agregar_pct_positivo_por_run(df_sentiment_history)
-    # `df_sentiment_history_governador` (usado pelo destaque 2) já foi
-    # calculado antes do cabeçalho, junto com o filtro de calendário que
-    # agora vive em `header_col2` (ADR 0024) -- não recalcular aqui.
+    df_nsm_history = data.load_nsm_history()
+    if not df_nsm_history.empty and "inputUrl" in df_nsm_history.columns:
+        df_nsm_history = df_nsm_history.assign(_chave=_normalize_url(df_nsm_history["inputUrl"]))
+    # `df_sentiment_history_governador` (calculada acima) alimenta o delta de
+    # "% positivo" por janela de publicação (ADR 0025) -- não recalcular aqui.
     df_nsm_governador = _filtrar_por_governador(data.load_nsm(), governor_url)
 
     prop_positivo_atual = _proporcao_label(df_sentiment_governador, "positive")
     prop_negativo_atual = _proporcao_label(df_sentiment_governador, "negative")
 
-    resultado_engajamento = _delta_para_governador(
+    # ADR 0025: % engajamento/Seguidores/NSM (métricas de PERFIL) comparam
+    # vs. média histórica; % positivo (métrica de CONTEÚDO) compara por
+    # janela de data de publicação -- ver docstring das duas funções acima.
+    resultado_engajamento = _delta_vs_media_historica_para_governador(
         df_engagement_history, "% ENGAJAMENTO", governor_url
     )
-    resultado_seguidores = _delta_para_governador(
+    resultado_seguidores = _delta_vs_media_historica_para_governador(
         df_engagement_history, "followersCount", governor_url
     )
-    resultado_positivo = _delta_para_governador(df_pct_positivo_run, "pct_positivo", governor_url)
+    resultado_nsm = _delta_vs_media_historica_para_governador(
+        df_nsm_history, "nsm", governor_url
+    )
+    resultado_positivo = _delta_janela_publicacao_para_governador(
+        df_sentiment_history_governador
+    )
 
     delta_engajamento = resultado_engajamento[1] if resultado_engajamento else None
     delta_positivo = resultado_positivo[1] if resultado_positivo else None
@@ -587,14 +456,16 @@ def render() -> None:
     # ---- Frase de decisão ----
     nivel = _nivel_semaforo(delta_positivo, delta_engajamento, prop_negativo_atual)
     decision_band(_frase_decisao(nivel, delta_positivo, delta_engajamento), level=nivel)
-    # ADR 0023: engajamento/seguidores não têm data de publicação por linha
-    # (só `_run_id`/`_generated_at`) -- diferente do destaque de negatividade
-    # abaixo, que respeita o filtro de calendário, esta faixa e os KPIs de
-    # engajamento continuam sempre "vs. última coleta".
+    # ADR 0025: engajamento/seguidores/NSM não têm data de publicação por
+    # linha (só `_run_id`/`_generated_at`) -- comparam vs. MÉDIA HISTÓRICA de
+    # execuções, nunca "vs. última coleta". % positivo tem data de
+    # publicação real por comentário -- compara por janela de
+    # `deltas.JANELA_ALERTA_NEGATIVIDADE_DIAS` dias.
     st.caption(
-        "Engajamento, seguidores e % positivo sempre refletem a coleta mais "
-        "recente, independente do período filtrado no destaque de "
-        "negatividade abaixo."
+        "Engajamento, seguidores e NSM comparam contra a média histórica de "
+        "execuções. % positivo compara os últimos "
+        f"{JANELA_ALERTA_NEGATIVIDADE_DIAS} dias de publicação vs. os "
+        f"{JANELA_ALERTA_NEGATIVIDADE_DIAS} dias anteriores."
     )
 
     # ---- KPIs ----
@@ -620,11 +491,16 @@ def render() -> None:
             (
                 "Engajamento qualificado · em validação",
                 _fmt_nsm(valor_nsm),
-                # `delta=None` sempre: não existe `load_nsm_history()` (fora
-                # do escopo de `dashboard/core/data.py`, issue #110) -- sem
-                # histórico, não há como chamar `week_over_week` para este
-                # KPI. Não é um esquecimento; é ausência real de dado.
-                None,
+                # ADR 0025 / issue #153: `load_nsm_history()` já existe
+                # (espelha `load_engagement_history()`), mas a pipeline
+                # ainda não escreve `governor_nsm_history` hoje
+                # (`NsmScorer.write` grava `governor_nsm` em modo
+                # `overwrite`, sem variante de histórico -- ver
+                # `src/repositories/delta_repository.py::load_nsm_history`).
+                # `resultado_nsm` degrada para `None` graciosamente até essa
+                # mudança de pipeline (fora do escopo desta issue) acontecer
+                # -- não é um esquecimento, é ausência real de dado.
+                _fmt_delta_pct(resultado_nsm[1] if resultado_nsm else None),
                 None,
                 (
                     "North Star Metric (NSM): comentários positivos sobre "
@@ -655,82 +531,97 @@ def render() -> None:
         ]
     )
 
-    # ---- Destaques ----
-    st.markdown("#### Destaques da execução")
-    col1, col2, col3, col4 = st.columns(4)
+    # ---- KPIs de crescimento (ADR 0026 / issue #154) ----
+    # Reaproveita `kpi_row()` como já é (2ª chamada, sem mudar assinatura --
+    # user story 15). Nenhum delta: CMGR/retenção já são métricas de
+    # tendência.
+    st.markdown("##### Crescimento")
+    df_growth = _filtrar_por_governador(data.load_growth_metrics(), governor_url)
+    linha_growth = df_growth.iloc[0] if not df_growth.empty else None
 
-    with col1:
-        st.markdown("**Melhor post**")
-        # `data.load_reels_content()` retorna TODOS os 27 perfis -- ambas as
-        # funções abaixo (`_melhor_post`/`_contagem_publicacoes_recentes`)
-        # filtram por `governor_url` internamente, nunca recebem dado
-        # pré-filtrado daqui.
-        df_reels_conteudo = data.load_reels_content()
-        melhor = _melhor_post(data.load_clusters_content(), df_reels_conteudo, governor_url)
-        if melhor is None:
-            st.caption("Sem reel com dado de engajamento suficiente nesta execução.")
-        else:
-            shortcode, id_reel = melhor["shortCode"], melhor["id"]
-            if pd.notna(shortcode):
-                identificador = shortcode
-            elif pd.notna(id_reel):
-                identificador = id_reel
-            else:
-                identificador = _PLACEHOLDER_SEM_GOVERNADOR
-            st.write(f"`{identificador}` -- {_fmt_int_br(melhor['total_engajamento'])} de engajamento")
+    def _campo_growth(col: str) -> object:
+        if linha_growth is None or col not in linha_growth:
+            return None
+        return linha_growth[col]
 
-    with col2:
-        st.markdown("**Tema em alta de negatividade**")
-        # ADR 0023/0024: o filtro de calendário desta tela vive em
-        # `header_col2` e afeta só este destaque -- por data real de
-        # publicação do comentário, abrindo com todo o período disponível
-        # (sem corte padrão). Ver `intervalo_disponivel`/
-        # `data_inicio_negatividade`/`data_fim_negatividade`, computados no
-        # cabeçalho.
-        if intervalo_disponivel is None:
-            st.caption("Sem histórico de sentimento suficiente para este destaque.")
+    kpi_row(
+        [
+            _kpi_crescimento(
+                "CMGR", _campo_growth("cmgr"), _campo_growth("cmgr_confiavel"),
+                _campo_growth("cmgr_motivo"),
+            ),
+            _kpi_crescimento(
+                "Retenção", _campo_growth("retencao"), _campo_growth("retencao_confiavel"),
+                _campo_growth("retencao_motivo"),
+            ),
+        ]
+    )
+
+    # ---- Evidência histórica de desempenho (prova -- ADR 0021/0026) ----
+    # Migrada inteira de "O que produzir" (ADR 0024) -- zero mudança na
+    # lógica de agregação, só realocação (ver docstring do módulo).
+    st.markdown("#### Evidência histórica de desempenho")
+    # `load_reels_content()`/`load_posts_content()` retornam TODOS os 27
+    # perfis -- `_conteudo_do_governador_por_tipo` filtra por `governor_url`
+    # internamente.
+    df_reels_conteudo = data.load_reels_content()
+    df_posts_conteudo = data.load_posts_content()
+
+    col_tipo, col_metrica = st.columns(2)
+    with col_tipo:
+        tipo_selecionado = st.selectbox(
+            "Tipo de conteúdo", options=_ORDEM_TIPOS_CONTEUDO, key="resumo_tipo_conteudo"
+        )
+    with col_metrica:
+        metrica_selecionada = st.selectbox(
+            "Métrica", options=_ORDEM_METRICAS, key="resumo_metrica_desempenho"
+        )
+
+    df_conteudo = _conteudo_do_governador_por_tipo(
+        df_reels_conteudo, df_posts_conteudo, governor_url, tipo_selecionado
+    )
+    df_serie_completa = _serie_desempenho_por_publicacao(df_conteudo, metrica_selecionada)
+
+    if df_serie_completa.empty:
+        st.caption(
+            "Sem dado disponível para essa combinação de tipo de conteúdo e "
+            "métrica ainda -- comum quando \"Visualizações\" é escolhida com "
+            "\"Posts\" (posts de feed não têm contagem de visualização)."
+        )
+    else:
+        data_min = df_serie_completa["data"].min()
+        data_max = df_serie_completa["data"].max()
+        intervalo = st.date_input(
+            "Período (data de publicação)",
+            value=(data_min, data_max),
+            min_value=data_min,
+            max_value=data_max,
+            key="resumo_intervalo_desempenho",
+        )
+        data_inicio, data_fim = normalize_date_input_range(intervalo)
+        df_serie = filter_by_date_range(df_serie_completa, "data", data_inicio, data_fim)
+
+        if df_serie.empty:
+            st.caption("Nenhuma publicação no período selecionado.")
         else:
-            alta_negatividade = _maior_alta_negatividade(
-                df_sentiment_history_governador, data_inicio_negatividade, data_fim_negatividade
-            )
-            if alta_negatividade is None:
-                st.caption("Nenhum tema com negatividade no período selecionado.")
-            else:
-                st.write(
-                    f"**{alta_negatividade['name']}** -- "
-                    f"{alta_negatividade['pct_negativo']:.1f}% de negatividade no período."
+            fig = go.Figure()
+            for segmento in quebrar_em_segmentos(df_serie):
+                fig.add_trace(
+                    go.Scatter(
+                        x=segmento["data"],
+                        y=segmento["valor"],
+                        mode="lines+markers",
+                        line={"color": COLORS["muted"]},
+                        marker={"color": COLORS["muted"], "size": 6},
+                        showlegend=False,
+                    )
                 )
-                st.caption("Ver mais na tela Radar de crise.")
-
-    with col3:
-        st.markdown("**Alto potencial, pouco discurso**")
-        topico = _topico_alto_positivo_baixo_discurso(
-            data.load_topic_priority(), data.load_discourse_topics()
-        )
-        if topico == SEM_DADO_DISCURSO:
-            st.caption("Dado de discurso ainda não disponível.")
-        elif topico is None:
-            st.caption("Sem tópico prioritário identificável nesta execução.")
-        else:
-            st.write(
-                f"**{topico['name']}** -- {_fmt_pct(topico['proporcao_positivo'])} positivo, "
-                f"{int(topico['volume_discurso'])} menção(ões) no discurso oficial."
+            fig.update_layout(
+                yaxis_title=metrica_selecionada,
+                xaxis_title="Data de publicação",
+                showlegend=False,
+                margin={"t": 30, "b": 10},
             )
-            st.caption("Ver mais na tela O que produzir (em construção).")
-
-    with col4:
-        st.markdown("**Publicações recentes**")
-        # ADR 0024: substitui o antigo gráfico de tendência "por coleta" do
-        # rodapé -- contagem simples por data de publicação real, com
-        # atalho pra evidência completa em "O que produzir".
-        resultado_publicacoes = _contagem_publicacoes_recentes(
-            df_reels_conteudo, data.load_posts_content(), governor_url
-        )
-        if resultado_publicacoes is None:
-            st.caption("Sem publicação com data de conteúdo disponível ainda.")
-        else:
-            quantidade, janela_dias = resultado_publicacoes
-            st.write(f"{quantidade} publicação(ões) nos últimos {janela_dias} dias")
-            st.caption("Ver tendência completa na tela O que produzir.")
+            st.plotly_chart(fig, use_container_width=True)
 
     footnote()

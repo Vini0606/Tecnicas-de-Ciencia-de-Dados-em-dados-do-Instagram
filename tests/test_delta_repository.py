@@ -107,3 +107,36 @@ def test_load_sentiment_history_acumula_varias_execucoes(tmp_path):
 
     assert len(out) == 2
     assert set(out["_run_id"]) == {"r1", "r2"}
+
+
+def test_load_nsm_history_acumula_varias_execucoes(tmp_path):
+    # ADR 0025 / issue #153 -- espelha test_load_engagement_history_acumula_
+    # varias_execucoes acima; `governor_nsm_history` ainda não é escrita
+    # pela pipeline hoje (ver docstring de `load_nsm_history`), mas o
+    # accessor precisa ler corretamente assim que existir.
+    gold = tmp_path
+    history_path = gold / "governor_nsm_history"
+    df_r1 = pd.DataFrame(
+        {
+            "inputUrl": ["https://www.instagram.com/governador_a/"],
+            "nsm": [0.1],
+            "_run_id": ["r1"],
+            "_generated_at": pd.to_datetime(["2026-05-01"], utc=True),
+        }
+    )
+    df_r2 = pd.DataFrame(
+        {
+            "inputUrl": ["https://www.instagram.com/governador_a/"],
+            "nsm": [0.2],
+            "_run_id": ["r2"],
+            "_generated_at": pd.to_datetime(["2026-05-02"], utc=True),
+        }
+    )
+    write_deltalake(str(history_path), df_r1, mode="overwrite")
+    write_deltalake(str(history_path), df_r2, mode="append")
+
+    repo = DeltaRepository(gold_dir=gold)
+    out = repo.load_nsm_history()
+
+    assert len(out) == 2
+    assert set(out["_run_id"]) == {"r1", "r2"}
