@@ -366,8 +366,9 @@ def _kpi_crescimento(
     métricas de tendência, uma variação de uma taxa seria confusa).
 
     Rótulo ganha o sufixo "· ilustrativo" e `help_text` ganha `motivo`
-    quando `confiavel is False` (mesmo padrão visual do selo "em validação"
-    já usado pelo KPI de NSM) -- `confiavel=None` (sem linha pro governador,
+    quando `confiavel is False` (mesmo padrão de sufixo + tooltip já usado
+    pelo KPI de NSM antes da verificação de 2026-09-19 confirmar o critério
+    de aceite contra dado real -- ver ADR 0020) -- `confiavel=None` (sem linha pro governador,
     `load_growth_metrics()` vazio) degrada para rótulo limpo com valor em
     branco, nunca um "ilustrativo" fabricado por falta de dado."""
     pouco_confiavel = confiavel is False
@@ -489,7 +490,7 @@ def render() -> None:
     kpi_row(
         [
             (
-                "Engajamento qualificado · em validação",
+                "Engajamento qualificado",
                 _fmt_nsm(valor_nsm),
                 # ADR 0025 / issue #153: `load_nsm_history()` já existe
                 # (espelha `load_engagement_history()`), mas a pipeline
@@ -505,8 +506,10 @@ def render() -> None:
                 (
                     "North Star Metric (NSM): comentários positivos sobre "
                     "comentários totais, ponderado pelo alcance estimado por "
-                    "engajamento. Ainda em validação contra os 27 perfis "
-                    "reais -- não confiar cegamente neste número."
+                    "engajamento. Validado contra os 27 perfis reais (ADR "
+                    "0020, verificação de 2026-09-19): o ranking por NSM "
+                    "muda de posição para 25 dos 27 perfis frente ao ranking "
+                    "por engajamento bruto."
                 ),
             ),
             (

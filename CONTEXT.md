@@ -57,6 +57,7 @@ _Avoid_: Reach, visualizações, views (reservados para o dado real do funil, ve
 
 **Engajamento qualificado** (rótulo de usuário para NSM/North Star Metric):
 Nome exibido ao analista de assessoria para a NSM — comentários positivos sobre comentários totais,
-ponderado pelo alcance-proxy. Sempre acompanhada do selo "em validação" até confirmação contra os 27
-perfis reais.
+ponderado pelo alcance-proxy. Validada contra os 27 perfis reais (ADR 0020, verificação de
+2026-09-19): o ranking por NSM muda de posição para 25 dos 27 perfis frente ao ranking por
+engajamento bruto — deixou de levar o selo "em validação" no dashboard.
 _Avoid_: NSM (sigla técnica, nunca aparece sozinha na interface do usuário final; ok em código/ADR).
