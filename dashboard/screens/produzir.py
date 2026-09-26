@@ -295,17 +295,17 @@ def _comentarios_do_tema(
         return pd.DataFrame(columns=_COLUNAS_COMENTARIOS_POPUP)
 
     df = df.copy()
-    for col in ("likesCount", "repliesCount"):
+    valores_default = {col: pd.NA for col in _COLUNAS_COMENTARIOS_POPUP}
+    valores_default["likesCount"] = 0
+    valores_default["repliesCount"] = 0
+    for col, valor in valores_default.items():
         if col not in df.columns:
-            df[col] = 0
+            df[col] = valor
+
     engajamento = pd.to_numeric(df["likesCount"], errors="coerce").fillna(0.0) + pd.to_numeric(
         df["repliesCount"], errors="coerce"
     ).fillna(0.0)
     df = df.assign(_engajamento=engajamento).sort_values("_engajamento", ascending=False)
-
-    for col in _COLUNAS_COMENTARIOS_POPUP:
-        if col not in df.columns:
-            df[col] = pd.NA
     return df[_COLUNAS_COMENTARIOS_POPUP].head(top_n).reset_index(drop=True)
 
 
@@ -636,6 +636,11 @@ def _topico_alto_positivo_baixo_discurso(
 # `_comentarios_do_tema`, testada isoladamente.
 # ---------------------------------------------------------------------------
 
+_SESSION_KEY_TEMA_POPUP = "produzir_tema_popup_aberto"
+"""Chave de `st.session_state` que guarda o `Topic` do último popup aberto --
+evita reabrir o mesmo popup a cada rerun enquanto a seleção do `st.dataframe`
+da fila persistir (ver `render()`)."""
+
 
 def _abrir_dialog_comentarios(nome_tema: str, topic: int, df_comentarios: pd.DataFrame) -> None:
     @st.dialog(f'Comentários sobre "{nome_tema}"')
@@ -779,12 +784,20 @@ def render() -> None:
                 # `df_exibir`, que só seleciona/formata colunas de
                 # `fila_filtrada` sem reordenar linhas.
                 linha_selecionada = fila_filtrada.iloc[linhas_selecionadas[0]]
-                df_comentarios_global = data.comments_only(data.load_sentiment())
-                _abrir_dialog_comentarios(
-                    linha_selecionada["Name"],
-                    linha_selecionada["Topic"],
-                    df_comentarios_global,
-                )
+                topic_selecionado = linha_selecionada["Topic"]
+                # A seleção do `st.dataframe` persiste no rerun disparado ao
+                # FECHAR o `st.dialog` -- sem guardar em `session_state` qual
+                # tema já foi aberto, o popup reabriria sozinho toda vez que
+                # o usuário o fechasse (issue #167, user story 8: "quero
+                # poder fechar o popup e continuar vendo a fila normalmente").
+                if st.session_state.get(_SESSION_KEY_TEMA_POPUP) != topic_selecionado:
+                    st.session_state[_SESSION_KEY_TEMA_POPUP] = topic_selecionado
+                    df_comentarios_global = data.comments_only(data.load_sentiment())
+                    _abrir_dialog_comentarios(
+                        linha_selecionada["Name"], topic_selecionado, df_comentarios_global
+                    )
+            else:
+                st.session_state.pop(_SESSION_KEY_TEMA_POPUP, None)
 
     # ---- Cartões de formato ----
     st.markdown("#### Formatos de Reel")

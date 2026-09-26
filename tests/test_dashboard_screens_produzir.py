@@ -525,6 +525,24 @@ def test_comentarios_do_tema_ordena_por_engajamento_decrescente():
     assert list(resultado["text"]) == ["c0_alto", "c0_medio", "c0_baixo"]
 
 
+def test_comentarios_do_tema_empate_de_engajamento_mantem_as_duas_linhas():
+    df = pd.DataFrame(
+        {
+            "Topic": [0, 0],
+            "text": ["c0_empate_a", "c0_empate_b"],
+            "sentiment_label": ["positive", "negative"],
+            "likesCount": [10, 8],
+            "repliesCount": [0, 2],
+            "ownerUsername": ["u1", "u2"],
+            "timestamp": ["2026-01-01", "2026-01-02"],
+        }
+    )
+    # Ambos somam 10 de engajamento -- empate não pode derrubar nenhuma linha.
+    resultado = produzir._comentarios_do_tema(df, topic=0)
+    assert set(resultado["text"]) == {"c0_empate_a", "c0_empate_b"}
+    assert len(resultado) == 2
+
+
 def test_comentarios_do_tema_corta_no_top_n():
     resultado = produzir._comentarios_do_tema(_df_comentarios(), topic=0, top_n=2)
     assert list(resultado["text"]) == ["c0_alto", "c0_medio"]
