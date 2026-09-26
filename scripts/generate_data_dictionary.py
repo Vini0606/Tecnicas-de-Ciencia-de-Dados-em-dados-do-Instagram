@@ -356,6 +356,20 @@ TABLES: list[dict] = [
     },
     {
         "camada": "Gold",
+        "tabela": "governor_nsm_history",
+        "schema": sd.GOLD_NSM_SCHEMA,
+        "caminho": "data/gold/governor_nsm_history",
+        "grao": "Uma linha por perfil POR EXECUÇÃO do pipeline (mesmo schema de governor_nsm, mas em modo append) -- histórico acumulado ao longo do tempo.",
+        "modo_escrita": "append",
+        "escrito_por": "src/features/gold/nsm_scorer.py (mesmo NsmScorer, path diferente)",
+        "lido_por": "dashboard/core/data.py::load_nsm_history() -> dashboard/screens/resumo.py (Tela 1, delta \"vs. média histórica\" do KPI Engajamento qualificado)",
+        "status": "Produção -- fecha lacuna que a ADR 0025 previu e adiou (ADR 0027 / issue #160)",
+        "adr": "ADR 0020 Ficha 5 / ADR 0025 / ADR 0027 / issue #90 / issue #160",
+        "descricao": "Base de série temporal de NSM -- permite comparar o NSM da execução mais recente contra a média histórica de execuções anteriores, mesmo raciocínio de governor_engagement_history (ADR 0016).",
+        "notas": "Nunca sobrescrita nem deduplicada por execução -- cresce indefinidamente; governor_nsm (sem sufixo) continua em overwrite para não quebrar consumidores existentes. Precisa de >= 2 execuções acumuladas para o primeiro delta aparecer no dashboard (mesmo critério de compare_vs_historical_average já usado por % engajamento/Seguidores).",
+    },
+    {
+        "camada": "Gold",
         "tabela": "governor_ugc_mentions",
         "schema": sd.GOLD_UGC_MENTIONS_SCHEMA,
         "caminho": "config/settings.py::GOLD_UGC_MENTIONS (data/gold/governor_ugc_mentions)",
@@ -925,6 +939,17 @@ def build_tables_sheet(wb: Workbook) -> None:
     _write_rows(ws, header, rows, widths)
 
 
+def _column_overrides_for_table(tabela: str) -> dict[str, str]:
+    """`TABLE_COLUMN_OVERRIDES` da tabela, com fallback para a tabela-base
+    quando `tabela` é uma variante "_history" (append) sem override próprio
+    -- mesmo schema/colunas da tabela-base, só o modo de escrita muda (ver
+    governor_nsm/governor_nsm_history, ADR 0027 / issue #160). Evita
+    duplicar a mesma descrição de coluna duas vezes."""
+    return TABLE_COLUMN_OVERRIDES.get(tabela) or TABLE_COLUMN_OVERRIDES.get(
+        tabela.removesuffix("_history"), {}
+    )
+
+
 def build_columns_sheet(wb: Workbook, camada: str) -> None:
     ws = wb.create_sheet(f"Colunas - {camada}")
     header = ["Tabela", "Coluna", "Tipo", "Nullable", "Descrição de negócio / origem"]
@@ -933,7 +958,7 @@ def build_columns_sheet(wb: Workbook, camada: str) -> None:
         if t["camada"] != camada:
             continue
         schema: pa.Schema = t["schema"]
-        overrides = TABLE_COLUMN_OVERRIDES.get(t["tabela"], {})
+        overrides = _column_overrides_for_table(t["tabela"])
         for field in schema:
             desc = overrides.get(field.name) or COMMON_TECH.get(field.name) or MISSING_DESC
             rows.append(
@@ -999,7 +1024,7 @@ def main() -> None:
     # falha a geração), mas também é reportada no terminal para revisão.
     missing = []
     for t in TABLES:
-        overrides = TABLE_COLUMN_OVERRIDES.get(t["tabela"], {})
+        overrides = _column_overrides_for_table(t["tabela"])
         for field in t["schema"]:
             if field.name not in overrides and field.name not in COMMON_TECH:
                 missing.append(f"{t['tabela']}.{field.name}")
