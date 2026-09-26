@@ -23,6 +23,14 @@ baixa conversão"). O rótulo é curado a partir do perfil real do cluster, nunc
 `cluster_label == -1` (ruído do DBSCAN) vira "casos atípicos / virais", nunca aparece como "-1".
 _Avoid_: Cluster (termo técnico, não aparece na interface do usuário final).
 
+**Selo de prioridade**:
+Classificação em 3 faixas (Alta / Média / Cuidado) de um tema de comentário na fila de "O que
+produzir", derivada dos tercis do Score ICE sobre o ranking GLOBAL de temas (todos os perfis
+combinados) — nunca recalculada só sobre os temas do governador selecionado, para não oscilar
+artificialmente quando ele tem poucos temas próprios (ver ADR 0028). Filtrável por um controle de
+botões (1 faixa ativa por vez, ou "Todas") acima da fila. Nunca exibe o score bruto por trás do selo.
+_Avoid_: Score, Score ICE (métrica técnica interna — o selo é o que aparece na interface).
+
 **Selo de confiabilidade**:
 Marcação discreta ("em validação", "ilustrativo — histórico curto", "agrupamento experimental",
 "piloto") que acompanha uma métrica cuja confiabilidade ainda não foi totalmente estabelecida contra
