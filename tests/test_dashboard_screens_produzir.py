@@ -87,6 +87,7 @@ def _df_topic_priority_global():
             "Topic": [0, 1, 2, 3],
             "Name": ["0_saude", "1_seguranca", "2_educacao", "3_infra"],
             "score": [0.9, 0.6, 0.3, 0.05],
+            "n_comentarios": [120, 45, 30, 3],
             "proporcao_sentimento_positivo": [0.8, 0.5, 0.4, 0.2],
         }
     )
@@ -104,6 +105,20 @@ def test_fila_prioridade_restringe_ao_governador_e_ordena_por_score():
     # `_topico_prioritario_ajustado`.
     assert "score" in fila.columns
     assert "Prioridade" in fila.columns
+
+
+def test_fila_prioridade_propaga_quantidade_de_comentarios_global():
+    # n_comentarios vem do ranking GLOBAL (mesma linha de score/% positivo),
+    # nunca recalculado só sobre os comentários do governador (ver ADR 0028).
+    fila = produzir._fila_prioridade(_df_topic_priority_global(), topicos_governador={1, 3})
+    assert list(fila["n_comentarios"]) == [45, 3]
+
+
+def test_fila_prioridade_sem_n_comentarios_no_dado_de_entrada_nao_quebra():
+    df = _df_topic_priority_global().drop(columns=["n_comentarios"])
+    fila = produzir._fila_prioridade(df, topicos_governador={1, 3})
+    assert "n_comentarios" in fila.columns
+    assert fila["n_comentarios"].isna().all()
 
 
 def test_fila_prioridade_vazia_quando_topic_priority_vazio():
@@ -431,6 +446,51 @@ def test_fmt_pct_com_none_mostra_placeholder():
 
 def test_fmt_int_br_usa_separador_de_milhar():
     assert produzir._fmt_int_br(12345.6) == "12.346"
+
+
+# ---------------------------------------------------------------------------
+# _filtrar_fila_por_prioridade (ADR 0028 / issue #166) -- filtro de botão
+# único sobre a fila já calculada; nunca afeta o cálculo do selo em si.
+# ---------------------------------------------------------------------------
+
+
+def _fila_com_selos():
+    return pd.DataFrame(
+        {
+            "Topic": [0, 1, 2],
+            "Name": ["a", "b", "c"],
+            "Prioridade": [produzir.SELO_ALTA, produzir.SELO_MEDIA, produzir.SELO_ALTA],
+        }
+    )
+
+
+def test_filtrar_fila_por_prioridade_todas_retorna_fila_inteira():
+    fila = _fila_com_selos()
+    resultado = produzir._filtrar_fila_por_prioridade(fila, produzir.FILTRO_TODAS)
+    assert list(resultado["Topic"]) == [0, 1, 2]
+
+
+def test_filtrar_fila_por_prioridade_none_retorna_fila_inteira():
+    fila = _fila_com_selos()
+    resultado = produzir._filtrar_fila_por_prioridade(fila, None)
+    assert list(resultado["Topic"]) == [0, 1, 2]
+
+
+def test_filtrar_fila_por_prioridade_filtra_uma_faixa():
+    fila = _fila_com_selos()
+    resultado = produzir._filtrar_fila_por_prioridade(fila, produzir.SELO_ALTA)
+    assert list(resultado["Topic"]) == [0, 2]
+
+
+def test_filtrar_fila_por_prioridade_faixa_sem_linha_nenhuma_fica_vazia():
+    fila = _fila_com_selos()
+    resultado = produzir._filtrar_fila_por_prioridade(fila, produzir.SELO_CUIDADO)
+    assert resultado.empty
+
+
+def test_filtrar_fila_por_prioridade_vazia_sem_quebrar():
+    resultado = produzir._filtrar_fila_por_prioridade(pd.DataFrame(), produzir.SELO_ALTA)
+    assert resultado.empty
 
 
 # ---------------------------------------------------------------------------

@@ -43,6 +43,16 @@ do Score ICE"). O selo de prioridade (tercis) continua calculado sobre o
 ranking GLOBAL (não só os tópicos deste governador) para não oscilar
 artificialmente quando o governador selecionado tem poucos tópicos próprios
 -- ver `_cortes_tercis`.
+
+ADR 0028 / issue #166 acrescentou um filtro de prioridade (botão único --
+`_OPCOES_FILTRO_PRIORIDADE`/`_filtrar_fila_por_prioridade`) e a coluna
+"Comentários" (`n_comentarios`) na fila -- ambos puramente aditivos sobre o
+resultado já calculado por `_fila_prioridade`, sem mudar `score`,
+`_selo_prioridade`/`_cortes_tercis` nem `_recomendacao_principal`/
+`_topico_prioritario_ajustado`, que continuam operando sobre a fila
+completa, nunca a filtrada. `n_comentarios` é GLOBAL (mesmo escopo de
+`score`/`% positivo` -- ver parágrafo acima), nunca recalculado só sobre os
+comentários do governador selecionado.
 """
 
 from __future__ import annotations
@@ -68,6 +78,11 @@ _ORDEM_CARTOES = [GRUPO_CURTO, GRUPO_LONGO, GRUPO_VIRAL]
 SELO_ALTA = "Alta"
 SELO_MEDIA = "Média"
 SELO_CUIDADO = "Cuidado"
+FILTRO_TODAS = "Todas"
+"""Valor do filtro de prioridade (ADR 0028 / issue #166) que significa "sem
+filtro" -- nunca um selo de prioridade real, só a opção default do controle
+de botões acima da fila."""
+_OPCOES_FILTRO_PRIORIDADE = [FILTRO_TODAS, SELO_ALTA, SELO_MEDIA, SELO_CUIDADO]
 
 
 # ---------------------------------------------------------------------------
@@ -133,7 +148,14 @@ def _fmt_int_br(valor: float | None) -> str:
 # Fila de prioridade (Score ICE -> selo, nunca o score bruto)
 # ---------------------------------------------------------------------------
 
-_COLUNAS_FILA = ["Topic", "Name", "score", "proporcao_sentimento_positivo", "Prioridade"]
+_COLUNAS_FILA = [
+    "Topic",
+    "Name",
+    "score",
+    "n_comentarios",
+    "proporcao_sentimento_positivo",
+    "Prioridade",
+]
 
 
 def _cortes_tercis(df_topic_priority: pd.DataFrame) -> tuple[float, float]:
@@ -186,13 +208,23 @@ def _fila_prioridade(df_topic_priority: pd.DataFrame, topicos_governador: set) -
 
     Mantém `Topic`/`score` como colunas internas (não removidas aqui) para
     `_topico_prioritario_ajustado`/testes -- `render()` é responsável por
-    exibir só `Name`/`% positivo`/`Prioridade` ao usuário final, nunca o
-    score bruto."""
+    exibir só `Name`/`Comentários`/`% positivo`/`Prioridade` ao usuário
+    final, nunca o score bruto.
+
+    `n_comentarios` (quantidade de comentários do tema, ADR 0028 / issue
+    #166) vem GLOBAL de `df_topic_priority`, mesmo escopo de `score`/
+    `proporcao_sentimento_positivo` -- nunca recalculado só sobre os
+    comentários do governador selecionado (ver docstring do módulo). `NaN`
+    (nunca exceção) se `df_topic_priority` não tiver essa coluna."""
     required = {"Topic", "score", "proporcao_sentimento_positivo"}
     if df_topic_priority.empty or not required.issubset(df_topic_priority.columns):
         return pd.DataFrame(columns=_COLUNAS_FILA)
     if not topicos_governador:
         return pd.DataFrame(columns=_COLUNAS_FILA)
+
+    df_topic_priority = df_topic_priority.copy()
+    if "n_comentarios" not in df_topic_priority.columns:
+        df_topic_priority["n_comentarios"] = pd.NA
 
     df = df_topic_priority[df_topic_priority["Topic"].isin(topicos_governador)]
     if df.empty:
@@ -204,6 +236,19 @@ def _fila_prioridade(df_topic_priority: pd.DataFrame, topicos_governador: set) -
         Prioridade=df["score"].apply(lambda s: _selo_prioridade(s, corte_alta, corte_media))
     )
     return df[_COLUNAS_FILA]
+
+
+def _filtrar_fila_por_prioridade(fila: pd.DataFrame, selo: str | None) -> pd.DataFrame:
+    """Filtro de botão único sobre a fila já calculada (ADR 0028 / issue
+    #166) -- puramente uma lente de visualização: nunca recalcula o selo
+    (`_selo_prioridade`/`_cortes_tercis`) nem afeta `_recomendacao_principal`
+    /`_topico_prioritario_ajustado`, que sempre operam sobre a fila
+    completa, não filtrada. `selo` igual a `FILTRO_TODAS` ou `None` retorna
+    `fila` inteira, sem cópia alterada. `fila` vazia retorna vazia, nunca
+    exceção."""
+    if fila.empty or selo is None or selo == FILTRO_TODAS:
+        return fila
+    return fila[fila["Prioridade"] == selo]
 
 
 # ---------------------------------------------------------------------------
@@ -592,11 +637,23 @@ def render() -> None:
         "#### Fila de temas por prioridade",
         help=(
             'Prioridade estima impacto x confiança (Score ICE). "% positivo" '
-            "é a proporção de comentários positivos sobre este tema. O "
-            "alcance usado no cálculo é sempre uma ESTIMATIVA por "
-            "engajamento (curtidas + respostas dos comentários), não "
-            "visualizações reais -- não superinterpretar o número."
+            "é a proporção de comentários positivos sobre este tema. "
+            '"Comentários" é a quantidade de comentários do tema em TODOS '
+            "os perfis (não só deste governador), mesmo escopo global do "
+            "selo de prioridade e do % positivo. O alcance usado no cálculo "
+            "é sempre uma ESTIMATIVA por engajamento (curtidas + respostas "
+            "dos comentários), não visualizações reais -- não "
+            "superinterpretar o número."
         ),
+    )
+    # Filtro sempre visível, mesmo com a fila vazia -- issue #166, user story
+    # 8: "presente mas sem efeito (nada para filtrar)" em vez de sumir da
+    # tela quando o governador não tem tema priorizado.
+    selo_selecionado = st.segmented_control(
+        "Prioridade",
+        options=_OPCOES_FILTRO_PRIORIDADE,
+        selection_mode="single",
+        default=FILTRO_TODAS,
     )
     if fila.empty:
         st.info(
@@ -606,14 +663,30 @@ def render() -> None:
             "atribuído."
         )
     else:
-        df_exibir = fila[["Name", "proporcao_sentimento_positivo", "Prioridade"]].copy()
-        df_exibir["proporcao_sentimento_positivo"] = df_exibir[
-            "proporcao_sentimento_positivo"
-        ].map(_fmt_pct)
-        df_exibir = df_exibir.rename(
-            columns={"Name": "Tema", "proporcao_sentimento_positivo": "% positivo"}
-        )
-        st.dataframe(df_exibir, hide_index=True, width="stretch")
+        fila_filtrada = _filtrar_fila_por_prioridade(fila, selo_selecionado)
+
+        if fila_filtrada.empty:
+            # Mesmo tratamento amigável do caso "sem tema priorizado" acima
+            # -- o filtro pode zerar a fila (ex.: nenhum tema "Cuidado" para
+            # este governador), nunca deixa uma tabela em branco sem
+            # explicação.
+            st.caption(f'Nenhum tema com prioridade "{selo_selecionado}" nesta fila.')
+        else:
+            df_exibir = fila_filtrada[
+                ["Name", "n_comentarios", "proporcao_sentimento_positivo", "Prioridade"]
+            ].copy()
+            df_exibir["n_comentarios"] = df_exibir["n_comentarios"].map(_fmt_int_br)
+            df_exibir["proporcao_sentimento_positivo"] = df_exibir[
+                "proporcao_sentimento_positivo"
+            ].map(_fmt_pct)
+            df_exibir = df_exibir.rename(
+                columns={
+                    "Name": "Tema",
+                    "n_comentarios": "Comentários",
+                    "proporcao_sentimento_positivo": "% positivo",
+                }
+            )
+            st.dataframe(df_exibir, hide_index=True, width="stretch")
 
     # ---- Cartões de formato ----
     st.markdown("#### Formatos de Reel")
