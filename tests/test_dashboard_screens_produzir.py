@@ -494,6 +494,86 @@ def test_filtrar_fila_por_prioridade_vazia_sem_quebrar():
 
 
 # ---------------------------------------------------------------------------
+# _comentarios_do_tema (ADR 0028 / issue #167) -- popup de comentários GLOBAIS
+# (todos os 27 perfis) de um tema, top-N por engajamento.
+# ---------------------------------------------------------------------------
+
+
+def _df_comentarios():
+    return pd.DataFrame(
+        {
+            "Topic": [0, 0, 0, 1],
+            "text": ["c0_baixo", "c0_alto", "c0_medio", "c1_de_outro_tema"],
+            "sentiment_label": ["positive", "positive", "negative", "positive"],
+            "likesCount": [1, 50, 10, 999],
+            "repliesCount": [0, 5, 2, 999],
+            "ownerUsername": ["u1", "u2", "u3", "u4"],
+            "timestamp": ["2026-01-01", "2026-01-02", "2026-01-03", "2026-01-04"],
+        }
+    )
+
+
+def test_comentarios_do_tema_filtra_por_topic():
+    resultado = produzir._comentarios_do_tema(_df_comentarios(), topic=0)
+    assert set(resultado["text"]) == {"c0_baixo", "c0_alto", "c0_medio"}
+    assert "c1_de_outro_tema" not in set(resultado["text"])
+
+
+def test_comentarios_do_tema_ordena_por_engajamento_decrescente():
+    resultado = produzir._comentarios_do_tema(_df_comentarios(), topic=0)
+    # c0_alto: 50+5=55; c0_medio: 10+2=12; c0_baixo: 1+0=1.
+    assert list(resultado["text"]) == ["c0_alto", "c0_medio", "c0_baixo"]
+
+
+def test_comentarios_do_tema_corta_no_top_n():
+    resultado = produzir._comentarios_do_tema(_df_comentarios(), topic=0, top_n=2)
+    assert list(resultado["text"]) == ["c0_alto", "c0_medio"]
+
+
+def test_comentarios_do_tema_colunas_exibidas():
+    resultado = produzir._comentarios_do_tema(_df_comentarios(), topic=0)
+    assert list(resultado.columns) == [
+        "text",
+        "sentiment_label",
+        "likesCount",
+        "repliesCount",
+        "ownerUsername",
+        "timestamp",
+    ]
+
+
+def test_comentarios_do_tema_sem_comentario_para_o_tema_fica_vazio():
+    resultado = produzir._comentarios_do_tema(_df_comentarios(), topic=99)
+    assert resultado.empty
+
+
+def test_comentarios_do_tema_entrada_vazia_sem_quebrar():
+    resultado = produzir._comentarios_do_tema(pd.DataFrame(), topic=0)
+    assert resultado.empty
+
+
+def test_comentarios_do_tema_sem_coluna_topic_sem_quebrar():
+    resultado = produzir._comentarios_do_tema(pd.DataFrame({"text": ["a"]}), topic=0)
+    assert resultado.empty
+
+
+def test_comentarios_do_tema_likes_e_replies_nulos_tratados_como_zero():
+    df = pd.DataFrame(
+        {
+            "Topic": [0, 0],
+            "text": ["sem_engajamento", "com_engajamento"],
+            "sentiment_label": ["neutral", "positive"],
+            "likesCount": [None, 3],
+            "repliesCount": [None, 0],
+            "ownerUsername": ["u1", "u2"],
+            "timestamp": ["2026-01-01", "2026-01-02"],
+        }
+    )
+    resultado = produzir._comentarios_do_tema(df, topic=0)
+    assert list(resultado["text"]) == ["com_engajamento", "sem_engajamento"]
+
+
+# ---------------------------------------------------------------------------
 # Destaques (ADR 0026 / issue #154) -- "Melhor post" e "Alto potencial,
 # pouco discurso", portados sem mudança de comportamento de resumo.py.
 # ---------------------------------------------------------------------------

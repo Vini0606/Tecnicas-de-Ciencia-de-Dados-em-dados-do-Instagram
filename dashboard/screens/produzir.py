@@ -53,6 +53,16 @@ resultado já calculado por `_fila_prioridade`, sem mudar `score`,
 completa, nunca a filtrada. `n_comentarios` é GLOBAL (mesmo escopo de
 `score`/`% positivo` -- ver parágrafo acima), nunca recalculado só sobre os
 comentários do governador selecionado.
+
+ADR 0028 / issue #167 acrescentou um popup (`st.dialog`) com os comentários
+GLOBAIS de um tema, aberto ao clicar numa linha da fila
+(`st.dataframe(..., on_select="rerun", selection_mode="single-row")`).
+`_comentarios_do_tema` faz o filtro/ordenação/corte (top-50 por engajamento);
+`render()` só resolve a linha clicada de volta pro `Topic`/`Name`
+correspondentes em `fila_filtrada` (mesmo índice posicional do
+`st.dataframe` exibido) e chama o dialog -- nenhuma lógica de seleção vive
+fora de `render()` porque não há nada de puro para extrair daí (é 100%
+mecânica de widget do Streamlit).
 """
 
 from __future__ import annotations
@@ -249,6 +259,54 @@ def _filtrar_fila_por_prioridade(fila: pd.DataFrame, selo: str | None) -> pd.Dat
     if fila.empty or selo is None or selo == FILTRO_TODAS:
         return fila
     return fila[fila["Prioridade"] == selo]
+
+
+_COLUNAS_COMENTARIOS_POPUP = [
+    "text",
+    "sentiment_label",
+    "likesCount",
+    "repliesCount",
+    "ownerUsername",
+    "timestamp",
+]
+
+
+def _comentarios_do_tema(
+    df_comentarios: pd.DataFrame, topic: int, top_n: int = 50
+) -> pd.DataFrame:
+    """Comentários GLOBAIS (todos os 27 perfis, ADR 0028 / issue #167) de um
+    `topic` da fila, para o popup aberto ao clicar numa linha. `df_comentarios`
+    já deve vir só com comentários de público (`data.comments_only()`, mesmo
+    contrato de `df_sentiment_governador` em `render()`) -- esta função só
+    filtra por `Topic` e não checa `fonte`.
+
+    Ordenado por engajamento (`likesCount + repliesCount`) decrescente,
+    cortado nas `top_n` primeiras linhas -- um tema muito debatido pode ter
+    milhares de comentários, e renderizar todos travaria o modal. `likesCount`/
+    `repliesCount` nulos contam como 0 (mesmo tratamento de
+    `topic_priority_scorer.py::score`). `DataFrame` vazio com as colunas de
+    `_COLUNAS_COMENTARIOS_POPUP` (nunca exceção) se `df_comentarios` estiver
+    vazio, sem `Topic`, ou sem nenhum comentário para este tema."""
+    if df_comentarios.empty or "Topic" not in df_comentarios.columns:
+        return pd.DataFrame(columns=_COLUNAS_COMENTARIOS_POPUP)
+
+    df = df_comentarios[df_comentarios["Topic"] == topic]
+    if df.empty:
+        return pd.DataFrame(columns=_COLUNAS_COMENTARIOS_POPUP)
+
+    df = df.copy()
+    for col in ("likesCount", "repliesCount"):
+        if col not in df.columns:
+            df[col] = 0
+    engajamento = pd.to_numeric(df["likesCount"], errors="coerce").fillna(0.0) + pd.to_numeric(
+        df["repliesCount"], errors="coerce"
+    ).fillna(0.0)
+    df = df.assign(_engajamento=engajamento).sort_values("_engajamento", ascending=False)
+
+    for col in _COLUNAS_COMENTARIOS_POPUP:
+        if col not in df.columns:
+            df[col] = pd.NA
+    return df[_COLUNAS_COMENTARIOS_POPUP].head(top_n).reset_index(drop=True)
 
 
 # ---------------------------------------------------------------------------
@@ -572,6 +630,26 @@ def _topico_alto_positivo_baixo_discurso(
 
 
 # ---------------------------------------------------------------------------
+# Popup de comentários (ADR 0028 / issue #167) -- 100% orquestração de
+# widget (título dinâmico do `st.dialog` por tema), nada de lógica pura pra
+# extrair daqui; a lógica em si (filtro/ordenação/corte) já está em
+# `_comentarios_do_tema`, testada isoladamente.
+# ---------------------------------------------------------------------------
+
+
+def _abrir_dialog_comentarios(nome_tema: str, topic: int, df_comentarios: pd.DataFrame) -> None:
+    @st.dialog(f'Comentários sobre "{nome_tema}"')
+    def _dialog() -> None:
+        comentarios = _comentarios_do_tema(df_comentarios, topic)
+        if comentarios.empty:
+            st.caption("Nenhum comentário encontrado para este tema.")
+        else:
+            st.dataframe(comentarios, hide_index=True, width="stretch")
+
+    _dialog()
+
+
+# ---------------------------------------------------------------------------
 # render()
 # ---------------------------------------------------------------------------
 
@@ -686,7 +764,27 @@ def render() -> None:
                     "proporcao_sentimento_positivo": "% positivo",
                 }
             )
-            st.dataframe(df_exibir, hide_index=True, width="stretch")
+            evento = st.dataframe(
+                df_exibir,
+                hide_index=True,
+                width="stretch",
+                on_select="rerun",
+                selection_mode="single-row",
+            )
+            # `on_select="rerun"` sempre devolve um `DataframeState` (nunca
+            # `None`) -- ver `streamlit.elements.arrow.DataframeState`.
+            linhas_selecionadas = evento.selection.rows
+            if linhas_selecionadas:
+                # `.iloc` posicional -- mesma ordem de exibição de
+                # `df_exibir`, que só seleciona/formata colunas de
+                # `fila_filtrada` sem reordenar linhas.
+                linha_selecionada = fila_filtrada.iloc[linhas_selecionadas[0]]
+                df_comentarios_global = data.comments_only(data.load_sentiment())
+                _abrir_dialog_comentarios(
+                    linha_selecionada["Name"],
+                    linha_selecionada["Topic"],
+                    df_comentarios_global,
+                )
 
     # ---- Cartões de formato ----
     st.markdown("#### Formatos de Reel")
