@@ -18,6 +18,7 @@ import datetime
 import inspect
 
 import pandas as pd
+import pytest
 import streamlit as st
 from deltalake.writer import write_deltalake
 
@@ -178,38 +179,52 @@ def test_frase_decisao_e_lista_de_comentarios_nao_aceitam_filtro_de_calendario()
 # ---------------------------------------------------------------------------
 
 
+def _linhas_topico_alta_negatividade() -> list[dict]:
+    """Especificação compartilhada entre `_df_sentiment_history_bruto_com_alta`
+    e `_df_sentiment_history_dois_runs_dois_temas` (ADR 0027): 7 dias-com-dado
+    "anteriores" (agosto) e 7 "atuais" (setembro), 1 comentário por tópico por
+    dia -- a janela agora é definida por CONTAGEM de dias-com-dado, não por
+    calendário. Tópico 1 (Segurança pública) sobe de 1/7 pra 6/7 dias
+    negativos (alta real); Tópico 2 (Saúde) fica em 7/7 negativo nos dois
+    blocos (estável) -- o tema em alta deve ser sempre o 1. Cada linha traz só
+    os campos comuns às duas tabelas (`topic`/`name`/`dia`/`sentimento`/
+    `run_id`) -- cada fixture acrescenta as colunas próprias da sua tabela."""
+    dias_anteriores = [f"2026-08-{d:02d}" for d in range(1, 8)]
+    dias_atuais = [f"2026-09-{d:02d}" for d in range(1, 8)]
+    dias = dias_anteriores + dias_atuais
+
+    sentimentos_topico1 = (["negative"] + ["positive"] * 6) + (["negative"] * 6 + ["positive"])
+    sentimentos_topico2 = ["negative"] * len(dias)
+
+    linhas = []
+    for topic, name, sentimentos in [
+        (1, "Segurança pública", sentimentos_topico1),
+        (2, "Saúde", sentimentos_topico2),
+    ]:
+        for dia, sentimento in zip(dias, sentimentos, strict=True):
+            linhas.append(
+                {
+                    "topic": topic,
+                    "name": name,
+                    "dia": dia,
+                    "sentimento": sentimento,
+                    "run_id": "run_1" if dia in dias_anteriores else "run_2",
+                }
+            )
+    return linhas
+
+
 def _df_sentiment_history_bruto_com_alta():
-    # Âncora = 2026-09-08 (maior data). Janela atual (7 dias, padrão) =
-    # [09-02, 09-08]; janela anterior = [08-26, 09-01] -- coincide com as
-    # datas de publicação abaixo (09-01/09-08), então o resultado é
-    # equivalente ao antigo critério por execução para este fixture.
     return pd.DataFrame(
         {
-            "id_comment": [f"c{i}" for i in range(8)],
-            "Topic": [1, 1, 1, 1, 2, 2, 2, 2],
-            "Name": ["Segurança pública"] * 4 + ["Saúde"] * 4,
-            "sentiment_label": [
-                "negative",
-                "positive",
-                "negative",
-                "negative",
-                "negative",
-                "negative",
-                "negative",
-                "negative",
-            ],
-            "_run_id": ["run_1", "run_1", "run_2", "run_2", "run_1", "run_1", "run_2", "run_2"],
-            "timestamp": [
-                "2026-09-01T10:00:00.000Z",
-                "2026-09-01T10:05:00.000Z",
-                "2026-09-08T10:00:00.000Z",
-                "2026-09-08T10:05:00.000Z",
-                "2026-09-01T11:00:00.000Z",
-                "2026-09-01T11:05:00.000Z",
-                "2026-09-08T11:00:00.000Z",
-                "2026-09-08T11:05:00.000Z",
-            ],
+            "id_comment": f"c{i}",
+            "Topic": linha["topic"],
+            "Name": linha["name"],
+            "sentiment_label": linha["sentimento"],
+            "_run_id": linha["run_id"],
+            "timestamp": f"{linha['dia']}T10:00:00.000Z",
         }
+        for i, linha in enumerate(_linhas_topico_alta_negatividade())
     )
 
 
@@ -218,8 +233,8 @@ def test_tema_maior_alta_negatividade_escolhe_maior_delta_positivo():
     assert resultado is not None
     assert resultado["topic"] == 1
     assert resultado["name"] == "Segurança pública"
-    assert resultado["pct_atual"] == 1.0
-    assert resultado["pct_anterior"] == 0.5
+    assert resultado["pct_atual"] == pytest.approx(6 / 7)
+    assert resultado["pct_anterior"] == pytest.approx(1 / 7)
     assert resultado["delta_percentual"] > 0
 
 
@@ -519,51 +534,27 @@ def test_filtrar_por_governador_normaliza_barra_final_e_caixa():
 
 
 def _df_sentiment_history_dois_runs_dois_temas():
+    # Mesmo cenário de `_linhas_topico_alta_negatividade` (ver docstring),
+    # com as colunas extras que só esta tabela precisa (`text`, `inputUrl`,
+    # `ownerUsername`, `_generated_at`, `fonte`).
     return pd.DataFrame(
         {
-            "id_comment": [f"c{i}" for i in range(8)],
-            "text": [f"comentário {i}" for i in range(8)],
-            "inputUrl": ["https://www.instagram.com/gov_a/"] * 8,
-            "ownerUsername": [f"usuario_{i}" for i in range(8)],
-            "sentiment_label": [
-                "negative",
-                "positive",
-                "negative",
-                "negative",
-                "negative",
-                "negative",
-                "negative",
-                "negative",
-            ],
-            "Topic": [1, 1, 1, 1, 2, 2, 2, 2],
-            "Name": ["Segurança pública"] * 4 + ["Saúde"] * 4,
-            "_run_id": ["run_1", "run_1", "run_2", "run_2", "run_1", "run_1", "run_2", "run_2"],
-            "_generated_at": pd.to_datetime(
-                [
-                    "2026-09-01",
-                    "2026-09-01",
-                    "2026-09-08",
-                    "2026-09-08",
-                    "2026-09-01",
-                    "2026-09-01",
-                    "2026-09-08",
-                    "2026-09-08",
-                ]
-            ),
-            # Data real de publicação do comentário (ADR 0023) -- distinta de
-            # `_generated_at` (data da coleta), embora coincida neste fixture.
-            "timestamp": [
-                "2026-09-01T10:00:00.000Z",
-                "2026-09-01T10:05:00.000Z",
-                "2026-09-08T10:00:00.000Z",
-                "2026-09-08T10:05:00.000Z",
-                "2026-09-01T11:00:00.000Z",
-                "2026-09-01T11:05:00.000Z",
-                "2026-09-08T11:00:00.000Z",
-                "2026-09-08T11:05:00.000Z",
-            ],
-            "fonte": ["comentario"] * 8,
+            "id_comment": f"c{i}",
+            "text": f"comentário {i}",
+            "inputUrl": "https://www.instagram.com/gov_a/",
+            "ownerUsername": f"usuario_{i}",
+            "sentiment_label": linha["sentimento"],
+            "Topic": linha["topic"],
+            "Name": linha["name"],
+            "_run_id": linha["run_id"],
+            "_generated_at": pd.Timestamp(linha["dia"]),
+            # Data real de publicação do comentário (ADR 0023) -- distinta
+            # de `_generated_at` (data da coleta), embora coincida neste
+            # fixture.
+            "timestamp": f"{linha['dia']}T10:00:00.000Z",
+            "fonte": "comentario",
         }
+        for i, linha in enumerate(_linhas_topico_alta_negatividade())
     )
 
 
@@ -579,15 +570,18 @@ def test_radar_contra_tabela_delta_real_de_sentiment_history(tmp_path, monkeypat
     )
     tema_em_alta = radar._tema_maior_alta_negatividade(df_history_governador)
 
-    # Topic 1 (Segurança pública): 1/2 negativo no run_1 -> 1.0 no run_2
-    # (alta). Topic 2 (Saúde): 1.0 negativo nos dois runs (estável) --
-    # o tema em alta deve ser o 1, nunca o 2.
+    # Topic 1 (Segurança pública): 1/7 negativo no bloco anterior -> 6/7 no
+    # bloco atual (alta). Topic 2 (Saúde): 7/7 negativo nos dois blocos
+    # (estável) -- o tema em alta deve ser o 1, nunca o 2.
     assert tema_em_alta is not None
     assert tema_em_alta["topic"] == 1
 
     df_timeline = aggregate_pct_negative_by_publication_day(df_history_governador)
     assert not df_timeline.empty
-    assert set(df_timeline["data"]) == {datetime.date(2026, 9, 1), datetime.date(2026, 9, 8)}
+    datas_esperadas = {datetime.date(2026, 8, d) for d in range(1, 8)} | {
+        datetime.date(2026, 9, d) for d in range(1, 8)
+    }
+    assert set(df_timeline["data"]) == datas_esperadas
     _clear_caches()
 
 
