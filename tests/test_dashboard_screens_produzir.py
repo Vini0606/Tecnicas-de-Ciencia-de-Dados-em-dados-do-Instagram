@@ -466,7 +466,7 @@ def _fila_com_selos():
 
 def test_filtrar_fila_por_prioridade_todas_retorna_fila_inteira():
     fila = _fila_com_selos()
-    resultado = produzir._filtrar_fila_por_prioridade(fila, produzir.SELO_TODAS)
+    resultado = produzir._filtrar_fila_por_prioridade(fila, produzir.FILTRO_TODAS)
     assert list(resultado["Topic"]) == [0, 1, 2]
 
 

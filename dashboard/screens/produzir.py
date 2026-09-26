@@ -78,11 +78,11 @@ _ORDEM_CARTOES = [GRUPO_CURTO, GRUPO_LONGO, GRUPO_VIRAL]
 SELO_ALTA = "Alta"
 SELO_MEDIA = "Média"
 SELO_CUIDADO = "Cuidado"
-SELO_TODAS = "Todas"
+FILTRO_TODAS = "Todas"
 """Valor do filtro de prioridade (ADR 0028 / issue #166) que significa "sem
 filtro" -- nunca um selo de prioridade real, só a opção default do controle
 de botões acima da fila."""
-_OPCOES_FILTRO_PRIORIDADE = [SELO_TODAS, SELO_ALTA, SELO_MEDIA, SELO_CUIDADO]
+_OPCOES_FILTRO_PRIORIDADE = [FILTRO_TODAS, SELO_ALTA, SELO_MEDIA, SELO_CUIDADO]
 
 
 # ---------------------------------------------------------------------------
@@ -243,10 +243,10 @@ def _filtrar_fila_por_prioridade(fila: pd.DataFrame, selo: str | None) -> pd.Dat
     #166) -- puramente uma lente de visualização: nunca recalcula o selo
     (`_selo_prioridade`/`_cortes_tercis`) nem afeta `_recomendacao_principal`
     /`_topico_prioritario_ajustado`, que sempre operam sobre a fila
-    completa, não filtrada. `selo` igual a `SELO_TODAS` ou `None` retorna
+    completa, não filtrada. `selo` igual a `FILTRO_TODAS` ou `None` retorna
     `fila` inteira, sem cópia alterada. `fila` vazia retorna vazia, nunca
     exceção."""
-    if fila.empty or selo is None or selo == SELO_TODAS:
+    if fila.empty or selo is None or selo == FILTRO_TODAS:
         return fila
     return fila[fila["Prioridade"] == selo]
 
@@ -646,6 +646,15 @@ def render() -> None:
             "superinterpretar o número."
         ),
     )
+    # Filtro sempre visível, mesmo com a fila vazia -- issue #166, user story
+    # 8: "presente mas sem efeito (nada para filtrar)" em vez de sumir da
+    # tela quando o governador não tem tema priorizado.
+    selo_selecionado = st.segmented_control(
+        "Prioridade",
+        options=_OPCOES_FILTRO_PRIORIDADE,
+        selection_mode="single",
+        default=FILTRO_TODAS,
+    )
     if fila.empty:
         st.info(
             "Nenhum tema priorizado disponível para este governador ainda "
@@ -654,26 +663,30 @@ def render() -> None:
             "atribuído."
         )
     else:
-        selo_selecionado = st.segmented_control(
-            "Prioridade", options=_OPCOES_FILTRO_PRIORIDADE, default=SELO_TODAS
-        )
         fila_filtrada = _filtrar_fila_por_prioridade(fila, selo_selecionado)
 
-        df_exibir = fila_filtrada[
-            ["Name", "n_comentarios", "proporcao_sentimento_positivo", "Prioridade"]
-        ].copy()
-        df_exibir["n_comentarios"] = df_exibir["n_comentarios"].map(_fmt_int_br)
-        df_exibir["proporcao_sentimento_positivo"] = df_exibir[
-            "proporcao_sentimento_positivo"
-        ].map(_fmt_pct)
-        df_exibir = df_exibir.rename(
-            columns={
-                "Name": "Tema",
-                "n_comentarios": "Comentários",
-                "proporcao_sentimento_positivo": "% positivo",
-            }
-        )
-        st.dataframe(df_exibir, hide_index=True, width="stretch")
+        if fila_filtrada.empty:
+            # Mesmo tratamento amigável do caso "sem tema priorizado" acima
+            # -- o filtro pode zerar a fila (ex.: nenhum tema "Cuidado" para
+            # este governador), nunca deixa uma tabela em branco sem
+            # explicação.
+            st.caption(f'Nenhum tema com prioridade "{selo_selecionado}" nesta fila.')
+        else:
+            df_exibir = fila_filtrada[
+                ["Name", "n_comentarios", "proporcao_sentimento_positivo", "Prioridade"]
+            ].copy()
+            df_exibir["n_comentarios"] = df_exibir["n_comentarios"].map(_fmt_int_br)
+            df_exibir["proporcao_sentimento_positivo"] = df_exibir[
+                "proporcao_sentimento_positivo"
+            ].map(_fmt_pct)
+            df_exibir = df_exibir.rename(
+                columns={
+                    "Name": "Tema",
+                    "n_comentarios": "Comentários",
+                    "proporcao_sentimento_positivo": "% positivo",
+                }
+            )
+            st.dataframe(df_exibir, hide_index=True, width="stretch")
 
     # ---- Cartões de formato ----
     st.markdown("#### Formatos de Reel")
