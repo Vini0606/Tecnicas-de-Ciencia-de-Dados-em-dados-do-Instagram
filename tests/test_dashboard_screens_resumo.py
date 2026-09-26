@@ -427,6 +427,17 @@ def test_render_evidencia_renderiza_os_3_tipos_de_conteudo():
     assert "TIPO_REELS" in codigo
 
 
+def test_render_evidencia_selectbox_de_metrica_e_unico_e_fica_antes_das_colunas():
+    # ADR 0029, decisão 3: Métrica é 1 selectbox compartilhado, em linha
+    # cheia ACIMA dos 3 gráficos -- nunca 1 por gráfico, nunca dentro de
+    # `st.columns(2)` (que só existe pra Posts/Reels 50/50).
+    codigo = inspect.getsource(resumo.render)
+    assert codigo.count('key="resumo_metrica_desempenho"') == 1
+    posicao_metrica = codigo.index('key="resumo_metrica_desempenho"')
+    posicao_colunas = codigo.index("st.columns(2)")
+    assert posicao_metrica < posicao_colunas
+
+
 # ---------------------------------------------------------------------------
 # KPIs de crescimento (ADR 0026 / issue #154) -- CMGR/retenção, sem delta.
 # ---------------------------------------------------------------------------
