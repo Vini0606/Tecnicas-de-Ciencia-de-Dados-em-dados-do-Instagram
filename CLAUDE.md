@@ -10,4 +10,4 @@ Vocabulário padrão (needs-triage, needs-info, ready-for-agent, ready-for-human
 
 ### Domain docs
 
-Contexto único — `CONTEXT.md` (ainda não criado) + `docs/adr/` na raiz. See `docs/agents/domain.md`.
+Contexto único — `CONTEXT.md` na raiz + `docs/adr/`. See `docs/agents/domain.md`.
