@@ -352,6 +352,93 @@ def test_serie_desempenho_por_publicacao_quebra_em_segmentos_com_gap_maior_que_7
 
 
 # ---------------------------------------------------------------------------
+# _grafico_evidencia_desempenho (ADR 0029 / issue #173) -- função pura que
+# constrói o `go.Figure` a partir da série já agregada; `render()` decide
+# `st.plotly_chart` vs `st.caption` a partir do retorno (`None` = sem dado).
+# ---------------------------------------------------------------------------
+
+
+def test_grafico_evidencia_desempenho_um_trace_para_serie_continua():
+    df_conteudo = _conteudo_ambos_conhecido()
+    serie = resumo._serie_desempenho_por_publicacao(df_conteudo, resumo.METRICA_CURTIDAS)
+
+    fig = resumo._grafico_evidencia_desempenho(serie, resumo.METRICA_CURTIDAS)
+
+    assert fig is not None
+    assert len(fig.data) == 1  # 01/08 e 02/08 -- gap de 1 dia, 1 segmento só
+    assert fig.layout.yaxis.title.text == resumo.METRICA_CURTIDAS
+    assert fig.layout.xaxis.title.text == "Data de publicação"
+
+
+def test_grafico_evidencia_desempenho_um_trace_por_segmento_com_gap():
+    df_reels = pd.DataFrame(
+        {
+            "inputUrl": [_GOV_URL_EVIDENCIA, _GOV_URL_EVIDENCIA],
+            "likesCount": [100, 50],
+            "data_hora": pd.to_datetime(["2026-08-01", "2026-08-20"]),
+        }
+    )
+    df_conteudo = resumo._conteudo_do_governador_por_tipo(
+        df_reels, pd.DataFrame(), _GOV_URL_EVIDENCIA, resumo.TIPO_REELS
+    )
+    serie = resumo._serie_desempenho_por_publicacao(df_conteudo, resumo.METRICA_CURTIDAS)
+
+    fig = resumo._grafico_evidencia_desempenho(serie, resumo.METRICA_CURTIDAS)
+
+    assert len(fig.data) == 2  # gap > 7 dias -- 2 segmentos, 1 trace cada
+
+
+def test_grafico_evidencia_desempenho_none_para_serie_vazia():
+    # Combinação sem dado real (Visualizações + Posts puros) -- `render()`
+    # usa `None` pra decidir mostrar `st.caption` só deste gráfico, nunca
+    # bloquear os outros 2 (ADR 0029, decisão 6).
+    serie_vazia = resumo._serie_desempenho_por_publicacao(
+        _df_posts_desempenho(), resumo.METRICA_VISUALIZACOES
+    )
+    assert resumo._grafico_evidencia_desempenho(serie_vazia, resumo.METRICA_VISUALIZACOES) is None
+
+
+# ---------------------------------------------------------------------------
+# render() -- 3 gráficos paralelos, sem seletor de Tipo nem filtro de
+# período (ADR 0029 / issue #173). Verificação por inspeção de fonte, mesmo
+# padrão de `test_legenda_de_metodologia_removida_do_resumo` -- o repo não
+# usa `AppTest` do Streamlit.
+# ---------------------------------------------------------------------------
+
+
+def test_render_evidencia_nao_tem_mais_seletor_de_tipo_de_conteudo():
+    codigo = inspect.getsource(resumo.render)
+    assert "Tipo de conteúdo" not in codigo
+    assert "resumo_tipo_conteudo" not in codigo
+
+
+def test_render_evidencia_nao_tem_mais_filtro_de_periodo():
+    codigo = inspect.getsource(resumo.render)
+    assert "st.date_input" not in codigo
+    assert "resumo_intervalo_desempenho" not in codigo
+    assert not hasattr(resumo, "filter_by_date_range")
+    assert not hasattr(resumo, "normalize_date_input_range")
+
+
+def test_render_evidencia_renderiza_os_3_tipos_de_conteudo():
+    codigo = inspect.getsource(resumo.render)
+    assert "TIPO_AMBOS" in codigo
+    assert "TIPO_POSTS" in codigo
+    assert "TIPO_REELS" in codigo
+
+
+def test_render_evidencia_selectbox_de_metrica_e_unico_e_fica_antes_das_colunas():
+    # ADR 0029, decisão 3: Métrica é 1 selectbox compartilhado, em linha
+    # cheia ACIMA dos 3 gráficos -- nunca 1 por gráfico, nunca dentro de
+    # `st.columns(2)` (que só existe pra Posts/Reels 50/50).
+    codigo = inspect.getsource(resumo.render)
+    assert codigo.count('key="resumo_metrica_desempenho"') == 1
+    posicao_metrica = codigo.index('key="resumo_metrica_desempenho"')
+    posicao_colunas = codigo.index("st.columns(2)")
+    assert posicao_metrica < posicao_colunas
+
+
+# ---------------------------------------------------------------------------
 # KPIs de crescimento (ADR 0026 / issue #154) -- CMGR/retenção, sem delta.
 # ---------------------------------------------------------------------------
 
