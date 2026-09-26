@@ -112,11 +112,31 @@ def compare_publication_window(
     window_days: int = JANELA_ALERTA_NEGATIVIDADE_DIAS,
     agg: str = "mean",
 ) -> dict[object, tuple[float, float | None, float | None]] | None:
-    """Compara a janela atual de `window_days` dias (por data de PUBLICAÇÃO,
-    âncora = maior data disponível em `df` -- nunca `datetime.date.today()`,
-    mesmo raciocínio de `resumo._contagem_publicacoes_recentes`: o pipeline
-    não roda com cadência fixa) contra a janela imediatamente anterior de
-    mesmo tamanho (ADR 0025 / issue #153).
+    """Compara os `window_days` dias de PUBLICAÇÃO mais recentes COM PELO
+    MENOS 1 LINHA DE DADO ("janela atual") contra os `window_days` dias com
+    dado imediatamente anteriores a esses ("janela anterior") -- ADR 0027,
+    substitui o critério anterior (ADR 0025 / issue #153), que ancorava em
+    CALENDÁRIO (`maior_data - window_days` dias corridos).
+
+    Por que mudar de calendário para disponibilidade: o pipeline não roda com
+    cadência fixa (ADR 0021, ponto de atrito 4) -- um corte de calendário
+    fixo sobre a data de publicação ainda assumia uma cadência mínima de
+    postagem que a maioria dos perfis reais não tem (medido: 18 de 25
+    governadores ficavam sem nenhum dado na janela anterior de calendário,
+    mesmo tendo publicações mais antigas reais para comparar). Agrupar por
+    DIAS DISTINTOS COM DADO (ignorando buracos de coleta, sem limite de
+    tamanho) resolve isso sem inventar um conceito novo -- é a mesma
+    generalização que a ADR 0025 já tinha aplicado ao trocar EXECUÇÃO por
+    PUBLICAÇÃO, uma camada mais fundo.
+
+    **Janela assimétrica aceita deliberadamente:** se existirem menos de
+    `window_days` dias-com-dado ANTES da janela atual, a janela anterior usa
+    quantos existirem (>= 1) -- nunca exige um "piso mínimo" de dias. Prioriza
+    sempre mostrar uma seta de variação (aceitando que ela fique mais
+    ruidosa em histórico curto) a esconder a comparação. `delta_percentual`
+    só vira `None` por falta de janela anterior quando NÃO EXISTE nenhum dia
+    anterior com dado -- o único caso em que de fato não há nada para
+    comparar.
 
     Generaliza o critério que antes vivia só em
     `radar.py::_tema_maior_alta_negatividade` (comparação por execução via
@@ -128,17 +148,20 @@ def compare_publication_window(
     `key_col=None` (default) trata `df` inteiro como um único grupo -- o
     resultado tem uma única entrada sob a chave `None` (uso do Resumo, já
     filtrado a 1 governador). Com `key_col`, uma entrada por valor distinto
-    dessa coluna (uso do Radar, `key_col="Topic"`). `agg` agrega `value_col`
-    dentro de cada janela (`"mean"` para proporção, `"sum"` para
-    contagem/soma).
+    dessa coluna (uso do Radar, `key_col="Topic"`) -- os dias-com-dado que
+    definem as duas janelas são calculados sobre `df` INTEIRO (todas as
+    chaves juntas), não por chave: garante que todo tema seja comparado nas
+    MESMAS duas janelas, senão temas com cadências diferentes ficariam
+    incomparáveis entre si. `agg` agrega `value_col` dentro de cada janela
+    (`"mean"` para proporção, `"sum"` para contagem/soma).
 
     Retorna `{chave: (valor_atual, delta_percentual, valor_anterior)}`.
     `None` (nunca exceção) se `df` estiver vazio, faltar coluna obrigatória,
-    ou não houver nenhuma linha com data parseável na janela atual -- não há
-    o que comparar. Por chave, `delta_percentual=None` (nunca um delta
-    fabricado) se a chave não tiver dado na janela anterior, ou se o valor
-    da janela anterior for nulo/zero (divisão por zero) -- mesma convenção
-    de degradação graciosa de `week_over_week`."""
+    ou não houver nenhuma linha com data parseável -- não há o que comparar.
+    Por chave, `delta_percentual=None` (nunca um delta fabricado) se a chave
+    não tiver dado na janela anterior, ou se o valor da janela anterior for
+    nulo/zero (divisão por zero) -- mesma convenção de degradação graciosa de
+    `week_over_week`."""
     required = {value_col, timestamp_col} | ({key_col} if key_col else set())
     if df.empty or not required.issubset(df.columns):
         return None
@@ -149,15 +172,15 @@ def compare_publication_window(
     if dados.empty:
         return None
 
-    ancora = dados["_data"].max()
-    inicio_atual = ancora - pd.Timedelta(days=window_days - 1)
-    fim_anterior = inicio_atual - pd.Timedelta(days=1)
-    inicio_anterior = fim_anterior - pd.Timedelta(days=window_days - 1)
+    dias_distintos = sorted(dados["_data"].unique())
+    dias_atual = dias_distintos[-window_days:]
+    # Slice negativo já devolve `[]` quando há `window_days` dias ou menos no
+    # total (nada sobra antes da janela atual) -- sem precisar de um `if`
+    # explícito para esse caso.
+    dias_anterior = dias_distintos[-(2 * window_days) : -window_days]
 
-    janela_atual = dados[(dados["_data"] >= inicio_atual) & (dados["_data"] <= ancora)]
-    janela_anterior = dados[
-        (dados["_data"] >= inicio_anterior) & (dados["_data"] <= fim_anterior)
-    ]
+    janela_atual = dados[dados["_data"].isin(dias_atual)]
+    janela_anterior = dados[dados["_data"].isin(dias_anterior)]
     if janela_atual.empty:
         return None
 
