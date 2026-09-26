@@ -385,8 +385,10 @@ def test_aggregate_metric_by_publication_day_ignora_data_nao_parseavel():
 
 
 # ---------------------------------------------------------------------------
-# compare_publication_window (ADR 0025 / issue #153) -- janela atual de N
-# dias por data de publicação vs. janela anterior de N dias.
+# compare_publication_window (ADR 0027, substitui janela de calendário da ADR
+# 0025 / issue #153) -- janela atual de N DIAS COM DADO por data de
+# publicação vs. janela anterior de N dias com dado (ignora buracos de
+# coleta, sem ancorar em calendário).
 # ---------------------------------------------------------------------------
 
 
@@ -400,31 +402,52 @@ def _df_janela_publicacao(datas: list[str], valores: list[float], chaves: list[s
     return pd.DataFrame(dados)
 
 
-def test_compare_publication_window_com_gap_maior_que_janela_calcula_atual_vs_anterior():
-    # Âncora = maior data (2026-09-08). Janela atual (7 dias, padrão) =
-    # [09-02, 09-08]; janela anterior = [08-26, 09-01]. O gap entre elas e um
-    # 3º bloco de dado ainda mais antigo (não entra em nenhuma das duas
-    # janelas) não deve quebrar o cálculo.
+def test_compare_publication_window_ignora_gap_de_calendario_entre_dias_com_dado():
+    # 7 dias-com-dado "anteriores" (janeiro) e 7 dias-com-dado "atuais"
+    # (setembro) -- um gap de calendário enorme entre os dois blocos não deve
+    # impedir o cálculo: a janela é definida por CONTAGEM de dias com dado,
+    # nunca por intervalo de calendário.
+    datas_anteriores = [f"2026-01-{d:02d}" for d in range(1, 8)]
+    datas_atuais = [f"2026-09-{d:02d}" for d in range(1, 8)]
     df = _df_janela_publicacao(
-        datas=["2026-08-01", "2026-09-01", "2026-09-08"],
-        valores=[0.9, 0.2, 0.8],
+        datas=datas_anteriores + datas_atuais,
+        valores=[0.2] * 7 + [0.8] * 7,
     )
     resultado = compare_publication_window(df, value_col="_valor", window_days=7)
 
     assert resultado is not None
     valor_atual, delta_percentual, valor_anterior = resultado[None]
-    assert valor_atual == 0.8
-    assert valor_anterior == 0.2
+    assert valor_atual == pytest.approx(0.8)
+    assert valor_anterior == pytest.approx(0.2)
     assert delta_percentual == pytest.approx(300.0)
 
 
+def test_compare_publication_window_janela_anterior_menor_que_atual_ainda_calcula_delta():
+    # 8 dias-com-dado no total, window_days=7: janela atual consome os 7 mais
+    # recentes, sobrando só 1 dia pra janela anterior (assimétrica) -- ADR
+    # 0027 aceita mostrar o delta mesmo assim, em vez de escondê-lo.
+    datas = [f"2026-09-{d:02d}" for d in range(1, 9)]
+    valores = [0.1] + [0.9] * 7  # dia mais antigo isolado + 7 dias recentes
+    df = _df_janela_publicacao(datas=datas, valores=valores)
+    resultado = compare_publication_window(df, value_col="_valor", window_days=7)
+
+    assert resultado is not None
+    valor_atual, delta_percentual, valor_anterior = resultado[None]
+    assert valor_atual == pytest.approx(0.9)
+    assert valor_anterior == pytest.approx(0.1)
+    assert delta_percentual is not None
+
+
 def test_compare_publication_window_com_chave_agrega_por_grupo():
+    # window_days=1: 1 dia-com-dado "atual" (09-08) vs. 1 dia-com-dado
+    # "anterior" (09-01) -- os dois temas são comparados nas MESMAS duas
+    # janelas (calculadas sobre o df inteiro, não por chave).
     df = _df_janela_publicacao(
         datas=["2026-09-01", "2026-09-01", "2026-09-08", "2026-09-08"],
         valores=[0.5, 1.0, 0.45, 1.0],
         chaves=["saude", "seguranca", "saude", "seguranca"],
     )
-    resultado = compare_publication_window(df, value_col="_valor", key_col="_chave", window_days=7)
+    resultado = compare_publication_window(df, value_col="_valor", key_col="_chave", window_days=1)
 
     assert resultado is not None
     assert resultado["saude"][1] < 0  # caiu (0.5 -> 0.45)
@@ -454,8 +477,10 @@ def test_compare_publication_window_none_sem_coluna_obrigatoria():
 
 
 def test_compare_publication_window_divisao_por_zero_retorna_delta_none():
+    # window_days=1: isola exatamente 1 dia por janela (09-08 atual, 09-01
+    # anterior) para testar o caso de valor anterior zero isoladamente.
     df = _df_janela_publicacao(datas=["2026-09-01", "2026-09-08"], valores=[0.0, 0.5])
-    resultado = compare_publication_window(df, value_col="_valor", window_days=7)
+    resultado = compare_publication_window(df, value_col="_valor", window_days=1)
 
     assert resultado is not None
     valor_atual, delta_percentual, valor_anterior = resultado[None]

@@ -136,21 +136,24 @@ def _df_sentiment_history_dois_runs():
 
 
 def _df_sentiment_history_governador_por_janela_publicacao():
-    # ADR 0025 / issue #153: `_delta_janela_publicacao_para_governador` usa
-    # data de PUBLICAÇÃO, não `_run_id` -- âncora = 2026-09-08 (maior data).
-    # Janela atual [09-02, 09-08] = 100% positivo; janela anterior
-    # [08-26, 09-01] = 50% positivo.
-    return pd.DataFrame(
-        {
-            "sentiment_label": ["positive", "negative", "positive", "positive"],
-            "timestamp": [
-                "2026-09-01T10:00:00.000Z",
-                "2026-09-01T10:05:00.000Z",
-                "2026-09-08T10:00:00.000Z",
-                "2026-09-08T10:05:00.000Z",
-            ],
-        }
-    )
+    # ADR 0027: `_delta_janela_publicacao_para_governador` usa data de
+    # PUBLICAÇÃO, comparando os 7 dias-com-dado mais recentes (janela atual,
+    # setembro, 1 comentário positivo por dia = 100%) contra os dias-com-dado
+    # imediatamente anteriores (janela anterior, 4 dias em agosto, 2
+    # positivos + 2 negativos = 50%) -- janela assimétrica aceita (ADR 0027),
+    # não precisa ter os mesmos 7 dias dos dois lados.
+    dias_anteriores = [f"2026-08-{d:02d}" for d in range(1, 5)]
+    dias_atuais = [f"2026-09-{d:02d}" for d in range(1, 8)]
+    sentimentos_anteriores = ["positive", "negative", "positive", "negative"]
+    sentimentos_atuais = ["positive"] * 7
+
+    linhas = [
+        {"sentiment_label": sentimento, "timestamp": f"{dia}T10:00:00.000Z"}
+        for dia, sentimento in zip(
+            dias_anteriores + dias_atuais, sentimentos_anteriores + sentimentos_atuais, strict=True
+        )
+    ]
+    return pd.DataFrame(linhas)
 
 
 def test_delta_janela_publicacao_para_governador_compara_por_data_de_publicacao():
