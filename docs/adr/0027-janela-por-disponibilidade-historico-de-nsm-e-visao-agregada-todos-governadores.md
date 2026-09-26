@@ -2,6 +2,13 @@
 status: accepted
 ---
 
+> **Nota (relacionada):** o layout `st.columns([0.75, 0.25])` do item 4 da Decisão abaixo (gráfico +
+> 3 filtros empilhados na "Evidência histórica de desempenho") foi parcialmente substituído pela ADR
+> [0029](0029-evidencia-desempenho-tres-graficos-paralelos-sem-filtro-de-periodo.md) -- a seção passou a
+> renderizar 3 gráficos paralelos (Ambos/Posts/Reels) com 1 filtro de Métrica em linha cheia acima, sem
+> filtro de período. As demais decisões desta ADR (janela por disponibilidade, histórico de NSM, "Todos
+> os Governadores") não foram afetadas.
+
 # Janela de comparação por disponibilidade de dado (não calendário), histórico de NSM e visão agregada "Todos os Governadores"
 
 ## Contexto
