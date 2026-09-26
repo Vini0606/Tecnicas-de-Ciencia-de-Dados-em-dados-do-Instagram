@@ -40,8 +40,6 @@ from dashboard.core.deltas import (
     aggregate_metric_by_publication_day,
     compare_publication_window,
     compare_vs_historical_average,
-    filter_by_date_range,
-    normalize_date_input_range,
     quebrar_em_segmentos,
 )
 from dashboard.core.theme import COLORS
@@ -557,6 +555,66 @@ def _serie_desempenho_por_publicacao(df_conteudo: pd.DataFrame, metrica: str) ->
     return aggregate_metric_by_publication_day(df_conteudo, metric_col=coluna, agg=agg)
 
 
+def _grafico_evidencia_desempenho(df_serie_completa: pd.DataFrame, metrica: str) -> go.Figure | None:
+    """`go.Figure` pronta pra `st.plotly_chart` a partir de `df_serie_completa`
+    (saída de `_serie_desempenho_por_publicacao`, colunas `data`/`valor`) --
+    ADR 0029, extraída do bloco antes duplicado 3x em `render()` (1 por tipo
+    de conteúdo). `None` (nunca uma `Figure` vazia) quando `df_serie_completa`
+    está vazio, pra `render()` decidir mostrar `st.caption` só daquele
+    gráfico -- nunca chama nenhuma função `st.*` aqui, só monta o objeto
+    Plotly (mesmo princípio do módulo: cálculo em função pura, I/O do
+    Streamlit fica só em `render()`)."""
+    if df_serie_completa.empty:
+        return None
+    fig = go.Figure()
+    for segmento in quebrar_em_segmentos(df_serie_completa):
+        fig.add_trace(
+            go.Scatter(
+                x=segmento["data"],
+                y=segmento["valor"],
+                mode="lines+markers",
+                line={"color": COLORS["muted"]},
+                marker={"color": COLORS["muted"], "size": 6},
+                showlegend=False,
+            )
+        )
+    fig.update_layout(
+        yaxis_title=metrica,
+        xaxis_title="Data de publicação",
+        showlegend=False,
+        margin={"t": 30, "b": 10},
+    )
+    return fig
+
+
+def _renderizar_grafico_evidencia(
+    df_reels_conteudo: pd.DataFrame,
+    df_posts_conteudo: pd.DataFrame,
+    governor_url: str,
+    tipo: str,
+    metrica: str,
+) -> None:
+    """Orquestra Streamlit para 1 dos 3 gráficos paralelos (ADR 0029): monta
+    a série via `_conteudo_do_governador_por_tipo`/`_serie_desempenho_por_
+    publicacao`/`_grafico_evidencia_desempenho` (funções puras) e decide
+    `st.plotly_chart` vs `st.caption` a partir do retorno -- chamada 1x por
+    `tipo` de `_ORDEM_TIPOS_CONTEUDO` em `render()`, nunca calcula nada
+    sozinha."""
+    df_conteudo = _conteudo_do_governador_por_tipo(
+        df_reels_conteudo, df_posts_conteudo, governor_url, tipo
+    )
+    df_serie_completa = _serie_desempenho_por_publicacao(df_conteudo, metrica)
+    fig = _grafico_evidencia_desempenho(df_serie_completa, metrica)
+    if fig is None:
+        st.caption(
+            "Sem dado disponível para essa combinação de tipo de conteúdo e "
+            "métrica ainda -- comum quando \"Visualizações\" é escolhida com "
+            "\"Posts\" (posts de feed não têm contagem de visualização)."
+        )
+    else:
+        st.plotly_chart(fig, use_container_width=True)
+
+
 # ---------------------------------------------------------------------------
 # KPIs de crescimento (CMGR/retenção) -- ADR 0026 / issue #154
 # ---------------------------------------------------------------------------
@@ -826,18 +884,16 @@ def render() -> None:
             ]
         )
 
-    # ---- Evidência histórica de desempenho (prova -- ADR 0021/0026) ----
+    # ---- Evidência histórica de desempenho (prova -- ADR 0021/0026/0029) ----
     # Migrada inteira de "O que produzir" (ADR 0024) -- zero mudança na
     # lógica de agregação, só realocação (ver docstring do módulo).
-    # Layout ADR 0027 / issue #161: gráfico em 75% da largura à esquerda,
-    # os 3 filtros (Tipo, Métrica, Período) empilhados numa coluna de 25% à
-    # direita -- os widgets são criados na ordem em que o valor deles é
-    # necessário (Tipo/Métrica antes de calcular a série; Período só depois
-    # de conhecer `data_min`/`data_max` da série), mas cada `with` aponta
-    # pro container certo, então a ordem VISUAL (gráfico à esquerda, filtros
-    # à direita) não depende da ordem de execução do código.
+    # Layout ADR 0029 / issue #173: substitui o `st.columns([0.75, 0.25])`
+    # da ADR 0027 -- Métrica (único filtro que sobra, já que Tipo de
+    # conteúdo e Período saíram) em linha cheia acima; os 3 gráficos
+    # (Ambos/Posts/Reels) renderizam sempre em paralelo, nunca 1 só
+    # dirigido por seletor: Ambos em largura total no topo (é a soma dos
+    # outros 2), Posts e Reels 50/50 abaixo.
     st.markdown("#### Evidência histórica de desempenho")
-    col_grafico, col_filtros = st.columns([0.75, 0.25])
 
     # `load_reels_content()`/`load_posts_content()` retornam TODOS os 27
     # perfis -- `_conteudo_do_governador_por_tipo` filtra por `governor_url`
@@ -845,62 +901,21 @@ def render() -> None:
     df_reels_conteudo = data.load_reels_content()
     df_posts_conteudo = data.load_posts_content()
 
-    with col_filtros:
-        tipo_selecionado = st.selectbox(
-            "Tipo de conteúdo", options=_ORDEM_TIPOS_CONTEUDO, key="resumo_tipo_conteudo"
-        )
-        metrica_selecionada = st.selectbox(
-            "Métrica", options=_ORDEM_METRICAS, key="resumo_metrica_desempenho"
-        )
-
-    df_conteudo = _conteudo_do_governador_por_tipo(
-        df_reels_conteudo, df_posts_conteudo, governor_url, tipo_selecionado
+    metrica_selecionada = st.selectbox(
+        "Métrica", options=_ORDEM_METRICAS, key="resumo_metrica_desempenho"
     )
-    df_serie_completa = _serie_desempenho_por_publicacao(df_conteudo, metrica_selecionada)
 
-    if df_serie_completa.empty:
-        with col_grafico:
-            st.caption(
-                "Sem dado disponível para essa combinação de tipo de conteúdo e "
-                "métrica ainda -- comum quando \"Visualizações\" é escolhida com "
-                "\"Posts\" (posts de feed não têm contagem de visualização)."
-            )
-    else:
-        data_min = df_serie_completa["data"].min()
-        data_max = df_serie_completa["data"].max()
-        with col_filtros:
-            intervalo = st.date_input(
-                "Período (data de publicação)",
-                value=(data_min, data_max),
-                min_value=data_min,
-                max_value=data_max,
-                key="resumo_intervalo_desempenho",
-            )
-        data_inicio, data_fim = normalize_date_input_range(intervalo)
-        df_serie = filter_by_date_range(df_serie_completa, "data", data_inicio, data_fim)
-
-        with col_grafico:
-            if df_serie.empty:
-                st.caption("Nenhuma publicação no período selecionado.")
-            else:
-                fig = go.Figure()
-                for segmento in quebrar_em_segmentos(df_serie):
-                    fig.add_trace(
-                        go.Scatter(
-                            x=segmento["data"],
-                            y=segmento["valor"],
-                            mode="lines+markers",
-                            line={"color": COLORS["muted"]},
-                            marker={"color": COLORS["muted"], "size": 6},
-                            showlegend=False,
-                        )
-                    )
-                fig.update_layout(
-                    yaxis_title=metrica_selecionada,
-                    xaxis_title="Data de publicação",
-                    showlegend=False,
-                    margin={"t": 30, "b": 10},
-                )
-                st.plotly_chart(fig, use_container_width=True)
+    _renderizar_grafico_evidencia(
+        df_reels_conteudo, df_posts_conteudo, governor_url, TIPO_AMBOS, metrica_selecionada
+    )
+    col_posts, col_reels = st.columns(2)
+    with col_posts:
+        _renderizar_grafico_evidencia(
+            df_reels_conteudo, df_posts_conteudo, governor_url, TIPO_POSTS, metrica_selecionada
+        )
+    with col_reels:
+        _renderizar_grafico_evidencia(
+            df_reels_conteudo, df_posts_conteudo, governor_url, TIPO_REELS, metrica_selecionada
+        )
 
     footnote()
