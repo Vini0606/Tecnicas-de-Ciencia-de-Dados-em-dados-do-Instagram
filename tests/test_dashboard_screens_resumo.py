@@ -9,6 +9,7 @@ reais escritas em `tmp_path`, mesmo padrão dos dois arquivos acima."""
 import inspect
 
 import pandas as pd
+import pytest
 import streamlit as st
 from deltalake.writer import write_deltalake
 
@@ -355,6 +356,21 @@ def test_serie_desempenho_por_publicacao_quebra_em_segmentos_com_gap_maior_que_7
 # ---------------------------------------------------------------------------
 
 
+def test_campo_growth_le_coluna_da_linha():
+    linha = pd.Series({"cmgr": 0.05, "cmgr_confiavel": True})
+    assert resumo._campo_growth(linha, "cmgr") == 0.05
+    assert resumo._campo_growth(linha, "cmgr_confiavel") is True
+
+
+def test_campo_growth_none_quando_linha_e_none():
+    assert resumo._campo_growth(None, "cmgr") is None
+
+
+def test_campo_growth_none_quando_linha_nao_tem_a_coluna():
+    linha = pd.Series({"cmgr": 0.05})
+    assert resumo._campo_growth(linha, "retencao") is None
+
+
 def test_kpi_crescimento_confiavel_mostra_valor_limpo_sem_selo():
     item = resumo._kpi_crescimento("CMGR", 0.05, confiavel=True, motivo=None)
     label, valor, delta, direcao, help_text = item
@@ -449,3 +465,181 @@ def test_delta_positivo_contra_tabela_delta_real_de_sentiment_history(tmp_path, 
     valor_atual, _delta, _anterior = resultado
     assert valor_atual == 1.0
     _clear_caches()
+
+
+# ---------------------------------------------------------------------------
+# "Todos os Governadores" (ADR 0027 / issue #161) -- agregação SIMPLES, não
+# ponderada por volume: cada governador pesa igual, nunca ponderado por
+# quantos comentários/seguidores/publicações ele tem.
+# ---------------------------------------------------------------------------
+
+
+def test_legenda_de_metodologia_removida_do_resumo():
+    """Issue #161: a legenda abaixo da faixa de decisão duplicava a mesma
+    explicação já disponível via tooltip de cada KPI -- removida sem
+    substituto."""
+    codigo = inspect.getsource(resumo.render)
+    assert "Engajamento, seguidores e NSM comparam" not in codigo
+
+
+def test_filtrar_por_governador_ou_todos_devolve_tudo_para_sentinela():
+    df = pd.DataFrame({"inputUrl": ["a", "b"], "valor": [1, 2]})
+    out = resumo._filtrar_por_governador_ou_todos(df, resumo.TODOS_OS_GOVERNADORES)
+    assert len(out) == 2
+
+
+def test_filtrar_por_governador_ou_todos_filtra_normalmente_para_url_real():
+    df = pd.DataFrame({"inputUrl": ["a", "b"], "valor": [1, 2]})
+    out = resumo._filtrar_por_governador_ou_todos(df, "a")
+    assert len(out) == 1
+    assert out["valor"].iloc[0] == 1
+
+
+def test_proporcao_media_por_governador_media_simples_nao_ponderada():
+    # Governador "a": 1/2 positivo (0.5). Governador "b": 3/3 positivo
+    # (1.0). Média simples = 0.75 -- NUNCA o pool ponderado por volume
+    # (4/5 = 0.8, que daria mais peso a "b" por ter mais comentários).
+    df = pd.DataFrame(
+        {
+            "sentiment_label": ["positive", "negative", "positive", "positive", "positive"],
+            "_chave": ["a", "a", "b", "b", "b"],
+        }
+    )
+    assert resumo._proporcao_media_por_governador(df, "positive") == pytest.approx(0.75)
+
+
+def test_proporcao_media_por_governador_none_para_dataframe_vazio():
+    assert resumo._proporcao_media_por_governador(pd.DataFrame(), "positive") is None
+
+
+def test_media_simples_por_indice_ignora_chaves_com_none():
+    resultado = {"a": (1.0, 10.0, 0.5), "b": (2.0, None, None), "c": (3.0, -5.0, 4.0)}
+    assert resumo._media_simples_por_indice(resultado, 1) == pytest.approx((10.0 - 5.0) / 2)
+
+
+def test_media_simples_por_indice_none_quando_todas_as_chaves_sao_none():
+    resultado = {"a": (1.0, None, None)}
+    assert resumo._media_simples_por_indice(resultado, 1) is None
+
+
+def _df_sentiment_history_dois_governadores_para_agregado():
+    # ADR 0027: governador "a" tem MUITO mais volume (10 comentários/dia)
+    # que "b" (1/dia) -- de propósito, para provar que o agregado usa média
+    # SIMPLES entre governadores, não o pool ponderado por volume (que
+    # daria um resultado bem diferente, calculado no teste abaixo).
+    dias_anteriores = [f"2026-08-{d:02d}" for d in range(1, 8)]
+    dias_atuais = [f"2026-09-{d:02d}" for d in range(1, 8)]
+    linhas = []
+    # Governador "a": sempre positivo nos dois blocos -- estável (1.0 -> 1.0).
+    for dia in dias_anteriores + dias_atuais:
+        for i in range(10):
+            linhas.append(
+                {
+                    "_chave": "gov_a",
+                    "sentiment_label": "positive",
+                    "timestamp": f"{dia}T10:{i:02d}:00.000Z",
+                }
+            )
+    # Governador "b": negativo no bloco anterior, positivo no atual -- alta
+    # real (0.0 -> 1.0).
+    for dia in dias_anteriores:
+        linhas.append(
+            {"_chave": "gov_b", "sentiment_label": "negative", "timestamp": f"{dia}T11:00:00.000Z"}
+        )
+    for dia in dias_atuais:
+        linhas.append(
+            {"_chave": "gov_b", "sentiment_label": "positive", "timestamp": f"{dia}T11:00:00.000Z"}
+        )
+    return pd.DataFrame(linhas)
+
+
+def test_delta_janela_publicacao_agregado_media_simples_nao_pondera_por_volume():
+    df = _df_sentiment_history_dois_governadores_para_agregado()
+    resultado = resumo._delta_janela_publicacao_agregado(df)
+
+    assert resultado is not None
+    valor_atual, delta_percentual, valor_anterior = resultado
+    # Média simples: atual = (1.0["a"] + 1.0["b"]) / 2 = 1.0; anterior =
+    # (1.0["a"] + 0.0["b"]) / 2 = 0.5 -- bem diferente do pool ponderado por
+    # volume (que daria atual=1.0, anterior=70/77≈0.909, quase sem variação).
+    assert valor_atual == pytest.approx(1.0)
+    assert valor_anterior == pytest.approx(0.5)
+    assert delta_percentual == pytest.approx(100.0)
+
+
+def test_delta_janela_publicacao_agregado_none_para_dataframe_vazio():
+    assert resumo._delta_janela_publicacao_agregado(pd.DataFrame()) is None
+
+
+def test_agregar_metrica_todos_soma_ignora_nulos():
+    df = pd.DataFrame({"followersCount": [100, 200, None]})
+    assert resumo._agregar_metrica_todos(df, "followersCount", "sum") == 300
+
+
+def test_agregar_metrica_todos_media_simples():
+    df = pd.DataFrame({"% ENGAJAMENTO": [0.1, 0.3]})
+    assert resumo._agregar_metrica_todos(df, "% ENGAJAMENTO", "mean") == pytest.approx(0.2)
+
+
+def test_agregar_metrica_todos_none_para_dataframe_vazio():
+    assert resumo._agregar_metrica_todos(pd.DataFrame(), "nsm", "mean") is None
+
+
+def test_agregar_metrica_todos_none_sem_a_coluna():
+    df = pd.DataFrame({"outra_coluna": [1, 2]})
+    assert resumo._agregar_metrica_todos(df, "nsm", "mean") is None
+
+
+def test_delta_vs_media_historica_agregado_soma_por_execucao_antes_de_comparar():
+    # r1: soma dos 2 governadores = 300; r2: soma = 320; r3 (atual): soma =
+    # 600 -- a comparação usa a SOMA de cada execução, nunca 1 governador
+    # sozinho.
+    df = pd.DataFrame(
+        {
+            "_run_id": ["r1", "r1", "r2", "r2", "r3", "r3"],
+            "followersCount": [100, 200, 110, 210, 300, 300],
+        }
+    )
+    resultado = resumo._delta_vs_media_historica_agregado(df, "followersCount", agg="sum")
+
+    assert resultado is not None
+    valor_atual, delta_percentual = resultado
+    assert valor_atual == 600
+    media_historica = (300 + 320) / 2
+    assert delta_percentual == pytest.approx((600 - media_historica) / media_historica * 100)
+
+
+def test_delta_vs_media_historica_agregado_none_com_uma_execucao_so():
+    df = pd.DataFrame({"_run_id": ["r1", "r1"], "followersCount": [100, 200]})
+    assert resumo._delta_vs_media_historica_agregado(df, "followersCount", agg="sum") is None
+
+
+def test_delta_vs_media_historica_agregado_none_para_dataframe_vazio():
+    assert resumo._delta_vs_media_historica_agregado(pd.DataFrame(), "nsm", agg="mean") is None
+
+
+def test_proporcao_confiavel_conta_true_e_total():
+    df = pd.DataFrame({"cmgr_confiavel": [True, False, True]})
+    assert resumo._proporcao_confiavel(df, "cmgr_confiavel") == (2, 3)
+
+
+def test_proporcao_confiavel_vazio_devolve_zero_zero():
+    assert resumo._proporcao_confiavel(pd.DataFrame(), "cmgr_confiavel") == (0, 0)
+
+
+def test_kpi_crescimento_agregado_nunca_ganha_sufixo_ilustrativo_e_sempre_declara_proporcao():
+    label, _valor, delta, _direcao, help_text = resumo._kpi_crescimento_agregado(
+        "CMGR", 0.05, 18, 26
+    )
+    assert label == "CMGR"  # nunca "CMGR · ilustrativo", mesmo com não confiáveis na média
+    assert delta is None  # KPI de crescimento nunca tem seta (ADR 0026)
+    assert help_text is not None
+    assert "18 de 26" in help_text
+
+
+def test_kpi_crescimento_agregado_sem_governadores_tooltip_vazio():
+    label, _valor, _delta, _direcao, help_text = resumo._kpi_crescimento_agregado(
+        "CMGR", None, 0, 0
+    )
+    assert label == "CMGR"
+    assert help_text is None
