@@ -214,6 +214,9 @@ class ModelingConfig:
     # qualificado por perfil, mesma posição/dependência do Score ICE acima --
     # ver `NsmScorer`.
     gold_nsm_path: Path = settings.GOLD_NSM
+    # Tabela paralela de histórico (mode append) -- ADR 0027 / issue #160,
+    # fecha a lacuna que a ADR 0025 previu e adiou.
+    gold_nsm_history_path: Path = settings.GOLD_NSM_HISTORY
     gold_post_performance_coefficients_path: Path = settings.GOLD_POST_PERFORMANCE_COEFFICIENTS
     gold_post_performance_predictions_path: Path = settings.GOLD_POST_PERFORMANCE_PREDICTIONS
     # Clusterização de PERFIL de governador por engajamento (Fase 2, ADR

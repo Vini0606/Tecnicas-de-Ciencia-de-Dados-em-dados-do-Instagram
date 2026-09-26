@@ -94,6 +94,11 @@ GOLD_TOPIC_PRIORITY_SCORE = GOLD_DIR / "topic_priority_score"
 # qualificado por perfil -- estágio pós-modelagem, mesma posição/dependência
 # do Score ICE acima, lendo `governor_sentiment` e `governor_engagement`.
 GOLD_NSM = GOLD_DIR / "governor_nsm"
+# Tabela paralela de histórico (mesmo schema, modo append) -- ADR 0027 /
+# issue #160, fecha a lacuna que a ADR 0025 previu e adiou. `governor_nsm`
+# continua em overwrite, inalterada para os consumidores existentes -- mesmo
+# padrão de GOLD_ENGAGEMENT_HISTORY/GOLD_SENTIMENT_HISTORY acima.
+GOLD_NSM_HISTORY = GOLD_DIR / "governor_nsm_history"
 GOLD_PROFILE_CLUSTERS_ENGAGEMENT = GOLD_DIR / "governor_profile_clusters_engagement"
 # ADR 0019 (parte C): regressão de performance-por-post, uma tabela por
 # conceito (coeficientes+R² e previsão/resíduo por post), `grupo`
