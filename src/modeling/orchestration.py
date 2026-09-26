@@ -243,6 +243,18 @@ def run_deterministic_modeling(
         run_id,
         generated_at=generated_at,
     )
+    # Tabela paralela de histórico, mode=append -- não substitui a tabela
+    # acima, que continua overwrite para os consumidores existentes. Fecha a
+    # lacuna que a ADR 0025 previu e adiou (issue #160 / ADR 0027) --
+    # `dashboard/core/data.py::load_nsm_history()` já lia este caminho sem
+    # nunca receber dado real até aqui.
+    nsm_scorer.write(
+        df_nsm,
+        config.gold_nsm_history_path,
+        run_id,
+        mode="append",
+        generated_at=generated_at,
+    )
 
     # ADR 0020 (Ficha 3) / issue #88: mesmo classificador de sentimento,
     # aplicado também sobre legenda (caption de post) e transcrição (fala do
