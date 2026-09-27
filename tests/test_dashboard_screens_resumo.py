@@ -424,14 +424,19 @@ def test_grafico_evidencia_desempenho_titulo_bate_com_tipo(tipo):
     assert fig.layout.title.text == resumo._TIPO_PARA_TITULO[tipo]
 
 
-def test_renderizar_grafico_evidencia_markdown_do_rotulo_vem_antes_do_if_fig_none():
-    # O rótulo (`st.markdown`) precisa renderizar incondicionalmente -- tanto
-    # no caminho do gráfico quanto no estado vazio (`st.caption`) -- pra cada
-    # um dos 3 slots continuar identificável mesmo sem dado (issue #175).
+def test_renderizar_grafico_evidencia_caption_vazio_inclui_rotulo_do_tipo():
+    # PR #176 setava o rótulo 2x (título do Plotly + markdown sempre visível)
+    # -- redundante quando há gráfico (ambos mostravam o mesmo texto). A
+    # correção mantém o rótulo só no título do Plotly (quando há gráfico) e
+    # o insere no início do `st.caption` de estado vazio (quando não há),
+    # nunca os dois ao mesmo tempo -- mas o slot continua identificável nos
+    # dois casos.
     codigo = inspect.getsource(resumo._renderizar_grafico_evidencia)
-    posicao_markdown = codigo.index("st.markdown(")
     posicao_if_fig_none = codigo.index("if fig is None")
-    assert posicao_markdown < posicao_if_fig_none
+    posicao_rotulo = codigo.index("_TIPO_PARA_TITULO[tipo]", posicao_if_fig_none)
+    posicao_mensagem_generica = codigo.index("sem dado disponível", posicao_if_fig_none)
+    assert posicao_rotulo < posicao_mensagem_generica
+    assert "st.markdown(" not in codigo
 
 
 # ---------------------------------------------------------------------------

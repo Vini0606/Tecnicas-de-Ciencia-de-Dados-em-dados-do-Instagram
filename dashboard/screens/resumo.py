@@ -615,10 +615,10 @@ def _renderizar_grafico_evidencia(
     publicacao`/`_grafico_evidencia_desempenho` (funções puras) e decide
     `st.plotly_chart` vs `st.caption` a partir do retorno -- chamada 1x por
     `tipo` de `_ORDEM_TIPOS_CONTEUDO` em `render()`, nunca calcula nada
-    sozinha. O rótulo de `tipo` (`st.markdown`) renderiza incondicionalmente
-    ANTES dessa decisão -- com ou sem dado, o slot continua identificável
-    (issue #175)."""
-    st.markdown(f"**{_TIPO_PARA_TITULO[tipo]}**")
+    sozinha. O rótulo de `tipo` (issue #175) vive só no `title` do Plotly
+    (quando há gráfico) e prefixado no `st.caption` de estado vazio (quando
+    não há) -- nunca os dois ao mesmo tempo, pra não duplicar visualmente o
+    mesmo texto (ver PR #176, que tinha essa duplicação e foi corrigida)."""
     df_conteudo = _conteudo_do_governador_por_tipo(
         df_reels_conteudo, df_posts_conteudo, governor_url, tipo
     )
@@ -626,9 +626,10 @@ def _renderizar_grafico_evidencia(
     fig = _grafico_evidencia_desempenho(df_serie_completa, metrica, tipo)
     if fig is None:
         st.caption(
-            "Sem dado disponível para essa combinação de tipo de conteúdo e "
-            "métrica ainda -- comum quando \"Visualizações\" é escolhida com "
-            "\"Posts\" (posts de feed não têm contagem de visualização)."
+            f"**{_TIPO_PARA_TITULO[tipo]}** -- sem dado disponível para essa "
+            "combinação de tipo de conteúdo e métrica ainda -- comum quando "
+            "\"Visualizações\" é escolhida com \"Posts\" (posts de feed não "
+            "têm contagem de visualização)."
         )
     else:
         st.plotly_chart(fig, use_container_width=True)
