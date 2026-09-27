@@ -568,7 +568,7 @@ def _serie_desempenho_por_publicacao(df_conteudo: pd.DataFrame, metrica: str) ->
 
 
 def _grafico_evidencia_desempenho(
-    df_serie_completa: pd.DataFrame, metrica: str, tipo: str
+    df_serie_completa: pd.DataFrame, tipo: str
 ) -> go.Figure | None:
     """`go.Figure` pronta pra `st.plotly_chart` a partir de `df_serie_completa`
     (saída de `_serie_desempenho_por_publicacao`, colunas `data`/`valor`) --
@@ -578,7 +578,10 @@ def _grafico_evidencia_desempenho(
     gráfico -- nunca chama nenhuma função `st.*` aqui, só monta o objeto
     Plotly (mesmo princípio do módulo: cálculo em função pura, I/O do
     Streamlit fica só em `render()`). `tipo` (um dos `TIPO_*`) vira o título
-    do gráfico via `_TIPO_PARA_TITULO` (issue #175)."""
+    do gráfico via `_TIPO_PARA_TITULO` (issue #175). Sem título de eixo --
+    a métrica já é visível pelo selectbox de `render()` e a granularidade
+    temporal já fica clara pelos próprios ticks do eixo X (polimento pós
+    #175/#176/#177)."""
     if df_serie_completa.empty:
         return None
     fig = go.Figure()
@@ -595,8 +598,6 @@ def _grafico_evidencia_desempenho(
         )
     fig.update_layout(
         title=_TIPO_PARA_TITULO[tipo],
-        yaxis_title=metrica,
-        xaxis_title="Data de publicação",
         showlegend=False,
         margin={"t": 30, "b": 10},
     )
@@ -623,7 +624,7 @@ def _renderizar_grafico_evidencia(
         df_reels_conteudo, df_posts_conteudo, governor_url, tipo
     )
     df_serie_completa = _serie_desempenho_por_publicacao(df_conteudo, metrica)
-    fig = _grafico_evidencia_desempenho(df_serie_completa, metrica, tipo)
+    fig = _grafico_evidencia_desempenho(df_serie_completa, tipo)
     if fig is None:
         st.caption(
             f"**{_TIPO_PARA_TITULO[tipo]}** -- sem dado disponível para essa "
