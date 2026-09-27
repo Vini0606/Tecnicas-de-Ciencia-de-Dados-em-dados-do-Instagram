@@ -362,7 +362,7 @@ def test_grafico_evidencia_desempenho_um_trace_para_serie_continua():
     df_conteudo = _conteudo_ambos_conhecido()
     serie = resumo._serie_desempenho_por_publicacao(df_conteudo, resumo.METRICA_CURTIDAS)
 
-    fig = resumo._grafico_evidencia_desempenho(serie, resumo.METRICA_CURTIDAS)
+    fig = resumo._grafico_evidencia_desempenho(serie, resumo.METRICA_CURTIDAS, resumo.TIPO_AMBOS)
 
     assert fig is not None
     assert len(fig.data) == 1  # 01/08 e 02/08 -- gap de 1 dia, 1 segmento só
@@ -383,7 +383,7 @@ def test_grafico_evidencia_desempenho_um_trace_por_segmento_com_gap():
     )
     serie = resumo._serie_desempenho_por_publicacao(df_conteudo, resumo.METRICA_CURTIDAS)
 
-    fig = resumo._grafico_evidencia_desempenho(serie, resumo.METRICA_CURTIDAS)
+    fig = resumo._grafico_evidencia_desempenho(serie, resumo.METRICA_CURTIDAS, resumo.TIPO_REELS)
 
     assert len(fig.data) == 2  # gap > 7 dias -- 2 segmentos, 1 trace cada
 
@@ -395,7 +395,43 @@ def test_grafico_evidencia_desempenho_none_para_serie_vazia():
     serie_vazia = resumo._serie_desempenho_por_publicacao(
         _df_posts_desempenho(), resumo.METRICA_VISUALIZACOES
     )
-    assert resumo._grafico_evidencia_desempenho(serie_vazia, resumo.METRICA_VISUALIZACOES) is None
+    assert (
+        resumo._grafico_evidencia_desempenho(
+            serie_vazia, resumo.METRICA_VISUALIZACOES, resumo.TIPO_POSTS
+        )
+        is None
+    )
+
+
+# ---------------------------------------------------------------------------
+# Título por tipo de conteúdo nos 3 gráficos paralelos (issue #175 -- fix do
+# item 5 da Decisão da ADR 0029, que previa esse rótulo e não chegou a ser
+# implementado na PR #174: os 3 gráficos tinham `xaxis_title` idêntico e
+# nenhuma outra identificação visual entre si).
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "tipo",
+    [resumo.TIPO_AMBOS, resumo.TIPO_POSTS, resumo.TIPO_REELS],
+)
+def test_grafico_evidencia_desempenho_titulo_bate_com_tipo(tipo):
+    df_conteudo = _conteudo_ambos_conhecido()
+    serie = resumo._serie_desempenho_por_publicacao(df_conteudo, resumo.METRICA_CURTIDAS)
+
+    fig = resumo._grafico_evidencia_desempenho(serie, resumo.METRICA_CURTIDAS, tipo)
+
+    assert fig.layout.title.text == resumo._TIPO_PARA_TITULO[tipo]
+
+
+def test_renderizar_grafico_evidencia_markdown_do_rotulo_vem_antes_do_if_fig_none():
+    # O rótulo (`st.markdown`) precisa renderizar incondicionalmente -- tanto
+    # no caminho do gráfico quanto no estado vazio (`st.caption`) -- pra cada
+    # um dos 3 slots continuar identificável mesmo sem dado (issue #175).
+    codigo = inspect.getsource(resumo._renderizar_grafico_evidencia)
+    posicao_markdown = codigo.index("st.markdown(")
+    posicao_if_fig_none = codigo.index("if fig is None")
+    assert posicao_markdown < posicao_if_fig_none
 
 
 # ---------------------------------------------------------------------------

@@ -513,6 +513,18 @@ _METRICA_PARA_COLUNA = {
     METRICA_VISUALIZACOES: "videoPlayCount",
 }
 
+# Rótulo por tipo de conteúdo -- issue #175, completa o item 5 da Decisão da
+# ADR 0029 ("rótulo/título" por gráfico), que não chegou a ser implementado
+# na PR #174: os 3 gráficos paralelos (Ambos/Posts/Reels) tinham
+# `xaxis_title` idêntico e nenhuma outra identificação visual entre si.
+# "Ambos" reforça no próprio texto a relação de soma com os outros 2 (mesma
+# hierarquia visual já documentada na ADR 0029 -- "Por quê").
+_TIPO_PARA_TITULO = {
+    TIPO_AMBOS: "Ambos (soma de Posts + Reels)",
+    TIPO_POSTS: "Posts",
+    TIPO_REELS: "Reels",
+}
+
 
 def _conteudo_do_governador_por_tipo(
     df_reels: pd.DataFrame, df_posts: pd.DataFrame, governor_url: str, tipo: str
@@ -555,7 +567,9 @@ def _serie_desempenho_por_publicacao(df_conteudo: pd.DataFrame, metrica: str) ->
     return aggregate_metric_by_publication_day(df_conteudo, metric_col=coluna, agg=agg)
 
 
-def _grafico_evidencia_desempenho(df_serie_completa: pd.DataFrame, metrica: str) -> go.Figure | None:
+def _grafico_evidencia_desempenho(
+    df_serie_completa: pd.DataFrame, metrica: str, tipo: str
+) -> go.Figure | None:
     """`go.Figure` pronta pra `st.plotly_chart` a partir de `df_serie_completa`
     (saída de `_serie_desempenho_por_publicacao`, colunas `data`/`valor`) --
     ADR 0029, extraída do bloco antes duplicado 3x em `render()` (1 por tipo
@@ -563,7 +577,8 @@ def _grafico_evidencia_desempenho(df_serie_completa: pd.DataFrame, metrica: str)
     está vazio, pra `render()` decidir mostrar `st.caption` só daquele
     gráfico -- nunca chama nenhuma função `st.*` aqui, só monta o objeto
     Plotly (mesmo princípio do módulo: cálculo em função pura, I/O do
-    Streamlit fica só em `render()`)."""
+    Streamlit fica só em `render()`). `tipo` (um dos `TIPO_*`) vira o título
+    do gráfico via `_TIPO_PARA_TITULO` (issue #175)."""
     if df_serie_completa.empty:
         return None
     fig = go.Figure()
@@ -579,6 +594,7 @@ def _grafico_evidencia_desempenho(df_serie_completa: pd.DataFrame, metrica: str)
             )
         )
     fig.update_layout(
+        title=_TIPO_PARA_TITULO[tipo],
         yaxis_title=metrica,
         xaxis_title="Data de publicação",
         showlegend=False,
@@ -599,12 +615,15 @@ def _renderizar_grafico_evidencia(
     publicacao`/`_grafico_evidencia_desempenho` (funções puras) e decide
     `st.plotly_chart` vs `st.caption` a partir do retorno -- chamada 1x por
     `tipo` de `_ORDEM_TIPOS_CONTEUDO` em `render()`, nunca calcula nada
-    sozinha."""
+    sozinha. O rótulo de `tipo` (`st.markdown`) renderiza incondicionalmente
+    ANTES dessa decisão -- com ou sem dado, o slot continua identificável
+    (issue #175)."""
+    st.markdown(f"**{_TIPO_PARA_TITULO[tipo]}**")
     df_conteudo = _conteudo_do_governador_por_tipo(
         df_reels_conteudo, df_posts_conteudo, governor_url, tipo
     )
     df_serie_completa = _serie_desempenho_por_publicacao(df_conteudo, metrica)
-    fig = _grafico_evidencia_desempenho(df_serie_completa, metrica)
+    fig = _grafico_evidencia_desempenho(df_serie_completa, metrica, tipo)
     if fig is None:
         st.caption(
             "Sem dado disponível para essa combinação de tipo de conteúdo e "
