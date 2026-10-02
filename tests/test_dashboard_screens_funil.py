@@ -340,6 +340,6 @@ def test_funil_module_does_not_import_ugc_loader_or_aggregator():
     """Confirmação comportamental complementar ao teste estático acima:
     `dashboard.screens.funil` não tem nenhum atributo cujo nome comece com
     `load_ugc`/`aggregate_ugc` -- nem por importação direta, nem por acesso
-    via `dashboard.core.data`/`src.dashboard.filters`."""
+    via `dashboard.core.data`."""
     atributos = dir(funil)
     assert not any(nome.lower().startswith(("load_ugc", "aggregate_ugc")) for nome in atributos)
