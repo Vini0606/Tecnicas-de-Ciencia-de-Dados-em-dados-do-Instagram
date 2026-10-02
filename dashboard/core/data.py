@@ -3,10 +3,10 @@
 Um wrapper `@st.cache_data(ttl=600)` por tabela Gold, delegando para os
 métodos JÁ NOMEADOS de `DeltaRepository` -- nenhum método genérico
 `.read(tabela)` é introduzido aqui (esse método não existe no repositório
-real; ver issue #110, Implementation Decisions). Mesmo padrão degradado de
-`src/dashboard/loaders.py` (o pacote antigo, ainda em uso por `app.py`/
-`pages/*.py` até a Tela 1 substituí-los): `DataFrame` vazio, nunca exceção,
-quando a tabela Gold ainda não foi gerada.
+real; ver issue #110, Implementation Decisions). Mesmo padrão degradado do
+antigo `src/dashboard/loaders.py` (pacote descontinuado tela por tela a
+partir da Tela 1 e removido do repositório em 2026-10): `DataFrame` vazio,
+nunca exceção, quando a tabela Gold ainda não foi gerada.
 """
 
 from __future__ import annotations
