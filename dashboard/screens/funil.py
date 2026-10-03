@@ -92,13 +92,20 @@ texto completo):
    então `_acao_recomendada` aponta para "Ver Radar de crise" antes de
    considerar o gargalo do funil, mesmo quando os dois sinais estão
    presentes ao mesmo tempo.
-9. **Navegação -- `st.session_state`, não `st.page_link`.** `dashboard/app.py`
-   (issue #110) usa `st.radio` (não multipágina nativa do Streamlit) para
-   navegação. O botão de ação desta tela grava o rótulo da tela-alvo em
-   `st.session_state["tela_selecionada"]` (a mesma `key` que `app.py` passou
-   a usar no `st.radio`, ver `app.py`) e chama `st.rerun()` -- no próximo
-   render, o `st.radio` lê o valor já setado em `session_state` como seleção
-   inicial. Documentado também no PR desta issue.
+9. **Navegação -- `st.session_state` via `on_click`, não `st.page_link`.**
+   `dashboard/app.py` (issue #110) usa `st.radio` (não multipágina nativa do
+   Streamlit) para navegação. O botão de ação desta tela grava o rótulo da
+   tela-alvo em `st.session_state["tela_selecionada"]` (a mesma `key` que
+   `app.py` passou a usar no `st.radio`) através do callback `_navegar_para`
+   passado a `on_click` -- NUNCA inline no corpo do script: `app.py` já
+   instanciou o `st.radio` antes de chamar `render()`, então escrever nessa
+   `key` fora de um callback levanta `StreamlitAPIException` (bug real
+   encontrado só ao rodar o app de verdade, já que o repo testa por
+   inspeção de fonte -- ver decisão de não usar `st.testing.AppTest` em
+   `tests/test_dashboard_screens_resumo.py`). O próprio `st.button(...,
+   on_click=...)` já dispara o rerun -- não chamamos `st.rerun()` de novo.
+   No próximo render, o `st.radio` lê o valor já setado em `session_state`
+   como seleção inicial. Documentado também no PR desta issue.
 10. **Texto sempre associativo, nunca causal.** Toda frase de decisão/ação
     usa "associado a"/"está relacionado a" -- nunca "causa"/"gera" no
     sentido causal (issue #114, user story 8, hard requirement de
@@ -516,6 +523,17 @@ def _acao_recomendada(gargalo: str | None, negatividade_em_alta: bool) -> dict |
     return None
 
 
+def _navegar_para(tela: str) -> None:
+    """Callback `on_click` do botão de ação -- ver docstring do módulo,
+    decisão 9. PRECISA rodar como callback, nunca inline no corpo do
+    script: `app.py` já instanciou o `st.radio` (mesma `key`,
+    `tela_selecionada`) antes de chamar `render()`, e o Streamlit proíbe
+    escrever no `session_state` de uma `key` de widget já instanciada
+    na mesma execução (`StreamlitAPIException`). Um callback `on_click`
+    roda antes do próximo rerun recriar o widget, o que é permitido."""
+    st.session_state["tela_selecionada"] = tela
+
+
 # ---------------------------------------------------------------------------
 # Renderização de uma barra do funil (largura proporcional ao valor)
 # ---------------------------------------------------------------------------
@@ -669,12 +687,16 @@ def render() -> None:
     else:
         st.write(acao["texto"])
         # Navegação via `st.session_state` -- ver docstring do módulo,
-        # decisão 9. `dashboard/app.py` lê a mesma `key` no `st.radio`.
-        if st.button(acao["label_botao"], key="funil_acao_navegar"):
-            st.session_state["tela_selecionada"] = (
-                _LABEL_TELA_RADAR if acao["alvo"] == _ACAO_RADAR else _LABEL_TELA_PRODUZIR
-            )
-            st.rerun()
+        # decisão 9, e `_navegar_para` acima. `on_click` (não um corpo de
+        # `if st.button(...)`) é o que torna a escrita em `session_state`
+        # válida nesta mesma execução.
+        alvo = _LABEL_TELA_RADAR if acao["alvo"] == _ACAO_RADAR else _LABEL_TELA_PRODUZIR
+        st.button(
+            acao["label_botao"],
+            key="funil_acao_navegar",
+            on_click=_navegar_para,
+            args=(alvo,),
+        )
 
     footnote()
     footnote(_NOTA_FUNIL)
