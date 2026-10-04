@@ -87,11 +87,7 @@ _RESULT_COLUMNS = (
 def normalize_input_url(value) -> str | None:
     """Chave de juncao de perfil: minusculas, sem espacos e sem barra final.
     `None`/`NaN` -> `None`."""
-    if (
-        value is None
-        or (isinstance(value, float) and math.isnan(value))
-        or pd.isna(value)
-    ):
+    if value is None or pd.isna(value):
         return None
     return str(value).strip().lower().rstrip("/")
 
@@ -127,7 +123,10 @@ def compute_cmgr_engajamento(
         return float("nan"), 0
 
     working = df_posts[["likesCount", "commentsCount", "data_hora"]].copy()
-    working["data_hora"] = pd.to_datetime(working["data_hora"], errors="coerce")
+    # `data_hora` pode chegar tz-aware: normaliza para UTC naive (comparavel a `now`).
+    working["data_hora"] = pd.to_datetime(
+        working["data_hora"], errors="coerce", utc=True
+    ).dt.tz_localize(None)
     working = working.dropna(subset=["data_hora"])
     working["engajamento"] = pd.to_numeric(
         working["likesCount"], errors="coerce"
@@ -218,7 +217,13 @@ class GovernorScorecardScorer:
         todos = pd.concat(
             [df_posts[_POST_COLUMNS], df_reels.reindex(columns=_POST_COLUMNS)]
         )
-        todos = todos.drop_duplicates(subset="id", keep="first")
+        # `id` nulo nao identifica o post: so deduplica linhas com `id`.
+        todos = pd.concat(
+            [
+                todos[todos["id"].isna()],
+                todos[todos["id"].notna()].drop_duplicates(subset="id"),
+            ]
+        )
         todos["_key"] = todos["inputUrl"].map(normalize_input_url)
         posts_por_perfil = {k: g for k, g in todos.groupby("_key")}
 

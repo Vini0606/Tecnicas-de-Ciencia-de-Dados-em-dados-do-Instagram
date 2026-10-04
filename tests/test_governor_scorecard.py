@@ -304,6 +304,17 @@ class TestScorer:
         )
 
 
+class TestRobustez:
+    def test_data_hora_com_timezone_e_ids_nulos_nao_quebram(self):
+        perfis, reels, posts, sent = _cenario(3)
+        posts = posts.assign(
+            data_hora=pd.to_datetime(posts["data_hora"]).dt.tz_localize("UTC")
+        )
+        posts.loc[posts.index[:4], "id"] = None
+        out = _score(perfis, reels, posts, sent)
+        assert out["escore"].notna().all()
+
+
 class TestWrite:
     def test_grava_no_schema_declarado(self, tmp_path):
         perfis, reels, posts, sent = _cenario(5)
