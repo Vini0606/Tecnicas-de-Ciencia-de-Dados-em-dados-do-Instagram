@@ -794,6 +794,15 @@ def test_pauta_alto_positivo_pouco_publicada_none_sem_tabela_de_pautas():
     assert resultado is None
 
 
+def test_pauta_alto_positivo_pouco_publicada_none_quando_positivo_todo_nulo():
+    df = _df_pautas_destaque().iloc[:3].copy()
+    df["proporcao_sentimento_positivo"] = float("nan")
+    assert (
+        produzir._pauta_alto_positivo_pouco_publicada(df, _discurso_governador([0]))
+        is None
+    )
+
+
 def test_pauta_alto_positivo_pouco_publicada_none_so_com_degeneradas():
     df = _df_pautas_destaque().iloc[3:]
     assert (

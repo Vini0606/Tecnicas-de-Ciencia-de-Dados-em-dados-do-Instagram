@@ -41,10 +41,10 @@ baixa conversão"). O rótulo é curado a partir do perfil real do cluster, nunc
 _Avoid_: Cluster (termo técnico, não aparece na interface do usuário final).
 
 **Selo de prioridade**:
-Classificação em 3 faixas (Alta / Média / Cuidado) de um tema de comentário na fila de "O que
-produzir", derivada dos tercis do Score ICE sobre o ranking GLOBAL de temas (todos os perfis
-combinados) — nunca recalculada só sobre os temas do governador selecionado, para não oscilar
-artificialmente quando ele tem poucos temas próprios (ver ADR 0028). Filtrável por um controle de
+Classificação em 3 faixas (Alta / Média / Cuidado) de uma pauta na fila de "O que
+produzir", derivada dos tercis do Score ICE sobre o ranking GLOBAL de pautas (todos os perfis
+combinados) — nunca recalculada só sobre as pautas do governador selecionado, para não oscilar
+artificialmente quando ele tem poucas pautas próprias (ver ADR 0028). Filtrável por um controle de
 botões (1 faixa ativa por vez, ou "Todas") acima da fila. Nunca exibe o score bruto por trás do selo.
 _Avoid_: Score, Score ICE (métrica técnica interna — o selo é o que aparece na interface).
 

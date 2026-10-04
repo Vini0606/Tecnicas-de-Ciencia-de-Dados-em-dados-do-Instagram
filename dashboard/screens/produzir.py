@@ -25,7 +25,7 @@ de dado (`load_posts_content()`, agregação por dia, `quebrar_em_segmentos`)
 continua intocada, só a tela que a renderiza mudou.
 
 ADR 0026 / issue #154 também trouxe para cá 2 dos 4 antigos "Destaques da
-execução" do Resumo -- "Melhor post" e "Alto potencial, pouco discurso" --
+execução" do Resumo -- "Melhor post" e "Alto potencial, pouco publicado" --
 portados do Resumo (migrados para pautas na issue #191), posicionados logo depois
 de "Formatos de Reel" e antes do link de volta ao Resumo: ambas são
 perguntas de "o que produzir", não de "como estamos indo" (ver ADR 0021).
@@ -48,7 +48,7 @@ engajamento); `render()` só resolve a linha clicada de volta pra pauta
 correspondente em `fila_filtrada` (mesmo índice posicional do `st.dataframe`
 exibido) e chama o dialog.
 
-Issue #191 (spec #182, ADR 0031) substituiu a fila de temas de comentário por
+Issue #191 (spec #182) substituiu a fila de grupos de comentários por
 uma FILA DE PAUTAS (assunto do conteúdo): a fonte passa a ser
 `content_topic_priority_score` (ICE por pauta, issue #190), ranking global
 sobre todos os perfis. "Filtrado ao governador" significa: só as pautas em
@@ -59,7 +59,7 @@ das lógicas dependentes da fila (recomendação principal, pauta prioritária
 ajustada, destaque "Alto potencial, pouco publicado") estão nas docstrings das
 respectivas funções: todas passaram a operar sobre pautas, e pautas
 degeneradas ("sem assunto definido") nunca são recomendadas. Grupos de
-comentários (modelo de tópicos de comentário) saem desta tela -- ganham seção
+comentários (modelo de grupos de comentários) saem desta tela -- ganham seção
 própria na issue #192.
 """
 
@@ -575,7 +575,7 @@ def _pauta_prioritaria_ajustada(
     "não recomendar um assunto que a assessoria já está cobrindo bastante".
     Pautas degeneradas ("sem assunto definido") nunca são recomendadas.
 
-    Migrada de tópicos de comentário para pautas (issue #191): a antiga
+    Migrada de grupos de comentários para pautas (issue #191): a antiga
     comparação com o discurso cruzava `Topic` de dois modelos diferentes;
     agora a pauta e o volume de discurso vêm do mesmo modelo de legendas.
 
@@ -620,8 +620,8 @@ def _recomendacao_principal(
 
 # ---------------------------------------------------------------------------
 # Destaques (ADR 0026 / issue #154) -- "Melhor post" e "Alto potencial,
-# pouco discurso", portados sem redesenho do Resumo (mesma lógica/
-# assinatura/testes, só realocados -- ambos respondem "o que produzir?").
+# pouco publicado" (este migrado para pautas na issue #191); ambos
+# respondem "o que produzir?".
 # ---------------------------------------------------------------------------
 
 
@@ -685,7 +685,7 @@ def _pauta_alto_positivo_pouco_publicada(
     isso". Pautas em que o governador não tem reel contam volume 0 (são as
     maiores oportunidades). Desempate pelo maior `score`.
 
-    Migrada de tópicos de comentário para pautas (issue #191). Retorna
+    Migrada de grupos de comentários para pautas (issue #191). Retorna
     `SEM_DADO_DISCURSO` se `df_discurso_governador` não tiver legenda
     modelada; `None` se não houver pauta candidata."""
     required = {"Topic", "Name", "proporcao_sentimento_positivo"}
@@ -706,6 +706,8 @@ def _pauta_alto_positivo_pouco_publicada(
 
     limiar = merged["proporcao_sentimento_positivo"].median()
     candidatos = merged[merged["proporcao_sentimento_positivo"] >= limiar]
+    if candidatos.empty:
+        return None
     linha = candidatos.sort_values(
         ["volume_reels", "score"], ascending=[True, False]
     ).iloc[0]
