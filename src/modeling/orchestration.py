@@ -22,7 +22,6 @@ from src.modeling.gemini_refiner import (
     apply_gemini_refinement,
     is_degenerate_topic,
 )
-from src.modeling.gemini_refiner import apply_gemini_refinement
 from src.modeling.governor_scorecard import GovernorScorecardScorer
 from src.modeling.pca import reduce_dimensions
 from src.modeling.post_performance import run_post_performance_stage
