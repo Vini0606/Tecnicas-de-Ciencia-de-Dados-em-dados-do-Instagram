@@ -22,6 +22,8 @@ from src.modeling.gemini_refiner import (
     apply_gemini_refinement,
     is_degenerate_topic,
 )
+from src.modeling.gemini_refiner import apply_gemini_refinement
+from src.modeling.governor_scorecard import GovernorScorecardScorer
 from src.modeling.pca import reduce_dimensions
 from src.modeling.post_performance import run_post_performance_stage
 from src.modeling.preprocessing import preprocess_comments
@@ -371,6 +373,28 @@ def run_deterministic_modeling(
         logger.exception(
             "[CLUSTER-PERFIL] Falha ao clusterizar/persistir -- etapa "
             "pulada, pipeline segue com os demais estágios."
+        )
+
+    # ADR 0030 / issue #184: Escore composto (Scorecard) dos governadores --
+    # estágio pós-modelagem próprio, roda por último (depende só de insumos
+    # já recebidos aqui: engajamento, reels, posts e `df_comments_final`).
+    # Mesmo tratamento de falha dos blocos acima: não derruba o que já rodou.
+    logger.info("[SCORECARD] Calculando Escore composto dos governadores...")
+    try:
+        scorecard_scorer = GovernorScorecardScorer()
+        df_scorecard = scorecard_scorer.score(
+            df_engagement, df_reels, df_posts, df_comments_final
+        )
+        scorecard_scorer.write(
+            df_scorecard,
+            config.gold_governor_scorecard_path,
+            run_id,
+            generated_at=generated_at,
+        )
+    except Exception:
+        logger.exception(
+            "[SCORECARD] Falha ao calcular/persistir -- etapa pulada, pipeline "
+            "segue com os demais estágios."
         )
 
     # Checkpoint incondicional (ver ADR 0003): sem ele, o refinamento via

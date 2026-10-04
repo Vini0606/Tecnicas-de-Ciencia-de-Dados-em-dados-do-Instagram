@@ -113,6 +113,10 @@ GOLD_GROWTH_METRICS = GOLD_DIR / "governor_growth_metrics"
 # (`scripts/run_ugc_mentions.py`), mesmo padrão de GOLD_GROWTH_METRICS
 # acima -- coleção independente, cadência/actor próprios.
 GOLD_UGC_MENTIONS = GOLD_DIR / "governor_ugc_mentions"
+# ADR 0030 / issue #184: Escore composto (Scorecard) dos 27 governadores --
+# estagio pos-modelagem proprio (`src/modeling/governor_scorecard.py`),
+# overwrite a cada execucao (snapshot recalculavel).
+GOLD_GOVERNOR_SCORECARD = GOLD_DIR / "governor_scorecard"
 
 # Checkpoints locais do estágio determinístico de modelagem (ver ADR 0003) —
 # não são Delta, ficam fora do git.

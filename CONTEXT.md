@@ -58,19 +58,19 @@ _Avoid_: Badge, tag, aviso genérico.
 **Estágio** (do funil COBRA-RACE):
 Um dos quatro momentos da jornada do público mapeados no dashboard: Reach·Alcançar,
 Act·Consumir, Convert·Contribuir, Engage·Criar. Cada tela do dashboard carrega um rótulo de estágio
-discreto no cabeçalho, mesmo quando não é a tela dedicada ao funil.
+discreto no cabeçalho, mesmo fora da sub-aba Funil do Resumo.
 _Avoid_: Etapa, fase, nível (usar "estágio" para RACE; "nível" é o termo do framework COBRA
 subjacente, ambos coexistem no rótulo "Estágio · Nível").
 
 **Gargalo**:
 O estágio do funil com a menor taxa de passagem entre execuções, entre os estágios que têm dado real
 (Convert→Engage nunca é gargalo, pois Engage não tem dado real hoje — ver "Visualizações" vs.
-"alcance"). Destacado em amarelo na tela do funil.
+"alcance"). Destacado em amarelo na sub-aba Funil do Resumo.
 _Avoid_: Bottleneck, ponto fraco.
 
 **Visualizações** (Reach real):
-Soma de `videoPlayCount` (views reais dos Reels) usada exclusivamente no estágio Reach da tela do
-funil. Um dado real coletado do Instagram — diferente de "alcance", que é sempre uma estimativa.
+Soma de `videoPlayCount` (views reais dos Reels) usada exclusivamente no estágio Reach da sub-aba
+Funil. Um dado real coletado do Instagram — diferente de "alcance", que é sempre uma estimativa.
 _Avoid_: Alcance (reservado para a métrica estimada, ver abaixo) — os dois nunca são a mesma coisa
 nem usam o mesmo rótulo em nenhuma tela.
 
