@@ -16,7 +16,8 @@ import inspect
 
 import pandas as pd
 
-from dashboard.screens import funil
+from dashboard.screens import resumo_funil as funil
+from dashboard.screens.resumo_comum import TODOS_OS_GOVERNADORES
 
 _GOVERNOR_URL = "https://instagram.com/governador_a"
 
@@ -51,7 +52,10 @@ def test_visualizacoes_reels_governador_soma_views_reais():
     df_clusters = _df_clusters_reel(["r1", "r2"])
     df_reels = _df_reels(["r1", "r2"], [100, 50])
 
-    assert funil._visualizacoes_reels_governador(df_clusters, df_reels, _GOVERNOR_URL) == 150.0
+    assert (
+        funil._visualizacoes_reels_governador(df_clusters, df_reels, _GOVERNOR_URL)
+        == 150.0
+    )
 
 
 def test_visualizacoes_reels_governador_exclui_nulos_da_soma_nunca_vira_nan():
@@ -78,7 +82,12 @@ def test_visualizacoes_reels_governador_todos_nulos_retorna_zero_nunca_nan():
 
 
 def test_visualizacoes_reels_governador_tabelas_vazias_retorna_zero():
-    assert funil._visualizacoes_reels_governador(pd.DataFrame(), pd.DataFrame(), _GOVERNOR_URL) == 0.0
+    assert (
+        funil._visualizacoes_reels_governador(
+            pd.DataFrame(), pd.DataFrame(), _GOVERNOR_URL
+        )
+        == 0.0
+    )
 
 
 def test_visualizacoes_reels_governador_ignora_conteudo_que_nao_e_reel():
@@ -93,7 +102,10 @@ def test_visualizacoes_reels_governador_ignora_conteudo_que_nao_e_reel():
 
     # `p1` não tem cluster `content_type == 'reel'` -- não é encontrado no
     # merge, soma fica em 0.0 (não em 999, que seria de um post de feed).
-    assert funil._visualizacoes_reels_governador(df_clusters, df_reels, _GOVERNOR_URL) == 0.0
+    assert (
+        funil._visualizacoes_reels_governador(df_clusters, df_reels, _GOVERNOR_URL)
+        == 0.0
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -107,7 +119,9 @@ def test_consumir_likes_governador_le_likes_sum():
 
 
 def test_consumir_likes_governador_sem_match_retorna_zero():
-    df_engagement = pd.DataFrame({"inputUrl": ["https://instagram.com/outro"], "likesSum": [500]})
+    df_engagement = pd.DataFrame(
+        {"inputUrl": ["https://instagram.com/outro"], "likesSum": [500]}
+    )
     assert funil._consumir_likes_governador(df_engagement, _GOVERNOR_URL) == 0.0
 
 
@@ -123,11 +137,19 @@ def test_contribuir_comentarios_positivos_conta_so_positivos():
             "sentiment_label": ["positive", "positive", "negative", "neutral"],
         }
     )
-    assert funil._contribuir_comentarios_positivos_governador(df_sentiment, _GOVERNOR_URL) == 2.0
+    assert (
+        funil._contribuir_comentarios_positivos_governador(df_sentiment, _GOVERNOR_URL)
+        == 2.0
+    )
 
 
 def test_contribuir_comentarios_positivos_vazio_retorna_zero():
-    assert funil._contribuir_comentarios_positivos_governador(pd.DataFrame(), _GOVERNOR_URL) == 0.0
+    assert (
+        funil._contribuir_comentarios_positivos_governador(
+            pd.DataFrame(), _GOVERNOR_URL
+        )
+        == 0.0
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -228,7 +250,9 @@ def test_nivel_decisao_escalona_para_warn_mesmo_sem_gargalo_absoluto():
 
 
 def test_nivel_decisao_warn_quando_ha_gargalo():
-    assert funil._nivel_decisao(gargalo=funil._ESTAGIO_ACT, convert_caindo=False) == "warn"
+    assert (
+        funil._nivel_decisao(gargalo=funil._ESTAGIO_ACT, convert_caindo=False) == "warn"
+    )
 
 
 def test_nivel_decisao_info_sem_gargalo_e_sem_queda():
@@ -264,18 +288,24 @@ def test_frase_decisao_nomeia_o_estagio_gargalo():
 
 
 def test_acao_recomendada_negatividade_em_alta_aponta_para_radar():
-    acao = funil._acao_recomendada(gargalo=funil._ESTAGIO_CONVERT, negatividade_em_alta=True)
+    acao = funil._acao_recomendada(
+        gargalo=funil._ESTAGIO_CONVERT, negatividade_em_alta=True
+    )
     assert acao["alvo"] == funil._ACAO_RADAR
     assert acao["label_botao"] == f"Ver {funil._LABEL_TELA_RADAR}"
 
 
 def test_acao_recomendada_gargalo_convert_aponta_para_produzir():
-    acao = funil._acao_recomendada(gargalo=funil._ESTAGIO_CONVERT, negatividade_em_alta=False)
+    acao = funil._acao_recomendada(
+        gargalo=funil._ESTAGIO_CONVERT, negatividade_em_alta=False
+    )
     assert acao["alvo"] == funil._ACAO_PRODUZIR
 
 
 def test_acao_recomendada_gargalo_act_aponta_para_produzir():
-    acao = funil._acao_recomendada(gargalo=funil._ESTAGIO_ACT, negatividade_em_alta=False)
+    acao = funil._acao_recomendada(
+        gargalo=funil._ESTAGIO_ACT, negatividade_em_alta=False
+    )
     assert acao["alvo"] == funil._ACAO_PRODUZIR
 
 
@@ -284,7 +314,9 @@ def test_acao_recomendada_none_quando_nada_para_recomendar():
 
 
 def test_acao_recomendada_texto_nunca_usa_linguagem_causal():
-    acao = funil._acao_recomendada(gargalo=funil._ESTAGIO_ACT, negatividade_em_alta=False)
+    acao = funil._acao_recomendada(
+        gargalo=funil._ESTAGIO_ACT, negatividade_em_alta=False
+    )
     assert "causa" not in acao["texto"].lower()
     assert " gera " not in acao["texto"].lower()
 
@@ -302,7 +334,9 @@ def test_funil_module_never_references_ugc_tables():
 
     docstring_const_ids = set()
     for node in ast.walk(tree):
-        if isinstance(node, (ast.Module, ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+        if isinstance(
+            node, (ast.Module, ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
+        ):
             body = getattr(node, "body", [])
             if (
                 body
@@ -319,9 +353,14 @@ def test_funil_module_never_references_ugc_tables():
         elif isinstance(node, ast.Attribute) and "ugc" in node.attr.lower():
             suspeitos.append(f"Attribute:{node.attr}")
         elif isinstance(node, ast.alias):
-            if "ugc" in node.name.lower() or (node.asname and "ugc" in node.asname.lower()):
+            if "ugc" in node.name.lower() or (
+                node.asname and "ugc" in node.asname.lower()
+            ):
                 suspeitos.append(f"alias:{node.name}")
-        elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and "ugc" in node.name.lower():
+        elif (
+            isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+            and "ugc" in node.name.lower()
+        ):
             suspeitos.append(f"def:{node.name}")
         elif isinstance(node, ast.arg) and "ugc" in node.arg.lower():
             suspeitos.append(f"arg:{node.arg}")
@@ -333,13 +372,112 @@ def test_funil_module_never_references_ugc_tables():
         ):
             suspeitos.append(f"str:{node.value}")
 
-    assert not suspeitos, f"Identificadores/strings relacionados a UGC encontrados: {suspeitos}"
+    assert not suspeitos, (
+        f"Identificadores/strings relacionados a UGC encontrados: {suspeitos}"
+    )
 
 
 def test_funil_module_does_not_import_ugc_loader_or_aggregator():
     """Confirmação comportamental complementar ao teste estático acima:
-    `dashboard.screens.funil` não tem nenhum atributo cujo nome comece com
+    `dashboard.screens.resumo_funil` não tem nenhum atributo cujo nome comece com
     `load_ugc`/`aggregate_ugc` -- nem por importação direta, nem por acesso
     via `dashboard.core.data`."""
     atributos = dir(funil)
-    assert not any(nome.lower().startswith(("load_ugc", "aggregate_ugc")) for nome in atributos)
+    assert not any(
+        nome.lower().startswith(("load_ugc", "aggregate_ugc")) for nome in atributos
+    )
+
+
+# ---------------------------------------------------------------------------
+# Issue #183: seletor único do Resumo -- "Todos os Governadores" usa a MÉDIA
+# por governador em cada estágio (ADR 0027), nunca a soma.
+# ---------------------------------------------------------------------------
+
+_URL_A = "https://instagram.com/gov_a"
+_URL_B = "https://instagram.com/gov_b"
+
+
+def _dados_dois_governadores():
+    df_clusters = _df_clusters_reel(["a1", "b1"])
+    df_reels = pd.DataFrame(
+        {
+            "id": ["a1", "b1"],
+            "inputUrl": [_URL_A, _URL_B],
+            "videoPlayCount": [1000, 3000],
+        }
+    )
+    df_engagement = pd.DataFrame({"inputUrl": [_URL_A, _URL_B], "likesSum": [100, 300]})
+    df_sent = pd.DataFrame(
+        {
+            "inputUrl": [_URL_A] * 2 + [_URL_B] * 4,
+            "sentiment_label": ["positive", "negative"] + ["positive"] * 4,
+        }
+    )
+    return df_clusters, df_reels, df_engagement, df_sent
+
+
+def test_estagios_todos_e_media_por_governador_nao_soma():
+    estagios = funil._estagios_para_selecao(
+        TODOS_OS_GOVERNADORES, *_dados_dois_governadores()
+    )
+    assert estagios == (2000.0, 200.0, 2.5)  # soma seria (4000, 400, 5)
+
+
+def test_estagios_governador_unico_nao_muda():
+    estagios = funil._estagios_para_selecao(_URL_A, *_dados_dois_governadores())
+    assert estagios == (1000.0, 100.0, 1.0)
+
+
+def test_estagios_todos_ignora_governador_sem_dado_real_no_estagio():
+    df_clusters, df_reels, df_engagement, df_sent = _dados_dois_governadores()
+    df_reels = df_reels.assign(videoPlayCount=[1000, None])
+    reach, _, _ = funil._estagios_para_selecao(
+        TODOS_OS_GOVERNADORES, df_clusters, df_reels, df_engagement, df_sent
+    )
+    assert reach == 1000.0  # B sem dado nao puxa a media para 500
+
+
+def test_estagios_todos_tabelas_vazias_devolve_zeros():
+    vazio = pd.DataFrame()
+    assert funil._estagios_para_selecao(
+        TODOS_OS_GOVERNADORES, vazio, vazio, vazio, vazio
+    ) == (
+        0.0,
+        0.0,
+        0.0,
+    )
+
+
+def test_perdas_entre_estagios_e_complemento_da_taxa_e_none_sem_dado():
+    perdas = funil._perdas_entre_estagios({"act": 0.25, "convert": None})
+    assert perdas == {"act": 0.75, "convert": None}
+
+
+def test_agregar_positivos_por_run_todos_usa_media_por_governador():
+    df = pd.DataFrame(
+        {
+            "_chave": ["a", "a", "b"],
+            "sentiment_label": ["positive", "positive", "positive"],
+            "_run_id": ["r1", "r1", "r1"],
+        }
+    )
+    agregado = funil._agregar_positivos_por_run(df, todos=True)
+    assert list(agregado["qtd_positivos"]) == [
+        1.5
+    ]  # a=2, b=1 -> media 1.5 (soma seria 3)
+
+
+def test_proporcao_negativo_todos_media_simples_nao_ponderada():
+    df = pd.DataFrame(
+        {
+            "_chave": ["a"] * 4 + ["b"],
+            "sentiment_label": ["negative"] * 4 + ["positive"],
+        }
+    )
+    assert funil._proporcao_negativo_media_por_governador(df) == 0.5  # (1.0 + 0.0) / 2
+
+
+def test_cores_dos_estagios_sao_tokens_claro_e_escuro_distintos_do_vermelho_iesb():
+    for estagio, (claro, escuro) in funil.CORES_ESTAGIO.items():
+        assert claro.startswith("#") and escuro.startswith("#"), estagio
+        assert "d92936" not in (claro + escuro).lower(), estagio

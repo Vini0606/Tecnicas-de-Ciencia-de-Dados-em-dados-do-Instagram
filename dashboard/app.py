@@ -8,14 +8,14 @@ nova") -- cada entrada de `TELAS` é o `render()` de um módulo de
 `dashboard/screens/*.py`, registrado aqui conforme cada tela é implementada
 pelas próximas issues da sequência (#111-#116).
 
-`key="tela_selecionada"` no `st.radio` abaixo (issue #114, Tela 6/Funil):
+`key="tela_selecionada"` no `st.radio` abaixo (issue #114, hoje sub-aba Funil do Resumo):
 qualquer tela pode trocar de aba programaticamente gravando o RÓTULO exato
 de uma chave de `TELAS` em `st.session_state["tela_selecionada"]` e
 chamando `st.rerun()` ANTES deste módulo recriar o widget -- no próximo
 render, `st.radio` lê esse valor de `session_state` como seleção corrente
 (Streamlit dá prioridade ao `session_state` já presente para a `key` do
-widget sobre o parâmetro `index`). Ver `dashboard/screens/funil.py::render`
-(bloco "O que fazer") para o primeiro uso real desse padrão.
+widget sobre o parâmetro `index`). Ver `dashboard/screens/resumo_funil.py::render`
+(bloco "Leitura automática") para o primeiro uso real desse padrão.
 
 Rodar com: `streamlit run dashboard/app.py`.
 """
@@ -31,8 +31,14 @@ ROOT_DIR = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
 if ROOT_DIR not in sys.path:
     sys.path.insert(0, ROOT_DIR)
 
-from dashboard.core.theme import inject_theme  # noqa: E402
-from dashboard.screens import comparar, discurso_reacao, funil, produzir, radar, resumo  # noqa: E402
+from dashboard.core.theme import inject_theme
+from dashboard.screens import (
+    comparar,
+    discurso_reacao,
+    produzir,
+    radar,
+    resumo,
+)
 
 st.set_page_config(page_title="Growth — Assessoria", layout="wide")
 inject_theme()
@@ -43,9 +49,10 @@ TELAS: dict[str, object] = {
     "Radar de crise": radar.render,
     "Comparar perfis": comparar.render,
     "Discurso x reação": discurso_reacao.render,
-    "Funil de engajamento": funil.render,
 }
 
 st.sidebar.title("Growth — Assessoria")
-tela_selecionada = st.sidebar.radio("Telas", options=list(TELAS.keys()), key="tela_selecionada")
+tela_selecionada = st.sidebar.radio(
+    "Telas", options=list(TELAS.keys()), key="tela_selecionada"
+)
 TELAS[tela_selecionada]()

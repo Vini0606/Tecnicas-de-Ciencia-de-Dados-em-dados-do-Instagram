@@ -647,8 +647,8 @@ def render() -> None:
         _render_barras_comparativas(barras)
         st.caption(
             '"Alcance-proxy" é uma estimativa baseada em engajamento (curtidas + '
-            "respostas), não visualizações reais -- ver Funil de engajamento para "
-            "visualizações reais dos Reels."
+            "respostas), não visualizações reais -- ver a sub-aba Funil de "
+            "engajamento do Resumo para visualizações reais dos Reels."
         )
 
     # ---- Pares do grupo ----

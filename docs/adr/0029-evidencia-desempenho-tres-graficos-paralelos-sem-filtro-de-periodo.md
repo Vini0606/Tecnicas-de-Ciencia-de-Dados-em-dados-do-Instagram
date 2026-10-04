@@ -1,6 +1,10 @@
 ---
-status: accepted
+status: superseded
 ---
+
+> **Nota (superseded):** a seção de evidência no Resumo foi removida pela ADR
+> [0031](0031-resumo-em-sub-abas-funil-como-sub-aba-e-evidencia-substituida-por-linhas-em-comparar-perfis.md);
+> a leitura histórica passa a viver em gráficos de linha de Comparar perfis.
 
 > **Nota (relacionada):** esta ADR substitui parcialmente o item 4 da Decisão da ADR
 > [0027](0027-janela-por-disponibilidade-historico-de-nsm-e-visao-agregada-todos-governadores.md)

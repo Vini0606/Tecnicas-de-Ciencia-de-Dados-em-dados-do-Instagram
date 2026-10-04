@@ -2,6 +2,9 @@
 status: accepted
 ---
 
+> **Nota (superseded parcial):** o Funil deixou de ser Tela dedicada e virou sub-aba do Resumo pela ADR
+> [0031](0031-resumo-em-sub-abas-funil-como-sub-aba-e-evidencia-substituida-por-linhas-em-comparar-perfis.md).
+
 # Reformulação do dashboard de "por funil" para "por decisão", com o funil COBRA-RACE como tela dedicada (substitui a Frente 2 da ADR 0020)
 
 ## Contexto
