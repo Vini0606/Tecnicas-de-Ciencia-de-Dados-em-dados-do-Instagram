@@ -12,6 +12,23 @@ eu posto a seguir?"), não em torno de uma tabela ou técnica de modelagem.
 _Avoid_: Página, aba, view (quando falando do produto ao usuário final; "página"/`pages/` ainda é
 termo técnico válido para arquivos Streamlit).
 
+**Sub-aba**:
+Divisão interna de uma Tela (ex.: NSM, Funil e Scorecard dentro do Resumo). Distinta de Tela, que é item
+da navegação lateral.
+_Avoid_: Tela (para algo interno a outra Tela), aba solta (ambíguo).
+
+**Pauta**:
+Assunto de um conteúdo publicado (legenda de reel/post) agrupado pelo modelo de tópicos de discurso e
+rotulado após refino. É a unidade da fila de "O que produzir": mede quanto comentário positivo os
+conteúdos daquele assunto receberam. Cada reel pertence a uma única pauta (a da legenda).
+_Avoid_: Tema (ambíguo com grupo de comentários), tópico (termo técnico do BERTopic).
+
+**Grupo de comentários**:
+Conjunto de comentários parecidos entre si, agrupados pelo modelo de tópicos de comentário. Descreve o
+que o público diz, não o que o conteúdo trata. Exibido em "Maiores grupos de comentários", separado em
+positivos e negativos, no escopo do governador selecionado.
+_Avoid_: Tema, pauta (reservado ao assunto do conteúdo).
+
 **Frase de decisão** (faixa de decisão / decision band):
 A frase em destaque no topo de cada tela, numa faixa colorida por semáforo, que responde
 "e agora, o que eu faço?" antes de qualquer gráfico. Sempre a primeira coisa lida na tela.
@@ -62,6 +79,20 @@ Proxy de alcance usado por NSM e Score ICE, calculado a partir de engajamento (c
 porque o Instagram não expõe alcance real para essas métricas. Sempre acompanhado do tooltip
 "estimativa baseada em engajamento".
 _Avoid_: Reach, visualizações, views (reservados para o dado real do funil, ver acima).
+
+**Escore composto** (Scorecard):
+Nota de 0 a 100 de cada governador, soma ponderada (pesos iguais) de cinco dimensões normalizadas
+min-máx entre os 27 perfis: Alcance, Ativação, Qualidade, Profundidade e Consistência. É relativo ao
+grupo dos 27 — mede posição entre pares, não desempenho absoluto. Alcance usa "reproduções" (plays),
+nunca "visualizações únicas".
+_Avoid_: Índice (genérico), ranking (o ranking é a ordenação pelo escore, não o escore).
+
+**CMGR de engajamento** / **CMGR de audiência**:
+Duas taxas compostas mensais distintas. A de engajamento mede a tendência do engajamento médio por post
+ao longo dos meses de publicação (base da dimensão Consistência do Escore composto). A de audiência mede o
+crescimento de seguidores entre coletas e hoje está pendente por histórico insuficiente. Nunca chamar a de
+engajamento de "crescimento de audiência" (ver ADR 0030).
+_Avoid_: CMGR sozinho (ambíguo entre os dois).
 
 **Engajamento qualificado** (rótulo de usuário para NSM/North Star Metric):
 Nome exibido ao analista de assessoria para a NSM — comentários positivos sobre comentários totais,
