@@ -103,6 +103,11 @@ class DeltaRepository(DataRepository):
         (Ficha 5) / issue #90."""
         return self._load(_join(self._gold_dir, "governor_nsm"))
 
+    def load_governor_scorecard(self) -> pd.DataFrame:
+        """Escore composto (Scorecard) por governador -- ADR 0030 / issue
+        #188. Uma linha por perfil, ranking já gravado pelo pipeline."""
+        return self._load(_join(self._gold_dir, "governor_scorecard"))
+
     def load_nsm_history(self) -> pd.DataFrame:
         """Histórico de NSM (mode append, uma linha por perfil por execução)
         -- ADR 0025 / issue #153, espelha `load_engagement_history()`.

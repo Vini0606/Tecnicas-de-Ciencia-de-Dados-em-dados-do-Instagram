@@ -156,6 +156,16 @@ def load_nsm() -> pd.DataFrame:
 
 
 @st.cache_data(ttl=_TTL_SECONDS)
+def load_governor_scorecard() -> pd.DataFrame:
+    """`governor_scorecard` -- 1 linha por perfil (ADR 0030 / issue #188);
+    o dashboard só lê, o ranking vem gravado."""
+    try:
+        return get_repository().load_governor_scorecard()
+    except FileNotFoundError:
+        return pd.DataFrame()
+
+
+@st.cache_data(ttl=_TTL_SECONDS)
 def load_nsm_history() -> pd.DataFrame:
     """`governor_nsm_history` -- 1 linha por perfil por execução (ADR 0025 /
     issue #153), espelha `load_engagement_history()`. NOTA: em 2026-09 a

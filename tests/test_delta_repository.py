@@ -140,3 +140,19 @@ def test_load_nsm_history_acumula_varias_execucoes(tmp_path):
 
     assert len(out) == 2
     assert set(out["_run_id"]) == {"r1", "r2"}
+
+
+def test_load_governor_scorecard_le_tabela_gold(tmp_path):
+    # ADR 0030 / issue #188.
+    df = pd.DataFrame(
+        {
+            "inputUrl": ["https://www.instagram.com/governador_a/"],
+            "escore": [61.5],
+            "ranking": [1],
+        }
+    )
+    write_deltalake(str(tmp_path / "governor_scorecard"), df, mode="overwrite")
+
+    out = DeltaRepository(gold_dir=tmp_path).load_governor_scorecard()
+
+    assert out["escore"].iloc[0] == 61.5
