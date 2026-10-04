@@ -55,13 +55,10 @@ mapa de nomes abaixo):
    `_filtrar_por_governador`) já duplicado em toda tela nova, em vez de
    `select_governor_rows` (`src/dashboard/filters.py`, descontinuado) -- ver
    Cutover desta issue no PR para o que foi portado vs. apagado.
-5. **Par de destaque -- maior diferença POSITIVA em qualquer métrica.**
-   `_selecionar_par_destaque` varre as 3 métricas comparadas, na ordem de
-   `_METRICAS`, e todos os pares, escolhendo a maior diferença
-   estritamente positiva (par melhor que o próprio perfil) encontrada --
-   nunca inventa um destaque quando nenhum par supera o próprio perfil em
-   nada (`None` nesse caso). Empate: primeira ocorrência (ordem de
-   `_METRICAS`, depois ordem de `df_pares`) -- determinístico, testado.
+5. **Par de destaque -- removido (issue #189).** A secao "Governadores do
+   grupo" (tabela de pares + par de destaque) foi substituida pela analise de
+   clusters de reels, em `comparar_clusters.py`. `_peer_urls` segue vivo: os
+   pares alimentam as barras comparativas -> frase de decisao.
 6. **Selo "agrupamento experimental" -- sempre visível.** Renderizado logo
    após `stage_label()`, em TODO caminho de `render()` (sem governador
    disponível, sem cluster atribuído, ou fluxo normal) -- nunca condicional
@@ -88,6 +85,7 @@ import streamlit as st
 
 from dashboard.core import data
 from dashboard.core.components import decision_band, footnote, stage_label
+from dashboard.screens.comparar_clusters import render_clusters
 
 _PLACEHOLDER_SEM_GOVERNADOR = "—"
 _PLACEHOLDER_SEM_DADO = "—"
@@ -172,19 +170,6 @@ def _filtrar_por_governador(
         return df.iloc[0:0]
     chave = _normalize_url(pd.Series([governor_url])).iloc[0]
     return df[_normalize_url(df[url_col]) == chave]
-
-
-# ---------------------------------------------------------------------------
-# Formatação (arredondamento no ponto de exibição)
-# ---------------------------------------------------------------------------
-
-
-def _fmt_valor_metrica(valor: float | None, tipo: str) -> str:
-    if valor is None or pd.isna(valor):
-        return _PLACEHOLDER_SEM_DADO
-    if tipo == "pct":
-        return f"{valor * 100:.1f}%"
-    return f"{valor:.1f}"
 
 
 # ---------------------------------------------------------------------------
@@ -410,64 +395,6 @@ def _montar_barras_comparativas(
 
 
 # ---------------------------------------------------------------------------
-# Par de destaque -- issue #115, user story 3 / Testing Decisions.
-# ---------------------------------------------------------------------------
-
-
-def _selecionar_par_destaque(
-    df_pares: pd.DataFrame, valores_proprio: dict[str, float | None]
-) -> dict | None:
-    """Par (governador do mesmo grupo) com a maior diferença POSITIVA em
-    qualquer uma das métricas comparadas (issue #115, user story 3) --
-    função pura, testada com `DataFrame` sintético. `df_pares` = 1 linha por
-    par, colunas `inputUrl`/`nome` + uma coluna por chave de `_METRICAS`
-    (`alcance_proxy`/`pct_positivo`/`frequencia`). Desempate determinístico:
-    primeira ocorrência na ordem de `_METRICAS`, depois na ordem das linhas
-    de `df_pares`. `None` (nunca inventa destaque) se não houver par, ou se
-    nenhum par superar o próprio perfil em nenhuma métrica com dado válido."""
-    if df_pares.empty:
-        return None
-
-    melhor: dict | None = None
-    melhor_diff = 0.0
-    for m in _METRICAS:
-        chave = m["chave"]
-        valor_proprio = valores_proprio.get(chave)
-        if valor_proprio is None or pd.isna(valor_proprio) or chave not in df_pares.columns:
-            continue
-        for _, linha in df_pares.iterrows():
-            valor_par = linha[chave]
-            if pd.isna(valor_par):
-                continue
-            diff = valor_par - valor_proprio
-            if diff > melhor_diff:
-                melhor_diff = diff
-                nome_par = linha["nome"] if pd.notna(linha.get("nome")) else linha["inputUrl"]
-                melhor = {
-                    "inputUrl": linha["inputUrl"],
-                    "nome": nome_par,
-                    "metrica": chave,
-                    "rotulo_metrica": m["rotulo"],
-                    "tipo": m["tipo"],
-                    "valor_par": valor_par,
-                    "valor_proprio": valor_proprio,
-                    "diff": diff,
-                }
-    return melhor
-
-
-def _frase_destaque(destaque: dict | None) -> str:
-    if destaque is None:
-        return "Nenhum par do mesmo grupo se destaca em alguma métrica no momento."
-    valor_par_fmt = _fmt_valor_metrica(destaque["valor_par"], destaque["tipo"])
-    rotulo_metrica = destaque["rotulo_metrica"].lower()
-    return (
-        f"{destaque['nome']} se destaca em {rotulo_metrica}: {valor_par_fmt} -- "
-        "estude o conteúdo dele/dela."
-    )
-
-
-# ---------------------------------------------------------------------------
 # Faixa de decisão -- issue #115, princípio de design (resposta -> porquê ->
 # prova).
 # ---------------------------------------------------------------------------
@@ -506,25 +433,6 @@ def _frase_decisao(nome_grupo: str, barras: list[dict]) -> str:
         f'Seu perfil está no grupo "{nome_grupo}" -- você está {barra["rotulo_vs_pares"]} '
         f'em {barra["rotulo"].lower()}.'
     )
-
-
-# ---------------------------------------------------------------------------
-# Tabela de pares
-# ---------------------------------------------------------------------------
-
-
-def _tabela_pares(df_pares: pd.DataFrame) -> pd.DataFrame:
-    colunas_saida = ["Governador", "Alcance-proxy", "% positivo", "Frequência"]
-    if df_pares.empty:
-        return pd.DataFrame(columns=colunas_saida)
-    return pd.DataFrame(
-        {
-            "Governador": df_pares["nome"].fillna(df_pares["inputUrl"]),
-            "Alcance-proxy": df_pares["alcance_proxy"].apply(lambda v: _fmt_valor_metrica(v, "pct")),
-            "% positivo": df_pares["pct_positivo"].apply(lambda v: _fmt_valor_metrica(v, "pct")),
-            "Frequência": df_pares["frequencia"].apply(lambda v: _fmt_valor_metrica(v, "num")),
-        }
-    ).reset_index(drop=True)
 
 
 # ---------------------------------------------------------------------------
@@ -767,6 +675,7 @@ def render() -> None:
             "para gerar a segmentação de perfil."
         )
         _render_linhas_mensais(governor_url)
+        render_clusters(governor_url)
         footnote()
         return
 
@@ -795,7 +704,6 @@ def render() -> None:
     }
 
     barras = _montar_barras_comparativas(valores_proprio, valores_pares_series)
-    destaque = _selecionar_par_destaque(df_pares_metricas, valores_proprio)
 
     # ---- Frase de decisão ----
     nivel = _nivel_decisao(barras)
@@ -804,17 +712,7 @@ def render() -> None:
     # ---- Linhas mensais ----
     _render_linhas_mensais(governor_url)
 
-    # ---- Pares do grupo ----
-    st.markdown(f'#### Governadores do grupo "{nome_grupo}"')
-    if not pares_urls:
-        st.caption("Nenhum outro governador no mesmo grupo.")
-    else:
-        st.write(_frase_destaque(destaque))
-        st.dataframe(_tabela_pares(df_pares_metricas), hide_index=True, width="stretch")
-        st.caption(
-            '"Alcance-proxy" é uma estimativa baseada em engajamento (curtidas + '
-            "respostas), não visualizações reais -- ver a sub-aba Funil de engajamento do Resumo para "
-            "visualizações reais dos Reels."
-        )
+    # ---- Clusters de reels com sentimento (issue #189) ----
+    render_clusters(governor_url)
 
     footnote()
