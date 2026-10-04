@@ -22,10 +22,10 @@ DEFAULT_PROMPT_TEMPLATE = (
 
 
 DISCOURSE_PROMPT_TEMPLATE = (
-    "Os textos abaixo são legendas de posts e reels de um governador no "
-    "Instagram, agrupados por assunto parecido. Responda APENAS com um rótulo "
-    "curto (no máximo 6 palavras, sem aspas nem pontuação final) que nomeie "
-    "o assunto em comum dessas legendas: {documents}"
+    "Os textos abaixo são legendas (ou falas transcritas) de posts e reels de "
+    "um governador no Instagram, agrupados por assunto parecido. Responda "
+    "APENAS com um rótulo curto (no máximo 6 palavras, sem aspas nem "
+    "pontuação final) que nomeie o assunto em comum desses textos: {documents}"
 )
 
 # Rótulo explícito do tópico degenerado (sem palavra alguma, ex.: o "1____"
