@@ -26,36 +26,53 @@ def _point_settings_at(monkeypatch, tmp_path):
     monkeypatch.setattr(settings, "SILVER_DIR", tmp_path / "silver")
     _clear_caches()
 
+
 # ---------------------------------------------------------------------------
 # _selo_prioridade / _cortes_tercis (selo de prioridade, nunca o score bruto)
 # ---------------------------------------------------------------------------
 
 
 def test_selo_prioridade_alta_quando_score_igual_ao_corte_alta():
-    assert produzir._selo_prioridade(0.5, corte_alta=0.5, corte_media=0.2) == produzir.SELO_ALTA
+    assert (
+        produzir._selo_prioridade(0.5, corte_alta=0.5, corte_media=0.2)
+        == produzir.SELO_ALTA
+    )
 
 
 def test_selo_prioridade_alta_acima_do_corte():
-    assert produzir._selo_prioridade(0.9, corte_alta=0.5, corte_media=0.2) == produzir.SELO_ALTA
+    assert (
+        produzir._selo_prioridade(0.9, corte_alta=0.5, corte_media=0.2)
+        == produzir.SELO_ALTA
+    )
 
 
 def test_selo_prioridade_media_entre_os_dois_cortes():
-    assert produzir._selo_prioridade(0.3, corte_alta=0.5, corte_media=0.2) == produzir.SELO_MEDIA
+    assert (
+        produzir._selo_prioridade(0.3, corte_alta=0.5, corte_media=0.2)
+        == produzir.SELO_MEDIA
+    )
 
 
 def test_selo_prioridade_media_no_valor_de_fronteira():
     # score == corte_media entra na banda "média" (inclusivo do lado alto).
-    assert produzir._selo_prioridade(0.2, corte_alta=0.5, corte_media=0.2) == produzir.SELO_MEDIA
+    assert (
+        produzir._selo_prioridade(0.2, corte_alta=0.5, corte_media=0.2)
+        == produzir.SELO_MEDIA
+    )
 
 
 def test_selo_prioridade_cuidado_abaixo_do_corte_media():
     assert (
-        produzir._selo_prioridade(0.1, corte_alta=0.5, corte_media=0.2) == produzir.SELO_CUIDADO
+        produzir._selo_prioridade(0.1, corte_alta=0.5, corte_media=0.2)
+        == produzir.SELO_CUIDADO
     )
 
 
 def test_selo_prioridade_cuidado_para_score_nulo():
-    assert produzir._selo_prioridade(None, corte_alta=0.5, corte_media=0.2) == produzir.SELO_CUIDADO
+    assert (
+        produzir._selo_prioridade(None, corte_alta=0.5, corte_media=0.2)
+        == produzir.SELO_CUIDADO
+    )
     assert (
         produzir._selo_prioridade(float("nan"), corte_alta=0.5, corte_media=0.2)
         == produzir.SELO_CUIDADO
@@ -74,95 +91,152 @@ def test_cortes_tercis_retorna_zero_para_tabela_vazia():
 
 
 # ---------------------------------------------------------------------------
-# _fila_prioridade -- filtrada ao governador (topic_priority_score não tem
-# inputUrl, ver docstring do módulo) + estado vazio amigável
+# Fila de pautas (issue #191) -- `content_topic_priority_score` é GLOBAL (sem
+# inputUrl); o governador só restringe quais pautas aparecem.
 # ---------------------------------------------------------------------------
 
 
-def _df_topic_priority_global():
-    # Ranking GLOBAL (sem inputUrl) -- 4 tópicos, scores bem espalhados para
-    # cair em bandas diferentes.
+def _df_pautas_global():
+    # 4 pautas com scores bem espalhados para cair em bandas diferentes.
+    # Rótulos nos 3 formatos reais: keywords brutas, refinado e degenerado.
     return pd.DataFrame(
         {
             "Topic": [0, 1, 2, 3],
-            "Name": ["0_saude", "1_seguranca", "2_educacao", "3_infra"],
+            "Name": [
+                "mobiliza, 0001, elmano, queremos",
+                "Entregas de obras, obra, entrega",
+                "sem assunto definido",
+                "saude, hospital",
+            ],
             "score": [0.9, 0.6, 0.3, 0.05],
-            "n_comentarios": [120, 45, 30, 3],
-            "proporcao_sentimento_positivo": [0.8, 0.5, 0.4, 0.2],
+            "n_comentarios": [120, 45, 0, 3],
+            "proporcao_sentimento_positivo": [0.8, 0.5, 0.0, 0.2],
         }
     )
 
 
+def _df_discurso():
+    # governor_discourse_topics: reels repetidos, ruido (-1) e transcricao.
+    return pd.DataFrame(
+        {
+            "id_reel": ["a1", "a1", "a2", "a3", "b1", "b2", "b3", "b4"],
+            "inputUrl": [_GOV_URL] * 3
+            + [_GOV_URL]
+            + ["https://www.instagram.com/gov_b/"] * 4,
+            "fonte": ["legenda", "legenda", "legenda", "transcricao"]
+            + ["legenda", "legenda", "legenda", "legenda"],
+            "Topic": [1, 1, 3, 0, 0, 1, -1, 2],
+            "Name": ["x"] * 8,
+        }
+    )
+
+
+def test_reels_por_pauta_so_legenda_sem_ruido_e_sem_duplicata():
+    resultado = produzir._reels_por_pauta(_df_discurso())
+    # a1 duplicado vira 1 linha; a3 e transcricao; b3 e ruido (-1).
+    assert sorted(resultado["id_reel"]) == ["a1", "a2", "b1", "b2", "b4"]
+    assert dict(zip(resultado["id_reel"], resultado["Topic"], strict=True))["a1"] == 1
+
+
+def test_reels_por_pauta_entrada_vazia_sem_quebrar():
+    assert produzir._reels_por_pauta(pd.DataFrame()).empty
+    assert produzir._reels_por_pauta(pd.DataFrame({"x": [1]})).empty
+
+
+def test_pautas_do_governador_so_as_pautas_dos_reels_dele():
+    discurso_gov = produzir._filtrar_por_governador(_df_discurso(), _GOV_URL)
+    assert produzir._pautas_do_governador(discurso_gov) == {1, 3}
+
+
+def test_pautas_do_governador_vazio_sem_quebrar():
+    assert produzir._pautas_do_governador(pd.DataFrame()) == set()
+
+
 def test_fila_prioridade_restringe_ao_governador_e_ordena_por_score():
-    # Governador só comentou nos tópicos 1 e 3 -- 0 e 2 não devem aparecer,
-    # mesmo tendo score mais alto (são de OUTRO governador).
-    fila = produzir._fila_prioridade(_df_topic_priority_global(), topicos_governador={1, 3})
+    fila = produzir._fila_prioridade(_df_pautas_global(), pautas_governador={1, 3})
 
     assert list(fila["Topic"]) == [1, 3]
-    assert list(fila["Name"]) == ["1_seguranca", "3_infra"]
-    # Nunca a coluna de score bruto exposta na fila renderizável -- mas
-    # internamente o score ainda está presente para uso de
-    # `_topico_prioritario_ajustado`.
+    assert list(fila["Pauta"]) == ["Entregas de obras", "saude, hospital"]
+    # score segue como coluna interna (recomendacao); render() nunca o exibe.
     assert "score" in fila.columns
     assert "Prioridade" in fila.columns
 
 
-def test_fila_prioridade_propaga_quantidade_de_comentarios_global():
-    # n_comentarios vem do ranking GLOBAL (mesma linha de score/% positivo),
-    # nunca recalculado só sobre os comentários do governador (ver ADR 0028).
-    fila = produzir._fila_prioridade(_df_topic_priority_global(), topicos_governador={1, 3})
+def test_fila_prioridade_selo_vem_dos_tercis_globais_nao_do_governador():
+    # Governador so tem as pautas 1 (0.6) e 3 (0.05). Tercis GLOBAIS de
+    # [0.9, 0.6, 0.3, 0.05]: alta >= 0.6, media >= 0.3333 -> pauta 1 e Alta
+    # mesmo sendo a "melhor" do governador por acaso; pauta 3 e Cuidado.
+    fila = produzir._fila_prioridade(_df_pautas_global(), pautas_governador={1, 3})
+    assert list(fila["Prioridade"]) == [produzir.SELO_ALTA, produzir.SELO_CUIDADO]
+
+
+def test_fila_prioridade_propaga_comentarios_e_positivo_globais():
+    fila = produzir._fila_prioridade(_df_pautas_global(), pautas_governador={1, 3})
     assert list(fila["n_comentarios"]) == [45, 3]
+    assert list(fila["proporcao_sentimento_positivo"]) == [0.5, 0.2]
 
 
 def test_fila_prioridade_sem_n_comentarios_no_dado_de_entrada_nao_quebra():
-    df = _df_topic_priority_global().drop(columns=["n_comentarios"])
-    fila = produzir._fila_prioridade(df, topicos_governador={1, 3})
-    assert "n_comentarios" in fila.columns
+    df = _df_pautas_global().drop(columns=["n_comentarios"])
+    fila = produzir._fila_prioridade(df, pautas_governador={1, 3})
     assert fila["n_comentarios"].isna().all()
 
 
-def test_fila_prioridade_vazia_quando_topic_priority_vazio():
-    fila = produzir._fila_prioridade(pd.DataFrame(), topicos_governador={1})
+def test_fila_prioridade_pauta_degenerada_continua_na_fila_com_rotulo_amigavel():
+    fila = produzir._fila_prioridade(_df_pautas_global(), pautas_governador={2})
+    assert list(fila["Pauta"]) == ["sem assunto definido"]
+
+
+def test_fila_prioridade_vazia_quando_tabela_ausente():
+    fila = produzir._fila_prioridade(pd.DataFrame(), pautas_governador={1})
     assert fila.empty
     assert list(fila.columns) == produzir._COLUNAS_FILA
 
 
-def test_fila_prioridade_vazia_quando_governador_sem_topicos_proprios():
-    fila = produzir._fila_prioridade(_df_topic_priority_global(), topicos_governador=set())
+def test_fila_prioridade_vazia_quando_governador_sem_pautas():
+    fila = produzir._fila_prioridade(_df_pautas_global(), pautas_governador=set())
     assert fila.empty
 
 
-def test_topicos_do_governador_extrai_topics_distintos():
-    df = pd.DataFrame({"Topic": [0, 0, 2, None]})
-    assert produzir._topicos_do_governador(df) == {0, 2}
+def test_fila_prioridade_nao_vaza_pauta_de_outro_governador_com_score_maior():
+    fila = produzir._fila_prioridade(_df_pautas_global(), pautas_governador={3})
+    assert list(fila["Topic"]) == [3]
 
 
-def test_topicos_do_governador_vazio_sem_quebrar():
-    assert produzir._topicos_do_governador(pd.DataFrame()) == set()
-
-
-# ---------------------------------------------------------------------------
-# Regressão de escopo -- a fila de OUTRO governador não pode vazar
-# (mesma classe de bug corrigida na Tela 1, issue #111 -- ver CLAUDE.md/
-# handoff do issue #112)
-# ---------------------------------------------------------------------------
-
-
-def test_fila_prioridade_nao_mistura_topico_de_outro_governador_com_sinal_maior():
-    df_topic_priority = pd.DataFrame(
-        {
-            "Topic": [0, 1],
-            "Name": ["0_do_governador_selecionado", "1_de_outro_governador_com_score_maior"],
-            "score": [0.2, 0.99],
-            "proporcao_sentimento_positivo": [0.5, 0.9],
-        }
+def test_estado_fila_distingue_tabela_ausente_sem_pautas_e_ok():
+    df = _df_pautas_global()
+    fila_ok = produzir._fila_prioridade(df, {1})
+    assert (
+        produzir._estado_fila(pd.DataFrame(), fila_ok)
+        == produzir.ESTADO_FILA_TABELA_AUSENTE
     )
-    # O governador selecionado só tem comentário no tópico 0 -- o tópico 1
-    # (score muito maior) pertence a outro perfil e não pode aparecer.
-    fila = produzir._fila_prioridade(df_topic_priority, topicos_governador={0})
+    assert (
+        produzir._estado_fila(df, produzir._fila_prioridade(df, set()))
+        == produzir.ESTADO_FILA_SEM_PAUTAS
+    )
+    assert produzir._estado_fila(df, fila_ok) == produzir.ESTADO_FILA_OK
 
-    assert list(fila["Topic"]) == [0]
-    assert list(fila["Name"]) == ["0_do_governador_selecionado"]
+
+def test_rotulo_exibicao_aceita_bruto_refinado_degenerado_e_nulo():
+    assert (
+        produzir._rotulo_exibicao("mobiliza, 0001, elmano") == "mobiliza, 0001, elmano"
+    )
+    assert produzir._rotulo_exibicao("Entregas de obras, obra") == "Entregas de obras"
+    assert (
+        produzir._rotulo_exibicao("3_Entregas de obras_obra_entrega")
+        == "Entregas de obras"
+    )
+    assert produzir._rotulo_exibicao("2_saude_hospital") == "saude, hospital"
+    assert produzir._rotulo_exibicao("1____") == "sem assunto definido"
+    assert produzir._rotulo_exibicao(None) == "sem assunto definido"
+    assert produzir._rotulo_exibicao(float("nan")) == "sem assunto definido"
+
+
+def test_rotulo_exibicao_trunca_lista_longa():
+    longo = ", ".join(f"palavra{i}" for i in range(30))
+    resultado = produzir._rotulo_exibicao(longo)
+    assert len(resultado) <= 60
+    assert resultado.endswith("…")
 
 
 # ---------------------------------------------------------------------------
@@ -380,15 +454,16 @@ def test_grupo_maior_engajamento_vazio_retorna_none():
 
 
 # ---------------------------------------------------------------------------
-# _topico_prioritario_ajustado / _recomendacao_principal
+# _pauta_prioritaria_ajustada / _recomendacao_principal (migradas para pautas)
 # ---------------------------------------------------------------------------
 
 
-def _fila_dois_temas():
+def _fila_duas_pautas():
     return pd.DataFrame(
         {
             "Topic": [0, 1],
-            "Name": ["0_muito_coberto", "1_pouco_coberto"],
+            "Name": ["muito, coberta", "pouco, coberta"],
+            "Pauta": ["muito, coberta", "pouco, coberta"],
             "score": [0.9, 0.5],
             "proporcao_sentimento_positivo": [0.8, 0.6],
             "Prioridade": [produzir.SELO_ALTA, produzir.SELO_MEDIA],
@@ -396,39 +471,71 @@ def _fila_dois_temas():
     )
 
 
-def test_topico_prioritario_ajustado_pula_tema_muito_coberto_pelo_discurso():
-    df_discurso = pd.DataFrame({"Topic": [0, 0, 0, 0, 0, 1]})
-    resultado = produzir._topico_prioritario_ajustado(_fila_dois_temas(), df_discurso)
-    assert resultado["Name"] == "1_pouco_coberto"
+def _discurso_governador(topics):
+    return pd.DataFrame(
+        {
+            "id_reel": [f"r{i}" for i in range(len(topics))],
+            "fonte": ["legenda"] * len(topics),
+            "Topic": topics,
+        }
+    )
 
 
-def test_topico_prioritario_ajustado_usa_topo_sem_dado_de_discurso():
-    resultado = produzir._topico_prioritario_ajustado(_fila_dois_temas(), pd.DataFrame())
-    assert resultado["Name"] == "0_muito_coberto"
+def test_pauta_prioritaria_ajustada_pula_pauta_muito_coberta():
+    # 5 reels na pauta 0, 1 na pauta 1 -> mediana 3; pauta 0 (5) esta acima.
+    discurso = _discurso_governador([0, 0, 0, 0, 0, 1])
+    resultado = produzir._pauta_prioritaria_ajustada(_fila_duas_pautas(), discurso)
+    assert resultado["Pauta"] == "pouco, coberta"
 
 
-def test_topico_prioritario_ajustado_none_com_fila_vazia():
-    assert produzir._topico_prioritario_ajustado(pd.DataFrame(), pd.DataFrame()) is None
+def test_pauta_prioritaria_ajustada_usa_topo_sem_dado_de_discurso():
+    resultado = produzir._pauta_prioritaria_ajustada(
+        _fila_duas_pautas(), pd.DataFrame()
+    )
+    assert resultado["Pauta"] == "muito, coberta"
 
 
-def test_recomendacao_principal_combina_tema_e_formato_calculados():
+def test_pauta_prioritaria_ajustada_none_com_fila_vazia():
+    assert produzir._pauta_prioritaria_ajustada(pd.DataFrame(), pd.DataFrame()) is None
+
+
+def test_pauta_prioritaria_ajustada_nunca_recomenda_pauta_degenerada():
+    fila = _fila_duas_pautas()
+    fila.loc[0, ["Name", "Pauta"]] = "sem assunto definido"
+    resultado = produzir._pauta_prioritaria_ajustada(fila, pd.DataFrame())
+    assert resultado["Topic"] == 1
+
+
+def test_pauta_prioritaria_ajustada_none_quando_so_ha_degeneradas():
+    fila = _fila_duas_pautas().iloc[:1].copy()
+    fila["Name"] = "sem assunto definido"
+    assert produzir._pauta_prioritaria_ajustada(fila, pd.DataFrame()) is None
+
+
+def test_recomendacao_principal_combina_pauta_e_formato_calculados():
     cartoes = {
         produzir.GRUPO_CURTO: {"n": 5, "engajamento_medio": 100.0},
         produzir.GRUPO_VIRAL: {"n": 2, "engajamento_medio": 900.0},
     }
-    recomendacao = produzir._recomendacao_principal(_fila_dois_temas(), pd.DataFrame(), cartoes)
-    assert recomendacao == {"topic_name": "0_muito_coberto", "grupo": produzir.GRUPO_VIRAL}
+    recomendacao = produzir._recomendacao_principal(
+        _fila_duas_pautas(), pd.DataFrame(), cartoes
+    )
+    assert recomendacao == {"pauta": "muito, coberta", "grupo": produzir.GRUPO_VIRAL}
 
 
 def test_recomendacao_principal_none_sem_cartoes():
-    recomendacao = produzir._recomendacao_principal(_fila_dois_temas(), pd.DataFrame(), {})
-    assert recomendacao is None
+    assert (
+        produzir._recomendacao_principal(_fila_duas_pautas(), pd.DataFrame(), {})
+        is None
+    )
 
 
 def test_recomendacao_principal_none_sem_fila():
     cartoes = {produzir.GRUPO_CURTO: {"n": 5, "engajamento_medio": 100.0}}
-    recomendacao = produzir._recomendacao_principal(pd.DataFrame(), pd.DataFrame(), cartoes)
-    assert recomendacao is None
+    assert (
+        produzir._recomendacao_principal(pd.DataFrame(), pd.DataFrame(), cartoes)
+        is None
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -489,106 +596,105 @@ def test_filtrar_fila_por_prioridade_faixa_sem_linha_nenhuma_fica_vazia():
 
 
 def test_filtrar_fila_por_prioridade_vazia_sem_quebrar():
-    resultado = produzir._filtrar_fila_por_prioridade(pd.DataFrame(), produzir.SELO_ALTA)
+    resultado = produzir._filtrar_fila_por_prioridade(
+        pd.DataFrame(), produzir.SELO_ALTA
+    )
     assert resultado.empty
 
 
 # ---------------------------------------------------------------------------
-# _comentarios_do_tema (ADR 0028 / issue #167) -- popup de comentários GLOBAIS
-# (todos os 27 perfis) de um tema, top-N por engajamento.
+# _comentarios_da_pauta (popup, issue #191) -- comentarios GLOBAIS dos reels da
+# pauta, ligados por id_reel; o Topic do proprio comentario e ignorado.
 # ---------------------------------------------------------------------------
 
 
 def _df_comentarios():
     return pd.DataFrame(
         {
-            "Topic": [0, 0, 0, 1],
-            "text": ["c0_baixo", "c0_alto", "c0_medio", "c1_de_outro_tema"],
-            "sentiment_label": ["positive", "positive", "negative", "positive"],
-            "likesCount": [1, 50, 10, 999],
-            "repliesCount": [0, 5, 2, 999],
-            "ownerUsername": ["u1", "u2", "u3", "u4"],
-            "timestamp": ["2026-01-01", "2026-01-02", "2026-01-03", "2026-01-04"],
+            "id_reel": ["a1", "a1", "a2", "b2", "b4", "zz"],
+            # Topic de GRUPO DE COMENTARIOS -- nao deve influenciar o popup.
+            "Topic": [9, 9, 9, 9, 9, 9],
+            "text": [
+                "c_baixo",
+                "c_alto",
+                "c_medio",
+                "c_outro_perfil",
+                "c_pauta2",
+                "c_sem_pauta",
+            ],
+            "sentiment_label": [
+                "positive",
+                "positive",
+                "negative",
+                "positive",
+                "positive",
+                "x",
+            ],
+            "likesCount": [1, 50, 10, 5, 999, 999],
+            "repliesCount": [0, 5, 2, 0, 999, 999],
+            "ownerUsername": ["u1", "u2", "u3", "u4", "u5", "u6"],
+            "timestamp": ["2026-01-01"] * 6,
         }
     )
 
 
-def test_comentarios_do_tema_filtra_por_topic():
-    resultado = produzir._comentarios_do_tema(_df_comentarios(), topic=0)
-    assert set(resultado["text"]) == {"c0_baixo", "c0_alto", "c0_medio"}
-    assert "c1_de_outro_tema" not in set(resultado["text"])
-
-
-def test_comentarios_do_tema_ordena_por_engajamento_decrescente():
-    resultado = produzir._comentarios_do_tema(_df_comentarios(), topic=0)
-    # c0_alto: 50+5=55; c0_medio: 10+2=12; c0_baixo: 1+0=1.
-    assert list(resultado["text"]) == ["c0_alto", "c0_medio", "c0_baixo"]
-
-
-def test_comentarios_do_tema_empate_de_engajamento_mantem_as_duas_linhas():
-    df = pd.DataFrame(
-        {
-            "Topic": [0, 0],
-            "text": ["c0_empate_a", "c0_empate_b"],
-            "sentiment_label": ["positive", "negative"],
-            "likesCount": [10, 8],
-            "repliesCount": [0, 2],
-            "ownerUsername": ["u1", "u2"],
-            "timestamp": ["2026-01-01", "2026-01-02"],
-        }
+def test_comentarios_da_pauta_traz_so_comentarios_dos_reels_da_pauta():
+    resultado = produzir._comentarios_da_pauta(
+        _df_comentarios(), _df_discurso(), topic=1
     )
-    # Ambos somam 10 de engajamento -- empate não pode derrubar nenhuma linha.
-    resultado = produzir._comentarios_do_tema(df, topic=0)
-    assert set(resultado["text"]) == {"c0_empate_a", "c0_empate_b"}
-    assert len(resultado) == 2
+    # Pauta 1 = reels a1 (Gov A) e b2 (Gov B): global, todos os perfis.
+    assert set(resultado["text"]) == {"c_baixo", "c_alto", "c_outro_perfil"}
 
 
-def test_comentarios_do_tema_corta_no_top_n():
-    resultado = produzir._comentarios_do_tema(_df_comentarios(), topic=0, top_n=2)
-    assert list(resultado["text"]) == ["c0_alto", "c0_medio"]
+def test_comentarios_da_pauta_ordena_por_engajamento_e_corta_no_top_n():
+    resultado = produzir._comentarios_da_pauta(
+        _df_comentarios(), _df_discurso(), 1, top_n=2
+    )
+    assert list(resultado["text"]) == ["c_alto", "c_outro_perfil"]
 
 
-def test_comentarios_do_tema_colunas_exibidas():
-    resultado = produzir._comentarios_do_tema(_df_comentarios(), topic=0)
-    assert list(resultado.columns) == [
-        "text",
-        "sentiment_label",
-        "likesCount",
-        "repliesCount",
-        "ownerUsername",
-        "timestamp",
-    ]
+def test_comentarios_da_pauta_colunas_exibidas():
+    resultado = produzir._comentarios_da_pauta(
+        _df_comentarios(), _df_discurso(), topic=1
+    )
+    assert list(resultado.columns) == produzir._COLUNAS_COMENTARIOS_POPUP
 
 
-def test_comentarios_do_tema_sem_comentario_para_o_tema_fica_vazio():
-    resultado = produzir._comentarios_do_tema(_df_comentarios(), topic=99)
+def test_comentarios_da_pauta_sem_comentario_fica_vazia_com_colunas():
+    # Pauta 0: so b1 (sem comentarios); a3 e transcricao e fica fora.
+    resultado = produzir._comentarios_da_pauta(
+        _df_comentarios(), _df_discurso(), topic=0
+    )
     assert resultado.empty
+    assert list(resultado.columns) == produzir._COLUNAS_COMENTARIOS_POPUP
 
 
-def test_comentarios_do_tema_entrada_vazia_sem_quebrar():
-    resultado = produzir._comentarios_do_tema(pd.DataFrame(), topic=0)
-    assert resultado.empty
+def test_comentarios_da_pauta_entradas_vazias_sem_quebrar():
+    assert produzir._comentarios_da_pauta(pd.DataFrame(), _df_discurso(), 1).empty
+    assert produzir._comentarios_da_pauta(_df_comentarios(), pd.DataFrame(), 1).empty
+    sem_id = pd.DataFrame({"text": ["a"]})
+    assert produzir._comentarios_da_pauta(sem_id, _df_discurso(), 1).empty
 
 
-def test_comentarios_do_tema_sem_coluna_topic_sem_quebrar():
-    resultado = produzir._comentarios_do_tema(pd.DataFrame({"text": ["a"]}), topic=0)
-    assert resultado.empty
-
-
-def test_comentarios_do_tema_likes_e_replies_nulos_tratados_como_zero():
+def test_comentarios_da_pauta_likes_e_replies_nulos_tratados_como_zero():
     df = pd.DataFrame(
         {
-            "Topic": [0, 0],
+            "id_reel": ["a1", "a1"],
             "text": ["sem_engajamento", "com_engajamento"],
-            "sentiment_label": ["neutral", "positive"],
             "likesCount": [None, 3],
-            "repliesCount": [None, 0],
-            "ownerUsername": ["u1", "u2"],
-            "timestamp": ["2026-01-01", "2026-01-02"],
+            "repliesCount": [None, None],
         }
     )
-    resultado = produzir._comentarios_do_tema(df, topic=0)
+    resultado = produzir._comentarios_da_pauta(df, _df_discurso(), topic=1)
     assert list(resultado["text"]) == ["com_engajamento", "sem_engajamento"]
+
+
+def test_comentarios_da_pauta_reel_sem_pauta_de_legenda_fica_de_fora():
+    # a3 so tem transcricao (Topic 0) -> nao pertence a pauta 0.
+    df = pd.DataFrame(
+        {"id_reel": ["a3"], "text": ["x"], "likesCount": [1], "repliesCount": [0]}
+    )
+    assert produzir._comentarios_da_pauta(df, _df_discurso(), topic=0).empty
 
 
 # ---------------------------------------------------------------------------
@@ -623,7 +729,9 @@ def _df_reels_conteudo():
 
 
 def test_melhor_post_escolhe_maior_engajamento_entre_reels_do_governador():
-    resultado = produzir._melhor_post(_df_clusters_conteudo(), _df_reels_conteudo(), _GOV_URL)
+    resultado = produzir._melhor_post(
+        _df_clusters_conteudo(), _df_reels_conteudo(), _GOV_URL
+    )
     assert resultado is not None
     assert resultado["shortCode"] == "xyz"
     assert resultado["total_engajamento"] == 500
@@ -631,50 +739,81 @@ def test_melhor_post_escolhe_maior_engajamento_entre_reels_do_governador():
 
 def test_melhor_post_retorna_none_quando_tabelas_vazias():
     assert produzir._melhor_post(pd.DataFrame(), pd.DataFrame(), _GOV_URL) is None
-    assert produzir._melhor_post(_df_clusters_conteudo(), pd.DataFrame(), _GOV_URL) is None
+    assert (
+        produzir._melhor_post(_df_clusters_conteudo(), pd.DataFrame(), _GOV_URL) is None
+    )
 
 
 def test_melhor_post_retorna_none_sem_reel_do_governador():
     resultado = produzir._melhor_post(
-        _df_clusters_conteudo(), _df_reels_conteudo(), "https://www.instagram.com/outro/"
+        _df_clusters_conteudo(),
+        _df_reels_conteudo(),
+        "https://www.instagram.com/outro/",
     )
     assert resultado is None
 
 
-def _df_topic_priority():
+def _df_pautas_destaque():
     return pd.DataFrame(
         {
-            "Topic": [0, 1, 2],
-            "Name": ["0_saude", "1_seguranca", "2_educacao"],
-            "proporcao_sentimento_positivo": [0.9, 0.5, 0.2],
+            "Topic": [0, 1, 2, 3],
+            "Name": [
+                "saude, hospital",
+                "obras, ponte",
+                "educacao, escola",
+                "sem assunto definido",
+            ],
+            "score": [0.9, 0.5, 0.2, 0.8],
+            "proporcao_sentimento_positivo": [0.9, 0.5, 0.2, 0.95],
         }
     )
 
 
-def test_topico_alto_positivo_baixo_discurso_escolhe_positivo_com_pouco_volume():
-    df_discurso = pd.DataFrame({"Topic": [0, 0, 1, 1, 1, 1, 1]})
-
-    resultado = produzir._topico_alto_positivo_baixo_discurso(_df_topic_priority(), df_discurso)
-
-    assert resultado is not None
-    # Tópico 0 tem % positivo alto (0.9, acima da mediana) e só 2 menções no
-    # discurso -- menos do que o tópico 1 (5 menções), então vence.
+def test_pauta_alto_positivo_pouco_publicada_escolhe_positiva_com_menos_reels_do_governador():
+    # Governador tem 5 reels na pauta 1 e nenhum na 0: a pauta 0 (positiva,
+    # volume 0) vence a 1. A degenerada (3, mais positiva) nunca e escolhida.
+    resultado = produzir._pauta_alto_positivo_pouco_publicada(
+        _df_pautas_destaque(), _discurso_governador([1, 1, 1, 1, 1])
+    )
     assert resultado["topic"] == 0
-    assert resultado["volume_discurso"] == 2
+    assert resultado["pauta"] == "saude, hospital"
+    assert resultado["volume_reels"] == 0
 
 
-def test_topico_alto_positivo_baixo_discurso_degrada_quando_discurso_vazio():
-    resultado = produzir._topico_alto_positivo_baixo_discurso(
-        _df_topic_priority(), pd.DataFrame()
+def test_pauta_alto_positivo_pouco_publicada_degrada_sem_discurso_do_governador():
+    resultado = produzir._pauta_alto_positivo_pouco_publicada(
+        _df_pautas_destaque(), pd.DataFrame()
     )
     assert resultado == produzir.SEM_DADO_DISCURSO
 
 
-def test_topico_alto_positivo_baixo_discurso_retorna_none_sem_topic_priority():
-    resultado = produzir._topico_alto_positivo_baixo_discurso(
-        pd.DataFrame(), pd.DataFrame({"Topic": [0]})
+def test_pauta_alto_positivo_pouco_publicada_none_sem_tabela_de_pautas():
+    resultado = produzir._pauta_alto_positivo_pouco_publicada(
+        pd.DataFrame(), _discurso_governador([0])
     )
     assert resultado is None
+
+
+def test_pauta_alto_positivo_pouco_publicada_none_so_com_degeneradas():
+    df = _df_pautas_destaque().iloc[3:]
+    assert (
+        produzir._pauta_alto_positivo_pouco_publicada(df, _discurso_governador([3, 3]))
+        is None
+    )
+
+
+def test_nenhuma_funcao_da_tela_usa_grupo_de_comentarios_na_fila():
+    # Nada pendurado na fila de temas de comentario (issue #191).
+    for nome in (
+        "_topicos_do_governador",
+        "_comentarios_do_tema",
+        "_topico_prioritario_ajustado",
+    ):
+        assert not hasattr(produzir, nome), nome
+    fonte = inspect.getsource(produzir.render)
+    assert "load_topic_priority" not in fonte
+    assert "load_topic_priority(" not in fonte
+    assert "`topic_priority_score`" not in fonte
 
 
 def test_evidencia_de_desempenho_nao_esta_mais_em_produzir():

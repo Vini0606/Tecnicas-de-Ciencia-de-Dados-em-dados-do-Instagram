@@ -147,6 +147,16 @@ def load_topic_priority() -> pd.DataFrame:
 
 
 @st.cache_data(ttl=_TTL_SECONDS)
+def load_content_topic_priority() -> pd.DataFrame:
+    """`content_topic_priority_score` -- 1 linha por pauta (assunto do
+    conteúdo, issue #190), ranking global (não por governador)."""
+    try:
+        return get_repository().load_content_topic_priority_score()
+    except FileNotFoundError:
+        return pd.DataFrame()
+
+
+@st.cache_data(ttl=_TTL_SECONDS)
 def load_nsm() -> pd.DataFrame:
     """`governor_nsm` -- 1 linha por perfil."""
     try:
