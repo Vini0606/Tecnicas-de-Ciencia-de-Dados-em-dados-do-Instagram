@@ -78,11 +78,11 @@ mapa de nomes abaixo):
 from __future__ import annotations
 
 import pandas as pd
+import plotly.graph_objects as go
 import streamlit as st
 
 from dashboard.core import data
 from dashboard.core.components import decision_band, footnote, stage_label
-from dashboard.core.theme import COLORS
 
 _PLACEHOLDER_SEM_GOVERNADOR = "—"
 _PLACEHOLDER_SEM_DADO = "—"
@@ -504,48 +504,8 @@ def _frase_decisao(nome_grupo: str, barras: list[dict]) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Renderização das barras + tabela de pares
+# Tabela de pares
 # ---------------------------------------------------------------------------
-
-
-def _largura_barra_pct(valor: float | None, valor_maximo: float) -> float:
-    if valor is None or pd.isna(valor) or valor_maximo <= 0 or valor <= 0:
-        return 0.0
-    return min(100.0, max(2.0, (valor / valor_maximo) * 100.0))
-
-
-def _render_barras_comparativas(barras: list[dict]) -> None:
-    for barra in barras:
-        valores_validos = [
-            v for v in (barra["valor_proprio"], barra["media_pares"]) if v is not None and not pd.isna(v)
-        ]
-        maximo = max(valores_validos) if valores_validos else 0.0
-        largura_proprio = _largura_barra_pct(barra["valor_proprio"], maximo)
-        largura_pares = _largura_barra_pct(barra["media_pares"], maximo)
-        st.markdown(
-            f"""
-            <div style="margin:14px 0;">
-              <div style="font-size:13px;margin-bottom:4px;">
-                <strong>{barra["rotulo"]}</strong> -- {barra["rotulo_vs_pares"]}
-              </div>
-              <div style="font-size:11px;color:{COLORS["muted"]};margin-bottom:2px;">
-                Você: {_fmt_valor_metrica(barra["valor_proprio"], barra["tipo"])}
-              </div>
-              <div style="background:#EEECE3;border-radius:6px;height:16px;width:100%;">
-                <div style="background:{COLORS["info"]["fg"]};width:{largura_proprio:.1f}%;
-                            height:16px;border-radius:6px;"></div>
-              </div>
-              <div style="font-size:11px;color:{COLORS["muted"]};margin:6px 0 2px;">
-                Média dos pares: {_fmt_valor_metrica(barra["media_pares"], barra["tipo"])}
-              </div>
-              <div style="background:#EEECE3;border-radius:6px;height:16px;width:100%;">
-                <div style="background:{COLORS["muted"]};width:{largura_pares:.1f}%;
-                            height:16px;border-radius:6px;"></div>
-              </div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
 
 
 def _tabela_pares(df_pares: pd.DataFrame) -> pd.DataFrame:
@@ -560,6 +520,205 @@ def _tabela_pares(df_pares: pd.DataFrame) -> pd.DataFrame:
             "Frequência": df_pares["frequencia"].apply(lambda v: _fmt_valor_metrica(v, "num")),
         }
     ).reset_index(drop=True)
+
+
+# ---------------------------------------------------------------------------
+# Linhas mensais: governador vs. media e mediana de todos (issue #185, spec
+# #182). Valor mensal = MEDIA POR POST (nao soma); mes corrente excluido;
+# media/mediana tiradas entre os governadores que postaram no mes.
+# ---------------------------------------------------------------------------
+
+TIPO_AMBOS = "Ambos"
+TIPO_POSTS = "Posts"
+TIPO_REELS = "Reels"
+_TITULO_TIPO = {TIPO_AMBOS: "Ambos (Posts + Reels)", TIPO_POSTS: "Posts", TIPO_REELS: "Reels"}
+
+_METRICA_COLUNA = {
+    "Curtidas": "likesCount",
+    "Comentários": "commentsCount",
+    "Visualizações": "videoPlayCount",
+}
+
+# Paleta de dado (skill dataviz, slots categoricos 1-3: azul, laranja, aqua),
+# variante por tema -- separada do vermelho IESB do chrome. Cor E traco
+# distinguem as series (daltonismo).
+_PALETA_LINHAS = {
+    "light": {"gov": "#2a78d6", "media": "#eb6834", "mediana": "#1baf7a"},
+    "dark": {"gov": "#3987e5", "media": "#d95926", "mediana": "#199e70"},
+}
+_SERIES_LINHAS = [
+    ("gov", "Governador", "solid"),
+    ("media", "Média de todos", "dash"),
+    ("mediana", "Mediana de todos", "dot"),
+]
+
+
+def _fmt_ptbr(valor: float | None) -> str:
+    if valor is None or pd.isna(valor):
+        return _PLACEHOLDER_SEM_DADO
+    return f"{valor:,.1f}".replace(",", "X").replace(".", ",").replace("X", ".")
+
+
+def _conteudo_por_tipo(df_reels: pd.DataFrame, df_posts: pd.DataFrame, tipo: str) -> pd.DataFrame:
+    """Reels e/ou posts de feed (conforme `tipo`) concatenados, SEM filtro de
+    governador -- a base de media/mediana precisa de todos."""
+    fontes = []
+    if tipo in (TIPO_REELS, TIPO_AMBOS):
+        fontes.append(df_reels)
+    if tipo in (TIPO_POSTS, TIPO_AMBOS):
+        fontes.append(df_posts)
+    partes = [f for f in fontes if not f.empty]
+    if not partes:
+        return pd.DataFrame()
+    return pd.concat(partes, ignore_index=True)
+
+
+def _media_mensal_por_governador(
+    df_conteudo: pd.DataFrame, coluna: str, hoje: pd.Timestamp | None = None
+) -> pd.DataFrame:
+    """Colunas `chave` (inputUrl normalizado), `mes` (1o dia do mes de
+    publicacao) e `valor` (media de `coluna` por post naquele mes). Exclui o
+    mes corrente (incompleto) e posts sem valor; vazio (nunca excecao) se
+    faltar coluna ou dado -- ex.: Visualizacoes em posts de feed."""
+    colunas = ["chave", "mes", "valor"]
+    obrigatorias = {"inputUrl", "data_hora", coluna}
+    if df_conteudo.empty or not obrigatorias.issubset(df_conteudo.columns):
+        return pd.DataFrame(columns=colunas)
+    hoje = pd.Timestamp.now() if hoje is None else hoje
+    mes_corrente = hoje.to_period("M").to_timestamp()
+    df = pd.DataFrame(
+        {
+            "chave": _normalize_url(df_conteudo["inputUrl"]),
+            "mes": pd.to_datetime(df_conteudo["data_hora"], errors="coerce")
+            .dt.to_period("M")
+            .dt.to_timestamp(),
+            "valor": pd.to_numeric(df_conteudo[coluna], errors="coerce"),
+        }
+    ).dropna()
+    df = df[df["mes"] < mes_corrente]
+    if df.empty:
+        return pd.DataFrame(columns=colunas)
+    return (
+        df.groupby(["chave", "mes"], as_index=False)["valor"]
+        .mean()
+        .sort_values(["chave", "mes"])
+        .reset_index(drop=True)
+    )
+
+
+def _serie_governador(df_mensal: pd.DataFrame, governor_url: str) -> pd.DataFrame:
+    """Colunas `mes`/`valor` do governador; so meses em que ele postou."""
+    if df_mensal.empty:
+        return pd.DataFrame(columns=["mes", "valor"])
+    chave = _normalize_url(pd.Series([governor_url])).iloc[0]
+    serie = df_mensal[df_mensal["chave"] == chave]
+    return serie[["mes", "valor"]].sort_values("mes").reset_index(drop=True)
+
+
+def _serie_media_mediana(df_mensal: pd.DataFrame) -> pd.DataFrame:
+    """Colunas `mes`/`media`/`mediana` entre os governadores que postaram no
+    mes (cada perfil pesa igual). Base inclui o selecionado e nao depende dele."""
+    if df_mensal.empty:
+        return pd.DataFrame(columns=["mes", "media", "mediana"])
+    return (
+        df_mensal.groupby("mes")["valor"]
+        .agg(media="mean", mediana="median")
+        .reset_index()
+        .sort_values("mes")
+        .reset_index(drop=True)
+    )
+
+
+def _figura_linhas_mensais(
+    serie_gov: pd.DataFrame,
+    serie_todos: pd.DataFrame,
+    tipo: str,
+    metrica: str,
+    tema: str = "light",
+) -> go.Figure | None:
+    """3 linhas (governador, media, mediana) por mes; `None` quando nao ha
+    dado de ninguem (render mostra estado vazio so desse grafico). Meses em
+    que o governador nao postou viram `NaN` e a linha quebra. `metrica` so
+    nomeia o grafico no tooltip."""
+    if serie_todos.empty:
+        return None
+    cores = _PALETA_LINHAS.get(tema, _PALETA_LINHAS["light"])
+    meses = pd.date_range(serie_todos["mes"].min(), serie_todos["mes"].max(), freq="MS")
+    if not serie_gov.empty:
+        meses = meses.union(pd.DatetimeIndex(serie_gov["mes"]))
+    valores = {
+        "gov": serie_gov.set_index("mes")["valor"].reindex(meses),
+        "media": serie_todos.set_index("mes")["media"].reindex(meses),
+        "mediana": serie_todos.set_index("mes")["mediana"].reindex(meses),
+    }
+    fig = go.Figure()
+    for chave, nome, traco in _SERIES_LINHAS:
+        y = valores[chave]
+        fig.add_trace(
+            go.Scatter(
+                x=meses,
+                y=y.tolist(),
+                name=nome,
+                mode="lines+markers",
+                connectgaps=False,
+                line={"color": cores[chave], "dash": traco, "width": 2},
+                marker={"color": cores[chave], "size": 7},
+                customdata=[_fmt_ptbr(v) for v in y],
+                hovertemplate=f"{nome} ({metrica.lower()}/post): %{{customdata}}<extra></extra>",
+            )
+        )
+    fig.update_layout(
+        title=_TITULO_TIPO[tipo],
+        showlegend=True,
+        hovermode="x unified",
+        legend={"orientation": "h", "y": -0.2},
+        margin={"t": 40, "b": 10},
+        xaxis={"tickformat": "%b/%Y", "hoverformat": "%b/%Y"},
+    )
+    return fig
+
+
+def _tema_atual() -> str:
+    try:
+        return "dark" if st.context.theme.type == "dark" else "light"
+    except Exception:
+        return "light"
+
+
+def _render_grafico_linhas(
+    df_reels: pd.DataFrame, df_posts: pd.DataFrame, governor_url: str, tipo: str, metrica: str
+) -> None:
+    conteudo = _conteudo_por_tipo(df_reels, df_posts, tipo)
+    mensal = _media_mensal_por_governador(conteudo, _METRICA_COLUNA[metrica])
+    fig = _figura_linhas_mensais(
+        _serie_governador(mensal, governor_url),
+        _serie_media_mediana(mensal),
+        tipo,
+        metrica,
+        tema=_tema_atual(),
+    )
+    if fig is None:
+        st.caption(
+            f"**{_TITULO_TIPO[tipo]}** -- sem dado para esta combinação de tipo e "
+            'métrica (comum em "Visualizações" com "Posts": posts de feed não têm '
+            "contagem de visualização)."
+        )
+    else:
+        st.plotly_chart(fig, width="stretch")
+
+
+def _render_linhas_mensais(governor_url: str) -> None:
+    st.markdown("#### Seu perfil vs. média e mediana de todos os governadores")
+    st.caption("Valor médio por post em cada mês de publicação; o mês corrente fica de fora.")
+    df_reels = data.load_reels_content()
+    df_posts = data.load_posts_content()
+    metrica = st.selectbox("Métrica", options=list(_METRICA_COLUNA), key="comparar_metrica_linhas")
+    _render_grafico_linhas(df_reels, df_posts, governor_url, TIPO_AMBOS, metrica)
+    col_posts, col_reels = st.columns(2)
+    with col_posts:
+        _render_grafico_linhas(df_reels, df_posts, governor_url, TIPO_POSTS, metrica)
+    with col_reels:
+        _render_grafico_linhas(df_reels, df_posts, governor_url, TIPO_REELS, metrica)
 
 
 # ---------------------------------------------------------------------------
@@ -602,6 +761,7 @@ def render() -> None:
             "rode `uv run python scripts/run_profile_clustering_engagement.py` "
             "para gerar a segmentação de perfil."
         )
+        _render_linhas_mensais(governor_url)
         footnote()
         return
 
@@ -636,20 +796,8 @@ def render() -> None:
     nivel = _nivel_decisao(barras)
     decision_band(_frase_decisao(nome_grupo, barras), level=nivel)
 
-    # ---- Barras comparativas ----
-    st.markdown("#### Seu perfil vs. média dos pares do grupo")
-    if not pares_urls:
-        st.caption(
-            "Nenhum outro governador está no mesmo grupo de desempenho ainda -- "
-            "sem pares para comparar."
-        )
-    else:
-        _render_barras_comparativas(barras)
-        st.caption(
-            '"Alcance-proxy" é uma estimativa baseada em engajamento (curtidas + '
-            "respostas), não visualizações reais -- ver Funil de engajamento para "
-            "visualizações reais dos Reels."
-        )
+    # ---- Linhas mensais ----
+    _render_linhas_mensais(governor_url)
 
     # ---- Pares do grupo ----
     st.markdown(f'#### Governadores do grupo "{nome_grupo}"')
@@ -658,5 +806,10 @@ def render() -> None:
     else:
         st.write(_frase_destaque(destaque))
         st.dataframe(_tabela_pares(df_pares_metricas), hide_index=True, width="stretch")
+        st.caption(
+            '"Alcance-proxy" é uma estimativa baseada em engajamento (curtidas + '
+            "respostas), não visualizações reais -- ver Funil de engajamento para "
+            "visualizações reais dos Reels."
+        )
 
     footnote()
