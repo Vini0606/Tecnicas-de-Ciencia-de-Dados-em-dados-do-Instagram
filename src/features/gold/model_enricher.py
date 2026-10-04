@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import pandas as pd
+from deltalake import DeltaTable
 
 from src.delta_io import write_delta
 from src.schemas_delta import (
@@ -30,6 +31,7 @@ class ModelEnricher:
         mode: str = "overwrite",
         generated_at: datetime | None = None,
         fonte: str = "comentario",
+        preserve_other_fontes: bool = False,
     ) -> None:
         """Grava uma linha de `governor_sentiment`/`governor_sentiment_history`
         por texto avaliado. `fonte` (ADR 0020 Ficha 3 / issue #88) discrimina
@@ -38,7 +40,13 @@ class ModelEnricher:
         (fala do reel via `includeTranscript`). As três fontes reaproveitam
         o mesmo classificador de sentimento e coexistem na mesma tabela --
         só muda a coluna de texto de entrada usada por quem chama esta
-        função e o valor gravado aqui."""
+        função e o valor gravado aqui.
+
+        `preserve_other_fontes` (issue #186): com `mode="overwrite"`, o
+        overwrite substituiria a tabela inteira so pelas linhas de `fonte`.
+        Quando True, as linhas ja gravadas de OUTRAS fontes (ex.: legenda/
+        transcricao, ao refinar so comentarios) sao relidas e regravadas
+        junto, com `_run_id`/`_generated_at` originais."""
         df = df_comments_with_sentiment.copy()
         df["_run_id"] = run_id
         # `generated_at` explícito (issue #52) para que duas chamadas desta
@@ -47,6 +55,11 @@ class ModelEnricher:
         # de dois `datetime.now()` levemente diferentes.
         df["_generated_at"] = generated_at or datetime.now(timezone.utc)
         df["fonte"] = fonte
+        if preserve_other_fontes and mode == "overwrite" and DeltaTable.is_deltatable(str(path)):
+            existing = DeltaTable(str(path)).to_pandas()
+            preserved = existing[existing["fonte"] != fonte]
+            if not preserved.empty:
+                df = pd.concat([df, preserved], ignore_index=True)
         write_delta(path, df, GOLD_SENTIMENT_SCHEMA, mode=mode)
 
     def write_discourse_topics(

@@ -635,9 +635,9 @@ def test_refine_topics_with_gemini_nao_grava_no_historico_de_sentimento(monkeypa
     calls = []
     original_write_sentiment = ModelEnricher.write_sentiment
 
-    def spy_write_sentiment(self, df, path, run_id, mode="overwrite"):
+    def spy_write_sentiment(self, df, path, run_id, mode="overwrite", **kwargs):
         calls.append((str(path), mode))
-        return original_write_sentiment(self, df, path, run_id, mode=mode)
+        return original_write_sentiment(self, df, path, run_id, mode=mode, **kwargs)
 
     monkeypatch.setattr(ModelEnricher, "write_sentiment", spy_write_sentiment)
 
@@ -758,10 +758,12 @@ def test_refine_topics_with_gemini_so_reescreve_sentimento_com_run_id_novo(
     sentiment_out = DeltaTable(str(gemini_config.gold_sentiment_path)).to_pandas()
     clusters_reels_out = DeltaTable(str(config.gold_clusters_reels_path)).to_pandas()
 
-    # A segunda escrita é overwrite: só o run_id do refinamento sobra em
-    # governor_sentiment, com os rótulos finais.
-    assert (sentiment_out["_run_id"] == refinement.run_id).all()
-    assert (sentiment_out["Name"] == "0_refinado").all()
+    # A segunda escrita é overwrite das linhas de comentário: só o run_id do
+    # refinamento sobra nelas, com os rótulos finais (legenda/transcricao são
+    # preservadas -- ver tests/test_discourse_refinement.py).
+    comentarios = sentiment_out[sentiment_out["fonte"] == "comentario"]
+    assert (comentarios["_run_id"] == refinement.run_id).all()
+    assert (comentarios["Name"] == "0_refinado").all()
 
     # governor_clusters_reels/governor_clusters_posts não são tocadas pelo
     # refinamento de tópicos.

@@ -205,7 +205,7 @@ flowchart LR
 para mostrar tendência de engajamento e sentimento ao longo do tempo (ver
 [ADR 0016](docs/adr/0016-dashboard-auto-refresh-historico-gold-e-agendamento-alternavel-antes-da-aws.md)
 e [ADR 0017](docs/adr/0017-reestruturacao-do-dashboard-para-produto-externo.md)). O refinamento de
-tópicos via Gemini (`scripts/refine_topics.py`) reescreve `governor_sentiment` mas **não** grava no
+tópicos via Gemini (`scripts/refine_topics.py`) reescreve as linhas de comentário de `governor_sentiment` (preservando legenda/transcrição) mas **não** grava no
 histórico — não gera uma nova medição de sentimento, só reescreve rótulos de tópico. Clusters ainda
 não têm tabela de histórico equivalente.
 
@@ -506,7 +506,10 @@ Nunca roda sozinho dentro do pipeline (decisão da ADR 0001) — só depois de i
 ```bash
 # preencher API_GEMINI no .env antes
 uv run python scripts/refine_topics.py --run-id <RUN_ID_DO_CHECKPOINT_DE_MODELAGEM>
+# opcional: --target comments | discourse (padrao: all = comentarios + discurso)
 ```
+
+Por padrao o script refina os topicos de comentario (`governor_sentiment`, preservando as linhas de legenda/transcricao, e o Score ICE) **e** os topicos de discurso (`governor_discourse_topics`, assunto das legendas). O ruido (`-1`) nao e refinado e o topico degenerado (sem palavra alguma) recebe o rotulo "sem assunto definido". Checkpoints gravados antes da issue #186 nao tem o modelo de discurso: com `--target discourse` o script falha com mensagem clara; com o padrao, pula o discurso. Nao recalcula o ICE de pautas.
 
 #### Métricas pós-modelagem independentes (ADR 0020)
 
