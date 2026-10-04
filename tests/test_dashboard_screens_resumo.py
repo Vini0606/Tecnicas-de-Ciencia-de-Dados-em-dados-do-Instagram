@@ -43,13 +43,6 @@ def test_scorecard_e_placeholder_em_construcao():
     assert "em construção" in resumo_scorecard.AVISO_EM_CONSTRUCAO
 
 
-def test_abrir_subaba_e_callback_de_session_state(monkeypatch):
-    estado: dict = {}
-    monkeypatch.setattr(resumo.st, "session_state", estado)
-    resumo.abrir_subaba(resumo.SUBABA_FUNIL)
-    assert estado[resumo.CHAVE_SUBABA] == resumo.SUBABA_FUNIL
-
-
 def test_funil_nao_esta_mais_na_navegacao_lateral():
     tree = ast.parse((_DASHBOARD / "app.py").read_text(encoding="utf-8"))
     telas = next(

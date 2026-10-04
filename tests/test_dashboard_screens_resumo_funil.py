@@ -1,4 +1,4 @@
-"""Testes da Tela 6 ("Funil de engajamento", ADR 0021 / issue #114).
+"""Testes da sub-aba "Funil de engajamento" do Resumo (ADR 0031 / issue #183; origem: issue #114).
 
 Só a lógica pura de `dashboard/screens/funil.py` é testada aqui (agregação
 por estágio, taxas de passagem, identificação do gargalo, escalonamento,

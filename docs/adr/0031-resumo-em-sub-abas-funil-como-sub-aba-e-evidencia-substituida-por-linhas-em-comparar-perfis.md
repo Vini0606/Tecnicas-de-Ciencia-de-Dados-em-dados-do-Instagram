@@ -29,7 +29,8 @@ ADR 0029 fixou a evidência histórica no Resumo como três gráficos paralelos 
    essas médias, nunca sobre somas. As regras de honestidade do Funil são preservadas: rótulo "Visualizações"
    (nunca "Alcance") no primeiro estágio, estágio Engage estático "em construção" sem número, texto sempre
    associativo, taxa sem dado é "sem dado" e nunca zero, gargalo exclui estágios sem dado e desempata pelo mais
-   cedo.
+   cedo. Na média de "Todos", cada estágio considera só governadores com dado real naquele estágio
+   (valor positivo); zero significa "sem dado" e puxaria a média para baixo.
 4. **A evidência histórica de desempenho sai do Resumo.** Os três gráficos Ambos/Posts/Reels e o seletor de
    Métrica da seção deixam de existir ali. Sua função é assumida por gráficos de linha mensais em Comparar
    perfis (governador contra média e mediana de todos), entregues em fatia posterior da mesma spec. A ADR 0029

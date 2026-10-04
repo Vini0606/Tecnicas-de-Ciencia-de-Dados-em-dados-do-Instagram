@@ -32,7 +32,7 @@ def _normalize_url(series: pd.Series) -> pd.Series:
     `reels_clean` nem sempre gravam a mesma URL byte-a-byte igual. Duplicada
     aqui (função pequena, sem estado) em vez de importada de
     `src/dashboard/filters.py`, que está sendo descontinuado tela por tela
-    pela ADR 0021 -- Tela 1 não deve criar uma nova dependência num módulo
+    pela ADR 0021 -- o Resumo não deve criar uma nova dependência num módulo
     que vai desaparecer."""
     return (
         series.astype(str)

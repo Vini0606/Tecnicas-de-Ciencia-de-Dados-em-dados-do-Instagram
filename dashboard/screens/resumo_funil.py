@@ -6,7 +6,7 @@ governador (cada perfil pesa igual, ADR 0027), nunca a soma.
 Responde à tese central do TCC (Cap. 6): o funil COBRA-RACE completo, dos 4
 estágios (Reach·Alcançar -> Act·Consumir -> Convert·Contribuir ->
 Engage·Criar), como 4 barras horizontais + taxas de passagem + gargalo +
-ação recomendada. Substitui `pages/05_funil.py` (ADR 0020) -- ver ADR 0021,
+ação recomendada. Substituiu `pages/05_funil.py` (ADR 0020) -- ver ADR 0021,
 "Opção C híbrida": esta tela é a "espinha conceitual" da ferramenta, e cada
 uma das outras 5 telas carrega só um `stage_label()` discreto apontando para
 o estágio correspondente.
@@ -95,9 +95,10 @@ texto completo):
    presentes ao mesmo tempo.
 9. **Navegação -- `st.session_state` via `on_click`, não `st.page_link`.**
    `dashboard/app.py` (issue #110) usa `st.radio` (não multipágina nativa do
-   Streamlit) para navegação. O botão de ação desta tela grava o rótulo da
-   tela-alvo em `st.session_state["tela_selecionada"]` (a mesma `key` que
-   `app.py` passou a usar no `st.radio`) através do callback `_navegar_para`
+   Streamlit) para navegação. O botão de ação desta sub-aba grava o rótulo da
+   Tela-alvo (Radar de crise / O que produzir) em
+   `st.session_state["tela_selecionada"]` (a mesma `key` do `st.radio` de
+   `app.py`) através do callback `_navegar_para`
    passado a `on_click` -- NUNCA inline no corpo do script: `app.py` já
    instanciou o `st.radio` antes de chamar `render()`, então escrever nessa
    `key` fora de um callback levanta `StreamlitAPIException` (bug real

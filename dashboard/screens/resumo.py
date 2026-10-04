@@ -9,12 +9,14 @@ abaixo, expondo `render(governor_url)` -- assim as fatias seguintes mexem em
 arquivos diferentes.
 
 A sub-aba ativa é guardada em `st.session_state[CHAVE_SUBABA]` (widget
-`st.radio` horizontal, que só executa a sub-aba escolhida). Outras telas
-podem abrir uma sub-aba específica gravando em `session_state` via
-`on_click` (ver `abrir_subaba`).
+`st.radio` horizontal, que só executa a sub-aba escolhida). Abrir uma
+sub-aba a partir de outra tela (grava `session_state[CHAVE_SUBABA]` via
+`on_click`) não é usado hoje: nenhuma ação aponta para o Funil.
 """
 
 from __future__ import annotations
+
+from collections.abc import Callable
 
 import streamlit as st
 
@@ -33,19 +35,13 @@ SUBABA_FUNIL = "Funil de engajamento"
 SUBABA_SCORECARD = "Scorecard"
 
 # Ordem de exibição; a primeira é a padrão.
-SUBABAS: dict[str, object] = {
+SUBABAS: dict[str, Callable[[str], None]] = {
     SUBABA_NSM: resumo_nsm.render,
     SUBABA_FUNIL: resumo_funil.render,
     SUBABA_SCORECARD: resumo_scorecard.render,
 }
 
 CHAVE_SUBABA = "resumo_subaba"
-
-
-def abrir_subaba(subaba: str) -> None:
-    """Callback `on_click` para outras telas: abre `subaba` no próximo render
-    do Resumo (precisa rodar como callback -- ver `resumo_funil._navegar_para`)."""
-    st.session_state[CHAVE_SUBABA] = subaba
 
 
 def _selecionar_governador() -> str | None:

@@ -210,7 +210,7 @@ def test_delta_vs_media_historica_para_governador_retorna_none_com_uma_execucao_
 
 
 # ---------------------------------------------------------------------------
-# ADR 0026 / issue #154: o filtro de calendário do gráfico de evidência NÃO
+# ADR 0026 / issue #154: o filtro de calendário (antigo gráfico de evidência) NÃO
 # pode vazar para a faixa de decisão nem para a tendência de engajamento/
 # seguidores -- prova estrutural de que essas funções nunca ganham
 # parâmetro de intervalo de datas.

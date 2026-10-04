@@ -46,7 +46,7 @@ mapa de nomes abaixo):
 3. **Alcance-proxy -- fonte e rótulo.** "Alcance-proxy" = `% ENGAJAMENTO`
    de `governor_engagement` (`load_engagement()`), o mesmo número já
    rotulado "% engajamento" em `resumo.py` -- NUNCA a métrica
-   "Visualizações" da Tela 6 (`videoPlayCount`, dado real de Reels, cálculo
+   "Visualizações" da sub-aba Funil (`videoPlayCount`, dado real de Reels, cálculo
    totalmente diferente; ver CONTEXT.md, "Alcance" vs. "Visualizações").
 4. **`_peer_urls` -- portado, não apenas chamado.** A lógica de pares
    (mesmo `cluster_perfil_engajamento`, excluindo o próprio) de
