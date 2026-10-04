@@ -582,3 +582,148 @@ def test_kpi_crescimento_agregado_sem_governadores_tooltip_vazio():
     )
     assert label == "CMGR"
     assert help_text is None
+
+
+# ---------------------------------------------------------------------------
+# Contraste de rankings bruto x NSM (issue #187)
+# ---------------------------------------------------------------------------
+
+
+def _tabela(linhas):
+    """linhas: [(chave, bruto, nsm, pct_pos, pct_neg)]; nome = chave."""
+    return pd.DataFrame(
+        [
+            {
+                "chave": c,
+                "nome": c,
+                "bruto": b,
+                "nsm": n,
+                "pct_pos": p,
+                "pct_neg": g,
+            }
+            for c, b, n, p, g in linhas
+        ]
+    )
+
+
+def test_etiqueta_mudanca_subiu_caiu_igual_e_ausente():
+    assert resumo.etiqueta_mudanca(5, 2) == "SUBIU"
+    assert resumo.etiqueta_mudanca(2, 5) == "CAIU"
+    assert resumo.etiqueta_mudanca(3, 3) is None
+    assert resumo.etiqueta_mudanca(None, 3) is None
+
+
+def test_posicoes_desempata_por_nome_e_ignora_sem_valor():
+    t = _tabela([("b", 10, 1, 0, 0), ("a", 10, None, 0, 0), ("c", 5, 3, 0, 0)])
+    assert resumo.posicoes(t, "bruto") == {"a": 1, "b": 2, "c": 3}
+    assert resumo.posicoes(t, "nsm") == {"c": 1, "b": 2}
+
+
+def test_extremo_empate_deterministico_e_vazio():
+    t = _tabela([("b", 1, 1, 0.5, 0.1), ("a", 1, 1, 0.5, 0.1), ("c", 1, 1, 0.2, 0.3)])
+    assert resumo.extremo(t, "pct_pos") == ("a", 0.5)
+    assert resumo.extremo(t, "pct_neg") == ("c", 0.3)
+    assert resumo.extremo(t.iloc[0:0], "pct_pos") is None
+    assert resumo.extremo(_tabela([("a", 1, 1, None, None)]), "pct_pos") is None
+
+
+def _tabela_doze():
+    # bruto decrescente p01..p12; NSM sobe p11 e p12 para o topo
+    linhas = []
+    for i in range(1, 13):
+        nsm = {11: 100.0, 12: 90.0}.get(i, 50.0 - i)
+        linhas.append((f"p{i:02d}", 1000 - i, nsm, 0.5, 0.1))
+    return _tabela(linhas)
+
+
+def test_linhas_ranking_top10_sem_selecionado_em_todos():
+    linhas = resumo.linhas_ranking(_tabela_doze(), "bruto", None)
+    assert [item["posicao"] for item in linhas] == list(range(1, 11))
+    assert not any(item["selecionado"] or item["extra"] for item in linhas)
+
+
+def test_linhas_ranking_selecionado_fora_do_top10_ganha_linha_extra():
+    linhas = resumo.linhas_ranking(_tabela_doze(), "bruto", "p12")
+    assert len(linhas) == 11
+    assert linhas[-1]["extra"] and linhas[-1]["selecionado"]
+    assert linhas[-1]["posicao"] == 12
+
+
+def test_linhas_ranking_selecionado_dentro_do_top10_so_destaca():
+    linhas = resumo.linhas_ranking(_tabela_doze(), "bruto", "p03")
+    assert len(linhas) == 10
+    assert [i["posicao"] for i in linhas if i["selecionado"]] == [3]
+
+
+def test_linhas_ranking_nsm_etiquetas_subiu_caiu_e_igual():
+    linhas = resumo.linhas_ranking(_tabela_doze(), "nsm", None, com_etiqueta=True)
+    por_nome = {i["nome"]: i for i in linhas}
+    assert por_nome["p11"]["posicao"] == 1
+    assert por_nome["p11"]["etiqueta"] == "SUBIU"
+    assert por_nome["p01"]["etiqueta"] == "CAIU"
+    t = _tabela([("a", 2, 2, 0, 0), ("b", 1, 1, 0, 0)])
+    assert all(
+        i["etiqueta"] is None
+        for i in resumo.linhas_ranking(t, "nsm", None, com_etiqueta=True)
+    )
+
+
+def test_linhas_ranking_selecionado_sem_nsm_nao_aparece_no_ranking_nsm():
+    t = _tabela([("a", 2, 5.0, 0, 0), ("b", 1, None, 0, 0)])
+    linhas = resumo.linhas_ranking(t, "nsm", "b", com_etiqueta=True)
+    assert [i["nome"] for i in linhas] == ["a"]
+
+
+def test_linhas_ranking_tabela_vazia():
+    assert resumo.linhas_ranking(_tabela([]), "bruto", None) == []
+    assert resumo.linhas_ranking(pd.DataFrame(), "nsm", "a") == []
+
+
+def test_valor_cartao_nsm_selecionado_media_em_todos_e_sem_nsm():
+    t = _tabela([("a", 1, 100.0, 0, 0), ("b", 1, 0.0, 0, 0), ("c", 1, None, 0, 0)])
+    assert resumo.valor_cartao_nsm(t, "a") == 100.0
+    assert resumo.valor_cartao_nsm(t, None) == 50.0
+    assert resumo.valor_cartao_nsm(t, "c") is None
+    assert resumo.valor_cartao_nsm(t.iloc[0:0], None) is None
+
+
+def test_montar_tabela_contraste_indice_nome_e_proporcoes():
+    df_nsm = pd.DataFrame(
+        {
+            "inputUrl": ["https://instagram.com/a/", "https://instagram.com/b"],
+            "username": ["a", "b"],
+            "total_engajamento": [100, 200],
+            "nsm": [10.0, 30.0],
+        }
+    )
+    df_com = pd.DataFrame(
+        {
+            "inputUrl": ["https://instagram.com/a"] * 4,
+            "sentiment_label": ["positive", "positive", "negative", "neutral"],
+        }
+    )
+    df_meta = pd.DataFrame({"inputUrl": ["https://instagram.com/a"], "nome": ["Gov A"]})
+    t = resumo.montar_tabela_contraste(df_nsm, df_com, df_meta).set_index("chave")
+    a, b = t.loc["https://instagram.com/a"], t.loc["https://instagram.com/b"]
+    assert (a["nsm"], b["nsm"]) == (0.0, 100.0)
+    assert a["nome"] == "Gov A" and b["nome"] == "b"
+    assert a["pct_pos"] == 0.5 and a["pct_neg"] == 0.25
+    assert pd.isna(b["pct_pos"])
+
+
+def test_montar_tabela_contraste_vazia():
+    t = resumo.montar_tabela_contraste(pd.DataFrame(), pd.DataFrame(), pd.DataFrame())
+    assert t.empty and "nsm" in t.columns
+
+
+def test_montar_tabela_contraste_descarta_url_repetida():
+    df_nsm = pd.DataFrame(
+        {
+            "inputUrl": ["https://instagram.com/a", "https://instagram.com/a/"],
+            "username": ["a", "a"],
+            "total_engajamento": [1, 2],
+            "nsm": [1.0, 2.0],
+        }
+    )
+    t = resumo.montar_tabela_contraste(df_nsm, pd.DataFrame(), pd.DataFrame())
+    assert len(t) == 1
