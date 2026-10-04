@@ -19,7 +19,8 @@ Checkpoints gravados antes da issue #186 nao tem o modelo de discurso: com
 `--target all` o discurso e pulado (com aviso); com `--target discourse` o
 script falha com mensagem clara -- rode `run_modeling.py` de novo para gerar
 um checkpoint novo. O script NAO e chamado pelo pipeline automatico.
-Nao recalcula o ICE de pautas (issue #190).
+O refino de discurso recalcula o ICE de pautas (`content_topic_priority_score`,
+issue #190) a partir dos comentarios do checkpoint (ja refinados, se `all`).
 """
 
 import argparse
@@ -92,6 +93,7 @@ def run(run_id: str, target: str = "all") -> str:
             checkpoint.df_discourse,
             config,
             run_id=refinement_run_id,
+            df_comments=df_comments,
         )
         discourse_topic_model = discourse_refinement.topic_model
         df_discourse = discourse_refinement.df_discourse

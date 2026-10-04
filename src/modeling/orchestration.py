@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 import pandas as pd
 from bertopic import BERTopic
 
+from src.features.gold.content_topic_priority_scorer import ContentTopicPriorityScorer
 from src.features.gold.model_enricher import ModelEnricher
 from src.features.gold.nsm_scorer import NsmScorer
 from src.features.gold.topic_priority_scorer import TopicPriorityScorer
@@ -22,7 +23,6 @@ from src.modeling.gemini_refiner import (
     apply_gemini_refinement,
     is_degenerate_topic,
 )
-from src.modeling.gemini_refiner import apply_gemini_refinement
 from src.modeling.governor_scorecard import GovernorScorecardScorer
 from src.modeling.pca import reduce_dimensions
 from src.modeling.post_performance import run_post_performance_stage
@@ -325,6 +325,23 @@ def run_deterministic_modeling(
         generated_at=generated_at,
     )
 
+    # Issue #190 (spec #182): Score ICE por pauta -- provisorio, com os rotulos
+    # brutos de discurso; recalculado em `refine_discourse_topics_with_gemini`.
+    logger.info("[SCORE-ICE-PAUTAS] Calculando priorizacao de pautas...")
+    try:
+        content_scorer = ContentTopicPriorityScorer()
+        content_scorer.write(
+            content_scorer.score(df_comments_final, df_discourse_final),
+            config.gold_content_topic_priority_score_path,
+            run_id,
+            generated_at=generated_at,
+        )
+    except Exception:
+        logger.exception(
+            "[SCORE-ICE-PAUTAS] Falha ao calcular/persistir -- etapa pulada, "
+            "pipeline segue com os demais estagios."
+        )
+
     logger.info(
         "[PERFORMANCE-POR-POST] Classificando tema das captions e treinando "
         "Lasso vídeo/estático..."
@@ -457,6 +474,7 @@ def refine_discourse_topics_with_gemini(
     df_discourse: pd.DataFrame,
     config: GeminiRefinerConfig,
     run_id: str | None = None,
+    df_comments: pd.DataFrame | None = None,
 ) -> DiscourseRefinementResult:
     """Refina via Gemini os rótulos (`Topic`/`Name`) dos tópicos de discurso
     (assunto das legendas, issue #186) e regrava `governor_discourse_topics`.
@@ -470,8 +488,13 @@ def refine_discourse_topics_with_gemini(
     tópico degenerado (sem palavra alguma, ex.: "1____") recebe
     `DEGENERATE_TOPIC_LABEL` em vez de um nome inventado.
 
+    Se `df_comments` (comentarios de `governor_sentiment`) for passado,
+    recalcula `content_topic_priority_score` (ICE por pauta, issue #190) com
+    os rotulos refinados -- mesmo papel do recalculo do ICE de comentarios em
+    `refine_topics_with_gemini`.
+
     Fora do pipeline automático: só o script manual `scripts/refine_topics.py`
-    chama esta função. Não recalcula o ICE de pautas (issue #190)."""
+    chama esta função."""
     run_id = build_run_id(run_id)
 
     degenerate_ids = {
@@ -495,6 +518,14 @@ def refine_discourse_topics_with_gemini(
     df_refined["Name"] = names
 
     ModelEnricher().write_discourse_topics(df_refined, config.gold_discourse_topics_path, run_id)
+
+    if df_comments is not None:
+        content_scorer = ContentTopicPriorityScorer()
+        content_scorer.write(
+            content_scorer.score(df_comments, df_refined),
+            config.gold_content_topic_priority_score_path,
+            run_id,
+        )
 
     return DiscourseRefinementResult(
         df_discourse=df_refined, topic_model=topic_model, run_id=run_id
