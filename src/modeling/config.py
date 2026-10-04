@@ -249,3 +249,5 @@ class GeminiRefinerConfig:
     # Score ICE depende de `governor_sentiment` já refinado, não dos
     # rótulos provisórios do estágio determinístico.
     gold_topic_priority_score_path: Path = settings.GOLD_TOPIC_PRIORITY_SCORE
+    # Issue #186: o refino dos topicos de discurso grava os rotulos novos aqui.
+    gold_discourse_topics_path: Path = settings.GOLD_DISCOURSE_TOPICS

@@ -27,6 +27,20 @@ class DeterministicCheckpoint:
     cluster_algo_name: str | None
     embedding_model_name: str
     parent_run_id: str | None = None
+    # Issue #186: modelo/documentos de discurso (legenda+transcricao). None em
+    # checkpoints gravados antes deste campo existir -- quem refina discurso
+    # precisa tratar esse caso (ver scripts/refine_topics.py).
+    discourse_topic_model: BERTopic | None = None
+    df_discourse: pd.DataFrame | None = None
+    discourse_embedding_model_name: str | None = None
+
+    @property
+    def docs_discourse(self) -> list[str]:
+        """Documentos do modelo de discurso, na ordem de `df_discourse`
+        (derivados de `text`, como `docs` de comentario -- nao persistidos)."""
+        if self.df_discourse is None:
+            return []
+        return self.df_discourse["text"].fillna("").tolist()
 
 
 def save_checkpoint(
@@ -44,6 +58,9 @@ def save_checkpoint(
     embedding_model_name: str,
     checkpoints_dir: Path | None = None,
     parent_run_id: str | None = None,
+    discourse_topic_model: BERTopic | None = None,
+    df_discourse: pd.DataFrame | None = None,
+    discourse_embedding_model_name: str | None = None,
 ) -> Path:
     """Grava o checkpoint de `run_id` em `<checkpoints_dir>/<run_id>/`.
 
@@ -64,7 +81,12 @@ def save_checkpoint(
     informativo, gravado só em `metadata.json`. Não substitui nem se mistura
     com o `run_id` da própria modelagem (ADR 0001: cada estágio mantém seu
     `run_id` imutável); serve só pra reconstruir depois qual pipeline
-    completo gerou qual checkpoint (ver `scripts/inspect_runs.py`)."""
+    completo gerou qual checkpoint (ver `scripts/inspect_runs.py`).
+
+    `discourse_topic_model`/`df_discourse` (issue #186), se informados, sao
+    o modelo de topicos de discurso e seu DataFrame final (com `Topic`/
+    `Name`), persistidos para o refino manual via Gemini recarrega-los.
+    Opcionais: checkpoints sem discurso continuam validos."""
     checkpoint_dir = (checkpoints_dir or settings.MODEL_CHECKPOINTS_DIR) / run_id
     checkpoint_dir.mkdir(parents=True, exist_ok=True)
 
@@ -74,6 +96,14 @@ def save_checkpoint(
         save_embedding_model=False,
     )
     df_comments.to_parquet(checkpoint_dir / "df_comments.parquet", index=False)
+    has_discourse = discourse_topic_model is not None and df_discourse is not None
+    if has_discourse:
+        discourse_topic_model.save(
+            str(checkpoint_dir / "discourse_topic_model"),
+            serialization="pickle",
+            save_embedding_model=False,
+        )
+        df_discourse.to_parquet(checkpoint_dir / "df_discourse.parquet", index=False)
     # 'model'/'config' (de cluster_reels) carregam objeto sklearn/dict cru
     # broadcast em toda linha -- não são serializáveis em parquet e já
     # ficam redundantes com cluster_model.joblib/metadata.json abaixo.
@@ -90,6 +120,8 @@ def save_checkpoint(
         "embedding_model_name": embedding_model_name,
         "pca_feature_columns": pca_feature_columns,
         "parent_run_id": parent_run_id,
+        "has_discourse": has_discourse,
+        "discourse_embedding_model_name": discourse_embedding_model_name,
     }
     (checkpoint_dir / "metadata.json").write_text(
         json.dumps(metadata, ensure_ascii=False, indent=2), encoding="utf-8"
@@ -120,6 +152,19 @@ def load_checkpoint(
     pca_model = joblib.load(checkpoint_dir / "pca_model.joblib")
     cluster_model = joblib.load(checkpoint_dir / "cluster_model.joblib")
 
+    discourse_topic_model = None
+    df_discourse = None
+    discourse_embedding_model_name = metadata.get("discourse_embedding_model_name")
+    # .get() -- checkpoints antigos nao tem a chave; o discurso fica None em
+    # vez de falhar.
+    if metadata.get("has_discourse"):
+        discourse_topic_model = BERTopic.load(
+            str(checkpoint_dir / "discourse_topic_model"),
+            embedding_model=discourse_embedding_model_name
+            or metadata["embedding_model_name"],
+        )
+        df_discourse = pd.read_parquet(checkpoint_dir / "df_discourse.parquet")
+
     return DeterministicCheckpoint(
         topic_model=topic_model,
         df_comments=df_comments,
@@ -135,4 +180,7 @@ def load_checkpoint(
         # .get() -- checkpoints gravados antes deste campo existir nao tem
         # a chave no metadata.json.
         parent_run_id=metadata.get("parent_run_id"),
+        discourse_topic_model=discourse_topic_model,
+        df_discourse=df_discourse,
+        discourse_embedding_model_name=discourse_embedding_model_name,
     )

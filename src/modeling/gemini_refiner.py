@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import random
+import re
 import time
 from collections.abc import Mapping
 
@@ -18,6 +19,27 @@ DEFAULT_PROMPT_TEMPLATE = (
     "Escreva uma descrição de um parágrafo que descreva detalhadamente o que os "
     "comentários do instagram presentes neste tópico tem em comum: {documents}"
 )
+
+
+DISCOURSE_PROMPT_TEMPLATE = (
+    "Os textos abaixo são legendas de posts e reels de um governador no "
+    "Instagram, agrupados por assunto parecido. Responda APENAS com um rótulo "
+    "curto (no máximo 6 palavras, sem aspas nem pontuação final) que nomeie "
+    "o assunto em comum dessas legendas: {documents}"
+)
+
+# Rótulo explícito do tópico degenerado (sem palavra alguma, ex.: o "1____"
+# do discurso real) -- decisão da issue #186: nome honesto em vez de um
+# assunto inventado pelo Gemini.
+DEGENERATE_TOPIC_LABEL = "sem assunto definido"
+
+_WORD_RE = re.compile(r"[^\W\d_]{2,}")
+
+
+def is_degenerate_topic(keywords: list[tuple[str, float]]) -> bool:
+    """True se nenhuma keyword do tópico contém uma palavra de verdade
+    (2+ letras) -- só vazio, underscores ou dígitos."""
+    return not any(_WORD_RE.search(str(word)) for word, _score in keywords)
 
 
 class GeminiDocsRefiner(BaseRepresentation):
@@ -49,6 +71,9 @@ class GeminiDocsRefiner(BaseRepresentation):
             if topic_id == -1:
                 updated_topics[topic_id] = keywords
                 continue
+            if is_degenerate_topic(keywords):
+                updated_topics[topic_id] = [(DEGENERATE_TOPIC_LABEL, 1.0)] + keywords
+                continue
             if self.sleep_every_n_topics and topic_id % self.sleep_every_n_topics == 0:
                 time.sleep(self.sleep_seconds)
             try:
@@ -72,7 +97,10 @@ class GeminiDocsRefiner(BaseRepresentation):
 
 
 def apply_gemini_refinement(
-    topic_model: BERTopic, docs: list[str], config: GeminiRefinerConfig
+    topic_model: BERTopic,
+    docs: list[str],
+    config: GeminiRefinerConfig,
+    prompt_template: str | None = None,
 ) -> BERTopic:
     """Recalcula só as representações de tópico via Gemini, reaproveitando a
     clusterização já ajustada (sem refazer embeddings/UMAP/HDBSCAN) — ao
@@ -81,7 +109,7 @@ def apply_gemini_refinement(
     refiner = GeminiDocsRefiner(
         api_key=config.api_key,
         model=config.model,
-        prompt_template=config.prompt_template,
+        prompt_template=prompt_template or config.prompt_template,
         sleep_seconds=config.sleep_seconds,
         sleep_every_n_topics=config.sleep_every_n_topics,
     )
