@@ -485,6 +485,19 @@ def test_media_mediana_impar_difere_da_media():
     assert s["mediana"].iloc[0] == 2.0
 
 
+def test_media_mediana_par_de_governadores():
+    df = pd.DataFrame(
+        {
+            "chave": ["a", "b", "c", "d"],
+            "mes": [pd.Timestamp("2026-01-01")] * 4,
+            "valor": [1.0, 2.0, 4.0, 13.0],
+        }
+    )
+    s = comparar._serie_media_mediana(df)
+    assert s["media"].iloc[0] == 5.0
+    assert s["mediana"].iloc[0] == 3.0
+
+
 def test_serie_media_mediana_vazia():
     assert comparar._serie_media_mediana(pd.DataFrame()).empty
 

@@ -68,6 +68,11 @@ mapa de nomes abaixo):
    a dado disponível (issue #115, user story 4: o clustering de perfil
    ainda não foi validado plenamente, então o aviso precisa aparecer mesmo
    quando a tela tem dado bonito para mostrar).
+8. **Issue #185 -- barras viram linhas mensais.** A renderizacao das barras
+   "Seu perfil vs. media dos pares" saiu; `_montar_barras_comparativas` e
+   derivados SEGUEM calculados porque alimentam a frase de decisao e o
+   semaforo. Em seu lugar: 3 graficos de linha (Ambos/Posts/Reels) com o
+   governador vs. media e mediana de todos (media por post, por mes).
 7. **Estado vazio -- `NaN`/ausência de cluster nunca é erro.**
    `_cluster_do_governador` retorna `None` tanto para "sem linha
    correspondente" quanto para "`cluster_perfil_engajamento` é `NaN`" --
@@ -704,7 +709,7 @@ def _render_grafico_linhas(
             "contagem de visualização)."
         )
     else:
-        st.plotly_chart(fig, width="stretch")
+        st.plotly_chart(fig, width="stretch", key=f"comparar_linhas_{tipo}")
 
 
 def _render_linhas_mensais(governor_url: str) -> None:
