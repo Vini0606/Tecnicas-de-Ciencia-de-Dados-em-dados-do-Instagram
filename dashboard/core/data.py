@@ -68,16 +68,16 @@ def load_clusters_content() -> pd.DataFrame:
     """`governor_clusters_reels` -- 1 linha por reel (`id_reel`/
     `ownerUsername`/`cluster_*`/`content_type`). NÃO tem `videoPlayCount`
     nem `inputUrl` (`GOLD_CLUSTERS_SCHEMA`) -- corrigido pela issue #114
-    (Tela 6/Funil), que precisou desse dado e descobriu a lacuna: quem
+    (sub-aba Funil do Resumo), que precisou desse dado e descobriu a lacuna: quem
     precisar de `videoPlayCount` por reel deve cruzar o resultado desta
     função com `load_reels_content()` por `id`/`id_reel` (mesmo join já
-    usado em `dashboard/screens/{resumo,produzir,funil}.py`).
+    usado em `dashboard/screens/{resumo_funil,produzir}.py`).
 
     Desde a issue #152, `governor_clusters` deixou de ser uma tabela única
     discriminada por `content_type` (que duplicava posts sobrepostos entre
     `posts_clean`/`reels_clean`) e virou duas tabelas por formato. Esta
     função só expõe a de reels -- os três consumidores atuais
-    (`dashboard/screens/{resumo,produzir,funil}.py`) já filtravam
+    (`dashboard/screens/{resumo_funil,produzir}.py`) já filtravam
     `content_type == "reel"` sobre o resultado; esse filtro continua
     correto (agora redundante, mas inofensivo) contra a tabela só-de-reel."""
     try:
@@ -98,7 +98,7 @@ def load_reels_content() -> pd.DataFrame:
     "melhor post da semana" precisa cruzar `governor_clusters` com esta
     tabela por `id`/`id_reel` para saber QUAL reel teve mais engajamento --
     mesmo join já usado em `src/dashboard/filters.py::build_cluster_membership`
-    e em `pages/02_insights.py`/`pages/05_funil.py`."""
+    e em `pages/02_insights.py`/`pages/05_funil.py` (removidas)."""
     try:
         return get_repository().load_reels()
     except FileNotFoundError:

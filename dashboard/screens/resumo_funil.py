@@ -1,17 +1,18 @@
-"""Tela 6 -- "Funil de engajamento" (ADR 0021 / issue #114), a tela
-carro-chefe do dashboard.
+"""Sub-aba "Funil de engajamento" do Resumo (ADR 0031 / issue #183; nasceu
+como a Tela 6 da ADR 0021 / issue #114). Segue o seletor único do Resumo
+(`resumo.py`); em "Todos os Governadores" cada estágio é a MÉDIA por
+governador (cada perfil pesa igual, ADR 0027), nunca a soma.
 
 Responde à tese central do TCC (Cap. 6): o funil COBRA-RACE completo, dos 4
 estágios (Reach·Alcançar -> Act·Consumir -> Convert·Contribuir ->
 Engage·Criar), como 4 barras horizontais + taxas de passagem + gargalo +
-ação recomendada. Substitui `pages/05_funil.py` (ADR 0020) -- ver ADR 0021,
+ação recomendada. Substituiu `pages/05_funil.py` (ADR 0020) -- ver ADR 0021,
 "Opção C híbrida": esta tela é a "espinha conceitual" da ferramenta, e cada
 uma das outras 5 telas carrega só um `stage_label()` discreto apontando para
 o estágio correspondente.
 
-Mesma estrutura de módulo das Telas 1-3 (ver `resumo.py`/`produzir.py`/
-`radar.py`): funções puras nomeadas, testadas em
-`tests/test_dashboard_screens_funil.py`; `render()` só orquestra I/O do
+Mesma estrutura de módulo das demais telas: funções puras nomeadas, testadas em
+`tests/test_dashboard_screens_resumo_funil.py`; `render()` só orquestra I/O do
 Streamlit sobre o resultado dessas funções.
 
 Decisões de implementação registradas aqui (ver PR da issue #114 para o
@@ -94,9 +95,10 @@ texto completo):
    presentes ao mesmo tempo.
 9. **Navegação -- `st.session_state` via `on_click`, não `st.page_link`.**
    `dashboard/app.py` (issue #110) usa `st.radio` (não multipágina nativa do
-   Streamlit) para navegação. O botão de ação desta tela grava o rótulo da
-   tela-alvo em `st.session_state["tela_selecionada"]` (a mesma `key` que
-   `app.py` passou a usar no `st.radio`) através do callback `_navegar_para`
+   Streamlit) para navegação. O botão de ação desta sub-aba grava o rótulo da
+   Tela-alvo (Radar de crise / O que produzir) em
+   `st.session_state["tela_selecionada"]` (a mesma `key` do `st.radio` de
+   `app.py`) através do callback `_navegar_para`
    passado a `on_click` -- NUNCA inline no corpo do script: `app.py` já
    instanciou o `st.radio` antes de chamar `render()`, então escrever nessa
    `key` fora de um callback levanta `StreamlitAPIException` (bug real
@@ -118,11 +120,15 @@ import pandas as pd
 import streamlit as st
 
 from dashboard.core import data
-from dashboard.core.components import decision_band, footnote, stage_label
+from dashboard.core.components import footnote
 from dashboard.core.deltas import LIMIAR_NEGATIVIDADE_ALERTA, week_over_week
 from dashboard.core.theme import COLORS
+from dashboard.screens.resumo_comum import (
+    TODOS_OS_GOVERNADORES,
+    _filtrar_por_governador,
+    _normalize_url,
+)
 
-_PLACEHOLDER_SEM_GOVERNADOR = "—"
 _PLACEHOLDER_SEM_DADO = "—"
 
 # Rótulos de estágio (nomes de negócio, nunca a palavra "Alcance" -- ver
@@ -152,49 +158,6 @@ _NOTA_FUNIL = (
 
 
 # ---------------------------------------------------------------------------
-# Normalização / seleção de governador (duplicado de `resumo.py`/`produzir.py`/
-# `radar.py` -- mesmo raciocínio: cada tela fica autocontida, sem depender de
-# outra tela nem de `src/dashboard/filters.py`, que está sendo descontinuado
-# tela por tela pela ADR 0021).
-# ---------------------------------------------------------------------------
-
-
-def _normalize_url(series: pd.Series) -> pd.Series:
-    return (
-        series.astype(str)
-        .str.strip()
-        .str.split("?", n=1)
-        .str[0]
-        .str.split("#", n=1)
-        .str[0]
-        .str.rstrip("/")
-        .str.lower()
-    )
-
-
-def _governor_options(df_metadata: pd.DataFrame) -> dict[str, str]:
-    if df_metadata.empty or "inputUrl" not in df_metadata.columns:
-        return {}
-    col_nome = "nome" if "nome" in df_metadata.columns else "inputUrl"
-    pares = (
-        df_metadata[["inputUrl", col_nome]]
-        .dropna(subset=["inputUrl"])
-        .drop_duplicates(subset=["inputUrl"])
-    )
-    nomes = pares[col_nome].fillna(pares["inputUrl"])
-    return dict(sorted(zip(nomes, pares["inputUrl"], strict=True), key=lambda kv: kv[0]))
-
-
-def _filtrar_por_governador(
-    df: pd.DataFrame, governor_url: str, url_col: str = "inputUrl"
-) -> pd.DataFrame:
-    if df.empty or url_col not in df.columns:
-        return df.iloc[0:0]
-    chave = _normalize_url(pd.Series([governor_url])).iloc[0]
-    return df[_normalize_url(df[url_col]) == chave]
-
-
-# ---------------------------------------------------------------------------
 # Formatação (arredondamento no ponto de exibição)
 # ---------------------------------------------------------------------------
 
@@ -202,7 +165,7 @@ def _filtrar_por_governador(
 def _fmt_int_br(valor: float | None) -> str:
     if valor is None or pd.isna(valor):
         return _PLACEHOLDER_SEM_DADO
-    return f"{int(round(valor)):,}".replace(",", ".")
+    return f"{round(valor):,}".replace(",", ".")
 
 
 def _fmt_pct(valor: float | None) -> str:
@@ -228,7 +191,10 @@ def _visualizacoes_reels_governador(
     quando todo `videoPlayCount` do resultado for nulo."""
     if df_clusters.empty or df_reels.empty or not governor_url:
         return 0.0
-    if "content_type" not in df_clusters.columns or "id_reel" not in df_clusters.columns:
+    if (
+        "content_type" not in df_clusters.columns
+        or "id_reel" not in df_clusters.columns
+    ):
         return 0.0
 
     clusters_reel = df_clusters[df_clusters["content_type"] == "reel"]
@@ -241,7 +207,9 @@ def _visualizacoes_reels_governador(
     if "videoPlayCount" not in reels_governador.columns:
         return 0.0
 
-    merged = reels_governador.merge(clusters_reel, left_on="id", right_on="id_reel", how="inner")
+    merged = reels_governador.merge(
+        clusters_reel, left_on="id", right_on="id_reel", how="inner"
+    )
     if merged.empty:
         return 0.0
 
@@ -279,13 +247,82 @@ def _contribuir_comentarios_positivos_governador(
     return float((df["sentiment_label"] == "positive").sum())
 
 
+def _estagios_por_governador(
+    df_clusters: pd.DataFrame,
+    df_reels: pd.DataFrame,
+    df_engagement: pd.DataFrame,
+    df_sentiment_comments: pd.DataFrame,
+) -> pd.DataFrame:
+    """Uma linha por governador de `df_engagement` com `reach`/`act`/
+    `convert` (mesmas funções do governador único). `DataFrame` vazio
+    (colunas `url`/`reach`/`act`/`convert`) se não houver governador."""
+    colunas = ["url", "reach", "act", "convert"]
+    if df_engagement.empty or "inputUrl" not in df_engagement.columns:
+        return pd.DataFrame(columns=colunas)
+    linhas = [
+        {
+            "url": url,
+            "reach": _visualizacoes_reels_governador(df_clusters, df_reels, url),
+            "act": _consumir_likes_governador(df_engagement, url),
+            "convert": _contribuir_comentarios_positivos_governador(
+                df_sentiment_comments, url
+            ),
+        }
+        for url in df_engagement["inputUrl"].dropna().unique()
+    ]
+    return pd.DataFrame(linhas, columns=colunas)
+
+
+def _estagios_media(df_por_governador: pd.DataFrame) -> tuple[float, float, float]:
+    """`(reach, act, convert)` de "Todos os Governadores": MÉDIA entre
+    governadores (cada perfil pesa igual, ADR 0027 -- nunca a soma). Em cada
+    estágio só entram governadores com dado real (> 0): zero aqui significa
+    "sem dado" (ver `_visualizacoes_reels_governador`), e contá-lo puxaria a
+    média para baixo. `0.0` se nenhum governador tiver dado no estágio."""
+    valores = []
+    for coluna in ("reach", "act", "convert"):
+        if df_por_governador.empty:
+            valores.append(0.0)
+            continue
+        serie = df_por_governador[coluna]
+        serie = serie[serie > 0]
+        valores.append(float(serie.mean()) if not serie.empty else 0.0)
+    return (valores[0], valores[1], valores[2])
+
+
+def _estagios_para_selecao(
+    governor_url: str,
+    df_clusters: pd.DataFrame,
+    df_reels: pd.DataFrame,
+    df_engagement: pd.DataFrame,
+    df_sentiment_comments: pd.DataFrame,
+) -> tuple[float, float, float]:
+    """`(reach, act, convert)` para a seleção do seletor único do Resumo:
+    governador único, ou média por governador em `TODOS_OS_GOVERNADORES`."""
+    if governor_url == TODOS_OS_GOVERNADORES:
+        return _estagios_media(
+            _estagios_por_governador(
+                df_clusters, df_reels, df_engagement, df_sentiment_comments
+            )
+        )
+    return (
+        _visualizacoes_reels_governador(df_clusters, df_reels, governor_url),
+        _consumir_likes_governador(df_engagement, governor_url),
+        _contribuir_comentarios_positivos_governador(
+            df_sentiment_comments, governor_url
+        ),
+    )
+
+
 # ---------------------------------------------------------------------------
 # Taxas de passagem + identificação do gargalo -- ver docstring do módulo,
 # decisões 5-6.
 # ---------------------------------------------------------------------------
 
 
-def _taxas_passagem(reach: float, act: float, convert: float) -> dict[str, float | None]:
+def _taxas_passagem(
+    reach: float, act: float, convert: float
+) -> dict[str, float | None]:
     """`{"act": Act/Reach, "convert": Convert/Act}` -- `None` (nunca
     `ZeroDivisionError`/`inf`) quando o estágio de ORIGEM da taxa não tem
     dado real (ausente, `NaN` ou <= 0), tratado como "dado insuficiente",
@@ -315,13 +352,21 @@ def _identificar_gargalo(taxas: dict[str, float | None]) -> str | None:
     return None  # inalcançável -- todo candidato está em _ORDEM_ESTAGIOS_GARGALO
 
 
+def _perdas_entre_estagios(taxas: dict[str, float | None]) -> dict[str, float | None]:
+    """Perda entre estágios = `1 - taxa` ("▼ N% de perda"); `None` quando a
+    taxa é `None` (sem dado -- nunca uma perda de 100% inventada)."""
+    return {k: (None if v is None or pd.isna(v) else 1.0 - v) for k, v in taxas.items()}
+
+
 # ---------------------------------------------------------------------------
 # Tendência de Convert (contagem bruta) -- escalonamento da faixa de decisão
 # (ver docstring do módulo, decisão 7).
 # ---------------------------------------------------------------------------
 
 
-def _agregar_positivos_por_run(df_sentiment_history_governador: pd.DataFrame) -> pd.DataFrame:
+def _agregar_positivos_por_run(
+    df_sentiment_history_governador: pd.DataFrame, todos: bool = False
+) -> pd.DataFrame:
     """1 linha por `_run_id`: contagem de comentários `sentiment_label ==
     'positive'` -- pré-agregação para `week_over_week` (espera 1 valor já
     pronto por chave por execução). Recebe o histórico JÁ filtrado a
@@ -336,12 +381,26 @@ def _agregar_positivos_por_run(df_sentiment_history_governador: pd.DataFrame) ->
     ):
         return pd.DataFrame(columns=colunas)
 
-    agregado = (
-        df_sentiment_history_governador.groupby("_run_id")["sentiment_label"]
-        .apply(lambda s: (s == "positive").sum())
-        .rename("qtd_positivos")
-        .reset_index()
-    )
+    if todos and "_chave" in df_sentiment_history_governador.columns:
+        # "Todos os Governadores" (ADR 0027): conta por governador em cada
+        # execução e tira a MÉDIA entre governadores -- nunca a soma.
+        agregado = (
+            df_sentiment_history_governador.groupby(["_run_id", "_chave"])[
+                "sentiment_label"
+            ]
+            .apply(lambda s: (s == "positive").sum())
+            .groupby("_run_id")
+            .mean()
+            .rename("qtd_positivos")
+            .reset_index()
+        )
+    else:
+        agregado = (
+            df_sentiment_history_governador.groupby("_run_id")["sentiment_label"]
+            .apply(lambda s: (s == "positive").sum())
+            .rename("qtd_positivos")
+            .reset_index()
+        )
     agregado["_chave"] = _CHAVE_GOVERNADOR_UNICO
     return agregado[colunas]
 
@@ -431,7 +490,10 @@ def _frase_decisao(gargalo: str | None, convert_caindo: bool) -> str:
 
 
 def _proporcao_negativo(df_sentiment_governador: pd.DataFrame) -> float | None:
-    if df_sentiment_governador.empty or "sentiment_label" not in df_sentiment_governador.columns:
+    if (
+        df_sentiment_governador.empty
+        or "sentiment_label" not in df_sentiment_governador.columns
+    ):
         return None
     total = len(df_sentiment_governador)
     if total == 0:
@@ -439,7 +501,24 @@ def _proporcao_negativo(df_sentiment_governador: pd.DataFrame) -> float | None:
     return (df_sentiment_governador["sentiment_label"] == "negative").sum() / total
 
 
-def _agregar_pct_negativo_por_run(df_sentiment_history_governador: pd.DataFrame) -> pd.DataFrame:
+def _proporcao_negativo_media_por_governador(
+    df_sentiment_todos: pd.DataFrame,
+) -> float | None:
+    """Média simples (cada governador pesa igual) das proporções de
+    negativos por governador (`_chave`). `None` sem dado."""
+    if df_sentiment_todos.empty or not {"sentiment_label", "_chave"}.issubset(
+        df_sentiment_todos.columns
+    ):
+        return None
+    por_gov = df_sentiment_todos.groupby("_chave")["sentiment_label"].apply(
+        lambda s: (s == "negative").mean()
+    )
+    return float(por_gov.mean()) if not por_gov.empty else None
+
+
+def _agregar_pct_negativo_por_run(
+    df_sentiment_history_governador: pd.DataFrame, todos: bool = False
+) -> pd.DataFrame:
     colunas = ["_chave", "_run_id", "pct_negativo"]
     required = {"sentiment_label", "_run_id"}
     if df_sentiment_history_governador.empty or not required.issubset(
@@ -447,12 +526,24 @@ def _agregar_pct_negativo_por_run(df_sentiment_history_governador: pd.DataFrame)
     ):
         return pd.DataFrame(columns=colunas)
 
-    agregado = (
-        df_sentiment_history_governador.groupby("_run_id")["sentiment_label"]
-        .apply(lambda s: (s == "negative").mean())
-        .rename("pct_negativo")
-        .reset_index()
-    )
+    if todos and "_chave" in df_sentiment_history_governador.columns:
+        agregado = (
+            df_sentiment_history_governador.groupby(["_run_id", "_chave"])[
+                "sentiment_label"
+            ]
+            .apply(lambda s: (s == "negative").mean())
+            .groupby("_run_id")
+            .mean()
+            .rename("pct_negativo")
+            .reset_index()
+        )
+    else:
+        agregado = (
+            df_sentiment_history_governador.groupby("_run_id")["sentiment_label"]
+            .apply(lambda s: (s == "negative").mean())
+            .rename("pct_negativo")
+            .reset_index()
+        )
     agregado["_chave"] = _CHAVE_GOVERNADOR_UNICO
     return agregado[colunas]
 
@@ -481,12 +572,17 @@ def _negatividade_em_alta(
     a execução anterior -- mesmo critério de `radar.py::_nivel_semaforo`
     (danger/warn), reaproveitado aqui só para decidir a AÇÃO recomendada
     (não a cor da faixa desta tela, que segue `_nivel_decisao`)."""
-    if pct_negativo_atual is not None and not pd.isna(pct_negativo_atual):
-        if pct_negativo_atual >= limiar:
-            return True
-    if delta_percentual is not None and not pd.isna(delta_percentual) and delta_percentual > 0:
-        return True
-    return False
+    acima_do_limiar = (
+        pct_negativo_atual is not None
+        and not pd.isna(pct_negativo_atual)
+        and pct_negativo_atual >= limiar
+    )
+    subiu = (
+        delta_percentual is not None
+        and not pd.isna(delta_percentual)
+        and delta_percentual > 0
+    )
+    return bool(acima_do_limiar or subiu)
 
 
 # ---------------------------------------------------------------------------
@@ -535,8 +631,64 @@ def _navegar_para(tela: str) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Renderização de uma barra do funil (largura proporcional ao valor)
+# Renderização (visual fiel ao protótipo do Funil -- issue #183)
 # ---------------------------------------------------------------------------
+
+# Tokens de cor de dado por estágio: (claro, escuro). Validados com o
+# validador da skill `dataviz` (superfícies #fcfcfb / #1a1a19): Reach/Act
+# (azul / azul mais escuro) separados por Delta E 20 (claro) e 22 (escuro) em
+# visão normal; âmbar tem contraste < 3:1 no claro, compensado por valor e
+# nome do estágio sempre visíveis em texto (rótulo direto em toda barra).
+# Separados do vermelho IESB (chrome) -- o vermelho aqui só aparece como
+# "perda" semântica, via token próprio.
+CORES_ESTAGIO: dict[str, tuple[str, str]] = {
+    _ESTAGIO_REACH: ("#2a78d6", "#5a9df0"),
+    _ESTAGIO_ACT: ("#124080", "#2557a8"),
+    _ESTAGIO_CONVERT: ("#eda100", "#c98500"),
+    _ESTAGIO_ENGAGE: ("#008300", "#008300"),
+}
+_COR_PERDA = ("#a32d2d", "#e66767")
+
+# (estágio, nome de exibição, nível COBRA, rótulo da métrica)
+_ESTAGIOS_EXIBICAO = [
+    (_ESTAGIO_REACH, "Reach", "Alcançar", "Visualizações"),
+    (_ESTAGIO_ACT, "Act", "Consumir", "Curtidas"),
+    (_ESTAGIO_CONVERT, "Convert", "Contribuir", "Comentários positivos"),
+]
+
+
+def _css_vars(indice: int) -> str:
+    return (
+        f"--f-reach: {CORES_ESTAGIO[_ESTAGIO_REACH][indice]};"
+        f"--f-act: {CORES_ESTAGIO[_ESTAGIO_ACT][indice]};"
+        f"--f-convert: {CORES_ESTAGIO[_ESTAGIO_CONVERT][indice]};"
+        f"--f-engage: {CORES_ESTAGIO[_ESTAGIO_ENGAGE][indice]};"
+        f"--f-loss: {_COR_PERDA[indice]};"
+    )
+
+
+_CSS_FUNIL = (
+    "<style>"
+    f".funil-viz {{ {_css_vars(0)} --f-track: rgba(128,128,128,.18); }}"
+    "@media (prefers-color-scheme: dark) {"
+    f' :root:where(:not([data-theme="light"])) .funil-viz {{ {_css_vars(1)} }} }}'
+    f':root[data-theme="dark"] .funil-viz {{ {_css_vars(1)} }}'
+    """
+.funil-viz .f-row { margin: 6px 0; }
+.funil-viz .f-head { font-size: 13px; margin-bottom: 4px; }
+.funil-viz .f-cobra { opacity: .7; margin-left: 6px; }
+.funil-viz .f-track { background: var(--f-track); border-radius: 6px; height: 24px; }
+.funil-viz .f-bar { height: 24px; border-radius: 6px; }
+.funil-viz .f-loss { color: var(--f-loss); font-size: 12px; margin: 2px 0 2px 4px; }
+.funil-viz .f-engage { border: 2px dashed var(--f-engage); border-radius: 6px; height: 24px;
+  display: flex; align-items: center; justify-content: center; font-size: 12px; opacity: .8; }
+.funil-viz .f-badge { font-size: 11px; border-radius: 6px; padding: 1px 8px; margin-left: 8px;
+  border: 1px solid currentColor; }
+.funil-viz .f-card { border: 1px solid var(--f-track); border-left: 4px solid var(--f-convert);
+  border-radius: 8px; padding: 12px 16px; margin: 14px 0; }
+.funil-viz .f-card-title { font-size: 12px; opacity: .7; margin-bottom: 4px; }
+</style>"""
+)
 
 
 def _largura_barra_pct(valor: float, valor_maximo: float) -> float:
@@ -545,152 +697,144 @@ def _largura_barra_pct(valor: float, valor_maximo: float) -> float:
     return min(100.0, max(2.0, (valor / valor_maximo) * 100.0))
 
 
-def _render_barra_estagio(
-    nome_estagio: str, rotulo_metrica: str, valor: float, valor_maximo: float, destaque: bool
-) -> None:
-    largura_pct = _largura_barra_pct(valor, valor_maximo)
-    cor_fg = COLORS["warn"]["fg"] if destaque else COLORS["info"]["fg"]
-    selo = (
-        f'<span style="background:{COLORS["warn"]["fg"]};color:#fff;'
-        'border-radius:6px;padding:1px 8px;font-size:11px;margin-left:8px;">'
-        "gargalo</span>"
-        if destaque
-        else ""
-    )
-    st.markdown(
-        f"""
-        <div style="margin:10px 0;">
-          <div style="font-size:13px;margin-bottom:4px;">
-            <strong>{nome_estagio}</strong> · {rotulo_metrica}: {_fmt_int_br(valor)}{selo}
-          </div>
-          <div style="background:#EEECE3;border-radius:6px;height:22px;width:100%;">
-            <div style="background:{cor_fg};width:{largura_pct:.1f}%;
-                        height:22px;border-radius:6px;"></div>
-          </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
+def _html_barra(
+    estagio: str,
+    nome: str,
+    cobra: str,
+    metrica: str,
+    valor: float,
+    valor_maximo: float,
+    gargalo: bool,
+) -> str:
+    largura = _largura_barra_pct(valor, valor_maximo)
+    selo = '<span class="f-badge">gargalo</span>' if gargalo else ""
+    return (
+        '<div class="f-row">'
+        f'<div class="f-head"><strong>{nome}</strong> · {metrica}: '
+        f"<strong>{_fmt_int_br(valor)}</strong>"
+        f'<span class="f-cobra">{cobra}</span>{selo}</div>'
+        '<div class="f-track">'
+        f'<div class="f-bar" style="background:var(--f-{estagio});width:{largura:.1f}%;"></div>'
+        "</div></div>"
     )
 
 
-def _render_barra_engage() -> None:
-    """Engage·Criar -- SEMPRE tracejada, SEMPRE "em construção", NUNCA um
-    número (ver docstring do módulo, decisão 4). Nenhuma consulta a dado
-    acontece aqui -- é texto estático."""
-    st.markdown(
-        """
-        <div style="margin:10px 0;">
-          <div style="font-size:13px;margin-bottom:4px;"><strong>Engage · Criar</strong></div>
-          <div style="border:2px dashed #B9B7AC;border-radius:6px;height:22px;
-                      width:100%;display:flex;align-items:center;
-                      justify-content:center;color:#8A8879;font-size:12px;">
-            em construção
-          </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+def _html_perda(perda: float | None) -> str:
+    texto = "sem dado" if perda is None else f"▼ {perda * 100:.0f}% de perda"
+    return f'<div class="f-loss">{texto}</div>'
 
 
-# ---------------------------------------------------------------------------
-# render()
-# ---------------------------------------------------------------------------
-
-
-def render() -> None:
-    df_metadata = data.load_governors_metadata()
-    df_engagement = data.load_engagement()
-
-    options = _governor_options(df_metadata)
-    if not options and not df_engagement.empty and "inputUrl" in df_engagement.columns:
-        urls = df_engagement["inputUrl"].dropna().unique().tolist()
-        options = {url: url for url in urls}
-
-    if not options:
-        st.selectbox("Governador", options=[_PLACEHOLDER_SEM_GOVERNADOR], disabled=True)
-        stage_label("O funil completo")
-        st.info(
-            "Nenhum governador disponível ainda -- rode a pipeline "
-            "(`uv run python pipeline.py`) para popular o dashboard."
+def _html_funil(
+    estagios: tuple[float, float, float], taxas: dict, gargalo: str | None
+) -> str:
+    """HTML das 4 barras proporcionais com perdas entre estágios. Engage é
+    estático ("em construção"), sem número nem consulta a dado."""
+    valor_maximo = max(*estagios, 1.0)
+    perdas = _perdas_entre_estagios(taxas)
+    partes = ['<div class="funil-viz">']
+    chaves_perda = [None, _ESTAGIO_ACT, _ESTAGIO_CONVERT]
+    for (estagio, nome, cobra, metrica), valor, chave in zip(
+        _ESTAGIOS_EXIBICAO, estagios, chaves_perda, strict=True
+    ):
+        if chave is not None:
+            partes.append(_html_perda(perdas[chave]))
+        partes.append(
+            _html_barra(
+                estagio, nome, cobra, metrica, valor, valor_maximo, gargalo == estagio
+            )
         )
-        footnote()
-        footnote(_NOTA_FUNIL)
-        return
+    partes.append(_html_perda(None))
+    partes.append(
+        '<div class="f-row"><div class="f-head"><strong>Engage</strong>'
+        '<span class="f-cobra">Criar</span></div>'
+        '<div class="f-engage">em construção</div></div>'
+    )
+    partes.append("</div>")
+    return "".join(partes)
 
-    nome_selecionado = st.selectbox("Governador", options=list(options.keys()))
-    governor_url = options[nome_selecionado]
-    stage_label("O funil completo")
+
+def render(governor_url: str) -> None:
+    """Sub-aba Funil para `governor_url` (URL real ou
+    `TODOS_OS_GOVERNADORES` -> média por governador)."""
+    is_todos = governor_url == TODOS_OS_GOVERNADORES
 
     # ---- Dado bruto ----
     df_clusters = data.load_clusters_content()
     df_reels = data.load_reels_content()
-    df_sentiment_governador = data.comments_only(
-        _filtrar_por_governador(data.load_sentiment(), governor_url)
-    )
-    df_sentiment_history_governador = data.comments_only(
-        _filtrar_por_governador(data.load_sentiment_history(), governor_url)
-    )
+    df_engagement = data.load_engagement()
+    df_sentiment = data.comments_only(data.load_sentiment())
+    df_sentiment_history = data.comments_only(data.load_sentiment_history())
+    if not df_sentiment.empty and "inputUrl" in df_sentiment.columns:
+        df_sentiment = df_sentiment.assign(
+            _chave=_normalize_url(df_sentiment["inputUrl"])
+        )
+    if not df_sentiment_history.empty and "inputUrl" in df_sentiment_history.columns:
+        df_sentiment_history = df_sentiment_history.assign(
+            _chave=_normalize_url(df_sentiment_history["inputUrl"])
+        )
 
-    # ---- Estágios com dado real ----
-    reach = _visualizacoes_reels_governador(df_clusters, df_reels, governor_url)
-    act = _consumir_likes_governador(df_engagement, governor_url)
-    convert = _contribuir_comentarios_positivos_governador(df_sentiment_governador, governor_url)
+    # ---- Estágios com dado real (média por governador em "Todos") ----
+    estagios = _estagios_para_selecao(
+        governor_url, df_clusters, df_reels, df_engagement, df_sentiment
+    )
 
     # ---- Taxas de passagem + gargalo ----
-    taxas = _taxas_passagem(reach, act, convert)
+    taxas = _taxas_passagem(*estagios)
     gargalo = _identificar_gargalo(taxas)
 
-    # ---- Escalonamento (Convert caindo vs. execução anterior) ----
-    df_positivos_hist = _agregar_positivos_por_run(df_sentiment_history_governador)
-    convert_caindo = _convert_esta_caindo(df_positivos_hist)
-
-    # ---- Negatividade em alta (para a ação recomendada) ----
-    pct_negativo_atual = _proporcao_negativo(df_sentiment_governador)
-    df_negativo_hist = _agregar_pct_negativo_por_run(df_sentiment_history_governador)
-    delta_negativo = _delta_negativo(df_negativo_hist)
+    # ---- Escalonamento (Convert caindo) e negatividade em alta ----
+    if is_todos:
+        df_hist = df_sentiment_history
+        pct_negativo_atual = _proporcao_negativo_media_por_governador(df_sentiment)
+    else:
+        df_hist = _filtrar_por_governador(df_sentiment_history, governor_url)
+        pct_negativo_atual = _proporcao_negativo(
+            _filtrar_por_governador(df_sentiment, governor_url)
+        )
+    convert_caindo = _convert_esta_caindo(
+        _agregar_positivos_por_run(df_hist, todos=is_todos)
+    )
+    delta_negativo = _delta_negativo(
+        _agregar_pct_negativo_por_run(df_hist, todos=is_todos)
+    )
     negatividade_em_alta = _negatividade_em_alta(pct_negativo_atual, delta_negativo)
 
-    # ---- Frase de decisão ----
+    # ---- Título + funil ----
+    st.markdown("#### Funil de Engajamento COBRA-RACE")
+    st.caption(
+        "Das visualizações à criação: onde a audiência 'trava' entre ver, curtir, "
+        "comentar positivamente e criar conteúdo próprio."
+        + (
+            " Em Todos os Governadores, cada estágio é a média por governador."
+            if is_todos
+            else ""
+        )
+    )
+    st.markdown(
+        _CSS_FUNIL + _html_funil(estagios, taxas, gargalo), unsafe_allow_html=True
+    )
+
+    # ---- Leitura automática para a assessoria ----
     nivel = _nivel_decisao(gargalo, convert_caindo)
-    decision_band(_frase_decisao(gargalo, convert_caindo), level=nivel)
-
-    # ---- 4 barras do funil ----
-    st.markdown("#### Funil COBRA-RACE")
-    valor_maximo = max(reach, act, convert, 1.0)
-    _render_barra_estagio(
-        "Reach · Alcançar", "Visualizações", reach, valor_maximo, destaque=False
-    )
-    _render_barra_estagio(
-        "Act · Consumir", "Curtidas", act, valor_maximo, destaque=gargalo == _ESTAGIO_ACT
-    )
-    _render_barra_estagio(
-        "Convert · Contribuir",
-        "Comentários positivos",
-        convert,
-        valor_maximo,
-        destaque=gargalo == _ESTAGIO_CONVERT,
-    )
-    _render_barra_engage()
-
-    # ---- Taxas de passagem ----
-    st.markdown("#### Taxas de passagem")
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Act / Reach", _fmt_pct(taxas[_ESTAGIO_ACT]))
-    col2.metric("Convert / Act", _fmt_pct(taxas[_ESTAGIO_CONVERT]))
-    col3.metric("Convert → Engage", "sem dado real")
-
-    # ---- O que fazer ----
-    st.markdown("#### O que fazer")
+    cor_borda = COLORS[nivel]["fg"]
     acao = _acao_recomendada(gargalo, negatividade_em_alta)
+    st.markdown(
+        '<div class="funil-viz"><div class="f-card" '
+        f'style="border-left-color:{cor_borda};">'
+        '<div class="f-card-title">Leitura automática para a assessoria</div>'
+        f"<div>{_frase_decisao(gargalo, convert_caindo)}</div>"
+        + (f'<div style="margin-top:6px;">{acao["texto"]}</div>' if acao else "")
+        + "</div></div>",
+        unsafe_allow_html=True,
+    )
     if acao is None:
         st.caption("Ainda não há dado suficiente para recomendar uma ação concreta.")
     else:
-        st.write(acao["texto"])
-        # Navegação via `st.session_state` -- ver docstring do módulo,
-        # decisão 9, e `_navegar_para` acima. `on_click` (não um corpo de
-        # `if st.button(...)`) é o que torna a escrita em `session_state`
-        # válida nesta mesma execução.
-        alvo = _LABEL_TELA_RADAR if acao["alvo"] == _ACAO_RADAR else _LABEL_TELA_PRODUZIR
+        # `on_click` (não `if st.button`): escrita válida em `session_state`
+        # de uma `key` de widget já instanciada -- ver `_navegar_para`.
+        alvo = (
+            _LABEL_TELA_RADAR if acao["alvo"] == _ACAO_RADAR else _LABEL_TELA_PRODUZIR
+        )
         st.button(
             acao["label_botao"],
             key="funil_acao_navegar",
@@ -698,5 +842,4 @@ def render() -> None:
             args=(alvo,),
         )
 
-    footnote()
     footnote(_NOTA_FUNIL)
