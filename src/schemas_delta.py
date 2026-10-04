@@ -564,3 +564,38 @@ GOLD_GROWTH_METRICS_SCHEMA = pa.schema(
         pa.field("_generated_at", pa.timestamp("us", tz="UTC"), nullable=False),
     ]
 )
+
+# ADR 0030 / issue #184: `governor_scorecard` -- Escore composto (0 a 100) por
+# governador, uma linha por perfil. 5 dimensoes brutas (alcance, ativacao,
+# qualidade, profundidade, consistencia), as mesmas 5 normalizadas min-max
+# entre os perfis, o escore (soma ponderada, pesos iguais renormalizados
+# quando uma dimensao esta pendente) e a posicao no ranking.
+# Dimensoes e escore sao `nullable=True`: um perfil sem dado para uma
+# dimensao (ex.: sem reels, sem comentarios, historico curto) fica com ela
+# nula/pendente em vez de receber um 0 que distorceria o min-max. `ranking`
+# e nulo quando o perfil nao atinge o minimo de dimensoes para ter escore.
+# `consistencia_pendente`/`n_dimensoes`/`consistencia_n_meses` sao
+# `nullable=False`: a auditoria do escore nunca pode ser ambigua.
+GOLD_GOVERNOR_SCORECARD_SCHEMA = pa.schema(
+    [
+        pa.field("inputUrl", pa.string(), nullable=False),
+        pa.field("username", pa.string(), nullable=True),
+        pa.field("alcance", pa.float64(), nullable=True),
+        pa.field("ativacao", pa.float64(), nullable=True),
+        pa.field("qualidade", pa.float64(), nullable=True),
+        pa.field("profundidade", pa.float64(), nullable=True),
+        pa.field("consistencia", pa.float64(), nullable=True),
+        pa.field("alcance_norm", pa.float64(), nullable=True),
+        pa.field("ativacao_norm", pa.float64(), nullable=True),
+        pa.field("qualidade_norm", pa.float64(), nullable=True),
+        pa.field("profundidade_norm", pa.float64(), nullable=True),
+        pa.field("consistencia_norm", pa.float64(), nullable=True),
+        pa.field("consistencia_pendente", pa.bool_(), nullable=False),
+        pa.field("consistencia_n_meses", pa.int64(), nullable=False),
+        pa.field("n_dimensoes", pa.int64(), nullable=False),
+        pa.field("escore", pa.float64(), nullable=True),
+        pa.field("ranking", pa.int64(), nullable=True),
+        pa.field("_run_id", pa.string(), nullable=False),
+        pa.field("_generated_at", pa.timestamp("us", tz="UTC"), nullable=False),
+    ]
+)

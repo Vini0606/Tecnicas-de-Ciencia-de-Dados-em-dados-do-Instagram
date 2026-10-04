@@ -514,6 +514,7 @@ Rodam sobre tabelas Gold já existentes, sem depender uma da outra nem do restan
 
 ```bash
 uv run python scripts/run_growth_metrics.py                  # CMGR + retenção de sentimento -> governor_growth_metrics (Ficha 7)
+uv run python scripts/run_governor_scorecard.py               # Escore composto dos governadores -> governor_scorecard (ADR 0030; tambem roda em --run-modeling)
 ```
 
 `governor_nsm`, `topic_priority_score`, `governor_discourse_topics` e `governor_profile_clusters_engagement` já saem de `pipeline.py --run-modeling` / `scripts/run_modeling.py` — não precisam de script separado. `scripts/run_profile_clustering_engagement.py` continua existindo só para re-rodar esse estágio isolado (ex.: depois de um ajuste que só afeta a clusterização de perfil), sem repetir toda a modelagem determinística.
