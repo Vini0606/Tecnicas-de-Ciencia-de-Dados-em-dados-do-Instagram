@@ -86,6 +86,8 @@ GOLD_CLUSTERS_POSTS = GOLD_DIR / "governor_clusters_posts"
 # comentário -- estágio pós-modelagem, mesma posição/dependência da NSM
 # (Ficha 5), ambas lendo `governor_sentiment` já pronto.
 GOLD_TOPIC_PRIORITY_SCORE = GOLD_DIR / "topic_priority_score"
+# Issue #190 (spec #182): Score ICE por pauta (topico de discurso da legenda).
+GOLD_CONTENT_TOPIC_PRIORITY_SCORE = GOLD_DIR / "content_topic_priority_score"
 # ADR 0020 (Ficha 5) / issue #90: North Star Metric (NSM) de engajamento
 # qualificado por perfil -- estágio pós-modelagem, mesma posição/dependência
 # do Score ICE acima, lendo `governor_sentiment` e `governor_engagement`.
