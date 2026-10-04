@@ -110,6 +110,50 @@
 %   sentimento positivo) x Confiança x Facilidade.
 % - Entregar uma tabela "top temas a produzir" — saída diretamente acionável.
 
+\subsection{Painel Composto de Desempenho por Perfil}
+
+% ROTEIRO DE PREENCHIMENTO:
+% - Esta seção consolida os indicadores já calculados num ÍNDICE COMPOSTO por governador.
+% - Depende de: NSM (6.5.1), CMGR (6.5.2), clusters (6.2), sentimento (6.3).
+% - Passos a executar e reportar: (1) normalizar cada indicador 0-100; (2) definir pesos
+%   (começar com pesos IGUAIS, justificar); (3) agregar por soma ponderada; (4) rankear.
+% - Entregar a tabela final de ranking E a decomposição por dimensão.
+
+O painel de desempenho proposto nesta seção operacionaliza o funil de engajamento como um índice composto \cite{OECD2008}, sintetizando em um escore único, comparável entre os vinte e sete governadores, o desempenho que até aqui foi analisado dimensão a dimensão. Cada perfil é avaliado em cinco critérios, cada um correspondente a um estágio do funil COBRA-RACE e associado a um indicador já obtido nas seções anteriores, conforme a Tabela~\ref{tab:painel_criterios}.
+
+% TABELA DE CRITÉRIOS — preencher os pesos escolhidos na última coluna
+\begin{table}[htb]
+\centering
+\caption{Critérios do painel composto de desempenho por perfil}
+\label{tab:painel_criterios}
+\begin{tabular}{p{3.2cm}p{4.5cm}p{2.0cm}p{2.0cm}}
+\hline
+\textbf{Dimensão} & \textbf{Indicador de origem} & \textbf{Estágio (RACE)} & \textbf{Peso} \\
+\hline
+Alcance & Reproduções/\textit{views} médias (PC1) & \textit{Reach} & [preencher] \\
+Ativação & Taxa de engajamento por seguidor & \textit{Act} & [preencher] \\
+Qualidade & North Star Metric (eng. positivo qualificado) & \textit{Convert} & [preencher] \\
+Profundidade & Participação de conteúdo viral saudável & \textit{Engage} & [preencher] \\
+Consistência & Crescimento composto (CMGR) & transversal & [preencher] \\
+\hline
+\end{tabular}
+\end{table}
+
+A construção do índice seguiu as três etapas metodológicas consagradas na literatura de indicadores compostos \cite{OECD2008}. Primeiro, cada indicador foi \textbf{normalizado} para uma escala comum de 0 a 100, de modo a tornar comparáveis métricas originalmente expressas em unidades distintas (reproduções, percentuais e taxas). Segundo, atribuiu-se a cada dimensão um \textbf{peso} relativo; nesta aplicação, adotou-se [\textit{a ponderação igualitária, atribuindo peso idêntico a cada uma das cinco dimensões, por ser a opção mais transparente e o padrão recomendado na ausência de uma justificativa teórica para pesos diferenciados} --- ajustar conforme a escolha real]. Terceiro, os valores normalizados e ponderados foram combinados por \textbf{agregação aditiva} (soma ponderada), resultando em um escore final por governador. Formalmente, o escore composto $S_i$ do governador $i$ é dado por:
+
+\begin{equation}
+S_i = \sum_{j=1}^{5} w_j \cdot \tilde{x}_{ij}
+\label{eq:indice_composto}
+\end{equation}
+
+\noindent onde $\tilde{x}_{ij}$ é o valor normalizado (0--100) do indicador $j$ para o governador $i$, e $w_j$ é o peso da dimensão $j$, com $\sum_{j=1}^{5} w_j = 1$.
+
+% ROTEIRO: após calcular, inserir aqui a TABELA DE RANKING (governador | escore final | posição)
+% e um parágrafo interpretando os 3 primeiros e os 3 últimos, decompondo em quais dimensões
+% cada um ganha/perde. Conectar com os extremos de sentimento já vistos (Clécio Luís, Ibaneis).
+
+A principal virtude do painel não reside apenas no ordenamento final, mas em seu caráter \textbf{decomponível}: diferentemente de uma métrica isolada, o índice composto permite identificar não somente \emph{quão} bem um perfil se posiciona, mas \emph{por que} --- isto é, em quais dimensões do funil ele se destaca e em quais fica aquém. Essa decomposição é o que converte o \textit{ranking} em uma ferramenta de diagnóstico acionável para a assessoria, indicando com precisão o estágio do funil que demanda intervenção em cada perfil.
+
 \section{Estudo de Caso Aplicado: Recomendações por Perfil}
 
 % ROTEIRO:
@@ -123,6 +167,14 @@
 %   3-5 recomendações CONCRETAS de growth ("produzir mais X", "abandonar
 %   formato Y", "o tema Z converte e está subexplorado").
 % - Este é o núcleo do valor prático do TCC. Ser específico e acionável.
+
+\section{O Painel de Apoio à Decisão}\label{sec:painel}
+
+Os resultados analíticos discutidos até aqui, bem como as recomendações derivadas do estudo de caso, foram consolidados em um painel interativo (\textit{dashboard}) que constitui a materialização da ferramenta de apoio à decisão proposta por este trabalho. Diferentemente de uma interface meramente exploratória --- voltada a visualizar distribuições e descrever os dados ---, o painel foi concebido como instrumento orientado à decisão, organizando as evidências segundo o funil de engajamento COBRA-RACE e traduzindo-as em orientações práticas para a assessoria. O painel foi implementado em \textit{Streamlit}, lendo as tabelas da camada de consumo (\textit{Gold}) por meio de um repositório de acesso único, e encontra-se disponível no repositório público do projeto.
+
+A organização do painel reflete a estrutura argumentativa deste capítulo e é composta por cinco visões complementares. A primeira apresenta o \textbf{funil de engajamento} de cada perfil, evidenciando o estágio --- alcance, ativação, conversão ou engajamento --- em que a audiência deixa de progredir, de modo a indicar com precisão o ponto que demanda intervenção. A segunda consiste em um \textbf{painel composto de desempenho} (\textit{scorecard}), que posiciona cada governador em um \textit{ranking} decomponível, revelando não apenas sua colocação relativa, mas as dimensões específicas em que se destaca ou fica aquém. A terceira destaca a \textbf{North Star Metric}, contrastando a ordenação dos perfis por engajamento bruto com sua ordenação por engajamento positivo qualificado, tornando visível a tese de que alto engajamento não equivale a alta aprovação. A quarta visão confronta o \textbf{discurso da assessoria} --- extraído das legendas e transcrições --- com a \textbf{reação do público} --- expressa nos comentários ---, explicitando as lacunas temáticas entre o que se pauta e o que se debate. A quinta, por fim, disponibiliza as \textbf{análises de base} de clusterização e sentimento, das quais derivam as demais visões.
+
+Dessa forma, o painel não substitui a análise, mas a torna contínua e acessível: os resultados que neste trabalho foram apresentados de forma estática convertem-se em um instrumento consultável, no qual a assessoria pode, a cada novo ciclo de coleta, reavaliar o desempenho de um perfil e reorientar sua estratégia de conteúdo.
 
 \section{Validação: Abordagem Híbrida versus Análises Isoladas}
 
