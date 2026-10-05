@@ -64,6 +64,10 @@ Comparar perfis (issue #185). Decisões tomadas durante as ondas que esta ADR n�
   *fallback* até que alguém defina outra. Contra o dado de 2026-10-04 (26 perfis) o ranking por NSM diverge
   desse bruto em 20 perfis. Em "Todos os Governadores" o cartão de NSM é a média simples dos perfis e nada é
   destacado nos rankings.
+- **Funil revisado pela ADR 0032 (ajuste pós-spec).** As barras lineares deram lugar a um funil de
+  trapézios em escala logarítmica, com a taxa de passagem entre as etapas, comparativo contra a mediana
+  dos demais governadores e o Engage com o engajamento do UGC piloto. Ver
+  [ADR 0032](0032-funil-em-escala-logaritmica-com-engage-do-ugc-piloto-e-comparativo-vs-mediana.md).
 - **Sub-aba NSM sem faixa de decisão nem KPIs (ajuste pós-spec).** Na verificação visual da feature, a faixa de
   decisão ("Recomendação"), a linha de KPIs e o bloco Crescimento (CMGR e retenção) foram removidos da sub-aba NSM,
   que passou a mostrar só os cartões e o contraste de rankings. `governor_growth_metrics` segue gerada pela

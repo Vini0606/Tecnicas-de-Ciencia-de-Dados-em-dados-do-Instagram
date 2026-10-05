@@ -376,7 +376,7 @@ TABLES: list[dict] = [
         "grao": "Uma linha por post de UGC (grão fino -- agregação por governador é uma view em memória, não persistida).",
         "modo_escrita": "overwrite",
         "escrito_por": "src/features/gold/ugc_mentions_aggregator.py (GovernorUGCAggregator), chamado por scripts/run_ugc_mentions.py",
-        "lido_por": "Nenhum consumidor de produção hoje -- dashboard/screens/resumo_funil.py (sub-aba Funil do Resumo, ADR 0031; antiga Tela 6) proíbe estruturalmente qualquer referência a esta tabela (ver teste test_funil_module_never_references_ugc_tables). Materializada com dado real desde 2026-09-19, mas o funil (issue #114) continua mostrando 'Engage · Criar' como 'em construção' por decisão de design, não por falta de dado.",
+        "lido_por": "dashboard/screens/resumo_funil.py (sub-aba Funil do Resumo) via dashboard/core/data.py::load_ugc_mentions: o estágio Engage·Criar mostra a soma de curtidas + comentários dos posts orgânicos por governador, com selo 'piloto' (ADR 0032, que revisa a proibição original da issue #114). Limitação: o piloto coletou no máximo 5 posts por governador.",
         "status": "Produção -- mesma execução real de 2026-09-19 de Bronze/Silver ugc_mentions",
         "adr": "ADR 0020 Ficha 8 / issue #93",
         "descricao": "UGC orgânico vs. publi paga por post, com `is_organic` derivado de `paidPartnership` -- separa apoio espontâneo de publi paga ANTES de qualquer agregação.",

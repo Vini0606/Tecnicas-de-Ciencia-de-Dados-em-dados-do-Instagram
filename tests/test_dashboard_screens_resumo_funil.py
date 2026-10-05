@@ -5,14 +5,11 @@ por estágio, taxas de passagem, identificação do gargalo, escalonamento,
 ação recomendada) -- nunca a renderização Streamlit em si, mesmo padrão de
 `tests/test_dashboard_screens_{resumo,produzir,radar}.py`.
 
-Inclui também um teste ESTÁTICO (inspeção de AST do código-fonte do módulo)
-confirmando que nenhum identificador/string relacionado a UGC aparece no
-código executável de `funil.py` -- ver issue #114, Testing Decisions."""
+Cobre também o Engage·Criar (engajamento do UGC do piloto, ADR 0032), o
+comparativo contra a mediana dos demais governadores e o HTML do funil em
+escala logarítmica."""
 
 from __future__ import annotations
-
-import ast
-import inspect
 
 import pandas as pd
 
@@ -322,70 +319,229 @@ def test_acao_recomendada_texto_nunca_usa_linguagem_causal():
 
 
 # ---------------------------------------------------------------------------
-# Proibição estrutural de UGC (issue #114, Testing Decisions) -- inspeção de
-# AST do código-fonte de `funil.py`: nenhum identificador/string de código
-# (fora de docstrings) contém "ugc".
+# Engage·Criar -- engajamento do UGC do piloto (ADR 0032, que revisa a
+# proibição estrutural original da issue #114).
 # ---------------------------------------------------------------------------
 
 
-def test_funil_module_never_references_ugc_tables():
-    source = inspect.getsource(funil)
-    tree = ast.parse(source)
-
-    docstring_const_ids = set()
-    for node in ast.walk(tree):
-        if isinstance(
-            node, (ast.Module, ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)
-        ):
-            body = getattr(node, "body", [])
-            if (
-                body
-                and isinstance(body[0], ast.Expr)
-                and isinstance(body[0].value, ast.Constant)
-                and isinstance(body[0].value.value, str)
-            ):
-                docstring_const_ids.add(id(body[0].value))
-
-    suspeitos: list[str] = []
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Name) and "ugc" in node.id.lower():
-            suspeitos.append(f"Name:{node.id}")
-        elif isinstance(node, ast.Attribute) and "ugc" in node.attr.lower():
-            suspeitos.append(f"Attribute:{node.attr}")
-        elif isinstance(node, ast.alias):
-            if "ugc" in node.name.lower() or (
-                node.asname and "ugc" in node.asname.lower()
-            ):
-                suspeitos.append(f"alias:{node.name}")
-        elif (
-            isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
-            and "ugc" in node.name.lower()
-        ):
-            suspeitos.append(f"def:{node.name}")
-        elif isinstance(node, ast.arg) and "ugc" in node.arg.lower():
-            suspeitos.append(f"arg:{node.arg}")
-        elif (
-            isinstance(node, ast.Constant)
-            and isinstance(node.value, str)
-            and id(node) not in docstring_const_ids
-            and "ugc" in node.value.lower()
-        ):
-            suspeitos.append(f"str:{node.value}")
-
-    assert not suspeitos, (
-        f"Identificadores/strings relacionados a UGC encontrados: {suspeitos}"
+def _df_ugc() -> pd.DataFrame:
+    return pd.DataFrame(
+        {
+            "governor_username": ["Gov_A", "gov_a", "gov_b", "gov_b", "gov_c"],
+            "likesCount": [10, 20, 100, None, 5],
+            "commentsCount": [1, 2, 10, 4, 0],
+            "is_organic": [True, True, True, False, True],
+        }
     )
 
 
-def test_funil_module_does_not_import_ugc_loader_or_aggregator():
-    """Confirmação comportamental complementar ao teste estático acima:
-    `dashboard.screens.resumo_funil` não tem nenhum atributo cujo nome comece com
-    `load_ugc`/`aggregate_ugc` -- nem por importação direta, nem por acesso
-    via `dashboard.core.data`."""
-    atributos = dir(funil)
-    assert not any(
-        nome.lower().startswith(("load_ugc", "aggregate_ugc")) for nome in atributos
+def test_username_de_url_normaliza_caixa_barra_e_query():
+    assert funil._username_de_url("https://www.instagram.com/Gov_A/") == "gov_a"
+    assert funil._username_de_url("https://www.instagram.com/gov_a/?hl=en") == "gov_a"
+    assert funil._username_de_url(None) == ""
+    assert funil._username_de_url(float("nan")) == ""
+
+
+def test_engage_por_governador_soma_so_posts_organicos_e_conta_posts():
+    out = funil._engage_por_governador(_df_ugc()).set_index("username")
+    # gov_a: (10+1) + (20+2) = 33, 2 posts; caixa do username normalizada
+    assert out.loc["gov_a", "engage"] == 33
+    assert out.loc["gov_a", "n_posts"] == 2
+    # gov_b: a publi paga (is_organic=False) fica de fora -> só 100+10
+    assert out.loc["gov_b", "engage"] == 110
+    assert out.loc["gov_b", "n_posts"] == 1
+
+
+def test_engage_por_governador_vazio_ou_sem_colunas_devolve_vazio():
+    assert funil._engage_por_governador(pd.DataFrame()).empty
+    assert funil._engage_por_governador(pd.DataFrame({"x": [1]})).empty
+    so_pago = _df_ugc().assign(is_organic=False)
+    assert funil._engage_por_governador(so_pago).empty
+
+
+def test_engage_para_selecao_governador_unico_e_sem_ugc():
+    assert funil._engage_para_selecao("https://instagram.com/gov_a/", _df_ugc()) == (
+        33.0,
+        2,
     )
+    assert funil._engage_para_selecao(
+        "https://instagram.com/nao_existe/", _df_ugc()
+    ) == (
+        0.0,
+        0,
+    )
+    assert funil._engage_para_selecao(
+        "https://instagram.com/gov_a/", pd.DataFrame()
+    ) == (
+        0.0,
+        0,
+    )
+
+
+def test_engage_para_selecao_todos_e_media_por_governador_com_ugc():
+    valor, n_posts = funil._engage_para_selecao(TODOS_OS_GOVERNADORES, _df_ugc())
+    # gov_a 33, gov_b 110, gov_c 5 -> média simples (não ponderada por posts)
+    assert valor == (33 + 110 + 5) / 3
+    assert n_posts is None
+    assert funil._engage_para_selecao(TODOS_OS_GOVERNADORES, pd.DataFrame()) == (
+        0.0,
+        None,
+    )
+
+
+def test_funil_nunca_liga_convert_ao_engage_em_taxa():
+    taxas = funil._taxas_passagem(1000.0, 100.0, 10.0)
+    assert set(taxas) == {"act", "convert"}
+
+
+# ---------------------------------------------------------------------------
+# Comparativo: valor ABSOLUTO de cada estágio vs. MEDIANA dos demais
+# governadores (ADR 0032).
+# ---------------------------------------------------------------------------
+
+
+def _por_governador() -> pd.DataFrame:
+    return pd.DataFrame(
+        {
+            "url": [
+                "https://instagram.com/gov_a/",
+                "https://instagram.com/gov_b/",
+                "https://instagram.com/gov_c/",
+                "https://instagram.com/gov_d/",
+            ],
+            "reach": [100.0, 200.0, 400.0, 0.0],
+            "act": [10.0, 20.0, 30.0, 40.0],
+            "convert": [0.0, 5.0, 15.0, 25.0],
+            "engage": [0.0, 0.0, 0.0, 0.0],
+        }
+    )
+
+
+def test_diferencas_vs_mediana_usa_so_os_demais_com_valor_positivo():
+    out = funil._diferencas_vs_mediana(
+        {"reach": 150.0, "act": 60.0, "convert": 10.0},
+        _por_governador(),
+        "https://instagram.com/gov_a/",
+    )
+    # reach: demais com valor > 0 = b, c -> mediana 300 -> 150/300 - 1 = -0,5
+    assert out["dif"]["reach"] == -0.5
+    # act: demais = b, c, d -> mediana 30 -> 60/30 - 1 = +1
+    assert out["dif"]["act"] == 1.0
+    # convert: demais com valor > 0 = b, c, d -> mediana 15 -> 10/15 - 1
+    assert abs(out["dif"]["convert"] - (10 / 15 - 1)) < 1e-9
+    assert out["n"] == 3
+
+
+def test_diferencas_vs_mediana_none_em_todos_sem_pares_ou_sem_valor():
+    valores = {"reach": 150.0}
+    assert (
+        funil._diferencas_vs_mediana(valores, _por_governador(), TODOS_OS_GOVERNADORES)
+        is None
+    )
+    assert (
+        funil._diferencas_vs_mediana(
+            valores, pd.DataFrame(), "https://instagram.com/gov_a/"
+        )
+        is None
+    )
+    # estágio sem dado (0) do selecionado não vira comparativo
+    assert (
+        funil._diferencas_vs_mediana(
+            {"reach": 0.0}, _por_governador(), "https://instagram.com/gov_a/"
+        )
+        is None
+    )
+
+
+def test_estagios_com_engage_por_governador_junta_engage_pelo_username():
+    base = funil._estagios_com_engage_por_governador(
+        pd.DataFrame(),
+        pd.DataFrame(),
+        pd.DataFrame(
+            {
+                "inputUrl": [
+                    "https://www.instagram.com/gov_a/",
+                    "https://www.instagram.com/gov_z/",
+                ],
+                "likesSum": [10.0, 20.0],
+            }
+        ),
+        pd.DataFrame(),
+        _df_ugc(),
+    ).set_index("url")
+    assert base.loc["https://www.instagram.com/gov_a/", "engage"] == 33
+    assert base.loc["https://www.instagram.com/gov_z/", "engage"] == 0
+
+
+# ---------------------------------------------------------------------------
+# Funil em escala logarítmica (ADR 0032)
+# ---------------------------------------------------------------------------
+
+
+def test_larguras_log_decresce_com_o_valor_e_respeita_o_minimo():
+    larguras = funil._larguras_log((1_000_000_000.0, 1_000.0, 10.0))
+    assert larguras[0] == 100.0
+    assert larguras[0] > larguras[1] > larguras[2] >= funil._LARGURA_MIN_PCT
+    # log10(10)/log10(1e9) = 11% < 14%: vira o mínimo
+    assert larguras[2] == funil._LARGURA_MIN_PCT
+
+
+def test_larguras_log_sem_dado_e_none_e_um_unico_estagio_ocupa_tudo():
+    assert funil._larguras_log((1_000.0, 0.0, 0.0)) == [100.0, None, None]
+    assert funil._larguras_log((0.0, 0.0, 0.0)) == [None, None, None]
+
+
+def test_fmt_taxa_pct_usa_algarismos_significativos():
+    assert funil._fmt_taxa_pct(0.2) == "20%"
+    assert funil._fmt_taxa_pct(0.086) == "8,6%"
+    assert funil._fmt_taxa_pct(0.00036) == "0,036%"
+
+
+def test_html_funil_mostra_selos_de_taxa_gargalo_e_bloco_do_engage():
+    estagios = (1_000_000.0, 100_000.0, 100.0)
+    taxas = funil._taxas_passagem(*estagios)
+    html = funil._html_funil(
+        estagios,
+        taxas,
+        funil._identificar_gargalo(taxas),
+        engage=500.0,
+        n_posts_engage=3,
+    )
+    assert "10% avançam" in html
+    assert "0,10% avançam" in html
+    assert html.count("gargalo") == 1
+    assert "Engage · Criar" in html and "piloto" in html
+    assert "3 posts de terceiros" in html
+    # sem governador selecionado: nenhuma seta de comparação e legenda explica
+    assert "▲" not in html  # o selo de conversão usa só ▼
+    assert "aparece ao selecionar um governador" in html
+
+
+def test_html_funil_com_comparativo_mostra_seta_e_percentual_absoluto():
+    estagios = (1_000.0, 100.0, 10.0)
+    taxas = funil._taxas_passagem(*estagios)
+    comparativos = {"dif": {"reach": -0.67, "convert": 1.29, "engage": 0.5}, "n": 24}
+    html = funil._html_funil(
+        estagios, taxas, None, engage=200.0, n_posts_engage=5, comparativos=comparativos
+    )
+    assert "▼ 67%" in html
+    assert "▲ 129%" in html
+    assert "▲ 50%" in html  # no bloco do Engage
+    assert "n = 24" in html
+
+
+def test_html_funil_estagio_sem_dado_e_engage_sem_ugc_nao_quebram():
+    estagios = (500_000.0, 40_000.0, 0.0)
+    taxas = funil._taxas_passagem(*estagios)
+    html = funil._html_funil(estagios, taxas, None)
+    assert "sem dado" in html
+    assert "nenhum UGC orgânico coletado" in html
+
+
+def test_html_funil_nao_usa_a_palavra_alcance():
+    estagios = (1_000.0, 100.0, 10.0)
+    html = funil._html_funil(estagios, funil._taxas_passagem(*estagios), None)
+    assert "Alcance" not in html
 
 
 # ---------------------------------------------------------------------------
@@ -446,11 +602,6 @@ def test_estagios_todos_tabelas_vazias_devolve_zeros():
         0.0,
         0.0,
     )
-
-
-def test_perdas_entre_estagios_e_complemento_da_taxa_e_none_sem_dado():
-    perdas = funil._perdas_entre_estagios({"act": 0.25, "convert": None})
-    assert perdas == {"act": 0.75, "convert": None}
 
 
 def test_agregar_positivos_por_run_todos_usa_media_por_governador():

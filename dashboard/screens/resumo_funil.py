@@ -5,8 +5,9 @@ governador (cada perfil pesa igual, ADR 0027), nunca a soma.
 
 Responde à tese central do TCC (Cap. 6): o funil COBRA-RACE completo, dos 4
 estágios (Reach·Alcançar -> Act·Consumir -> Convert·Contribuir ->
-Engage·Criar), como 4 barras horizontais + taxas de passagem + gargalo +
-ação recomendada. Substituiu `pages/05_funil.py` (ADR 0020) -- ver ADR 0021,
+Engage·Criar), como um funil de largura em escala logarítmica (3 etapas) +
+bloco do Engage + taxas de passagem entre as etapas + gargalo + ação
+recomendada. Substituiu `pages/05_funil.py` (ADR 0020) -- ver ADR 0021,
 "Opção C híbrida": esta tela é a "espinha conceitual" da ferramenta, e cada
 uma das outras 5 telas carrega só um `stage_label()` discreto apontando para
 o estágio correspondente.
@@ -53,23 +54,27 @@ texto completo):
    "Alcance" vs. "Visualizações") -- confundir os dois números misrepresenta
    a própria distinção que o TCC faz entre dado real e proxy. Nenhuma string
    renderizada por este módulo usa a palavra "Alcance" para o estágio Reach.
-4. **Engage·Criar -- proibição estrutural de tabela `ugc_*`.** Este módulo
-   NUNCA importa, chama ou referencia `governor_ugc_mentions`/
-   `load_ugc_mentions`/`aggregate_ugc_by_governor` (nem qualquer identificador
-   cujo nome comece com "ugc") -- a barra de Engage é 100% estática (texto
-   fixo "em construção", sem nenhuma consulta a dado). Ver teste estático
-   dedicado (`test_funil_module_never_references_ugc_tables`), que faz
-   inspeção de AST do código-fonte deste módulo. `load_discourse_topics()`
-   também NÃO é usado como proxy numérico disfarçado para Engage -- na
-   dúvida, a issue pede para omitir o número, não arriscar parecer dado
-   real.
+4. **Engage·Criar -- engajamento do UGC do piloto (ADR 0032, que revisa a
+   decisão original da issue #114).** A decisão original proibia qualquer
+   leitura de tabela `ugc_*` (a barra de Engage era um texto fixo "em
+   construção"). `governor_ugc_mentions` passou a existir com dado real
+   (piloto de 2026-09-19), então o Engage agora mostra o engajamento do UGC:
+   `SUM(likesCount + commentsCount)` dos posts ORGÂNICOS do governador
+   (publi paga fica de fora, ver `_engage_por_governador`). Limitações
+   declaradas na tela: o piloto coletou no máximo 5 posts por governador,
+   então o número é o engajamento de uma AMOSTRA limitada (selo "piloto"),
+   não o volume real de UGC; e ele nunca é ligado a uma taxa --
+   `Convert/Engage` continua NUNCA sendo uma chave calculada, porque as
+   unidades e as populações são diferentes. O Engage fica num bloco
+   SEPARADO abaixo do funil (não é uma 4ª etapa do desenho), porque seu
+   valor pode ser maior que o de Convert e quebraria o afunilamento.
+   `load_discourse_topics()` continua NÃO sendo usado como proxy numérico.
 5. **Taxas de passagem -- dado insuficiente é `None`, nunca zero.**
    `_taxas_passagem` só calcula uma taxa quando o estágio de origem tem
    valor real (> 0); do contrário retorna `None` para aquela taxa --
    `_identificar_gargalo` exclui candidatos `None` do cálculo, nunca os
    trata como "taxa de 0%" (que seria uma afirmação diferente e mais forte
-   do que "não sei"). `Convert/Engage` nunca é uma chave calculada -- é
-   sempre o texto fixo "sem dado real" em `render()`.
+   do que "não sei"). `Convert/Engage` nunca é uma chave calculada (ver decisão 4).
 6. **Gargalo -- desempate determinístico.** Em caso de empate entre `"act"`
    e `"convert"`, o desempate favorece o estágio mais cedo no funil
    (`_ORDEM_ESTAGIOS_GARGALO` = Act antes de Convert) -- um gargalo mais
@@ -108,13 +113,25 @@ texto completo):
    on_click=...)` já dispara o rerun -- não chamamos `st.rerun()` de novo.
    No próximo render, o `st.radio` lê o valor já setado em `session_state`
    como seleção inicial. Documentado também no PR desta issue.
-10. **Texto sempre associativo, nunca causal.** Toda frase de decisão/ação
+10. **Funil em escala logarítmica + comparativo (ADR 0032).** As etapas
+    têm unidades e ordens de grandeza muito diferentes (ex.: ~1,4 milhão de
+    visualizações -> ~118 mil curtidas -> 42 comentários positivos), então a
+    largura de cada trapézio é proporcional ao log10 do valor (com largura
+    mínima), e a tela avisa isso. As taxas de passagem ficam em selos ENTRE as
+    etapas ("N% avançam"), e, com um governador selecionado, cada etapa mostra
+    ▲/▼ + a diferença relativa do VALOR ABSOLUTO contra a MEDIANA dos demais
+    governadores (só quem tem valor > 0 na etapa). Em "Todos" não há
+    comparativo (não há "demais"). Valor absoluto reflete o tamanho da
+    audiência: a seta mostra escala, e o selo de taxa mostra eficiência.
+11. **Texto sempre associativo, nunca causal.** Toda frase de decisão/ação
     usa "associado a"/"está relacionado a" -- nunca "causa"/"gera" no
     sentido causal (issue #114, user story 8, hard requirement de
     honestidade analítica para o TCC).
 """
 
 from __future__ import annotations
+
+import math
 
 import pandas as pd
 import streamlit as st
@@ -152,9 +169,13 @@ _ACAO_PRODUZIR = "produzir"
 _ACAO_RADAR = "radar"
 
 _NOTA_FUNIL = (
-    'Funil COBRA-RACE · "Criar" depende de menções de terceiros (piloto) · '
-    "baseado em Reels."
+    'Funil COBRA-RACE · "Criar" = engajamento do UGC do piloto (até 5 posts '
+    "de terceiros por governador) · Reach baseado em Reels."
 )
+
+# Teto de posts de UGC por governador na coleta do piloto (ADR 0020, Ficha 8):
+# só alimenta a nota exibida junto do Engage, nunca entra em conta nenhuma.
+_MAX_POSTS_UGC_PILOTO = 5
 
 
 # ---------------------------------------------------------------------------
@@ -315,6 +336,99 @@ def _estagios_para_selecao(
 
 
 # ---------------------------------------------------------------------------
+# Engage·Criar -- engajamento do UGC do piloto (ADR 0032) e comparativo
+# ---------------------------------------------------------------------------
+
+
+def _username_de_url(url) -> str:
+    """`https://www.instagram.com/Fulano/?hl=en` -> `fulano` (minúsculo, sem
+    query nem barra final). Vazio para nulo."""
+    if url is None or (isinstance(url, float) and pd.isna(url)):
+        return ""
+    return str(url).strip().lower().split("?")[0].rstrip("/").rsplit("/", 1)[-1]
+
+
+def _engage_por_governador(df_ugc: pd.DataFrame) -> pd.DataFrame:
+    """`username`/`engage`/`n_posts` por governador: `engage` = soma de
+    `likesCount + commentsCount` dos posts ORGÂNICOS (publi paga é filtrada
+    antes de somar); `n_posts` = quantos posts orgânicos entraram. Vazio
+    (colunas fixas) se a tabela estiver vazia ou sem as colunas esperadas."""
+    colunas = ["username", "engage", "n_posts"]
+    obrigatorias = {"governor_username", "likesCount", "commentsCount"}
+    if df_ugc.empty or not obrigatorias <= set(df_ugc.columns):
+        return pd.DataFrame(columns=colunas)
+    df = df_ugc
+    if "is_organic" in df.columns:
+        df = df[df["is_organic"].fillna(False).astype(bool)]
+    if df.empty:
+        return pd.DataFrame(columns=colunas)
+    engajamento = df["likesCount"].fillna(0) + df["commentsCount"].fillna(0)
+    agrupado = engajamento.groupby(df["governor_username"].astype(str).str.lower())
+    out = agrupado.agg(["sum", "count"]).reset_index()
+    out.columns = colunas
+    return out
+
+
+def _engage_para_selecao(
+    governor_url: str, df_ugc: pd.DataFrame
+) -> tuple[float, int | None]:
+    """`(engage, n_posts)` para a seleção do seletor único. Governador único:
+    engajamento e nº de posts de UGC dele (`(0.0, 0)` sem UGC). Todos:
+    MÉDIA por governador, só entre quem tem UGC (> 0, mesma regra dos demais
+    estágios), com `n_posts = None`."""
+    por_gov = _engage_por_governador(df_ugc)
+    if governor_url == TODOS_OS_GOVERNADORES:
+        serie = por_gov["engage"][por_gov["engage"] > 0] if not por_gov.empty else []
+        return (float(serie.mean()) if len(serie) else 0.0, None)
+    linha = por_gov[por_gov["username"] == _username_de_url(governor_url)]
+    if linha.empty:
+        return (0.0, 0)
+    return (float(linha["engage"].iloc[0]), int(linha["n_posts"].iloc[0]))
+
+
+def _estagios_com_engage_por_governador(
+    df_clusters: pd.DataFrame,
+    df_reels: pd.DataFrame,
+    df_engagement: pd.DataFrame,
+    df_sentiment_comments: pd.DataFrame,
+    df_ugc: pd.DataFrame,
+) -> pd.DataFrame:
+    """`_estagios_por_governador` + coluna `engage` (0.0 = sem UGC)."""
+    base = _estagios_por_governador(
+        df_clusters, df_reels, df_engagement, df_sentiment_comments
+    ).copy()
+    por_gov = _engage_por_governador(df_ugc)
+    mapa = dict(zip(por_gov["username"], por_gov["engage"], strict=True))
+    base["engage"] = [float(mapa.get(_username_de_url(u), 0.0)) for u in base["url"]]
+    return base
+
+
+def _diferencas_vs_mediana(
+    valores: dict[str, float], por_governador: pd.DataFrame, governor_url: str
+) -> dict | None:
+    """Diferença relativa (`valor / mediana - 1`) do valor ABSOLUTO de cada
+    estágio do governador selecionado contra a MEDIANA dos DEMAIS
+    governadores (só quem tem valor > 0 no estágio, mesma regra do resto do
+    módulo). `{"dif": {estagio: float}, "n": int}` ou `None` em "Todos", sem
+    pares ou sem nenhum estágio comparável."""
+    if governor_url == TODOS_OS_GOVERNADORES or por_governador.empty:
+        return None
+    chave = _username_de_url(governor_url)
+    outros = por_governador[por_governador["url"].map(_username_de_url) != chave]
+    dif: dict[str, float] = {}
+    n = 0
+    for estagio, valor in valores.items():
+        if valor <= 0 or estagio not in outros.columns:
+            continue
+        pares = outros.loc[outros[estagio] > 0, estagio]
+        if pares.empty:
+            continue
+        dif[estagio] = float(valor) / float(pares.median()) - 1
+        n = max(n, len(pares))
+    return {"dif": dif, "n": n} if dif else None
+
+
+# ---------------------------------------------------------------------------
 # Taxas de passagem + identificação do gargalo -- ver docstring do módulo,
 # decisões 5-6.
 # ---------------------------------------------------------------------------
@@ -350,12 +464,6 @@ def _identificar_gargalo(taxas: dict[str, float | None]) -> str | None:
         if candidatos.get(estagio) == menor_valor:
             return estagio
     return None  # inalcançável -- todo candidato está em _ORDEM_ESTAGIOS_GARGALO
-
-
-def _perdas_entre_estagios(taxas: dict[str, float | None]) -> dict[str, float | None]:
-    """Perda entre estágios = `1 - taxa` ("▼ N% de perda"); `None` quando a
-    taxa é `None` (sem dado -- nunca uma perda de 100% inventada)."""
-    return {k: (None if v is None or pd.isna(v) else 1.0 - v) for k, v in taxas.items()}
 
 
 # ---------------------------------------------------------------------------
@@ -647,14 +755,19 @@ CORES_ESTAGIO: dict[str, tuple[str, str]] = {
     _ESTAGIO_CONVERT: ("#eda100", "#c98500"),
     _ESTAGIO_ENGAGE: ("#008300", "#008300"),
 }
-_COR_PERDA = ("#a32d2d", "#e66767")
+# Texto sobre cada etapa (claro, escuro): contraste com o preenchimento do
+# estágio nos dois temas (azul claro do escuro pede texto escuro).
+_COR_TEXTO_ESTAGIO: dict[str, tuple[str, str]] = {
+    _ESTAGIO_REACH: ("#ffffff", "#0b1220"),
+    _ESTAGIO_ACT: ("#ffffff", "#ffffff"),
+    _ESTAGIO_CONVERT: ("#1a1a19", "#1a1a19"),
+}
+# Selo de conversão entre etapas: (fundo, texto) no claro e no escuro.
+_COR_SELO = (("#fcfcfb", "#1a1a19"), ("#1a1a19", "#f2f2f0"))
 
-# (estágio, nome de exibição, nível COBRA, rótulo da métrica)
-_ESTAGIOS_EXIBICAO = [
-    (_ESTAGIO_REACH, "Reach", "Alcançar", "Visualizações"),
-    (_ESTAGIO_ACT, "Act", "Consumir", "Curtidas"),
-    (_ESTAGIO_CONVERT, "Convert", "Contribuir", "Comentários positivos"),
-]
+_ALTURA_ETAPA = 120
+_ALTURA_ULTIMA_ETAPA = 84
+_LARGURA_MIN_PCT = 14.0
 
 
 def _css_vars(indice: int) -> str:
@@ -663,7 +776,11 @@ def _css_vars(indice: int) -> str:
         f"--f-act: {CORES_ESTAGIO[_ESTAGIO_ACT][indice]};"
         f"--f-convert: {CORES_ESTAGIO[_ESTAGIO_CONVERT][indice]};"
         f"--f-engage: {CORES_ESTAGIO[_ESTAGIO_ENGAGE][indice]};"
-        f"--f-loss: {_COR_PERDA[indice]};"
+        f"--on-reach: {_COR_TEXTO_ESTAGIO[_ESTAGIO_REACH][indice]};"
+        f"--on-act: {_COR_TEXTO_ESTAGIO[_ESTAGIO_ACT][indice]};"
+        f"--on-convert: {_COR_TEXTO_ESTAGIO[_ESTAGIO_CONVERT][indice]};"
+        f"--f-pill-bg: {_COR_SELO[indice][0]};"
+        f"--f-pill-fg: {_COR_SELO[indice][1]};"
     )
 
 
@@ -674,16 +791,24 @@ _CSS_FUNIL = (
     f' :root:where(:not([data-theme="light"])) .funil-viz {{ {_css_vars(1)} }} }}'
     f':root[data-theme="dark"] .funil-viz {{ {_css_vars(1)} }}'
     """
-.funil-viz .f-row { margin: 6px 0; }
-.funil-viz .f-head { font-size: 13px; margin-bottom: 4px; }
-.funil-viz .f-cobra { opacity: .7; margin-left: 6px; }
-.funil-viz .f-track { background: var(--f-track); border-radius: 6px; height: 24px; }
-.funil-viz .f-bar { height: 24px; border-radius: 6px; }
-.funil-viz .f-loss { color: var(--f-loss); font-size: 12px; margin: 2px 0 2px 4px; }
-.funil-viz .f-engage { border: 2px dashed var(--f-engage); border-radius: 6px; height: 24px;
-  display: flex; align-items: center; justify-content: center; font-size: 12px; opacity: .8; }
-.funil-viz .f-badge { font-size: 11px; border-radius: 6px; padding: 1px 8px; margin-left: 8px;
-  border: 1px solid currentColor; }
+.funil-viz .f-stage { position:absolute; left:0; right:0; text-align:center; line-height:1.15;
+  transform:translateY(-50%); pointer-events:none; white-space:nowrap; }
+.funil-viz .f-stage i { display:block; font-size:11px; font-style:normal; font-weight:600;
+  letter-spacing:.02em; }
+.funil-viz .f-stage b { display:block; font-size:15px; }
+.funil-viz .f-stage span { display:block; font-size:11px; font-weight:600; margin-top:2px; }
+.funil-viz .f-pill { position:absolute; left:50%; transform:translate(-50%,-50%);
+  background:var(--f-pill-bg); color:var(--f-pill-fg); border:1px solid rgba(128,128,128,.55);
+  border-radius:10px; padding:4px 12px; text-align:center; white-space:nowrap;
+  box-shadow:0 1px 3px rgba(0,0,0,.25); font-size:13px; font-weight:600; }
+.funil-viz .f-badge { font-size:11px; border-radius:6px; padding:1px 8px; margin-left:8px;
+  border:1px solid currentColor; font-weight:400; }
+.funil-viz .f-engage-card { border:2px dashed var(--f-engage); border-radius:10px;
+  padding:10px 16px; margin:12px auto 0; max-width:420px; text-align:center; }
+.funil-viz .f-engage-card i { font-style:normal; font-size:12px; font-weight:600; }
+.funil-viz .f-engage-card b { display:block; font-size:18px; margin:2px 0; }
+.funil-viz .f-engage-card small { display:block; font-size:11px; opacity:.7; }
+.funil-viz .f-legenda { font-size:11px; opacity:.65; margin-top:8px; }
 .funil-viz .f-card { border: 1px solid var(--f-track); border-left: 4px solid var(--f-convert);
   border-radius: 8px; padding: 12px 16px; margin: 14px 0; }
 .funil-viz .f-card-title { font-size: 12px; opacity: .7; margin-bottom: 4px; }
@@ -691,66 +816,162 @@ _CSS_FUNIL = (
 )
 
 
-def _largura_barra_pct(valor: float, valor_maximo: float) -> float:
-    if valor_maximo <= 0 or valor <= 0:
-        return 0.0
-    return min(100.0, max(2.0, (valor / valor_maximo) * 100.0))
+def _larguras_log(valores: tuple[float, ...]) -> list[float | None]:
+    """Largura (%) de cada etapa proporcional ao log10 do valor, relativa à
+    maior, com mínimo `_LARGURA_MIN_PCT` para a etapa com dado ficar visível.
+    `None` = sem dado (valor <= 0)."""
+    logs = [math.log10(v) if v > 1 else (0.0 if v > 0 else None) for v in valores]
+    topo = max((x for x in logs if x is not None), default=0.0)
+    if topo <= 0:
+        return [100.0 if x is not None else None for x in logs]
+    return [None if x is None else max(_LARGURA_MIN_PCT, x / topo * 100) for x in logs]
 
 
-def _html_barra(
-    estagio: str,
-    nome: str,
-    cobra: str,
-    metrica: str,
-    valor: float,
-    valor_maximo: float,
-    gargalo: bool,
+def _fmt_dif(dif: float) -> str:
+    return f"{'▲' if dif >= 0 else '▼'} {abs(dif) * 100:.0f}%"
+
+
+def _fmt_taxa_pct(taxa: float) -> str:
+    """Taxa (0-1) -> % com 2 algarismos significativos (20% / 8,6% / 0,036%)."""
+    p = taxa * 100
+    casas = 0 if p >= 10 else (1 if p >= 1 else (2 if p >= 0.1 else 3))
+    return f"{p:.{casas}f}".replace(".", ",") + "%"
+
+
+def _html_selo_conversao(
+    y: float, taxa: float | None, destino_tem_dado: bool, gargalo: bool
 ) -> str:
-    largura = _largura_barra_pct(valor, valor_maximo)
+    """Selo de conversão centrado na fronteira entre duas etapas (`y` em px)."""
+    if not destino_tem_dado or taxa is None:
+        corpo = "sem dado"
+    elif taxa <= 0:
+        corpo = "▼ nenhum avança"
+    else:
+        corpo = f"▼ {_fmt_taxa_pct(taxa)} avançam"
     selo = '<span class="f-badge">gargalo</span>' if gargalo else ""
+    return f'<div class="f-pill" style="top:{y:.0f}px">{corpo}{selo}</div>'
+
+
+def _html_engage(
+    engage: float, n_posts: int | None, dif: float | None, is_todos: bool
+) -> str:
+    """Bloco do Engage·Criar, separado do funil (ver docstring, decisão 4)."""
+    if engage <= 0:
+        valor = "sem dado"
+        detalhe = "nenhum UGC orgânico coletado para este governador"
+    else:
+        valor = _fmt_int_br(engage) + (f" · {_fmt_dif(dif)}" if dif is not None else "")
+        posts = (
+            "média por governador, entre quem tem UGC"
+            if is_todos
+            else f"{n_posts} post{'s' if n_posts != 1 else ''} de terceiros"
+        )
+        detalhe = (
+            f"curtidas + comentários · {posts} · amostra do piloto "
+            f"(até {_MAX_POSTS_UGC_PILOTO} posts por governador)"
+        )
     return (
-        '<div class="f-row">'
-        f'<div class="f-head"><strong>{nome}</strong> · {metrica}: '
-        f"<strong>{_fmt_int_br(valor)}</strong>"
-        f'<span class="f-cobra">{cobra}</span>{selo}</div>'
-        '<div class="f-track">'
-        f'<div class="f-bar" style="background:var(--f-{estagio});width:{largura:.1f}%;"></div>'
-        "</div></div>"
+        '<div class="f-engage-card"><i>Engage · Criar</i>'
+        '<span class="f-badge">piloto</span>'
+        f"<b>{valor}</b><small>{detalhe}</small></div>"
     )
-
-
-def _html_perda(perda: float | None) -> str:
-    texto = "sem dado" if perda is None else f"▼ {perda * 100:.0f}% de perda"
-    return f'<div class="f-loss">{texto}</div>'
 
 
 def _html_funil(
-    estagios: tuple[float, float, float], taxas: dict, gargalo: str | None
+    estagios: tuple[float, float, float],
+    taxas: dict,
+    gargalo: str | None,
+    engage: float = 0.0,
+    n_posts_engage: int | None = None,
+    comparativos: dict | None = None,
+    is_todos: bool = False,
 ) -> str:
-    """HTML das 4 barras proporcionais com perdas entre estágios. Engage é
-    estático ("em construção"), sem número nem consulta a dado."""
-    valor_maximo = max(*estagios, 1.0)
-    perdas = _perdas_entre_estagios(taxas)
-    partes = ['<div class="funil-viz">']
-    chaves_perda = [None, _ESTAGIO_ACT, _ESTAGIO_CONVERT]
-    for (estagio, nome, cobra, metrica), valor, chave in zip(
-        _ESTAGIOS_EXIBICAO, estagios, chaves_perda, strict=True
-    ):
-        if chave is not None:
-            partes.append(_html_perda(perdas[chave]))
-        partes.append(
-            _html_barra(
-                estagio, nome, cobra, metrica, valor, valor_maximo, gargalo == estagio
+    """Funil de 3 etapas (trapézios contínuos, largura em escala log): título e
+    valor dentro de cada etapa (com ▲/▼ + diferença vs. a mediana dos demais
+    quando há `comparativos`), selo de conversão entre as etapas e o bloco do
+    Engage separado abaixo. Ver docstring do módulo, decisões 4 e 10."""
+    dif = (comparativos or {}).get("dif", {})
+    larguras = [w if w is not None else 0.0 for w in _larguras_log(estagios)]
+    bases = larguras[1:] + [larguras[-1] * 0.8]
+    alturas = [_ALTURA_ETAPA, _ALTURA_ETAPA, _ALTURA_ULTIMA_ETAPA]
+    total_h = sum(alturas)
+    nomes = [
+        (_ESTAGIO_REACH, "Reach", estagios[0]),
+        (_ESTAGIO_ACT, "Act", estagios[1]),
+        (_ESTAGIO_CONVERT, "Convert", estagios[2]),
+    ]
+    formas: list[str] = []
+    rotulos: list[str] = []
+    fronteiras: list[float] = []
+    y = 0.0
+    for i, (chave, nome, valor) in enumerate(nomes):
+        topo, base = larguras[i], bases[i]
+        if valor > 0 and topo > 0:
+            x1, x2 = (100 - topo) / 2, (100 + topo) / 2
+            x3, x4 = (100 + base) / 2, (100 - base) / 2
+            formas.append(
+                f'<polygon points="{x1:.2f},{y:.1f} {x2:.2f},{y:.1f} '
+                f'{x3:.2f},{y + alturas[i]:.1f} {x4:.2f},{y + alturas[i]:.1f}" '
+                f'style="fill:var(--f-{chave})" />'
             )
-        )
-    partes.append(_html_perda(None))
-    partes.append(
-        '<div class="f-row"><div class="f-head"><strong>Engage</strong>'
-        '<span class="f-cobra">Criar</span></div>'
-        '<div class="f-engage">em construção</div></div>'
+            comparativo = f"<span>{_fmt_dif(dif[chave])}</span>" if chave in dif else ""
+            frac = 0.38 if i < 2 else 0.55
+            rotulos.append(
+                f'<div class="f-stage" style="top:{y + alturas[i] * frac:.0f}px;'
+                f'color:var(--on-{chave})"><i>{nome}</i>'
+                f"<b>{_fmt_int_br(valor)}</b>{comparativo}</div>"
+            )
+        else:
+            formas.append(
+                f'<rect x="35" y="{y + 6:.1f}" width="30" height="{alturas[i] - 12:.1f}" '
+                'style="fill:none;stroke:var(--f-track);stroke-width:.6;'
+                'stroke-dasharray:2 1.5" />'
+            )
+            rotulos.append(
+                f'<div class="f-stage" style="top:{y + alturas[i] * 0.5:.0f}px;opacity:.7">'
+                f"<i>{nome}</i><span>sem dado</span></div>"
+            )
+        y += alturas[i]
+        if i < 2:
+            fronteiras.append(y)
+    selos = [
+        _html_selo_conversao(
+            fronteiras[0], taxas["act"], estagios[1] > 0, gargalo == _ESTAGIO_ACT
+        ),
+        _html_selo_conversao(
+            fronteiras[1],
+            taxas["convert"],
+            estagios[2] > 0,
+            gargalo == _ESTAGIO_CONVERT,
+        ),
+    ]
+    svg = (
+        f'<svg viewBox="0 0 100 {total_h}" preserveAspectRatio="none" '
+        f'style="width:100%;height:{total_h}px;display:block">'
+        + "".join(formas)
+        + "</svg>"
     )
-    partes.append("</div>")
-    return "".join(partes)
+    if comparativos:
+        legenda = (
+            "Entre as etapas: quanto avança. Dentro: ▲/▼ = diferença relativa do valor "
+            f"vs. a mediana dos demais governadores (n = {comparativos['n']}). "
+        )
+    else:
+        legenda = (
+            "Entre as etapas: quanto avança. A comparação com a mediana dos demais "
+            "governadores aparece ao selecionar um governador. "
+        )
+    legenda += (
+        "Largura em escala logarítmica: cada degrau equivale a uma ordem de "
+        "grandeza, não ao volume proporcional."
+    )
+    return (
+        '<div class="funil-viz">'
+        '<div style="max-width:620px;margin:0 auto;position:relative">'
+        f"{svg}{''.join(rotulos)}{''.join(selos)}</div>"
+        + _html_engage(engage, n_posts_engage, dif.get(_ESTAGIO_ENGAGE), is_todos)
+        + f'<div class="f-legenda">{legenda}</div></div>'
+    )
 
 
 def render(governor_url: str) -> None:
@@ -764,6 +985,7 @@ def render(governor_url: str) -> None:
     df_engagement = data.load_engagement()
     df_sentiment = data.comments_only(data.load_sentiment())
     df_sentiment_history = data.comments_only(data.load_sentiment_history())
+    df_ugc = data.load_ugc_mentions()
     if not df_sentiment.empty and "inputUrl" in df_sentiment.columns:
         df_sentiment = df_sentiment.assign(
             _chave=_normalize_url(df_sentiment["inputUrl"])
@@ -776,6 +998,21 @@ def render(governor_url: str) -> None:
     # ---- Estágios com dado real (média por governador em "Todos") ----
     estagios = _estagios_para_selecao(
         governor_url, df_clusters, df_reels, df_engagement, df_sentiment
+    )
+
+    # ---- Engage (UGC do piloto) + comparativo vs. mediana dos demais ----
+    engage, n_posts_engage = _engage_para_selecao(governor_url, df_ugc)
+    comparativos = _diferencas_vs_mediana(
+        {
+            _ESTAGIO_REACH: estagios[0],
+            _ESTAGIO_ACT: estagios[1],
+            _ESTAGIO_CONVERT: estagios[2],
+            _ESTAGIO_ENGAGE: engage,
+        },
+        _estagios_com_engage_por_governador(
+            df_clusters, df_reels, df_engagement, df_sentiment, df_ugc
+        ),
+        governor_url,
     )
 
     # ---- Taxas de passagem + gargalo ----
@@ -811,7 +1048,17 @@ def render(governor_url: str) -> None:
         )
     )
     st.markdown(
-        _CSS_FUNIL + _html_funil(estagios, taxas, gargalo), unsafe_allow_html=True
+        _CSS_FUNIL
+        + _html_funil(
+            estagios,
+            taxas,
+            gargalo,
+            engage=engage,
+            n_posts_engage=n_posts_engage,
+            comparativos=comparativos,
+            is_todos=is_todos,
+        ),
+        unsafe_allow_html=True,
     )
 
     # ---- Leitura automática para a assessoria ----
