@@ -37,6 +37,7 @@ def _modeling_config(tmp_path):
         gold_content_topic_priority_score_path=tmp_path / "content_topic_priority_score",
         gold_nsm_path=tmp_path / "governor_nsm",
         gold_nsm_history_path=tmp_path / "governor_nsm_history",
+        gold_governor_scorecard_path=tmp_path / "governor_scorecard",
         gold_post_performance_coefficients_path=tmp_path
         / "post_performance_coefficients",
         gold_post_performance_predictions_path=tmp_path
