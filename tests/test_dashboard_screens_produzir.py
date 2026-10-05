@@ -989,3 +989,9 @@ def test_comentarios_do_grupo_vazio_com_colunas():
         r = produzir._comentarios_do_grupo(df, _URL_A, 99, "negative")
         assert r.empty
         assert list(r.columns) == produzir._COLUNAS_COMENTARIOS_POPUP
+
+
+def test_html_linha_grupo_escapa_rotulo_e_tolera_maximo_zero():
+    h = produzir._html_linha_grupo("a <b> & c", 0, 0.0, 0, "gc-pos")
+    assert "a &lt;b&gt; &amp; c" in h
+    assert "width:0.0%" in h
