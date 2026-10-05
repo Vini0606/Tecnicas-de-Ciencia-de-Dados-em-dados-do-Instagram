@@ -98,6 +98,11 @@ class DeltaRepository(DataRepository):
         governador)."""
         return self._load(_join(self._gold_dir, "topic_priority_score"))
 
+    def load_content_topic_priority_score(self) -> pd.DataFrame:
+        """Score ICE por pauta (assunto do conteúdo) -- spec #182 / issue
+        #190. Uma linha por pauta, ranking GLOBAL (não por governador)."""
+        return self._load(_join(self._gold_dir, "content_topic_priority_score"))
+
     def load_nsm(self) -> pd.DataFrame:
         """North Star Metric (engajamento qualificado por perfil) -- ADR 0020
         (Ficha 5) / issue #90."""
