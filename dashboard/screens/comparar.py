@@ -131,7 +131,7 @@ _METRICAS = [
 
 # ---------------------------------------------------------------------------
 # Normalização / seleção de governador (duplicado de `resumo.py`/`produzir.py`/
-# `radar.py`/`funil.py` -- mesmo raciocínio: cada tela fica autocontida, sem
+# `radar.py`/`resumo_funil.py` -- mesmo raciocínio: cada tela fica autocontida, sem
 # depender de outra tela nem de `src/dashboard/filters.py`, que está sendo
 # descontinuado tela por tela pela ADR 0021).
 # ---------------------------------------------------------------------------

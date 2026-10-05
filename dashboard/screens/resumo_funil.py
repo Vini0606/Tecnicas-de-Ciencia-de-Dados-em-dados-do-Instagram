@@ -611,7 +611,7 @@ def _acao_recomendada(gargalo: str | None, negatividade_em_alta: bool) -> dict |
             "texto": (
                 f"O gargalo identificado em {_NOMES_GARGALO[gargalo]} está "
                 "relacionado ao formato/tema do conteúdo produzido -- vale "
-                "revisar a fila de temas priorizados e os formatos de Reel."
+                "revisar a fila de pautas priorizadas e os formatos de Reel."
             ),
             "alvo": _ACAO_PRODUZIR,
             "label_botao": f"Ver {_LABEL_TELA_PRODUZIR}",

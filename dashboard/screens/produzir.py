@@ -14,20 +14,16 @@ funções puras nomeadas abaixo, testadas em
 Streamlit sobre o resultado dessas funções, nunca calcula nada sozinho (mesmo
 padrão da Tela 1).
 
-ADR 0024 acrescentou uma seção "Evidência histórica de desempenho" logo
-ANTES do rodapé, depois da prova (fila + cartões) -- puramente aditiva: zero
-mudança na lógica de recomendação acima (fila de prioridade, cartões de
-formato, recomendação principal), que continua baseada só no snapshot atual
-de `governor_clusters` (reel-only). ADR 0026 / issue #154 migrou essa seção
-INTEIRA de volta para o Resumo (vira a "prova" de lá) -- aqui ficou só um
-link "Ver evidência completa no Resumo" no lugar onde ela estava. A lógica
-de dado (`load_posts_content()`, agregação por dia, `quebrar_em_segmentos`)
-continua intocada, só a tela que a renderiza mudou.
+Histórico: a ADR 0024 acrescentou aqui uma seção "Evidência histórica de
+desempenho" e a ADR 0026 / issue #154 a migrou para o Resumo, deixando um link
+"Ver evidência completa no Resumo". A ADR 0031 removeu a evidência do Resumo
+(substituída por linhas mensais em "Comparar perfis"), então o link também
+saiu desta tela.
 
 ADR 0026 / issue #154 também trouxe para cá 2 dos 4 antigos "Destaques da
 execução" do Resumo -- "Melhor post" e "Alto potencial, pouco publicado" --
 portados do Resumo (migrados para pautas na issue #191), posicionados logo depois
-de "Formatos de Reel" e antes do link de volta ao Resumo: ambas são
+de "Formatos de Reel": ambas são
 perguntas de "o que produzir", não de "como estamos indo" (ver ADR 0021).
 
 ADR 0028 / issue #166 acrescentou um filtro de prioridade (botão único --
@@ -59,8 +55,8 @@ das lógicas dependentes da fila (recomendação principal, pauta prioritária
 ajustada, destaque "Alto potencial, pouco publicado") estão nas docstrings das
 respectivas funções: todas passaram a operar sobre pautas, e pautas
 degeneradas ("sem assunto definido") nunca são recomendadas. Grupos de
-comentários (modelo de grupos de comentários) saem desta tela -- ganham seção
-própria na issue #192.
+comentários (modelo de grupos de comentários) saíram da fila e ganharam seção
+própria, "Maiores grupos de comentários" (issue #192).
 """
 
 from __future__ import annotations
@@ -1112,9 +1108,8 @@ def render() -> None:
                 )
 
     # ---- Destaques (ADR 0026 / issue #154) ----
-    # Posicionados logo depois de "Formatos de Reel" e antes do link de
-    # volta ao Resumo -- exatamente onde a evidência histórica estava (ver
-    # docstring do módulo).
+    # Posicionados logo depois de "Formatos de Reel" (ver docstring do
+    # módulo).
     st.markdown("#### Destaques")
     col1, col2 = st.columns(2)
 
@@ -1153,11 +1148,5 @@ def render() -> None:
                 f"**{pauta['pauta']}** -- {_fmt_pct(pauta['proporcao_positivo'])} positivo, "
                 f"{int(pauta['volume_reels'])} reel(s) deste governador."
             )
-
-    # ---- Link de volta (ADR 0026 / issue #154) ----
-    # A evidência histórica de desempenho (seletores de tipo/métrica +
-    # gráfico + filtro de calendário próprio) migrou inteira pro Resumo, que
-    # vira a "prova" de lá -- zero cópia aqui.
-    st.caption("Ver evidência completa no Resumo.")
 
     footnote()
