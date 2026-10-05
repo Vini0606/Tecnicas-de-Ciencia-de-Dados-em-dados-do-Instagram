@@ -524,7 +524,7 @@ uv run python scripts/run_governor_scorecard.py               # Escore composto 
 
 `governor_nsm`, `topic_priority_score`, `governor_discourse_topics` e `governor_profile_clusters_engagement` já saem de `pipeline.py --run-modeling` / `scripts/run_modeling.py` — não precisam de script separado. `scripts/run_profile_clustering_engagement.py` continua existindo só para re-rodar esse estágio isolado (ex.: depois de um ajuste que só afeta a clusterização de perfil), sem repetir toda a modelagem determinística.
 
-`governor_growth_metrics` alimenta só os dois KPIs de crescimento (CMGR de audiência e retenção de sentimento positivo) da sub-aba NSM do Resumo (`dashboard/core/data.py::load_growth_metrics()`), hoje marcados como ilustrativos por falta de histórico. `governor_scorecard` e `content_topic_priority_score` são lidas pela sub-aba Scorecard e pela fila de pautas de "O que produzir", respectivamente.
+`governor_growth_metrics` (CMGR de audiência e retenção de sentimento positivo) segue gerada pela pipeline, mas hoje sem consumidor no dashboard: os KPIs de crescimento que a sub-aba NSM do Resumo exibia foram removidos (`dashboard/core/data.py::load_growth_metrics()` permanece disponível). `governor_scorecard` e `content_topic_priority_score` são lidas pela sub-aba Scorecard e pela fila de pautas de "O que produzir", respectivamente.
 
 #### UGC de menções (ADR 0020, Ficha 8 / issue #93)
 
