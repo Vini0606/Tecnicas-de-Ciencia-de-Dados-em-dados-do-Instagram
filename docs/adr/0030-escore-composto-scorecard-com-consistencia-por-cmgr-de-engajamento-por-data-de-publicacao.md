@@ -22,8 +22,9 @@ estabelecido que métricas de conteúdo devem usar data de publicação, não ex
 
 ## Decisão
 
-A Consistência do Scorecard é o **CMGR de engajamento por data de publicação** (coluna nova
-`cmgr_engajamento_publicacao`), distinto do **CMGR de audiência** (seguidores entre coletas, que continua em
+A Consistência do Scorecard é o **CMGR de engajamento por data de publicação** (gravado na coluna
+`consistencia` de `governor_scorecard`; a ideia inicial de uma coluna `cmgr_engajamento_publicacao` em
+`governor_growth_metrics` não foi adotada), distinto do **CMGR de audiência** (seguidores entre coletas, que continua em
 `governor_growth_metrics` e fica fora do escore enquanto for pendente).
 
 Método, com parâmetros fixos nesta decisão:
@@ -50,3 +51,23 @@ tabela Gold `governor_scorecard` declarada em `src/schemas_delta.py`; o dashboar
 - Quando o CMGR de audiência acumular histórico confiável, ele pode virar uma sexta dimensão ou substituir a
   quinta — decisão a reabrir então.
 - Reverter exigiria recalcular a tabela e reexplicar o ranking, por isso o registro.
+
+## Como ficou implementado (conferência no fechamento da spec #182, issue #193)
+
+A implementação (`src/modeling/governor_scorecard.py`, issue #184) seguiu a decisão acima. Detalhes que a
+decisão deixava em aberto, registrados aqui sem mudar nenhum parâmetro:
+
+- **Universo.** O escore é calculado sobre os perfis de `governor_engagement`; no dado de 2026-10-04 são **26**
+  governadores (a Silver filtra governadores removidos de `governadores.xlsx`), não os 27 citados no contexto
+  desta ADR e nos títulos da spec.
+- **Consistência pendente em todos os perfis hoje.** A Silver só tem ~226 posts de ago/set-2026; nenhum perfil
+  chega a 4 meses válidos com pelo menos 3 posts maduros. O escore vigente é, portanto, a média das **4
+  dimensões** restantes (peso 0,25 cada); com as 5 dimensões o peso seria 0,20. Isso muda sozinho à medida que
+  a Silver acumular meses de publicação, sem alterar código.
+- **Escore e ranking nulos.** Perfil com menos de 4 das 5 dimensões fica sem escore e sem ranking (um escore de
+  2-3 dimensões enganaria). Amplitude zero numa dimensão normaliza para 50, não 0 nem 100.
+- **Alcance e Profundidade só com reels**, e a dimensão Alcance é rotulada "reproduções (plays)" (`videoPlayCount`).
+  Posts de feed e reels se sobrepõem na Silver, então o CMGR de engajamento deduplica por `id` antes de agregar.
+- **Onde roda.** Estágio final de `run_deterministic_modeling` (`pipeline.py --run-modeling` /
+  `scripts/run_modeling.py`) e, isolado, `scripts/run_governor_scorecard.py`. A Lambda `model` ainda **não**
+  roda este estágio (ver ponto em aberto no README).

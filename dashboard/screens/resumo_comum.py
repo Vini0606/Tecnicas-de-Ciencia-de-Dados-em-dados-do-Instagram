@@ -84,10 +84,10 @@ def _filtrar_por_governador_ou_todos(
     (ADR 0027 / issue #161) -- senão delega a `_filtrar_por_governador`.
 
     Uso restrito de propósito: só onde "todos os governadores juntos, sem
-    distinguir" já é a semântica correta por construção -- hoje só o
-    conteúdo do gráfico de evidência (`_conteudo_do_governador_por_tipo`),
-    que soma/conta por dia sobre todas as linhas recebidas de qualquer
-    forma. NUNCA usar nos pontos que fazem `.iloc[0]` esperando exatamente 1
+    distinguir" já é a semântica correta por construção -- antes só o
+    conteúdo do gráfico de evidência (removido do Resumo pela ADR 0031), que
+    somava/contava por dia sobre todas as linhas recebidas de qualquer
+    forma; hoje sem consumidor em produção. NUNCA usar nos pontos que fazem `.iloc[0]` esperando exatamente 1
     linha de snapshot por governador (KPIs de perfil/crescimento) -- esses
     têm seu próprio caminho de agregação explícito (soma ou média simples
     entre governadores) em `render()`, para não silenciosamente pegar só o

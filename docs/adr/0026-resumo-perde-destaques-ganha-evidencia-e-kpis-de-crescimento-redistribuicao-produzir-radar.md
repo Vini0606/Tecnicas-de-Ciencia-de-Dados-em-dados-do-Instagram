@@ -2,6 +2,13 @@
 status: accepted
 ---
 
+> **Nota (superseded parcial):** a seção de "Evidência histórica de desempenho" que esta ADR trouxe para o
+> Resumo foi removida de lá pela ADR
+> [0031](0031-resumo-em-sub-abas-funil-como-sub-aba-e-evidencia-substituida-por-linhas-em-comparar-perfis.md)
+> (via a ADR [0029](0029-evidencia-desempenho-tres-graficos-paralelos-sem-filtro-de-periodo.md), também
+> superada); o link "Ver evidência completa no Resumo" em "O que produzir" deixou de existir. Os KPIs de
+> crescimento e a redistribuição dos destaques seguem valendo.
+
 # Resumo perde os destaques narrativos, ganha a evidência histórica e 2 KPIs de crescimento; destaques redistribuídos para Produzir e Radar
 
 ## Contexto

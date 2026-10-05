@@ -38,7 +38,10 @@ _Avoid_: Título, headline, insight.
 Rótulo de negócio para um cluster de conteúdo ou de perfil (ex.: "curto, converte"; "alto alcance,
 baixa conversão"). O rótulo é curado a partir do perfil real do cluster, nunca o ID numérico bruto —
 `cluster_label == -1` (ruído do DBSCAN) vira "casos atípicos / virais", nunca aparece como "-1".
-_Avoid_: Cluster (termo técnico, não aparece na interface do usuário final).
+Exceção: na análise de reels de "Comparar perfis" o analista escolhe entre "Cluster 1", "Cluster 2"… (numerados
+por tamanho, nunca pelo id bruto), cada um com nome e descrição curados, sempre sob o selo "agrupamento
+experimental".
+_Avoid_: Cluster (termo técnico; só aparece na interface na análise de reels de "Comparar perfis", numerado).
 
 **Selo de prioridade**:
 Classificação em 3 faixas (Alta / Média / Cuidado) de uma pauta na fila de "O que
@@ -82,21 +85,24 @@ _Avoid_: Reach, visualizações, views (reservados para o dado real do funil, ve
 
 **Escore composto** (Scorecard):
 Nota de 0 a 100 de cada governador, soma ponderada (pesos iguais) de cinco dimensões normalizadas
-min-máx entre os 27 perfis: Alcance, Ativação, Qualidade, Profundidade e Consistência. É relativo ao
-grupo dos 27 — mede posição entre pares, não desempenho absoluto. Alcance usa "reproduções" (plays),
-nunca "visualizações únicas".
+min-máx entre os perfis: Alcance, Ativação, Qualidade, Profundidade e Consistência. É relativo ao
+grupo de perfis — mede posição entre pares, não desempenho absoluto. Alcance usa "reproduções" (plays),
+nunca "visualizações únicas". Uma dimensão sem dado suficiente fica "pendente" e o escore usa as demais, com
+pesos iguais renormalizados.
 _Avoid_: Índice (genérico), ranking (o ranking é a ordenação pelo escore, não o escore).
 
 **CMGR de engajamento** / **CMGR de audiência**:
 Duas taxas compostas mensais distintas. A de engajamento mede a tendência do engajamento médio por post
 ao longo dos meses de publicação (base da dimensão Consistência do Escore composto). A de audiência mede o
 crescimento de seguidores entre coletas e hoje está pendente por histórico insuficiente. Nunca chamar a de
-engajamento de "crescimento de audiência" (ver ADR 0030).
+engajamento de "crescimento de audiência" (ver ADR 0030). Enquanto o histórico de publicação for curto, o CMGR
+de engajamento fica "pendente" e a Consistência não entra no escore.
 _Avoid_: CMGR sozinho (ambíguo entre os dois).
 
 **Engajamento qualificado** (rótulo de usuário para NSM/North Star Metric):
 Nome exibido ao analista de assessoria para a NSM — comentários positivos sobre comentários totais,
-ponderado pelo alcance-proxy. Validada contra os 27 perfis reais (ADR 0020, verificação de
+ponderado pelo alcance-proxy. Na sub-aba NSM aparece como índice de 0 a 100 (min-máx entre os perfis),
+contrastado com o ranking por engajamento bruto (total de curtidas e comentários). Validada contra os 27 perfis reais (ADR 0020, verificação de
 2026-09-19): o ranking por NSM muda de posição para 25 dos 27 perfis frente ao ranking por
 engajamento bruto — deixou de levar o selo "em validação" no dashboard.
 _Avoid_: NSM (sigla técnica, nunca aparece sozinha na interface do usuário final; ok em código/ADR).

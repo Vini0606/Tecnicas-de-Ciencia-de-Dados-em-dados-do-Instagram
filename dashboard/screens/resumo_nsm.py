@@ -1,8 +1,9 @@
-"""Sub-aba NSM do Resumo (ADR 0031 / issue #183) -- provisória nesta fatia.
+"""Sub-aba NSM do Resumo (ADR 0031 / issues #183 e #187).
 
-Recebe, sem alteração de comportamento, a frase de decisão semafórica e as
-linhas de KPIs (4 existentes + 2 de crescimento) que o Resumo tinha antes de
-virar contêiner de sub-abas. A issue #187 redesenha esta sub-aba.
+Herdou do Resumo, antes de virar contêiner de sub-abas, a frase de decisão
+semafórica e as linhas de KPIs (4 existentes + 2 de crescimento); a issue #187
+acrescentou os cartões de NSM, melhor aprovação e maior rejeição e o contraste
+dos rankings top 10 por engajamento bruto x qualificado (NSM como índice 0-100).
 
 Toda a lógica de decisão vive em funções puras nomeadas abaixo, testadas em
 `tests/test_dashboard_screens_resumo_nsm.py`; `render()` só orquestra I/O do
