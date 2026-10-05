@@ -54,7 +54,7 @@ frase de decisão e os KPIs, e o Scorecard mostrava "em construção"): as fatia
 pelas versões finais abaixo, e a lacuna temporária das Consequências foi fechada pelos gráficos de linha de
 Comparar perfis (issue #185). Decisões tomadas durante as ondas que esta ADR não previa e que passam a valer:
 
-- **Sub-aba NSM (issue #187).** Mantém a frase de decisão e os KPIs e ganha cartões (NSM do selecionado, melhor
+- **Sub-aba NSM (issue #187).** Ganha cartões (NSM do selecionado, melhor
   aprovação, maior rejeição) e o contraste de dois rankings top 10 com etiquetas SUBIU/CAIU. O selecionado é
   destacado mesmo fora do top 10. O NSM de `governor_nsm` é uma razão sem teto, então é **exibido como índice de
   0 a 100 por normalização min-máx entre os perfis com NSM** (100 = líder; mesma normalização do Scorecard); o
@@ -64,6 +64,14 @@ Comparar perfis (issue #185). Decisões tomadas durante as ondas que esta ADR n�
   *fallback* até que alguém defina outra. Contra o dado de 2026-10-04 (26 perfis) o ranking por NSM diverge
   desse bruto em 20 perfis. Em "Todos os Governadores" o cartão de NSM é a média simples dos perfis e nada é
   destacado nos rankings.
+- **Funil revisado pela ADR 0032 (ajuste pós-spec).** As barras lineares deram lugar a um funil de
+  trapézios em escala logarítmica, com a taxa de passagem entre as etapas, comparativo contra a mediana
+  dos demais governadores e o Engage com o engajamento do UGC piloto. Ver
+  [ADR 0032](0032-funil-em-escala-logaritmica-com-engage-do-ugc-piloto-e-comparativo-vs-mediana.md).
+- **Sub-aba NSM sem faixa de decisão nem KPIs (ajuste pós-spec).** Na verificação visual da feature, a faixa de
+  decisão ("Recomendação"), a linha de KPIs e o bloco Crescimento (CMGR e retenção) foram removidos da sub-aba NSM,
+  que passou a mostrar só os cartões e o contraste de rankings. `governor_growth_metrics` segue gerada pela
+  pipeline, mas hoje sem consumidor no dashboard.
 - **Sub-aba Funil.** Segue o item 3 da Decisão: em "Todos" cada estágio é a média por governador considerando só
   quem tem valor positivo naquele estágio. Nenhuma ação aponta para o Funil hoje; o mecanismo de abrir uma
   sub-aba a partir de outra Tela (`session_state`) existe mas não é usado.

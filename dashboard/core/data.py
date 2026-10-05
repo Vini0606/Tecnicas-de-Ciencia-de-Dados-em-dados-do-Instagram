@@ -202,6 +202,17 @@ def load_growth_metrics() -> pd.DataFrame:
 
 
 @st.cache_data(ttl=_TTL_SECONDS)
+def load_ugc_mentions() -> pd.DataFrame:
+    """`governor_ugc_mentions` -- 1 linha por post de UGC do piloto (ADR 0020,
+    Ficha 8; lido pelo Funil a partir da ADR 0032). Degrada para `DataFrame`
+    vazio se a tabela ainda não existir."""
+    try:
+        return get_repository().load_ugc_mentions()
+    except FileNotFoundError:
+        return pd.DataFrame()
+
+
+@st.cache_data(ttl=_TTL_SECONDS)
 def load_governors_metadata() -> pd.DataFrame:
     """`governors_metadata` -- 1 linha por governador (nome/UF/partido)."""
     try:
