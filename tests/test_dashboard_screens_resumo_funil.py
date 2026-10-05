@@ -342,14 +342,55 @@ def test_username_de_url_normaliza_caixa_barra_e_query():
     assert funil._username_de_url(float("nan")) == ""
 
 
-def test_engage_por_governador_soma_so_posts_organicos_e_conta_posts():
+def test_engage_por_governador_mediana_por_post_so_organicos_e_conta_posts():
     out = funil._engage_por_governador(_df_ugc()).set_index("username")
-    # gov_a: (10+1) + (20+2) = 33, 2 posts; caixa do username normalizada
-    assert out.loc["gov_a", "engage"] == 33
+    # gov_a: posts de 11 e 22 -> mediana 16,5, 2 posts; caixa normalizada
+    assert out.loc["gov_a", "engage"] == 16.5
     assert out.loc["gov_a", "n_posts"] == 2
-    # gov_b: a publi paga (is_organic=False) fica de fora -> só 100+10
+    # gov_b: a publi paga (is_organic=False) fica de fora -> só o post de 110
     assert out.loc["gov_b", "engage"] == 110
     assert out.loc["gov_b", "n_posts"] == 1
+
+
+def test_engage_por_governador_post_viral_nao_domina_a_mediana():
+    df = pd.DataFrame(
+        {
+            "governor_username": ["gov_x"] * 5,
+            "likesCount": [29, 108, 53, 45, 13732],
+            "commentsCount": [0, 6, 2, 6, 415],
+            "is_organic": [True] * 5,
+        }
+    )
+    out = funil._engage_por_governador(df).set_index("username")
+    # soma seria 14.396; a mediana por post é 55
+    assert out.loc["gov_x", "engage"] == 55
+    assert out.loc["gov_x", "n_posts"] == 5
+
+
+def test_engage_por_governador_ignora_linha_sem_username():
+    df = _df_ugc()
+    df.loc[0, "governor_username"] = None
+    out = funil._engage_por_governador(df).set_index("username")
+    assert out.loc["gov_a", "n_posts"] == 1
+
+
+def test_engage_mediana_zero_e_valor_valido_e_nao_sem_dado():
+    df = pd.DataFrame(
+        {
+            "governor_username": ["gov_z", "gov_z", "gov_y"],
+            "likesCount": [0, 0, 10],
+            "commentsCount": [0, 0, 0],
+            "is_organic": [True, True, True],
+        }
+    )
+    assert funil._engage_para_selecao("https://instagram.com/gov_z/", df) == (0.0, 2)
+    html = funil._html_engage(0.0, 2, None, is_todos=False)
+    assert "sem dado" not in html and "<b>0</b>" in html
+    # sem nenhum post de UGC, aí sim "sem dado"
+    assert "sem dado" in funil._html_engage(0.0, 0, None, is_todos=False)
+    # Todos: a média entre governadores com UGC inclui a mediana 0
+    valor, _ = funil._engage_para_selecao(TODOS_OS_GOVERNADORES, df)
+    assert valor == 5.0
 
 
 def test_engage_por_governador_vazio_ou_sem_colunas_devolve_vazio():
@@ -361,7 +402,7 @@ def test_engage_por_governador_vazio_ou_sem_colunas_devolve_vazio():
 
 def test_engage_para_selecao_governador_unico_e_sem_ugc():
     assert funil._engage_para_selecao("https://instagram.com/gov_a/", _df_ugc()) == (
-        33.0,
+        16.5,
         2,
     )
     assert funil._engage_para_selecao(
@@ -380,8 +421,8 @@ def test_engage_para_selecao_governador_unico_e_sem_ugc():
 
 def test_engage_para_selecao_todos_e_media_por_governador_com_ugc():
     valor, n_posts = funil._engage_para_selecao(TODOS_OS_GOVERNADORES, _df_ugc())
-    # gov_a 33, gov_b 110, gov_c 5 -> média simples (não ponderada por posts)
-    assert valor == (33 + 110 + 5) / 3
+    # medianas por post: gov_a 16,5, gov_b 110, gov_c 5 -> média simples entre governadores
+    assert valor == (16.5 + 110 + 5) / 3
     assert n_posts is None
     assert funil._engage_para_selecao(TODOS_OS_GOVERNADORES, pd.DataFrame()) == (
         0.0,
@@ -469,7 +510,7 @@ def test_estagios_com_engage_por_governador_junta_engage_pelo_username():
         pd.DataFrame(),
         _df_ugc(),
     ).set_index("url")
-    assert base.loc["https://www.instagram.com/gov_a/", "engage"] == 33
+    assert base.loc["https://www.instagram.com/gov_a/", "engage"] == 16.5
     assert base.loc["https://www.instagram.com/gov_z/", "engage"] == 0
 
 
@@ -511,7 +552,8 @@ def test_html_funil_mostra_selos_de_taxa_gargalo_e_bloco_do_engage():
     assert "0,10% avançam" in html
     assert html.count("gargalo") == 1
     assert "Engage · Criar" in html and "piloto" in html
-    assert "3 posts de terceiros" in html
+    assert "3 conteúdos de UGC" in html
+    assert "mediana de curtidas + comentários por post" in html
     # sem governador selecionado: nenhuma seta de comparação e legenda explica
     assert "▲" not in html  # o selo de conversão usa só ▼
     assert "aparece ao selecionar um governador" in html

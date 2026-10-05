@@ -59,7 +59,9 @@ texto completo):
    leitura de tabela `ugc_*` (a barra de Engage era um texto fixo "em
    construção"). `governor_ugc_mentions` passou a existir com dado real
    (piloto de 2026-09-19), então o Engage agora mostra o engajamento do UGC:
-   `SUM(likesCount + commentsCount)` dos posts ORGÂNICOS do governador
+   a MEDIANA de `likesCount + commentsCount` por post, entre os posts ORGÂNICOS
+   do governador (a soma foi descartada: um único post viral chegou a
+   concentrar 98% dela, ver ADR 0032)
    (publi paga fica de fora, ver `_engage_por_governador`). Limitações
    declaradas na tela: o piloto coletou no máximo 5 posts por governador,
    então o número é o engajamento de uma AMOSTRA limitada (selo "piloto"),
@@ -169,8 +171,8 @@ _ACAO_PRODUZIR = "produzir"
 _ACAO_RADAR = "radar"
 
 _NOTA_FUNIL = (
-    'Funil COBRA-RACE · "Criar" = engajamento do UGC do piloto (até 5 posts '
-    "de terceiros por governador) · Reach baseado em Reels."
+    'Funil COBRA-RACE · "Criar" = mediana de engajamento por post de UGC do piloto '
+    "(até 5 posts de terceiros por governador) · Reach baseado em Reels."
 )
 
 # Teto de posts de UGC por governador na coleta do piloto (ADR 0020, Ficha 8):
@@ -349,22 +351,24 @@ def _username_de_url(url) -> str:
 
 
 def _engage_por_governador(df_ugc: pd.DataFrame) -> pd.DataFrame:
-    """`username`/`engage`/`n_posts` por governador: `engage` = soma de
-    `likesCount + commentsCount` dos posts ORGÂNICOS (publi paga é filtrada
-    antes de somar); `n_posts` = quantos posts orgânicos entraram. Vazio
-    (colunas fixas) se a tabela estiver vazia ou sem as colunas esperadas."""
+    """`username`/`engage`/`n_posts` por governador: `engage` = MEDIANA de
+    `likesCount + commentsCount` por post, entre os posts ORGÂNICOS (publi
+    paga é filtrada antes); `n_posts` = quantos posts orgânicos entraram.
+    Mediana, e não soma: com no máximo 5 posts por governador, um único post
+    viral domina a soma (ADR 0032). Vazio (colunas fixas) se a tabela estiver
+    vazia ou sem as colunas esperadas."""
     colunas = ["username", "engage", "n_posts"]
     obrigatorias = {"governor_username", "likesCount", "commentsCount"}
     if df_ugc.empty or not obrigatorias <= set(df_ugc.columns):
         return pd.DataFrame(columns=colunas)
-    df = df_ugc
+    df = df_ugc.dropna(subset=["governor_username"])
     if "is_organic" in df.columns:
         df = df[df["is_organic"].fillna(False).astype(bool)]
     if df.empty:
         return pd.DataFrame(columns=colunas)
     engajamento = df["likesCount"].fillna(0) + df["commentsCount"].fillna(0)
     agrupado = engajamento.groupby(df["governor_username"].astype(str).str.lower())
-    out = agrupado.agg(["sum", "count"]).reset_index()
+    out = agrupado.agg(["median", "count"]).reset_index()
     out.columns = colunas
     return out
 
@@ -373,13 +377,13 @@ def _engage_para_selecao(
     governor_url: str, df_ugc: pd.DataFrame
 ) -> tuple[float, int | None]:
     """`(engage, n_posts)` para a seleção do seletor único. Governador único:
-    engajamento e nº de posts de UGC dele (`(0.0, 0)` sem UGC). Todos:
-    MÉDIA por governador, só entre quem tem UGC (> 0, mesma regra dos demais
+    mediana por post e nº de posts de UGC dele (`(0.0, 0)` sem UGC). Todos:
+    MÉDIA por governador (da mediana por post), só entre quem tem UGC (> 0, mesma regra dos demais
     estágios), com `n_posts = None`."""
     por_gov = _engage_por_governador(df_ugc)
     if governor_url == TODOS_OS_GOVERNADORES:
-        serie = por_gov["engage"][por_gov["engage"] > 0] if not por_gov.empty else []
-        return (float(serie.mean()) if len(serie) else 0.0, None)
+        media = float(por_gov["engage"].mean()) if not por_gov.empty else 0.0
+        return (media, None)
     linha = por_gov[por_gov["username"] == _username_de_url(governor_url)]
     if linha.empty:
         return (0.0, 0)
@@ -855,20 +859,24 @@ def _html_selo_conversao(
 def _html_engage(
     engage: float, n_posts: int | None, dif: float | None, is_todos: bool
 ) -> str:
-    """Bloco do Engage·Criar, separado do funil (ver docstring, decisão 4)."""
-    if engage <= 0:
+    """Bloco do Engage·Criar, separado do funil (ver docstring, decisão 4).
+    O número é a MEDIANA de curtidas + comentários por post de UGC. "Sem
+    dado" = nenhum post de UGC coletado; mediana 0 é um valor válido (posts
+    sem nenhuma interação)."""
+    sem_ugc = engage <= 0 if is_todos else not n_posts
+    if sem_ugc:
         valor = "sem dado"
         detalhe = "nenhum UGC orgânico coletado para este governador"
     else:
         valor = _fmt_int_br(engage) + (f" · {_fmt_dif(dif)}" if dif is not None else "")
-        posts = (
-            "média por governador, entre quem tem UGC"
+        quantos = (
+            "média entre os governadores com UGC"
             if is_todos
-            else f"{n_posts} post{'s' if n_posts != 1 else ''} de terceiros"
+            else f"{n_posts} conteúdo{'s' if n_posts != 1 else ''} de UGC"
         )
         detalhe = (
-            f"curtidas + comentários · {posts} · amostra do piloto "
-            f"(até {_MAX_POSTS_UGC_PILOTO} posts por governador)"
+            f"mediana de curtidas + comentários por post · {quantos} · amostra do "
+            f"piloto (coleta limitada a {_MAX_POSTS_UGC_PILOTO} posts por governador)"
         )
     return (
         '<div class="f-engage-card"><i>Engage · Criar</i>'
