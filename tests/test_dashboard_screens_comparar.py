@@ -231,86 +231,6 @@ def test_montar_barras_comparativas_gera_uma_barra_por_metrica():
 
 
 # ---------------------------------------------------------------------------
-# _selecionar_par_destaque -- issue #115, user story 3 / Testing Decisions:
-# função pura de seleção do par de destaque (maior diferença positiva numa
-# métrica).
-# ---------------------------------------------------------------------------
-
-
-def _df_pares_metricas():
-    return pd.DataFrame(
-        {
-            "inputUrl": [GOV_B, GOV_C],
-            "nome": ["Gov. B", "Gov. C"],
-            "alcance_proxy": [0.5, 0.5],
-            "pct_positivo": [0.55, 0.85],
-            "frequencia": [2.0, 2.0],
-        }
-    )
-
-
-def test_selecionar_par_destaque_escolhe_maior_diferenca_positiva():
-    valores_proprio = {"alcance_proxy": 0.5, "pct_positivo": 0.5, "frequencia": 2.0}
-    destaque = comparar._selecionar_par_destaque(_df_pares_metricas(), valores_proprio)
-    assert destaque is not None
-    assert destaque["nome"] == "Gov. C"
-    assert destaque["metrica"] == "pct_positivo"
-    assert destaque["valor_par"] == 0.85
-
-
-def test_selecionar_par_destaque_none_sem_pares():
-    valores_proprio = {"alcance_proxy": 0.5, "pct_positivo": 0.5, "frequencia": 2.0}
-    assert comparar._selecionar_par_destaque(pd.DataFrame(), valores_proprio) is None
-
-
-def test_selecionar_par_destaque_none_quando_nenhum_par_supera_o_proprio():
-    df_pares = pd.DataFrame(
-        {
-            "inputUrl": [GOV_B],
-            "nome": ["Gov. B"],
-            "alcance_proxy": [0.1],
-            "pct_positivo": [0.1],
-            "frequencia": [0.5],
-        }
-    )
-    valores_proprio = {"alcance_proxy": 0.9, "pct_positivo": 0.9, "frequencia": 5.0}
-    assert comparar._selecionar_par_destaque(df_pares, valores_proprio) is None
-
-
-def test_selecionar_par_destaque_ignora_metrica_propria_ausente():
-    df_pares = pd.DataFrame(
-        {
-            "inputUrl": [GOV_B],
-            "nome": ["Gov. B"],
-            "alcance_proxy": [0.9],
-            "pct_positivo": [float("nan")],
-            "frequencia": [0.1],
-        }
-    )
-    valores_proprio = {"alcance_proxy": float("nan"), "pct_positivo": 0.5, "frequencia": 5.0}
-    # alcance_proxy do próprio é NaN (ignorado); pct_positivo do par é NaN (ignorado);
-    # frequencia: par (0.1) não supera o próprio (5.0) -- resultado é None.
-    assert comparar._selecionar_par_destaque(df_pares, valores_proprio) is None
-
-
-def test_frase_destaque_com_par():
-    destaque = {
-        "nome": "Gov. C",
-        "rotulo_metrica": "% positivo",
-        "tipo": "pct",
-        "valor_par": 0.85,
-    }
-    frase = comparar._frase_destaque(destaque)
-    assert "Gov. C" in frase
-    assert "85.0%" in frase
-
-
-def test_frase_destaque_none():
-    frase = comparar._frase_destaque(None)
-    assert "Nenhum par" in frase
-
-
-# ---------------------------------------------------------------------------
 # _nivel_decisao / _frase_decisao
 # ---------------------------------------------------------------------------
 
@@ -397,3 +317,173 @@ def test_montar_metricas_por_governador_sem_sentimento_nao_quebra():
     resultado = comparar._montar_metricas_por_governador(df_engagement, pd.DataFrame(), pd.DataFrame())
     assert resultado["pct_positivo"].isna().all()
     assert resultado["nome"].iloc[0] == "https://www.instagram.com/gov_a/"
+
+
+# ---------------------------------------------------------------------------
+# Linhas mensais (issue #185) -- valor medio por post, por governador e mes;
+# media/mediana entre governadores que postaram no mes; mes corrente fora.
+# ---------------------------------------------------------------------------
+
+HOJE = pd.Timestamp("2026-06-15")
+
+
+def _df_conteudo():
+    # A: jan (2 posts: 10, 30 -> media 20), fev (1 post: 100)
+    # B: jan (1 post: 40), mar (1 post: 60)
+    # C: so junho (mes corrente, deve sumir)
+    return pd.DataFrame(
+        {
+            "inputUrl": [GOV_A, GOV_A, GOV_A, GOV_B, GOV_B, GOV_C],
+            "data_hora": pd.to_datetime(
+                [
+                    "2026-01-03",
+                    "2026-01-20",
+                    "2026-02-10",
+                    "2026-01-05",
+                    "2026-03-01",
+                    "2026-06-02",
+                ]
+            ),
+            "likesCount": [10, 30, 100, 40, 60, 999],
+        }
+    )
+
+
+def _mensal():
+    return comparar._media_mensal_por_governador(_df_conteudo(), "likesCount", hoje=HOJE)
+
+
+def test_media_mensal_e_media_por_post_nao_soma():
+    m = _mensal()
+    chave_a = comparar._normalize_url(pd.Series([GOV_A])).iloc[0]
+    a = m[m["chave"] == chave_a].sort_values("mes")
+    assert a["valor"].tolist() == [20.0, 100.0]
+
+
+def test_media_mensal_exclui_mes_corrente():
+    m = _mensal()
+    assert m["mes"].max() == pd.Timestamp("2026-03-01")
+    assert len(m) == 4  # A:jan,fev  B:jan,mar
+
+
+def test_media_mensal_vazio_sem_coluna_ou_sem_dado():
+    assert comparar._media_mensal_por_governador(pd.DataFrame(), "likesCount", hoje=HOJE).empty
+    assert comparar._media_mensal_por_governador(_df_conteudo(), "videoPlayCount", hoje=HOJE).empty
+    df_nan = _df_conteudo().assign(videoPlayCount=float("nan"))
+    assert comparar._media_mensal_por_governador(df_nan, "videoPlayCount", hoje=HOJE).empty
+
+
+def test_serie_governador_so_meses_com_post():
+    serie = comparar._serie_governador(_mensal(), GOV_B)
+    assert serie["mes"].tolist() == [pd.Timestamp("2026-01-01"), pd.Timestamp("2026-03-01")]
+    assert serie["valor"].tolist() == [40.0, 60.0]
+
+
+def test_serie_governador_vazia_para_quem_nao_postou():
+    assert comparar._serie_governador(_mensal(), GOV_D).empty
+
+
+def test_media_mediana_ignora_quem_nao_postou_no_mes():
+    s = comparar._serie_media_mediana(_mensal()).set_index("mes")
+    # jan: A=20, B=40 -> media 30, mediana 30 (par); fev: so A; mar: so B
+    assert s.loc[pd.Timestamp("2026-01-01"), "media"] == 30.0
+    assert s.loc[pd.Timestamp("2026-01-01"), "mediana"] == 30.0
+    assert s.loc[pd.Timestamp("2026-02-01"), "media"] == 100.0
+    assert s.loc[pd.Timestamp("2026-03-01"), "mediana"] == 60.0
+
+
+def test_media_mediana_impar_difere_da_media():
+    df = pd.DataFrame(
+        {
+            "chave": ["a", "b", "c"],
+            "mes": [pd.Timestamp("2026-01-01")] * 3,
+            "valor": [1.0, 2.0, 12.0],
+        }
+    )
+    s = comparar._serie_media_mediana(df)
+    assert s["media"].iloc[0] == 5.0
+    assert s["mediana"].iloc[0] == 2.0
+
+
+def test_media_mediana_par_de_governadores():
+    df = pd.DataFrame(
+        {
+            "chave": ["a", "b", "c", "d"],
+            "mes": [pd.Timestamp("2026-01-01")] * 4,
+            "valor": [1.0, 2.0, 4.0, 13.0],
+        }
+    )
+    s = comparar._serie_media_mediana(df)
+    assert s["media"].iloc[0] == 5.0
+    assert s["mediana"].iloc[0] == 3.0
+
+
+def test_serie_media_mediana_vazia():
+    assert comparar._serie_media_mediana(pd.DataFrame()).empty
+
+
+def test_conteudo_por_tipo_visualizacoes_em_posts_vazio():
+    reels = _df_conteudo().assign(videoPlayCount=[1, 2, 3, 4, 5, 6])
+    posts = _df_conteudo()
+    conteudo = comparar._conteudo_por_tipo(reels, posts, comparar.TIPO_POSTS)
+    assert comparar._media_mensal_por_governador(conteudo, "videoPlayCount", hoje=HOJE).empty
+
+
+def test_conteudo_por_tipo_ambos_concatena():
+    conteudo = comparar._conteudo_por_tipo(_df_conteudo(), _df_conteudo(), comparar.TIPO_AMBOS)
+    assert len(conteudo) == 12
+
+
+def test_figura_tres_linhas_com_legenda_e_estilos_distintos():
+    m = _mensal()
+    fig = comparar._figura_linhas_mensais(
+        comparar._serie_governador(m, GOV_A),
+        comparar._serie_media_mediana(m),
+        "Ambos",
+        "Curtidas",
+        tema="light",
+    )
+    assert fig is not None
+    assert [t.name for t in fig.data] == ["Governador", "Média de todos", "Mediana de todos"]
+    assert len({t.line.dash for t in fig.data}) == 3
+    assert len({t.line.color for t in fig.data}) == 3
+    assert fig.layout.showlegend is True
+
+
+def test_figura_quebra_linha_em_mes_sem_post():
+    m = _mensal()
+    fig = comparar._figura_linhas_mensais(
+        comparar._serie_governador(m, GOV_B),
+        comparar._serie_media_mediana(m),
+        "Ambos",
+        "Curtidas",
+        tema="light",
+    )
+    gov = fig.data[0]
+    assert pd.isna(gov.y[1])  # fev: B nao postou
+    assert gov.connectgaps is False
+
+
+def test_figura_none_quando_sem_dado_de_todos():
+    fig = comparar._figura_linhas_mensais(
+        pd.DataFrame(columns=["mes", "valor"]), pd.DataFrame(), "Posts", "Curtidas", tema="dark"
+    )
+    assert fig is None
+
+
+def test_fmt_ptbr():
+    assert comparar._fmt_ptbr(1234.5) == "1.234,5"
+    assert comparar._fmt_ptbr(float("nan")) == "—"
+
+
+def test_decisao_inalterada_pelo_novo_codigo():
+    barras = comparar._montar_barras_comparativas(
+        {"alcance_proxy": 0.9, "pct_positivo": 0.5, "frequencia": 2.0},
+        {
+            "alcance_proxy": pd.Series([0.5]),
+            "pct_positivo": pd.Series([0.5]),
+            "frequencia": pd.Series([2.0]),
+        },
+    )
+    assert comparar._nivel_decisao(barras) == "good"
+    assert "acima da média dos pares" in comparar._frase_decisao("G", barras)

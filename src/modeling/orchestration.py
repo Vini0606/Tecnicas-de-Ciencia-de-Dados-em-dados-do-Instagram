@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 import pandas as pd
 from bertopic import BERTopic
 
+from src.features.gold.content_topic_priority_scorer import ContentTopicPriorityScorer
 from src.features.gold.model_enricher import ModelEnricher
 from src.features.gold.nsm_scorer import NsmScorer
 from src.features.gold.topic_priority_scorer import TopicPriorityScorer
@@ -16,7 +17,13 @@ from src.logging_setup import attach_run_log_handler
 from src.modeling.checkpoint import save_checkpoint
 from src.modeling.clustering import cluster_feed_posts, cluster_reels
 from src.modeling.config import GeminiRefinerConfig, ModelingConfig
-from src.modeling.gemini_refiner import apply_gemini_refinement
+from src.modeling.gemini_refiner import (
+    DEGENERATE_TOPIC_LABEL,
+    DISCOURSE_PROMPT_TEMPLATE,
+    apply_gemini_refinement,
+    is_degenerate_topic,
+)
+from src.modeling.governor_scorecard import GovernorScorecardScorer
 from src.modeling.pca import reduce_dimensions
 from src.modeling.post_performance import run_post_performance_stage
 from src.modeling.preprocessing import preprocess_comments
@@ -307,7 +314,7 @@ def run_deterministic_modeling(
     logger.info("[TÓPICOS-DISCURSO] Ajustando BERTopic sobre legenda+transcrição...")
     df_discourse_source = pd.concat(discourse_frames, ignore_index=True)
     docs_discourse = df_discourse_source["text"].fillna("").tolist()
-    _discourse_topic_model, _topics_discurso, _probs_discurso, document_info_discurso = (
+    discourse_topic_model, _topics_discurso, _probs_discurso, document_info_discurso = (
         model_topics(docs_discourse, config.discourse_topics)
     )
     df_discourse_final = _merge_topic_info(df_discourse_source, document_info_discurso)
@@ -317,6 +324,23 @@ def run_deterministic_modeling(
         run_id,
         generated_at=generated_at,
     )
+
+    # Issue #190 (spec #182): Score ICE por pauta -- provisorio, com os rotulos
+    # brutos de discurso; recalculado em `refine_discourse_topics_with_gemini`.
+    logger.info("[SCORE-ICE-PAUTAS] Calculando priorizacao de pautas...")
+    try:
+        content_scorer = ContentTopicPriorityScorer()
+        content_scorer.write(
+            content_scorer.score(df_comments_final, df_discourse_final),
+            config.gold_content_topic_priority_score_path,
+            run_id,
+            generated_at=generated_at,
+        )
+    except Exception:
+        logger.exception(
+            "[SCORE-ICE-PAUTAS] Falha ao calcular/persistir -- etapa pulada, "
+            "pipeline segue com os demais estagios."
+        )
 
     logger.info(
         "[PERFORMANCE-POR-POST] Classificando tema das captions e treinando "
@@ -368,6 +392,28 @@ def run_deterministic_modeling(
             "pulada, pipeline segue com os demais estágios."
         )
 
+    # ADR 0030 / issue #184: Escore composto (Scorecard) dos governadores --
+    # estágio pós-modelagem próprio, roda por último (depende só de insumos
+    # já recebidos aqui: engajamento, reels, posts e `df_comments_final`).
+    # Mesmo tratamento de falha dos blocos acima: não derruba o que já rodou.
+    logger.info("[SCORECARD] Calculando Escore composto dos governadores...")
+    try:
+        scorecard_scorer = GovernorScorecardScorer()
+        df_scorecard = scorecard_scorer.score(
+            df_engagement, df_reels, df_posts, df_comments_final
+        )
+        scorecard_scorer.write(
+            df_scorecard,
+            config.gold_governor_scorecard_path,
+            run_id,
+            generated_at=generated_at,
+        )
+    except Exception:
+        logger.exception(
+            "[SCORECARD] Falha ao calcular/persistir -- etapa pulada, pipeline "
+            "segue com os demais estágios."
+        )
+
     # Checkpoint incondicional (ver ADR 0003): sem ele, o refinamento via
     # Gemini só poderia rodar no mesmo processo que acabou de ajustar o
     # topic_model — tornar isso opcional reintroduziria a dependência do
@@ -386,6 +432,11 @@ def run_deterministic_modeling(
         embedding_model_name=config.topics.embedding_model,
         checkpoints_dir=config.checkpoints_dir,
         parent_run_id=parent_run_id,
+        # Issue #186: o refino manual via Gemini precisa recarregar o modelo
+        # de discurso (antes descartado) e seus documentos.
+        discourse_topic_model=discourse_topic_model,
+        df_discourse=df_discourse_final,
+        discourse_embedding_model_name=config.discourse_topics.embedding_model,
     )
 
     return DeterministicModelingResult(
@@ -410,6 +461,77 @@ class GeminiRefinementResult:
     run_id: str
 
 
+@dataclass
+class DiscourseRefinementResult:
+    df_discourse: pd.DataFrame
+    topic_model: BERTopic
+    run_id: str
+
+
+def refine_discourse_topics_with_gemini(
+    topic_model: BERTopic,
+    docs: list[str],
+    df_discourse: pd.DataFrame,
+    config: GeminiRefinerConfig,
+    run_id: str | None = None,
+    df_comments: pd.DataFrame | None = None,
+) -> DiscourseRefinementResult:
+    """Refina via Gemini os rótulos (`Topic`/`Name`) dos tópicos de discurso
+    (assunto das legendas, issue #186) e regrava `governor_discourse_topics`.
+
+    `df_discourse` deve ser o `df_discourse` do checkpoint (mesma ordem de
+    linhas que `docs`). O modelo inteiro é refinado (legenda e transcrição
+    compartilham o corpus), mas a pauta do dashboard só usa a legenda.
+
+    Tratamentos explícitos (decisões da issue #186): o tópico de ruído
+    (`-1`) nunca é refinado como tema -- mantém o `Name` que já tinha; o
+    tópico degenerado (sem palavra alguma, ex.: "1____") recebe
+    `DEGENERATE_TOPIC_LABEL` em vez de um nome inventado.
+
+    Se `df_comments` (comentarios de `governor_sentiment`) for passado,
+    recalcula `content_topic_priority_score` (ICE por pauta, issue #190) com
+    os rotulos refinados -- mesmo papel do recalculo do ICE de comentarios em
+    `refine_topics_with_gemini`.
+
+    Fora do pipeline automático: só o script manual `scripts/refine_topics.py`
+    chama esta função."""
+    run_id = build_run_id(run_id)
+
+    degenerate_ids = {
+        topic_id
+        for topic_id, keywords in topic_model.get_topics().items()
+        if topic_id != -1 and is_degenerate_topic(keywords)
+    }
+
+    apply_gemini_refinement(topic_model, docs, config, prompt_template=DISCOURSE_PROMPT_TEMPLATE)
+    refreshed_info = topic_model.get_document_info(docs).reset_index(drop=True)
+
+    df_refined = df_discourse.reset_index(drop=True).copy()
+    topics = refreshed_info["Topic"].values
+    names = refreshed_info["Name"].values.copy()
+    for i, topic_id in enumerate(topics):
+        if topic_id == -1:
+            names[i] = df_refined.at[i, "Name"]
+        elif topic_id in degenerate_ids:
+            names[i] = DEGENERATE_TOPIC_LABEL
+    df_refined["Topic"] = topics
+    df_refined["Name"] = names
+
+    ModelEnricher().write_discourse_topics(df_refined, config.gold_discourse_topics_path, run_id)
+
+    if df_comments is not None:
+        content_scorer = ContentTopicPriorityScorer()
+        content_scorer.write(
+            content_scorer.score(df_comments, df_refined),
+            config.gold_content_topic_priority_score_path,
+            run_id,
+        )
+
+    return DiscourseRefinementResult(
+        df_discourse=df_refined, topic_model=topic_model, run_id=run_id
+    )
+
+
 def refine_topics_with_gemini(
     topic_model: BERTopic,
     docs: list[str],
@@ -424,21 +546,11 @@ def refine_topics_with_gemini(
     `df_comments` deve ser o `df_comments` retornado por
     `run_deterministic_modeling` (mesma ordem de linhas que `docs`).
 
-    LIMITAÇÃO CONHECIDA (ADR 0020 Ficha 3 / issue #88, não corrigida nesta
-    issue): a escrita abaixo usa `fonte="comentario"` (default) em modo
-    overwrite -- rodar este refinamento depois de `run_deterministic_modeling`
-    substitui `governor_sentiment` inteira só pelas linhas de comentário,
-    apagando as linhas "legenda"/"transcricao" que a modelagem determinística
-    já tinha gravado nesse mesmo `run_id` de origem. Refinamento via Gemini é
-    hoje só sobre tópicos de comentário (ADR 0001) -- religar legenda/
-    transcrição nessa escrita fica para quando a Ficha 4 (tópicos de
-    discurso) tocar este fluxo.
-
-    ATUALIZAÇÃO (issue #89 / Ficha 4): tópicos de discurso ganharam tabela
-    própria (`governor_discourse_topics`, ver `ModelEnricher.write_discourse_topics`)
-    e não passam por este refinamento via Gemini -- a limitação acima
-    continua não corrigida, deliberadamente fora do escopo da #89 (que não
-    toca `governor_sentiment`/refinamento de comentário).
+    A escrita de `governor_sentiment` é overwrite só das linhas
+    `fonte="comentario"`: as linhas "legenda"/"transcricao" gravadas pela
+    modelagem determinística são preservadas (issue #186, que corrigiu a
+    antiga limitação em que elas eram apagadas). Tópicos de discurso têm
+    refino próprio em `refine_discourse_topics_with_gemini`.
 
     ATUALIZAÇÃO (ADR 0020 Ficha 6 / issue #91): `topic_priority_score`
     (Score ICE) é recalculado aqui também, a partir de `df_comments_refined`
@@ -459,7 +571,12 @@ def refine_topics_with_gemini(
     df_comments_refined["Topic"] = refreshed_info["Topic"].values
     df_comments_refined["Name"] = refreshed_info["Name"].values
 
-    ModelEnricher().write_sentiment(df_comments_refined, config.gold_sentiment_path, run_id)
+    ModelEnricher().write_sentiment(
+        df_comments_refined,
+        config.gold_sentiment_path,
+        run_id,
+        preserve_other_fontes=True,
+    )
 
     topic_priority_scorer = TopicPriorityScorer()
     df_topic_priority_refined = topic_priority_scorer.score(df_comments_refined)

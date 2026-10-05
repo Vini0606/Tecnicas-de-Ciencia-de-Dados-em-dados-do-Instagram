@@ -372,8 +372,8 @@ GAP_DIAS_QUEBRA_LINHA = 7
 """Gap (em dias) acima do qual uma linha de série temporal por data de
 publicação quebra visualmente em vez de conectar dois pontos distantes (ADR
 0023) -- compartilhado entre `dashboard/screens/radar.py` (linha do tempo de
-negatividade) e a seção de evidência de desempenho de
-`dashboard/screens/produzir.py` (ADR 0024)."""
+negatividade) e, até a ADR 0031, a seção de evidência de desempenho (ADR 0024; já
+removida de `dashboard/screens/`)."""
 
 
 def quebrar_em_segmentos(
@@ -387,8 +387,8 @@ def quebrar_em_segmentos(
     meio do intervalo.
 
     Extraída de `dashboard/screens/radar.py` para cá (ADR 0024) quando a
-    seção de evidência de desempenho de `dashboard/screens/produzir.py`
-    virou um segundo consumidor real -- indiferente ao nome da segunda
+    seção de evidência de desempenho (removida na ADR 0031) virou um segundo
+    consumidor -- hoje só o Radar a usa; indiferente ao nome da segunda
     coluna (`pct_negativo`, `valor`, etc.), só olha pra `data`.
 
     Lista vazia se `df_timeline` estiver vazio."""

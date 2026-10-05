@@ -210,6 +210,9 @@ class ModelingConfig:
     # comentário, estágio pós-modelagem (mesma posição/dependência da NSM,
     # Ficha 5) -- ver `TopicPriorityScorer`.
     gold_topic_priority_score_path: Path = settings.GOLD_TOPIC_PRIORITY_SCORE
+    # Issue #190: ICE por pauta (topico de discurso da legenda), recalculado
+    # tambem ao final do refino do discurso.
+    gold_content_topic_priority_score_path: Path = settings.GOLD_CONTENT_TOPIC_PRIORITY_SCORE
     # ADR 0020 (Ficha 5) / issue #90: North Star Metric (NSM) de engajamento
     # qualificado por perfil, mesma posição/dependência do Score ICE acima --
     # ver `NsmScorer`.
@@ -217,6 +220,8 @@ class ModelingConfig:
     # Tabela paralela de histórico (mode append) -- ADR 0027 / issue #160,
     # fecha a lacuna que a ADR 0025 previu e adiou.
     gold_nsm_history_path: Path = settings.GOLD_NSM_HISTORY
+    # Escore composto (Scorecard) -- ADR 0030 / issue #184.
+    gold_governor_scorecard_path: Path = settings.GOLD_GOVERNOR_SCORECARD
     gold_post_performance_coefficients_path: Path = settings.GOLD_POST_PERFORMANCE_COEFFICIENTS
     gold_post_performance_predictions_path: Path = settings.GOLD_POST_PERFORMANCE_PREDICTIONS
     # Clusterização de PERFIL de governador por engajamento (Fase 2, ADR
@@ -249,3 +254,8 @@ class GeminiRefinerConfig:
     # Score ICE depende de `governor_sentiment` já refinado, não dos
     # rótulos provisórios do estágio determinístico.
     gold_topic_priority_score_path: Path = settings.GOLD_TOPIC_PRIORITY_SCORE
+    # Issue #190: ICE por pauta (topico de discurso da legenda), recalculado
+    # tambem ao final do refino do discurso.
+    gold_content_topic_priority_score_path: Path = settings.GOLD_CONTENT_TOPIC_PRIORITY_SCORE
+    # Issue #186: o refino dos topicos de discurso grava os rotulos novos aqui.
+    gold_discourse_topics_path: Path = settings.GOLD_DISCOURSE_TOPICS

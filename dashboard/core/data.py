@@ -68,16 +68,16 @@ def load_clusters_content() -> pd.DataFrame:
     """`governor_clusters_reels` -- 1 linha por reel (`id_reel`/
     `ownerUsername`/`cluster_*`/`content_type`). NÃO tem `videoPlayCount`
     nem `inputUrl` (`GOLD_CLUSTERS_SCHEMA`) -- corrigido pela issue #114
-    (Tela 6/Funil), que precisou desse dado e descobriu a lacuna: quem
+    (sub-aba Funil do Resumo), que precisou desse dado e descobriu a lacuna: quem
     precisar de `videoPlayCount` por reel deve cruzar o resultado desta
     função com `load_reels_content()` por `id`/`id_reel` (mesmo join já
-    usado em `dashboard/screens/{resumo,produzir,funil}.py`).
+    usado em `dashboard/screens/{resumo_funil,produzir}.py`).
 
     Desde a issue #152, `governor_clusters` deixou de ser uma tabela única
     discriminada por `content_type` (que duplicava posts sobrepostos entre
     `posts_clean`/`reels_clean`) e virou duas tabelas por formato. Esta
     função só expõe a de reels -- os três consumidores atuais
-    (`dashboard/screens/{resumo,produzir,funil}.py`) já filtravam
+    (`dashboard/screens/{resumo_funil,produzir}.py`) já filtravam
     `content_type == "reel"` sobre o resultado; esse filtro continua
     correto (agora redundante, mas inofensivo) contra a tabela só-de-reel."""
     try:
@@ -98,7 +98,7 @@ def load_reels_content() -> pd.DataFrame:
     "melhor post da semana" precisa cruzar `governor_clusters` com esta
     tabela por `id`/`id_reel` para saber QUAL reel teve mais engajamento --
     mesmo join já usado em `src/dashboard/filters.py::build_cluster_membership`
-    e em `pages/02_insights.py`/`pages/05_funil.py`."""
+    e em `pages/02_insights.py`/`pages/05_funil.py` (removidas)."""
     try:
         return get_repository().load_reels()
     except FileNotFoundError:
@@ -147,10 +147,30 @@ def load_topic_priority() -> pd.DataFrame:
 
 
 @st.cache_data(ttl=_TTL_SECONDS)
+def load_content_topic_priority() -> pd.DataFrame:
+    """`content_topic_priority_score` -- 1 linha por pauta (assunto do
+    conteúdo, issue #190), ranking global (não por governador)."""
+    try:
+        return get_repository().load_content_topic_priority_score()
+    except FileNotFoundError:
+        return pd.DataFrame()
+
+
+@st.cache_data(ttl=_TTL_SECONDS)
 def load_nsm() -> pd.DataFrame:
     """`governor_nsm` -- 1 linha por perfil."""
     try:
         return get_repository().load_nsm()
+    except FileNotFoundError:
+        return pd.DataFrame()
+
+
+@st.cache_data(ttl=_TTL_SECONDS)
+def load_governor_scorecard() -> pd.DataFrame:
+    """`governor_scorecard` -- 1 linha por perfil (ADR 0030 / issue #188);
+    o dashboard só lê, o ranking vem gravado."""
+    try:
+        return get_repository().load_governor_scorecard()
     except FileNotFoundError:
         return pd.DataFrame()
 
@@ -177,6 +197,17 @@ def load_growth_metrics() -> pd.DataFrame:
     `retencao_confiavel` sempre precisam ser checados antes de exibir)."""
     try:
         return get_repository().load_growth_metrics()
+    except FileNotFoundError:
+        return pd.DataFrame()
+
+
+@st.cache_data(ttl=_TTL_SECONDS)
+def load_ugc_mentions() -> pd.DataFrame:
+    """`governor_ugc_mentions` -- 1 linha por post de UGC do piloto (ADR 0020,
+    Ficha 8; lido pelo Funil a partir da ADR 0032). Degrada para `DataFrame`
+    vazio se a tabela ainda não existir."""
+    try:
+        return get_repository().load_ugc_mentions()
     except FileNotFoundError:
         return pd.DataFrame()
 

@@ -465,6 +465,30 @@ GOLD_TOPIC_PRIORITY_SCORE_SCHEMA = pa.schema(
     ]
 )
 
+# Issue #190 (spec #182): `content_topic_priority_score` -- Score ICE por
+# PAUTA (topico de discurso da legenda do reel), uma linha por pauta. Mesma
+# formula do ICE de comentarios acima; `alcance_pauta` e proxy por
+# engajamento (curtidas + respostas dos comentarios), nunca "visualizacoes".
+GOLD_CONTENT_TOPIC_PRIORITY_SCORE_SCHEMA = pa.schema(
+    [
+        pa.field("Topic", pa.int64(), nullable=False),
+        pa.field("Name", pa.string(), nullable=True),
+        pa.field("n_reels", pa.int64(), nullable=False),
+        pa.field("n_comentarios", pa.int64(), nullable=False),
+        pa.field("n_comentarios_positivos", pa.int64(), nullable=False),
+        pa.field("n_comentarios_negativos", pa.int64(), nullable=False),
+        pa.field("proporcao_sentimento_positivo", pa.float64(), nullable=False),
+        pa.field("alcance_pauta", pa.int64(), nullable=False),
+        pa.field("alcance_normalizado", pa.float64(), nullable=False),
+        pa.field("confianca", pa.float64(), nullable=False),
+        pa.field("impacto", pa.float64(), nullable=False),
+        pa.field("facilidade", pa.float64(), nullable=False),
+        pa.field("score", pa.float64(), nullable=False),
+        pa.field("_run_id", pa.string(), nullable=False),
+        pa.field("_generated_at", pa.timestamp("us", tz="UTC"), nullable=False),
+    ]
+)
+
 # ADR 0020 (Ficha 5) / issue #90: `governor_nsm` -- North Star Metric (NSM)
 # de engajamento QUALIFICADO por perfil: `(comentários positivos /
 # comentários totais) x alcance médio`. Mesma posição/dependência do Score
@@ -560,6 +584,41 @@ GOLD_GROWTH_METRICS_SCHEMA = pa.schema(
         pa.field("retencao_motivo", pa.string(), nullable=True),
         pa.field("ilustrativo", pa.bool_(), nullable=False),
         pa.field("nota", pa.string(), nullable=False),
+        pa.field("_run_id", pa.string(), nullable=False),
+        pa.field("_generated_at", pa.timestamp("us", tz="UTC"), nullable=False),
+    ]
+)
+
+# ADR 0030 / issue #184: `governor_scorecard` -- Escore composto (0 a 100) por
+# governador, uma linha por perfil. 5 dimensoes brutas (alcance, ativacao,
+# qualidade, profundidade, consistencia), as mesmas 5 normalizadas min-max
+# entre os perfis, o escore (soma ponderada, pesos iguais renormalizados
+# quando uma dimensao esta pendente) e a posicao no ranking.
+# Dimensoes e escore sao `nullable=True`: um perfil sem dado para uma
+# dimensao (ex.: sem reels, sem comentarios, historico curto) fica com ela
+# nula/pendente em vez de receber um 0 que distorceria o min-max. `ranking`
+# e nulo quando o perfil nao atinge o minimo de dimensoes para ter escore.
+# `consistencia_pendente`/`n_dimensoes`/`consistencia_n_meses` sao
+# `nullable=False`: a auditoria do escore nunca pode ser ambigua.
+GOLD_GOVERNOR_SCORECARD_SCHEMA = pa.schema(
+    [
+        pa.field("inputUrl", pa.string(), nullable=False),
+        pa.field("username", pa.string(), nullable=True),
+        pa.field("alcance", pa.float64(), nullable=True),
+        pa.field("ativacao", pa.float64(), nullable=True),
+        pa.field("qualidade", pa.float64(), nullable=True),
+        pa.field("profundidade", pa.float64(), nullable=True),
+        pa.field("consistencia", pa.float64(), nullable=True),
+        pa.field("alcance_norm", pa.float64(), nullable=True),
+        pa.field("ativacao_norm", pa.float64(), nullable=True),
+        pa.field("qualidade_norm", pa.float64(), nullable=True),
+        pa.field("profundidade_norm", pa.float64(), nullable=True),
+        pa.field("consistencia_norm", pa.float64(), nullable=True),
+        pa.field("consistencia_pendente", pa.bool_(), nullable=False),
+        pa.field("consistencia_n_meses", pa.int64(), nullable=False),
+        pa.field("n_dimensoes", pa.int64(), nullable=False),
+        pa.field("escore", pa.float64(), nullable=True),
+        pa.field("ranking", pa.int64(), nullable=True),
         pa.field("_run_id", pa.string(), nullable=False),
         pa.field("_generated_at", pa.timestamp("us", tz="UTC"), nullable=False),
     ]

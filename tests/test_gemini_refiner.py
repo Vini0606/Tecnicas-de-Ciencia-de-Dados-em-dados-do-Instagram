@@ -3,7 +3,12 @@ from unittest.mock import MagicMock
 import pandas as pd
 
 from src.modeling.config import GeminiRefinerConfig
-from src.modeling.gemini_refiner import GeminiDocsRefiner, apply_gemini_refinement
+from src.modeling.gemini_refiner import (
+    DEGENERATE_TOPIC_LABEL,
+    DISCOURSE_PROMPT_TEMPLATE,
+    GeminiDocsRefiner,
+    apply_gemini_refinement,
+)
 
 
 def _fake_generative_model(monkeypatch, label="Resumo gerado pelo Gemini"):
@@ -46,6 +51,33 @@ def test_extract_topics_preserva_topico_de_ruido_sem_chamar_gemini(monkeypatch):
 
     assert updated == topics
     fake_model.generate_content.assert_not_called()
+
+
+def test_extract_topics_topico_degenerado_recebe_rotulo_explicito_sem_chamar_gemini(monkeypatch):
+    """Issue #186: topico sem palavra alguma (ex.: o "1____" do discurso) nao
+    recebe um nome inventado pelo Gemini."""
+    fake_model = _fake_generative_model(monkeypatch)
+
+    refiner = GeminiDocsRefiner(api_key="fake-key", sleep_every_n_topics=0)
+    documents = pd.DataFrame({"Topic": [1], "Document": ["doc a"]})
+    topics = {1: [("", 0.0), ("___", 0.0)]}
+
+    updated = refiner.extract_topics(topic_model=None, documents=documents, c_tf_idf=None, topics=topics)
+
+    assert updated[1][0] == (DEGENERATE_TOPIC_LABEL, 1.0)
+    fake_model.generate_content.assert_not_called()
+
+
+def test_apply_gemini_refinement_aceita_prompt_de_discurso(monkeypatch):
+    _fake_generative_model(monkeypatch)
+
+    fake_topic_model = MagicMock()
+    config = GeminiRefinerConfig(api_key="fake-key", sleep_every_n_topics=0)
+
+    apply_gemini_refinement(fake_topic_model, ["doc"], config, prompt_template=DISCOURSE_PROMPT_TEMPLATE)
+
+    refiner = fake_topic_model.update_topics.call_args.kwargs["representation_model"]
+    assert refiner.prompt_template == DISCOURSE_PROMPT_TEMPLATE
 
 
 def test_extract_topics_com_erro_na_api_mantem_keywords_originais(monkeypatch):

@@ -98,10 +98,20 @@ class DeltaRepository(DataRepository):
         governador)."""
         return self._load(_join(self._gold_dir, "topic_priority_score"))
 
+    def load_content_topic_priority_score(self) -> pd.DataFrame:
+        """Score ICE por pauta (assunto do conteúdo) -- spec #182 / issue
+        #190. Uma linha por pauta, ranking GLOBAL (não por governador)."""
+        return self._load(_join(self._gold_dir, "content_topic_priority_score"))
+
     def load_nsm(self) -> pd.DataFrame:
         """North Star Metric (engajamento qualificado por perfil) -- ADR 0020
         (Ficha 5) / issue #90."""
         return self._load(_join(self._gold_dir, "governor_nsm"))
+
+    def load_governor_scorecard(self) -> pd.DataFrame:
+        """Escore composto (Scorecard) por governador -- ADR 0030 / issue
+        #188. Uma linha por perfil, ranking já gravado pelo pipeline."""
+        return self._load(_join(self._gold_dir, "governor_scorecard"))
 
     def load_nsm_history(self) -> pd.DataFrame:
         """Histórico de NSM (mode append, uma linha por perfil por execução)

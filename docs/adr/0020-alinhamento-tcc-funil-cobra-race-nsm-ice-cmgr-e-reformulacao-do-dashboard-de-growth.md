@@ -2,6 +2,10 @@
 status: accepted
 ---
 
+> **Nota (superseded parcial):** o Engage deixou de ser "em construção": a ADR
+> [0032](0032-funil-em-escala-logaritmica-com-engage-do-ugc-piloto-e-comparativo-vs-mediana.md)
+> passou a mostrar o engajamento do UGC piloto.
+
 > **Nota (superseded parcial):** a Frente 2 (dashboard) desta ADR foi substituída pela ADR
 > [0021](0021-dashboard-organizado-por-decisao-com-funil-como-tela-dedicada.md), que reorganiza o
 > dashboard por decisão do analista em vez de por estágio do funil. A Frente 1 (pipeline/modelagem)

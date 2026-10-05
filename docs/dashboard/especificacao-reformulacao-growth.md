@@ -2,6 +2,11 @@
 
 **Dashboard:** Instagram Analytics — Governadores (Streamlit)
 **Status:** Draft
+
+> **Nota (histórica):** esta especificação descreve o dashboard multipágina da ADR 0020 (inclusive a aba
+> `pages/05_funil.py`) e foi superada pela ADR [0021](../adr/0021-dashboard-organizado-por-decisao-com-funil-como-tela-dedicada.md)
+> e, para o Funil e o Resumo, pela ADR [0031](../adr/0031-resumo-em-sub-abas-funil-como-sub-aba-e-evidencia-substituida-por-linhas-em-comparar-perfis.md).
+> O Funil hoje é uma sub-aba do Resumo (`dashboard/screens/resumo_funil.py`). Mantida só como registro.
 **Complementa:** ADR 0017 (esqueleto atual), `docs/research/apify-instagram-actors-cobra-mapping.md`, plano de implementação de análises (Fichas 1-7) discutido na sessão de alinhamento TCC.
 
 Este documento especifica o que muda nas páginas **existentes** do dashboard, além da aba nova de funil já decidida (`pages/05_funil.py`, ver seção própria). Segue o processo da skill `dashboard-specification`, adaptado à realidade do projeto (Streamlit multipage + `DeltaRepository`, não uma ferramenta de BI genérica).

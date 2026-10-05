@@ -2,6 +2,12 @@
 status: accepted
 ---
 
+> **Nota (relacionada):** a fila de "O que produzir" deixou de listar temas de comentário e passou a listar
+> **pautas** (assunto da legenda), ranqueadas pelo Score ICE de `content_topic_priority_score` (spec #182,
+> issues #190 e #191; ver ADR [0031](0031-resumo-em-sub-abas-funil-como-sub-aba-e-evidencia-substituida-por-linhas-em-comparar-perfis.md)).
+> O filtro por selo, a coluna de comentários e o popup foram mantidos sobre as pautas, e os tercis seguem
+> calculados sobre o ranking global; as menções a "tema" abaixo descrevem a fila antiga.
+
 # Filtro de prioridade, coluna de quantidade de comentários e popup de comentários por tema na fila de "O que produzir"
 
 ## Contexto

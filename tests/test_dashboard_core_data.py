@@ -311,6 +311,28 @@ def test_load_topic_priority_returns_empty_dataframe_when_missing(tmp_path, monk
     _clear_caches()
 
 
+def test_load_content_topic_priority_returns_delta_table(tmp_path, monkeypatch):
+    _point_settings_at(monkeypatch, tmp_path)
+    path = settings.GOLD_DIR / "content_topic_priority_score"
+    df = pd.DataFrame({"Topic": [0], "Name": ["saude, hospital"], "score": [0.4]})
+    write_deltalake(str(path), df, mode="overwrite")
+
+    out = data.load_content_topic_priority()
+
+    assert list(out["Topic"]) == [0]
+    _clear_caches()
+
+
+def test_load_content_topic_priority_returns_empty_dataframe_when_missing(tmp_path, monkeypatch):
+    _point_settings_at(monkeypatch, tmp_path)
+
+    out = data.load_content_topic_priority()
+
+    assert isinstance(out, pd.DataFrame)
+    assert out.empty
+    _clear_caches()
+
+
 def test_load_nsm_returns_delta_table(tmp_path, monkeypatch):
     _point_settings_at(monkeypatch, tmp_path)
     path = settings.GOLD_DIR / "governor_nsm"

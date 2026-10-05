@@ -46,7 +46,7 @@ mapa de nomes abaixo):
 3. **Alcance-proxy -- fonte e rótulo.** "Alcance-proxy" = `% ENGAJAMENTO`
    de `governor_engagement` (`load_engagement()`), o mesmo número já
    rotulado "% engajamento" em `resumo.py` -- NUNCA a métrica
-   "Visualizações" da Tela 6 (`videoPlayCount`, dado real de Reels, cálculo
+   "Visualizações" da sub-aba Funil (`videoPlayCount`, dado real de Reels, cálculo
    totalmente diferente; ver CONTEXT.md, "Alcance" vs. "Visualizações").
 4. **`_peer_urls` -- portado, não apenas chamado.** A lógica de pares
    (mesmo `cluster_perfil_engajamento`, excluindo o próprio) de
@@ -55,19 +55,21 @@ mapa de nomes abaixo):
    `_filtrar_por_governador`) já duplicado em toda tela nova, em vez de
    `select_governor_rows` (`src/dashboard/filters.py`, descontinuado) -- ver
    Cutover desta issue no PR para o que foi portado vs. apagado.
-5. **Par de destaque -- maior diferença POSITIVA em qualquer métrica.**
-   `_selecionar_par_destaque` varre as 3 métricas comparadas, na ordem de
-   `_METRICAS`, e todos os pares, escolhendo a maior diferença
-   estritamente positiva (par melhor que o próprio perfil) encontrada --
-   nunca inventa um destaque quando nenhum par supera o próprio perfil em
-   nada (`None` nesse caso). Empate: primeira ocorrência (ordem de
-   `_METRICAS`, depois ordem de `df_pares`) -- determinístico, testado.
+5. **Par de destaque -- removido (issue #189).** A secao "Governadores do
+   grupo" (tabela de pares + par de destaque) foi substituida pela analise de
+   clusters de reels, em `comparar_clusters.py`. `_peer_urls` segue vivo: os
+   pares alimentam as barras comparativas -> frase de decisao.
 6. **Selo "agrupamento experimental" -- sempre visível.** Renderizado logo
    após `stage_label()`, em TODO caminho de `render()` (sem governador
    disponível, sem cluster atribuído, ou fluxo normal) -- nunca condicional
    a dado disponível (issue #115, user story 4: o clustering de perfil
    ainda não foi validado plenamente, então o aviso precisa aparecer mesmo
    quando a tela tem dado bonito para mostrar).
+8. **Issue #185 -- barras viram linhas mensais.** A renderizacao das barras
+   "Seu perfil vs. media dos pares" saiu; `_montar_barras_comparativas` e
+   derivados SEGUEM calculados porque alimentam a frase de decisao e o
+   semaforo. Em seu lugar: 3 graficos de linha (Ambos/Posts/Reels) com o
+   governador vs. media e mediana de todos (media por post, por mes).
 7. **Estado vazio -- `NaN`/ausência de cluster nunca é erro.**
    `_cluster_do_governador` retorna `None` tanto para "sem linha
    correspondente" quanto para "`cluster_perfil_engajamento` é `NaN`" --
@@ -78,11 +80,12 @@ mapa de nomes abaixo):
 from __future__ import annotations
 
 import pandas as pd
+import plotly.graph_objects as go
 import streamlit as st
 
 from dashboard.core import data
 from dashboard.core.components import decision_band, footnote, stage_label
-from dashboard.core.theme import COLORS
+from dashboard.screens.comparar_clusters import render_clusters
 
 _PLACEHOLDER_SEM_GOVERNADOR = "—"
 _PLACEHOLDER_SEM_DADO = "—"
@@ -128,7 +131,7 @@ _METRICAS = [
 
 # ---------------------------------------------------------------------------
 # Normalização / seleção de governador (duplicado de `resumo.py`/`produzir.py`/
-# `radar.py`/`funil.py` -- mesmo raciocínio: cada tela fica autocontida, sem
+# `radar.py`/`resumo_funil.py` -- mesmo raciocínio: cada tela fica autocontida, sem
 # depender de outra tela nem de `src/dashboard/filters.py`, que está sendo
 # descontinuado tela por tela pela ADR 0021).
 # ---------------------------------------------------------------------------
@@ -167,19 +170,6 @@ def _filtrar_por_governador(
         return df.iloc[0:0]
     chave = _normalize_url(pd.Series([governor_url])).iloc[0]
     return df[_normalize_url(df[url_col]) == chave]
-
-
-# ---------------------------------------------------------------------------
-# Formatação (arredondamento no ponto de exibição)
-# ---------------------------------------------------------------------------
-
-
-def _fmt_valor_metrica(valor: float | None, tipo: str) -> str:
-    if valor is None or pd.isna(valor):
-        return _PLACEHOLDER_SEM_DADO
-    if tipo == "pct":
-        return f"{valor * 100:.1f}%"
-    return f"{valor:.1f}"
 
 
 # ---------------------------------------------------------------------------
@@ -405,64 +395,6 @@ def _montar_barras_comparativas(
 
 
 # ---------------------------------------------------------------------------
-# Par de destaque -- issue #115, user story 3 / Testing Decisions.
-# ---------------------------------------------------------------------------
-
-
-def _selecionar_par_destaque(
-    df_pares: pd.DataFrame, valores_proprio: dict[str, float | None]
-) -> dict | None:
-    """Par (governador do mesmo grupo) com a maior diferença POSITIVA em
-    qualquer uma das métricas comparadas (issue #115, user story 3) --
-    função pura, testada com `DataFrame` sintético. `df_pares` = 1 linha por
-    par, colunas `inputUrl`/`nome` + uma coluna por chave de `_METRICAS`
-    (`alcance_proxy`/`pct_positivo`/`frequencia`). Desempate determinístico:
-    primeira ocorrência na ordem de `_METRICAS`, depois na ordem das linhas
-    de `df_pares`. `None` (nunca inventa destaque) se não houver par, ou se
-    nenhum par superar o próprio perfil em nenhuma métrica com dado válido."""
-    if df_pares.empty:
-        return None
-
-    melhor: dict | None = None
-    melhor_diff = 0.0
-    for m in _METRICAS:
-        chave = m["chave"]
-        valor_proprio = valores_proprio.get(chave)
-        if valor_proprio is None or pd.isna(valor_proprio) or chave not in df_pares.columns:
-            continue
-        for _, linha in df_pares.iterrows():
-            valor_par = linha[chave]
-            if pd.isna(valor_par):
-                continue
-            diff = valor_par - valor_proprio
-            if diff > melhor_diff:
-                melhor_diff = diff
-                nome_par = linha["nome"] if pd.notna(linha.get("nome")) else linha["inputUrl"]
-                melhor = {
-                    "inputUrl": linha["inputUrl"],
-                    "nome": nome_par,
-                    "metrica": chave,
-                    "rotulo_metrica": m["rotulo"],
-                    "tipo": m["tipo"],
-                    "valor_par": valor_par,
-                    "valor_proprio": valor_proprio,
-                    "diff": diff,
-                }
-    return melhor
-
-
-def _frase_destaque(destaque: dict | None) -> str:
-    if destaque is None:
-        return "Nenhum par do mesmo grupo se destaca em alguma métrica no momento."
-    valor_par_fmt = _fmt_valor_metrica(destaque["valor_par"], destaque["tipo"])
-    rotulo_metrica = destaque["rotulo_metrica"].lower()
-    return (
-        f"{destaque['nome']} se destaca em {rotulo_metrica}: {valor_par_fmt} -- "
-        "estude o conteúdo dele/dela."
-    )
-
-
-# ---------------------------------------------------------------------------
 # Faixa de decisão -- issue #115, princípio de design (resposta -> porquê ->
 # prova).
 # ---------------------------------------------------------------------------
@@ -504,62 +436,202 @@ def _frase_decisao(nome_grupo: str, barras: list[dict]) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Renderização das barras + tabela de pares
+# Linhas mensais: governador vs. media e mediana de todos (issue #185, spec
+# #182). Valor mensal = MEDIA POR POST (nao soma); mes corrente excluido;
+# media/mediana tiradas entre os governadores que postaram no mes.
 # ---------------------------------------------------------------------------
 
+TIPO_AMBOS = "Ambos"
+TIPO_POSTS = "Posts"
+TIPO_REELS = "Reels"
+_TITULO_TIPO = {TIPO_AMBOS: "Ambos (Posts + Reels)", TIPO_POSTS: "Posts", TIPO_REELS: "Reels"}
 
-def _largura_barra_pct(valor: float | None, valor_maximo: float) -> float:
-    if valor is None or pd.isna(valor) or valor_maximo <= 0 or valor <= 0:
-        return 0.0
-    return min(100.0, max(2.0, (valor / valor_maximo) * 100.0))
+_METRICA_COLUNA = {
+    "Curtidas": "likesCount",
+    "Comentários": "commentsCount",
+    "Visualizações": "videoPlayCount",
+}
 
-
-def _render_barras_comparativas(barras: list[dict]) -> None:
-    for barra in barras:
-        valores_validos = [
-            v for v in (barra["valor_proprio"], barra["media_pares"]) if v is not None and not pd.isna(v)
-        ]
-        maximo = max(valores_validos) if valores_validos else 0.0
-        largura_proprio = _largura_barra_pct(barra["valor_proprio"], maximo)
-        largura_pares = _largura_barra_pct(barra["media_pares"], maximo)
-        st.markdown(
-            f"""
-            <div style="margin:14px 0;">
-              <div style="font-size:13px;margin-bottom:4px;">
-                <strong>{barra["rotulo"]}</strong> -- {barra["rotulo_vs_pares"]}
-              </div>
-              <div style="font-size:11px;color:{COLORS["muted"]};margin-bottom:2px;">
-                Você: {_fmt_valor_metrica(barra["valor_proprio"], barra["tipo"])}
-              </div>
-              <div style="background:#EEECE3;border-radius:6px;height:16px;width:100%;">
-                <div style="background:{COLORS["info"]["fg"]};width:{largura_proprio:.1f}%;
-                            height:16px;border-radius:6px;"></div>
-              </div>
-              <div style="font-size:11px;color:{COLORS["muted"]};margin:6px 0 2px;">
-                Média dos pares: {_fmt_valor_metrica(barra["media_pares"], barra["tipo"])}
-              </div>
-              <div style="background:#EEECE3;border-radius:6px;height:16px;width:100%;">
-                <div style="background:{COLORS["muted"]};width:{largura_pares:.1f}%;
-                            height:16px;border-radius:6px;"></div>
-              </div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
+# Paleta de dado (skill dataviz, slots categoricos 1-3: azul, laranja, aqua),
+# variante por tema -- separada do vermelho IESB do chrome. Cor E traco
+# distinguem as series (daltonismo).
+_PALETA_LINHAS = {
+    "light": {"gov": "#2a78d6", "media": "#eb6834", "mediana": "#1baf7a"},
+    "dark": {"gov": "#3987e5", "media": "#d95926", "mediana": "#199e70"},
+}
+_SERIES_LINHAS = [
+    ("gov", "Governador", "solid"),
+    ("media", "Média de todos", "dash"),
+    ("mediana", "Mediana de todos", "dot"),
+]
 
 
-def _tabela_pares(df_pares: pd.DataFrame) -> pd.DataFrame:
-    colunas_saida = ["Governador", "Alcance-proxy", "% positivo", "Frequência"]
-    if df_pares.empty:
-        return pd.DataFrame(columns=colunas_saida)
-    return pd.DataFrame(
+def _fmt_ptbr(valor: float | None) -> str:
+    if valor is None or pd.isna(valor):
+        return _PLACEHOLDER_SEM_DADO
+    return f"{valor:,.1f}".replace(",", "X").replace(".", ",").replace("X", ".")
+
+
+def _conteudo_por_tipo(df_reels: pd.DataFrame, df_posts: pd.DataFrame, tipo: str) -> pd.DataFrame:
+    """Reels e/ou posts de feed (conforme `tipo`) concatenados, SEM filtro de
+    governador -- a base de media/mediana precisa de todos."""
+    fontes = []
+    if tipo in (TIPO_REELS, TIPO_AMBOS):
+        fontes.append(df_reels)
+    if tipo in (TIPO_POSTS, TIPO_AMBOS):
+        fontes.append(df_posts)
+    partes = [f for f in fontes if not f.empty]
+    if not partes:
+        return pd.DataFrame()
+    return pd.concat(partes, ignore_index=True)
+
+
+def _media_mensal_por_governador(
+    df_conteudo: pd.DataFrame, coluna: str, hoje: pd.Timestamp | None = None
+) -> pd.DataFrame:
+    """Colunas `chave` (inputUrl normalizado), `mes` (1o dia do mes de
+    publicacao) e `valor` (media de `coluna` por post naquele mes). Exclui o
+    mes corrente (incompleto) e posts sem valor; vazio (nunca excecao) se
+    faltar coluna ou dado -- ex.: Visualizacoes em posts de feed."""
+    colunas = ["chave", "mes", "valor"]
+    obrigatorias = {"inputUrl", "data_hora", coluna}
+    if df_conteudo.empty or not obrigatorias.issubset(df_conteudo.columns):
+        return pd.DataFrame(columns=colunas)
+    hoje = pd.Timestamp.now() if hoje is None else hoje
+    mes_corrente = hoje.to_period("M").to_timestamp()
+    df = pd.DataFrame(
         {
-            "Governador": df_pares["nome"].fillna(df_pares["inputUrl"]),
-            "Alcance-proxy": df_pares["alcance_proxy"].apply(lambda v: _fmt_valor_metrica(v, "pct")),
-            "% positivo": df_pares["pct_positivo"].apply(lambda v: _fmt_valor_metrica(v, "pct")),
-            "Frequência": df_pares["frequencia"].apply(lambda v: _fmt_valor_metrica(v, "num")),
+            "chave": _normalize_url(df_conteudo["inputUrl"]),
+            "mes": pd.to_datetime(df_conteudo["data_hora"], errors="coerce")
+            .dt.to_period("M")
+            .dt.to_timestamp(),
+            "valor": pd.to_numeric(df_conteudo[coluna], errors="coerce"),
         }
-    ).reset_index(drop=True)
+    ).dropna()
+    df = df[df["mes"] < mes_corrente]
+    if df.empty:
+        return pd.DataFrame(columns=colunas)
+    return (
+        df.groupby(["chave", "mes"], as_index=False)["valor"]
+        .mean()
+        .sort_values(["chave", "mes"])
+        .reset_index(drop=True)
+    )
+
+
+def _serie_governador(df_mensal: pd.DataFrame, governor_url: str) -> pd.DataFrame:
+    """Colunas `mes`/`valor` do governador; so meses em que ele postou."""
+    if df_mensal.empty:
+        return pd.DataFrame(columns=["mes", "valor"])
+    chave = _normalize_url(pd.Series([governor_url])).iloc[0]
+    serie = df_mensal[df_mensal["chave"] == chave]
+    return serie[["mes", "valor"]].sort_values("mes").reset_index(drop=True)
+
+
+def _serie_media_mediana(df_mensal: pd.DataFrame) -> pd.DataFrame:
+    """Colunas `mes`/`media`/`mediana` entre os governadores que postaram no
+    mes (cada perfil pesa igual). Base inclui o selecionado e nao depende dele."""
+    if df_mensal.empty:
+        return pd.DataFrame(columns=["mes", "media", "mediana"])
+    return (
+        df_mensal.groupby("mes")["valor"]
+        .agg(media="mean", mediana="median")
+        .reset_index()
+        .sort_values("mes")
+        .reset_index(drop=True)
+    )
+
+
+def _figura_linhas_mensais(
+    serie_gov: pd.DataFrame,
+    serie_todos: pd.DataFrame,
+    tipo: str,
+    metrica: str,
+    tema: str = "light",
+) -> go.Figure | None:
+    """3 linhas (governador, media, mediana) por mes; `None` quando nao ha
+    dado de ninguem (render mostra estado vazio so desse grafico). Meses em
+    que o governador nao postou viram `NaN` e a linha quebra. `metrica` so
+    nomeia o grafico no tooltip."""
+    if serie_todos.empty:
+        return None
+    cores = _PALETA_LINHAS.get(tema, _PALETA_LINHAS["light"])
+    meses = pd.date_range(serie_todos["mes"].min(), serie_todos["mes"].max(), freq="MS")
+    if not serie_gov.empty:
+        meses = meses.union(pd.DatetimeIndex(serie_gov["mes"]))
+    valores = {
+        "gov": serie_gov.set_index("mes")["valor"].reindex(meses),
+        "media": serie_todos.set_index("mes")["media"].reindex(meses),
+        "mediana": serie_todos.set_index("mes")["mediana"].reindex(meses),
+    }
+    fig = go.Figure()
+    for chave, nome, traco in _SERIES_LINHAS:
+        y = valores[chave]
+        fig.add_trace(
+            go.Scatter(
+                x=meses,
+                y=y.tolist(),
+                name=nome,
+                mode="lines+markers",
+                connectgaps=False,
+                line={"color": cores[chave], "dash": traco, "width": 2},
+                marker={"color": cores[chave], "size": 7},
+                customdata=[_fmt_ptbr(v) for v in y],
+                hovertemplate=f"{nome} ({metrica.lower()}/post): %{{customdata}}<extra></extra>",
+            )
+        )
+    fig.update_layout(
+        title=_TITULO_TIPO[tipo],
+        showlegend=True,
+        hovermode="x unified",
+        legend={"orientation": "h", "y": -0.2},
+        margin={"t": 40, "b": 10},
+        xaxis={"tickformat": "%b/%Y", "hoverformat": "%b/%Y"},
+    )
+    return fig
+
+
+def _tema_atual() -> str:
+    try:
+        return "dark" if st.context.theme.type == "dark" else "light"
+    except Exception:
+        return "light"
+
+
+def _render_grafico_linhas(
+    df_reels: pd.DataFrame, df_posts: pd.DataFrame, governor_url: str, tipo: str, metrica: str
+) -> None:
+    conteudo = _conteudo_por_tipo(df_reels, df_posts, tipo)
+    mensal = _media_mensal_por_governador(conteudo, _METRICA_COLUNA[metrica])
+    fig = _figura_linhas_mensais(
+        _serie_governador(mensal, governor_url),
+        _serie_media_mediana(mensal),
+        tipo,
+        metrica,
+        tema=_tema_atual(),
+    )
+    if fig is None:
+        st.caption(
+            f"**{_TITULO_TIPO[tipo]}** -- sem dado para esta combinação de tipo e "
+            'métrica (comum em "Visualizações" com "Posts": posts de feed não têm '
+            "contagem de visualização)."
+        )
+    else:
+        st.plotly_chart(fig, width="stretch", key=f"comparar_linhas_{tipo}")
+
+
+def _render_linhas_mensais(governor_url: str) -> None:
+    st.markdown("#### Seu perfil vs. média e mediana de todos os governadores")
+    st.caption("Valor médio por post em cada mês de publicação; o mês corrente fica de fora.")
+    df_reels = data.load_reels_content()
+    df_posts = data.load_posts_content()
+    metrica = st.selectbox("Métrica", options=list(_METRICA_COLUNA), key="comparar_metrica_linhas")
+    _render_grafico_linhas(df_reels, df_posts, governor_url, TIPO_AMBOS, metrica)
+    col_posts, col_reels = st.columns(2)
+    with col_posts:
+        _render_grafico_linhas(df_reels, df_posts, governor_url, TIPO_POSTS, metrica)
+    with col_reels:
+        _render_grafico_linhas(df_reels, df_posts, governor_url, TIPO_REELS, metrica)
 
 
 # ---------------------------------------------------------------------------
@@ -602,6 +674,8 @@ def render() -> None:
             "rode `uv run python scripts/run_profile_clustering_engagement.py` "
             "para gerar a segmentação de perfil."
         )
+        _render_linhas_mensais(governor_url)
+        render_clusters(governor_url)
         footnote()
         return
 
@@ -630,33 +704,15 @@ def render() -> None:
     }
 
     barras = _montar_barras_comparativas(valores_proprio, valores_pares_series)
-    destaque = _selecionar_par_destaque(df_pares_metricas, valores_proprio)
 
     # ---- Frase de decisão ----
     nivel = _nivel_decisao(barras)
     decision_band(_frase_decisao(nome_grupo, barras), level=nivel)
 
-    # ---- Barras comparativas ----
-    st.markdown("#### Seu perfil vs. média dos pares do grupo")
-    if not pares_urls:
-        st.caption(
-            "Nenhum outro governador está no mesmo grupo de desempenho ainda -- "
-            "sem pares para comparar."
-        )
-    else:
-        _render_barras_comparativas(barras)
-        st.caption(
-            '"Alcance-proxy" é uma estimativa baseada em engajamento (curtidas + '
-            "respostas), não visualizações reais -- ver Funil de engajamento para "
-            "visualizações reais dos Reels."
-        )
+    # ---- Linhas mensais ----
+    _render_linhas_mensais(governor_url)
 
-    # ---- Pares do grupo ----
-    st.markdown(f'#### Governadores do grupo "{nome_grupo}"')
-    if not pares_urls:
-        st.caption("Nenhum outro governador no mesmo grupo.")
-    else:
-        st.write(_frase_destaque(destaque))
-        st.dataframe(_tabela_pares(df_pares_metricas), hide_index=True, width="stretch")
+    # ---- Clusters de reels com sentimento (issue #189) ----
+    render_clusters(governor_url)
 
     footnote()
