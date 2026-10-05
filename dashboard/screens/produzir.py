@@ -65,6 +65,7 @@ própria na issue #192.
 
 from __future__ import annotations
 
+import html
 import re
 
 import pandas as pd
@@ -333,6 +334,26 @@ _COLUNAS_COMENTARIOS_POPUP = [
 ]
 
 
+def _preparar_comentarios_popup(df: pd.DataFrame, top_n: int) -> pd.DataFrame:
+    """Colunas do popup + ordenação por engajamento + corte (compartilhado
+    entre o popup da fila de pautas e o dos grupos de comentários)."""
+    df = df.copy()
+    valores_default = {col: pd.NA for col in _COLUNAS_COMENTARIOS_POPUP}
+    valores_default["likesCount"] = 0
+    valores_default["repliesCount"] = 0
+    for col, valor in valores_default.items():
+        if col not in df.columns:
+            df[col] = valor
+
+    engajamento = pd.to_numeric(df["likesCount"], errors="coerce").fillna(
+        0.0
+    ) + pd.to_numeric(df["repliesCount"], errors="coerce").fillna(0.0)
+    df = df.assign(_engajamento=engajamento).sort_values(
+        "_engajamento", ascending=False
+    )
+    return df[_COLUNAS_COMENTARIOS_POPUP].head(top_n).reset_index(drop=True)
+
+
 def _comentarios_da_pauta(
     df_comentarios: pd.DataFrame, df_discurso: pd.DataFrame, topic: int, top_n: int = 50
 ) -> pd.DataFrame:
@@ -358,21 +379,91 @@ def _comentarios_da_pauta(
     if df.empty:
         return vazio
 
-    df = df.copy()
-    valores_default = {col: pd.NA for col in _COLUNAS_COMENTARIOS_POPUP}
-    valores_default["likesCount"] = 0
-    valores_default["repliesCount"] = 0
-    for col, valor in valores_default.items():
-        if col not in df.columns:
-            df[col] = valor
+    return _preparar_comentarios_popup(df, top_n)
 
-    engajamento = pd.to_numeric(df["likesCount"], errors="coerce").fillna(
-        0.0
-    ) + pd.to_numeric(df["repliesCount"], errors="coerce").fillna(0.0)
-    df = df.assign(_engajamento=engajamento).sort_values(
-        "_engajamento", ascending=False
+
+# ---------------------------------------------------------------------------
+# Maiores grupos de comentários (issue #192, spec #182)
+# ---------------------------------------------------------------------------
+
+SENTIMENTO_POSITIVO = "positive"
+SENTIMENTO_NEGATIVO = "negative"
+TOP_N_GRUPOS = 5
+ROTULO_GRUPO_SEM_ROTULO = "Grupo sem rótulo definido"
+_COLUNAS_GRUPOS = ["Topic", "Grupo", "n", "pct"]
+
+
+def _rotulo_grupo(name: object) -> str:
+    """Rótulo do grupo de comentários: reaproveita `_rotulo_exibicao` (bruto
+    ou refinado); rótulo degenerado/nulo vira texto neutro, sem a palavra
+    "assunto" (reservada a pauta)."""
+    rotulo = _rotulo_exibicao(name)
+    return ROTULO_GRUPO_SEM_ROTULO if rotulo == DEGENERATE_TOPIC_LABEL else rotulo
+
+
+def _maiores_grupos_de_comentarios(
+    df_comentarios: pd.DataFrame,
+    governor_url: str,
+    sentimento: str,
+    top_n: int = TOP_N_GRUPOS,
+) -> pd.DataFrame:
+    """Maiores grupos de comentários (`Topic` do modelo de comentários) do
+    governador, por quantidade de comentários do `sentimento`. `df_comentarios`
+    é `data.comments_only(data.load_sentiment())` (todos os perfis).
+
+    Colunas: `Topic`, `Grupo` (rótulo de exibição), `n` (comentários do
+    sentimento no grupo), `pct` (fração `n / total de comentários do
+    governador`, incluindo neutros e ruído, em 0-1). Ruído (`Topic == -1`) e
+    `Topic` nulo ficam de fora; empate de `n` desempata por `Topic` crescente.
+    Menos de `top_n` grupos -> menos linhas; `DataFrame` vazio se não houver
+    nenhum (ou faltar dado) -- nunca exceção."""
+    vazio = pd.DataFrame(columns=_COLUNAS_GRUPOS)
+    colunas = {"Topic", "sentiment_label"}
+    df = _filtrar_por_governador(df_comentarios, governor_url)
+    if df.empty or not colunas.issubset(df.columns):
+        return vazio
+    total = len(df)
+    df = df[
+        (df["sentiment_label"] == sentimento)
+        & df["Topic"].notna()
+        & (df["Topic"] != -1)
+    ]
+    if df.empty:
+        return vazio
+
+    nomes = df["Name"] if "Name" in df.columns else pd.Series(pd.NA, index=df.index)
+    df = df.assign(_name=nomes)
+    grupos = (
+        df.groupby("Topic")
+        .agg(n=("Topic", "size"), _name=("_name", "first"))
+        .reset_index()
+        .sort_values(["n", "Topic"], ascending=[False, True])
+        .head(top_n)
+        .reset_index(drop=True)
     )
-    return df[_COLUNAS_COMENTARIOS_POPUP].head(top_n).reset_index(drop=True)
+    grupos["Grupo"] = grupos["_name"].map(_rotulo_grupo)
+    grupos["pct"] = grupos["n"] / total
+    return grupos[_COLUNAS_GRUPOS]
+
+
+def _comentarios_do_grupo(
+    df_comentarios: pd.DataFrame,
+    governor_url: str,
+    topic: int,
+    sentimento: str,
+    top_n: int = 50,
+) -> pd.DataFrame:
+    """Comentários do popup de um grupo de comentários: só do governador e do
+    `sentimento` do painel, mesma ordenação/colunas/limite de
+    `_comentarios_da_pauta`. `DataFrame` vazio com colunas se faltar dado."""
+    vazio = pd.DataFrame(columns=_COLUNAS_COMENTARIOS_POPUP)
+    df = _filtrar_por_governador(df_comentarios, governor_url)
+    if df.empty or not {"Topic", "sentiment_label"}.issubset(df.columns):
+        return vazio
+    df = df[(df["Topic"] == topic) & (df["sentiment_label"] == sentimento)]
+    if df.empty:
+        return vazio
+    return _preparar_comentarios_popup(df, top_n)
 
 
 # ---------------------------------------------------------------------------
@@ -746,6 +837,89 @@ def _abrir_dialog_comentarios(
     _dialog()
 
 
+def _abrir_dialog_grupo(
+    nome_grupo: str,
+    topic: int,
+    sentimento: str,
+    governor_url: str,
+    df_comentarios: pd.DataFrame,
+) -> None:
+    rotulo_sentimento = (
+        "positivos" if sentimento == SENTIMENTO_POSITIVO else "negativos"
+    )
+
+    @st.dialog(f'Comentários {rotulo_sentimento} do grupo "{nome_grupo}"')
+    def _dialog() -> None:
+        comentarios = _comentarios_do_grupo(
+            df_comentarios, governor_url, topic, sentimento
+        )
+        if comentarios.empty:
+            st.caption("Nenhum comentário encontrado para este grupo.")
+        else:
+            st.dataframe(comentarios, hide_index=True, width="stretch")
+
+    _dialog()
+
+
+_CSS_GRUPOS = """
+<style>
+.gc-row { margin: 2px 0 6px; }
+.gc-head { display: flex; justify-content: space-between; gap: 8px; font-size: 14px; }
+.gc-count { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.gc-track { height: 8px; border-radius: 4px; background: rgba(128,128,128,.22); margin-top: 4px; }
+.gc-bar { height: 8px; border-radius: 4px; }
+.gc-pos { --gc: #0F6E56; }
+.gc-neg { --gc: #A32D2D; }
+.gc-bar { background: var(--gc); }
+@media (prefers-color-scheme: dark) {
+  .gc-pos { --gc: #5DCAA5; }
+  .gc-neg { --gc: #F09595; }
+}
+</style>
+"""
+
+
+def _html_linha_grupo(grupo: str, n: int, pct: float, maximo: int, classe: str) -> str:
+    largura = 0.0 if maximo <= 0 else 100.0 * n / maximo
+    return (
+        f'<div class="gc-row {classe}"><div class="gc-head"><span>{html.escape(grupo)}</span>'
+        f'<span class="gc-count">{_fmt_int_br(n)} · {_fmt_pct(pct)}</span></div>'
+        f'<div class="gc-track"><div class="gc-bar" style="width:{largura:.1f}%"></div></div></div>'
+    )
+
+
+def _render_painel_grupos(
+    titulo: str,
+    sentimento: str,
+    classe: str,
+    df_comentarios: pd.DataFrame,
+    governor_url: str,
+) -> None:
+    st.markdown(f"**{titulo}**")
+    grupos = _maiores_grupos_de_comentarios(df_comentarios, governor_url, sentimento)
+    if grupos.empty:
+        st.caption(
+            f"Nenhum grupo de comentários {titulo.lower()} para este governador."
+        )
+        return
+    maximo = int(grupos["n"].max())
+    for linha in grupos.itertuples():
+        st.markdown(
+            _html_linha_grupo(
+                linha.Grupo, int(linha.n), float(linha.pct), maximo, classe
+            ),
+            unsafe_allow_html=True,
+        )
+        if st.button(
+            "Ver comentários",
+            key=f"grupo_{sentimento}_{linha.Topic}",
+            help=f"Abre os comentários {titulo.lower()} do grupo.",
+        ):
+            _abrir_dialog_grupo(
+                linha.Grupo, linha.Topic, sentimento, governor_url, df_comentarios
+            )
+
+
 # ---------------------------------------------------------------------------
 # render()
 # ---------------------------------------------------------------------------
@@ -887,6 +1061,38 @@ def render() -> None:
                     )
             else:
                 st.session_state.pop(_SESSION_KEY_PAUTA_POPUP, None)
+
+    # ---- Maiores grupos de comentários (issue #192) ----
+    st.markdown(
+        "#### Maiores grupos de comentários",
+        help=(
+            "Grupos de comentários parecidos entre si, só dos comentários "
+            "deste governador. A contagem é de comentários positivos (ou "
+            "negativos) do grupo; a porcentagem é sobre o total de "
+            "comentários do governador. Descreve o que o público diz, não o "
+            "assunto do conteúdo. Comentários sem grupo definido ficam de fora."
+        ),
+    )
+    st.caption("Comentários parecidos agrupados, do governador selecionado.")
+    st.markdown(_CSS_GRUPOS, unsafe_allow_html=True)
+    df_comentarios_publico = data.comments_only(data.load_sentiment())
+    col_pos, col_neg = st.columns(2)
+    with col_pos:
+        _render_painel_grupos(
+            "Positivos",
+            SENTIMENTO_POSITIVO,
+            "gc-pos",
+            df_comentarios_publico,
+            governor_url,
+        )
+    with col_neg:
+        _render_painel_grupos(
+            "Negativos",
+            SENTIMENTO_NEGATIVO,
+            "gc-neg",
+            df_comentarios_publico,
+            governor_url,
+        )
 
     # ---- Cartões de formato ----
     st.markdown("#### Formatos de Reel")

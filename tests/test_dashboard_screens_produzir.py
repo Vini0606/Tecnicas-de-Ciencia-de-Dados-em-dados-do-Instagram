@@ -872,3 +872,120 @@ def test_melhor_post_contra_tabelas_delta_reais(tmp_path, monkeypatch):
     assert resultado is not None
     assert resultado["shortCode"] == "xyz"
     _clear_caches()
+
+
+# ---------------------------------------------------------------------------
+# Maiores grupos de comentarios (issue #192) -- por governador e sentimento.
+# ---------------------------------------------------------------------------
+
+_URL_A = "https://www.instagram.com/gov_a/"
+_URL_B = "https://www.instagram.com/gov_b/"
+
+
+def _linhas(url, topic, name, sentimento, n):
+    return [
+        {
+            "inputUrl": url,
+            "Topic": topic,
+            "Name": name,
+            "sentiment_label": sentimento,
+            "text": f"c_{topic}_{sentimento}_{i}",
+            "likesCount": i,
+            "repliesCount": 0,
+            "ownerUsername": "u",
+            "timestamp": "2026-01-01",
+        }
+        for i in range(n)
+    ]
+
+
+def _df_grupos():
+    linhas = (
+        _linhas(_URL_A, 0, "0_obras_estrada", "positive", 4)
+        + _linhas(_URL_A, 1, "Saude, saude, hospital", "positive", 3)
+        + _linhas(_URL_A, 1, "Saude, saude, hospital", "negative", 2)
+        + _linhas(_URL_A, 2, "2_escola_aula", "negative", 5)
+        + _linhas(_URL_A, 2, "2_escola_aula", "neutral", 10)
+        + _linhas(_URL_A, -1, "-1_ruido", "positive", 20)
+        + _linhas(_URL_B, 0, "0_obras_estrada", "positive", 50)
+    )
+    return pd.DataFrame(linhas)
+
+
+def test_grupos_positivos_contagem_pct_e_ruido_excluido():
+    r = produzir._maiores_grupos_de_comentarios(_df_grupos(), _URL_A, "positive")
+    assert list(r["Topic"]) == [0, 1]  # ruido (-1) fora, outro governador fora
+    assert list(r["n"]) == [4, 3]
+    # total do governador A = 4+3+2+5+10+20 = 44 (neutros e ruido contam)
+    assert r["pct"].iloc[0] == 4 / 44
+
+
+def test_grupos_negativos_so_dois_grupos_gera_duas_linhas():
+    r = produzir._maiores_grupos_de_comentarios(_df_grupos(), _URL_A, "negative")
+    assert list(r["Topic"]) == [2, 1]
+    assert list(r["n"]) == [5, 2]
+
+
+def test_grupos_top5_com_desempate_deterministico_por_topic():
+    linhas = []
+    for t in [7, 3, 5, 1, 9, 2, 4]:
+        linhas += _linhas(_URL_A, t, f"{t}_x_y", "positive", 2)
+    r = produzir._maiores_grupos_de_comentarios(
+        pd.DataFrame(linhas), _URL_A, "positive"
+    )
+    assert list(r["Topic"]) == [1, 2, 3, 4, 5]
+
+
+def test_grupos_governador_sem_negativos_fica_vazio():
+    df = pd.DataFrame(_linhas(_URL_A, 0, "0_a_b", "positive", 3))
+    assert produzir._maiores_grupos_de_comentarios(df, _URL_A, "negative").empty
+
+
+def test_grupos_sem_comentarios_ou_sem_colunas_nao_quebra():
+    vazio = pd.DataFrame()
+    assert produzir._maiores_grupos_de_comentarios(vazio, _URL_A, "positive").empty
+    sem_colunas = pd.DataFrame({"x": [1]})
+    assert produzir._maiores_grupos_de_comentarios(
+        sem_colunas, _URL_A, "positive"
+    ).empty
+    outro = _URL_B + "x"
+    assert produzir._maiores_grupos_de_comentarios(
+        _df_grupos(), outro, "positive"
+    ).empty
+
+
+def test_grupos_rotulo_bruto_refinado_e_degenerado():
+    linhas = (
+        _linhas(_URL_A, 0, "0_obras_estrada_ponte", "positive", 3)
+        + _linhas(_URL_A, 1, "Saude publica, saude, hospital", "positive", 2)
+        + _linhas(_URL_A, 2, None, "positive", 1)
+    )
+    r = produzir._maiores_grupos_de_comentarios(
+        pd.DataFrame(linhas), _URL_A, "positive"
+    )
+    assert list(r["Grupo"]) == [
+        "obras, estrada, ponte",
+        "Saude publica",
+        produzir.ROTULO_GRUPO_SEM_ROTULO,
+    ]
+
+
+def test_comentarios_do_grupo_filtra_governador_e_sentimento():
+    r = produzir._comentarios_do_grupo(_df_grupos(), _URL_A, 0, "positive")
+    assert len(r) == 4  # nao traz os 50 do governador B
+    r2 = produzir._comentarios_do_grupo(_df_grupos(), _URL_A, 1, "negative")
+    assert len(r2) == 2
+    assert set(r2["sentiment_label"]) == {"negative"}
+
+
+def test_comentarios_do_grupo_ordena_por_engajamento_e_limita():
+    r = produzir._comentarios_do_grupo(_df_grupos(), _URL_A, 0, "positive", top_n=2)
+    assert list(r["likesCount"]) == [3, 2]
+    assert list(r.columns) == produzir._COLUNAS_COMENTARIOS_POPUP
+
+
+def test_comentarios_do_grupo_vazio_com_colunas():
+    for df in (pd.DataFrame(), _df_grupos()):
+        r = produzir._comentarios_do_grupo(df, _URL_A, 99, "negative")
+        assert r.empty
+        assert list(r.columns) == produzir._COLUNAS_COMENTARIOS_POPUP
