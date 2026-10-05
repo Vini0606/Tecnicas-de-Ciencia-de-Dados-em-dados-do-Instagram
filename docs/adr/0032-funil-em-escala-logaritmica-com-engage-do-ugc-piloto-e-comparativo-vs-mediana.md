@@ -34,26 +34,30 @@ e Engage como texto fixo "em construção". Na verificação visual da feature, 
    contra uma mediana de 0,15%) e chegou a inverter a leitura do mesmo governador na prototipagem. Valor
    absoluto reflete sobretudo o tamanho da audiência, então a seta indica escala, e o selo de taxa indica
    eficiência.
-4. **Engage mostra o engajamento do UGC piloto**, em bloco separado abaixo do funil: a **mediana** de
-   `likesCount + commentsCount` por post orgânico do governador (média entre os governadores com UGC em
-   "Todos"), com o selo "piloto", a quantidade de conteúdos e a nota da amostra. A primeira versão somava o
-   engajamento dos posts, mas um único post viral concentrava 98% da soma de um governador (14.147 de 14.396)
-   e fazia o comparativo mostrar "▲ 1074%"; com a mediana por post o mesmo governador aparece com 55 (abaixo
-   da mediana dos demais). Mediana 0 é um valor válido (posts sem interação); "sem dado" só vale quando não
-   há nenhum post de UGC. O bloco é separado porque o valor do Engage (da ordem de milhares)
-   pode superar o de Convert (dezenas) e quebraria o afunilamento. `Convert/Engage` continua não sendo uma taxa
-   nem um gargalo. Isso **revisa a decisão 4 da issue #114**: o módulo passa a ler `governor_ugc_mentions`
-   (via `dashboard/core/data.py::load_ugc_mentions`), e o teste estático de proibição foi removido, substituído
-   por testes do cálculo.
+4. **Engage mostra o volume de UGC orgânico**, em bloco separado abaixo do funil: o número de posts de UGC
+   orgânico do governador (média entre os governadores com UGC em "Todos"). É o "volume de UGC" do nível Criar
+   do COBRA (ADR 0020). O bloco é separado porque o volume de UGC pode superar o de Convert (dezenas) e
+   quebraria o afunilamento. `Convert/Engage` continua não sendo uma taxa nem um gargalo. Isso **revisa a
+   decisão 4 da issue #114**: o módulo passa a ler `governor_ugc_mentions` (via
+   `dashboard/core/data.py::load_ugc_mentions`), e o teste estático de proibição foi removido, substituído por
+   testes do cálculo.
+5. **Os dados atuais são uma amostra de teste, e a tela se adapta sozinha à coleta completa.** O piloto coletou
+   no máximo 5 posts por governador, então a contagem reflete o teto da coleta. Enquanto o máximo de posts por
+   governador for menor ou igual ao teto (`_ugc_e_amostra_piloto`), o bloco mostra o selo "piloto" e a nota do
+   teto, e o comparativo ▲/▼ do Engage fica oculto (comparar contagens saturadas é ruído). Com uma coleta
+   completa, o selo e a nota somem e o comparativo contra a mediana dos demais aparece, sem mudança de código.
+   Duas métricas foram descartadas na prototipagem: a soma de curtidas + comentários (um único post viral
+   concentrava 98% da soma de um governador e fazia o comparativo mostrar "▲ 1074%") e a mediana de
+   engajamento por post (cada mediana saía de no máximo 5 posts).
 
 ## Consequências
 
-- **O número do Engage é frágil.** O piloto coletou no máximo 5 posts por governador (mediana e máximo são 5),
-  então a quantidade de posts é o teto da coleta e não uma medida; o que varia é o engajamento desses poucos
-  posts. Cada mediana por governador sai de 5 posts (15 governadores), 4 (3), 2 (1) ou 1 (1). Em "Todos", a
-  média das medianas (461) é puxada por um governador (5.413); a mediana das medianas é 84. 19 dos 26 governadores do Funil têm UGC. Os posts não têm janela de tempo (de 2013 a 2026) e 53 dos 91
-  não têm `videoPlayCount`. A tela diz isso ("amostra do piloto, até 5 posts por governador"). Revisitar quando
-  houver coleta sem o teto.
+- **Com os dados de teste, o número do Engage não discrimina governadores.** 15 dos 20 governadores com UGC têm
+  exatamente 5 posts (o teto), 3 têm 4, um tem 2 e outro tem 1; 19 dos 26 governadores do Funil têm UGC. Os
+  posts não têm janela de tempo (de 2013 a 2026) e 53 dos 91 não têm `videoPlayCount`. Quando a coleta
+  completa existir, vale decidir se a contagem deve usar uma janela de tempo (como os demais estágios) e se
+  "Todos" deve usar mediana em vez de média, já que o volume de UGC tende a ser muito concentrado em poucos
+  governadores.
 - **A população dos estágios não coincide.** Reach soma visualizações só de reels; Act é `likesSum` do perfil
   inteiro (mediana de 1,64 vez as curtidas só dos reels, até 16,7 vezes); Convert conta comentários positivos
   de reels. A taxa Reach→Act mistura populações. Fica como ponto em aberto: trocar o Act por curtidas só de

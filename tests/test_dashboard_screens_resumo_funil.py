@@ -319,8 +319,8 @@ def test_acao_recomendada_texto_nunca_usa_linguagem_causal():
 
 
 # ---------------------------------------------------------------------------
-# Engage·Criar -- engajamento do UGC do piloto (ADR 0032, que revisa a
-# proibição estrutural original da issue #114).
+# Engage·Criar -- volume de UGC orgânico (ADR 0032, que revisa a proibição
+# estrutural original da issue #114).
 # ---------------------------------------------------------------------------
 
 
@@ -342,17 +342,16 @@ def test_username_de_url_normaliza_caixa_barra_e_query():
     assert funil._username_de_url(float("nan")) == ""
 
 
-def test_engage_por_governador_mediana_por_post_so_organicos_e_conta_posts():
+def test_engage_por_governador_conta_so_posts_organicos():
     out = funil._engage_por_governador(_df_ugc()).set_index("username")
-    # gov_a: posts de 11 e 22 -> mediana 16,5, 2 posts; caixa normalizada
-    assert out.loc["gov_a", "engage"] == 16.5
-    assert out.loc["gov_a", "n_posts"] == 2
-    # gov_b: a publi paga (is_organic=False) fica de fora -> só o post de 110
-    assert out.loc["gov_b", "engage"] == 110
-    assert out.loc["gov_b", "n_posts"] == 1
+    # caixa do username normalizada: Gov_A + gov_a = 2 posts
+    assert out.loc["gov_a", "engage"] == 2
+    # gov_b: a publi paga (is_organic=False) fica de fora -> 1 post
+    assert out.loc["gov_b", "engage"] == 1
+    assert out.loc["gov_c", "engage"] == 1
 
 
-def test_engage_por_governador_post_viral_nao_domina_a_mediana():
+def test_engage_nao_depende_das_curtidas_de_um_post_viral():
     df = pd.DataFrame(
         {
             "governor_username": ["gov_x"] * 5,
@@ -361,36 +360,14 @@ def test_engage_por_governador_post_viral_nao_domina_a_mediana():
             "is_organic": [True] * 5,
         }
     )
-    out = funil._engage_por_governador(df).set_index("username")
-    # soma seria 14.396; a mediana por post é 55
-    assert out.loc["gov_x", "engage"] == 55
-    assert out.loc["gov_x", "n_posts"] == 5
+    assert funil._engage_para_selecao("https://instagram.com/gov_x/", df) == 5.0
 
 
 def test_engage_por_governador_ignora_linha_sem_username():
     df = _df_ugc()
     df.loc[0, "governor_username"] = None
     out = funil._engage_por_governador(df).set_index("username")
-    assert out.loc["gov_a", "n_posts"] == 1
-
-
-def test_engage_mediana_zero_e_valor_valido_e_nao_sem_dado():
-    df = pd.DataFrame(
-        {
-            "governor_username": ["gov_z", "gov_z", "gov_y"],
-            "likesCount": [0, 0, 10],
-            "commentsCount": [0, 0, 0],
-            "is_organic": [True, True, True],
-        }
-    )
-    assert funil._engage_para_selecao("https://instagram.com/gov_z/", df) == (0.0, 2)
-    html = funil._html_engage(0.0, 2, None, is_todos=False)
-    assert "sem dado" not in html and "<b>0</b>" in html
-    # sem nenhum post de UGC, aí sim "sem dado"
-    assert "sem dado" in funil._html_engage(0.0, 0, None, is_todos=False)
-    # Todos: a média entre governadores com UGC inclui a mediana 0
-    valor, _ = funil._engage_para_selecao(TODOS_OS_GOVERNADORES, df)
-    assert valor == 5.0
+    assert out.loc["gov_a", "engage"] == 1
 
 
 def test_engage_por_governador_vazio_ou_sem_colunas_devolve_vazio():
@@ -401,33 +378,40 @@ def test_engage_por_governador_vazio_ou_sem_colunas_devolve_vazio():
 
 
 def test_engage_para_selecao_governador_unico_e_sem_ugc():
-    assert funil._engage_para_selecao("https://instagram.com/gov_a/", _df_ugc()) == (
-        16.5,
-        2,
+    assert funil._engage_para_selecao("https://instagram.com/gov_a/", _df_ugc()) == 2.0
+    assert (
+        funil._engage_para_selecao("https://instagram.com/nao_existe/", _df_ugc())
+        == 0.0
     )
-    assert funil._engage_para_selecao(
-        "https://instagram.com/nao_existe/", _df_ugc()
-    ) == (
-        0.0,
-        0,
-    )
-    assert funil._engage_para_selecao(
-        "https://instagram.com/gov_a/", pd.DataFrame()
-    ) == (
-        0.0,
-        0,
+    assert (
+        funil._engage_para_selecao("https://instagram.com/gov_a/", pd.DataFrame())
+        == 0.0
     )
 
 
 def test_engage_para_selecao_todos_e_media_por_governador_com_ugc():
-    valor, n_posts = funil._engage_para_selecao(TODOS_OS_GOVERNADORES, _df_ugc())
-    # medianas por post: gov_a 16,5, gov_b 110, gov_c 5 -> média simples entre governadores
-    assert valor == (16.5 + 110 + 5) / 3
-    assert n_posts is None
-    assert funil._engage_para_selecao(TODOS_OS_GOVERNADORES, pd.DataFrame()) == (
-        0.0,
-        None,
+    # gov_a 2, gov_b 1, gov_c 1 -> média simples entre governadores
+    assert funil._engage_para_selecao(TODOS_OS_GOVERNADORES, _df_ugc()) == 4 / 3
+    assert funil._engage_para_selecao(TODOS_OS_GOVERNADORES, pd.DataFrame()) == 0.0
+
+
+def test_ugc_e_amostra_piloto_detecta_o_teto_e_some_com_coleta_maior():
+    teto = funil._MAX_POSTS_UGC_PILOTO
+    piloto = pd.DataFrame(
+        {
+            "governor_username": ["a"] * teto + ["b"] * 2,
+            "is_organic": [True] * (teto + 2),
+        }
     )
+    assert funil._ugc_e_amostra_piloto(piloto) is True
+    completa = pd.DataFrame(
+        {
+            "governor_username": ["a"] * (teto + 1) + ["b"] * 2,
+            "is_organic": [True] * (teto + 3),
+        }
+    )
+    assert funil._ugc_e_amostra_piloto(completa) is False
+    assert funil._ugc_e_amostra_piloto(pd.DataFrame()) is False
 
 
 def test_funil_nunca_liga_convert_ao_engage_em_taxa():
@@ -510,7 +494,7 @@ def test_estagios_com_engage_por_governador_junta_engage_pelo_username():
         pd.DataFrame(),
         _df_ugc(),
     ).set_index("url")
-    assert base.loc["https://www.instagram.com/gov_a/", "engage"] == 16.5
+    assert base.loc["https://www.instagram.com/gov_a/", "engage"] == 2
     assert base.loc["https://www.instagram.com/gov_z/", "engage"] == 0
 
 
@@ -542,18 +526,14 @@ def test_html_funil_mostra_selos_de_taxa_gargalo_e_bloco_do_engage():
     estagios = (1_000_000.0, 100_000.0, 100.0)
     taxas = funil._taxas_passagem(*estagios)
     html = funil._html_funil(
-        estagios,
-        taxas,
-        funil._identificar_gargalo(taxas),
-        engage=500.0,
-        n_posts_engage=3,
+        estagios, taxas, funil._identificar_gargalo(taxas), engage=3.0, piloto=True
     )
     assert "10% avançam" in html
     assert "0,10% avançam" in html
     assert html.count("gargalo") == 1
     assert "Engage · Criar" in html and "piloto" in html
-    assert "3 conteúdos de UGC" in html
-    assert "mediana de curtidas + comentários por post" in html
+    assert "<b>3</b>" in html
+    assert "reflete o teto da coleta" in html
     # sem governador selecionado: nenhuma seta de comparação e legenda explica
     assert "▲" not in html  # o selo de conversão usa só ▼
     assert "aparece ao selecionar um governador" in html
@@ -564,12 +544,14 @@ def test_html_funil_com_comparativo_mostra_seta_e_percentual_absoluto():
     taxas = funil._taxas_passagem(*estagios)
     comparativos = {"dif": {"reach": -0.67, "convert": 1.29, "engage": 0.5}, "n": 24}
     html = funil._html_funil(
-        estagios, taxas, None, engage=200.0, n_posts_engage=5, comparativos=comparativos
+        estagios, taxas, None, engage=40.0, comparativos=comparativos, piloto=False
     )
     assert "▼ 67%" in html
     assert "▲ 129%" in html
     assert "▲ 50%" in html  # no bloco do Engage
     assert "n = 24" in html
+    # coleta completa: sem selo nem aviso de piloto
+    assert "piloto" not in html
 
 
 def test_html_funil_estagio_sem_dado_e_engage_sem_ugc_nao_quebram():
@@ -578,6 +560,12 @@ def test_html_funil_estagio_sem_dado_e_engage_sem_ugc_nao_quebram():
     html = funil._html_funil(estagios, taxas, None)
     assert "sem dado" in html
     assert "nenhum UGC orgânico coletado" in html
+
+
+def test_html_engage_todos_usa_texto_de_media_por_governador():
+    html = funil._html_engage(4.3, None, is_todos=True, piloto=False)
+    assert "média de posts de UGC orgânico entre os governadores com UGC" in html
+    assert "<b>4</b>" in html
 
 
 def test_html_funil_nao_usa_a_palavra_alcance():

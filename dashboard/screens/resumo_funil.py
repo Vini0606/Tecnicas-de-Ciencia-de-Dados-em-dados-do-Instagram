@@ -54,23 +54,24 @@ texto completo):
    "Alcance" vs. "Visualizações") -- confundir os dois números misrepresenta
    a própria distinção que o TCC faz entre dado real e proxy. Nenhuma string
    renderizada por este módulo usa a palavra "Alcance" para o estágio Reach.
-4. **Engage·Criar -- engajamento do UGC do piloto (ADR 0032, que revisa a
-   decisão original da issue #114).** A decisão original proibia qualquer
-   leitura de tabela `ugc_*` (a barra de Engage era um texto fixo "em
-   construção"). `governor_ugc_mentions` passou a existir com dado real
-   (piloto de 2026-09-19), então o Engage agora mostra o engajamento do UGC:
-   a MEDIANA de `likesCount + commentsCount` por post, entre os posts ORGÂNICOS
-   do governador (a soma foi descartada: um único post viral chegou a
-   concentrar 98% dela, ver ADR 0032)
-   (publi paga fica de fora, ver `_engage_por_governador`). Limitações
-   declaradas na tela: o piloto coletou no máximo 5 posts por governador,
-   então o número é o engajamento de uma AMOSTRA limitada (selo "piloto"),
-   não o volume real de UGC; e ele nunca é ligado a uma taxa --
-   `Convert/Engage` continua NUNCA sendo uma chave calculada, porque as
-   unidades e as populações são diferentes. O Engage fica num bloco
-   SEPARADO abaixo do funil (não é uma 4ª etapa do desenho), porque seu
-   valor pode ser maior que o de Convert e quebraria o afunilamento.
-   `load_discourse_topics()` continua NÃO sendo usado como proxy numérico.
+4. **Engage·Criar -- volume de UGC orgânico (ADR 0032, que revisa a decisão
+   original da issue #114).** A decisão original proibia qualquer leitura de
+   tabela `ugc_*` (a barra de Engage era um texto fixo "em construção").
+   `governor_ugc_mentions` passou a existir (piloto de 2026-09-19), então o
+   Engage agora mostra o NÚMERO DE POSTS de UGC ORGÂNICO do governador (o
+   "volume de UGC" do nível Criar do COBRA; publi paga fica de fora, ver
+   `_engage_por_governador`). Os dados atuais são só uma AMOSTRA DE TESTE: o
+   piloto coletou no máximo 5 posts por governador, então a contagem reflete
+   o teto da coleta. Enquanto o máximo por governador for <= 5
+   (`_ugc_e_amostra_piloto`), a tela mostra o selo "piloto" e a nota do teto
+   e esconde o comparativo ▲/▼ do Engage (seria ruído); quando houver uma
+   coleta completa, o selo, a nota e o comparativo aparecem/somem sozinhos.
+   O Engage nunca é ligado a uma taxa -- `Convert/Engage` continua NUNCA
+   sendo uma chave calculada, porque as unidades e as populações são
+   diferentes. Ele fica num bloco SEPARADO abaixo do funil (não é uma 4ª
+   etapa do desenho), porque o volume de UGC pode ser maior que o de Convert
+   e quebraria o afunilamento. `load_discourse_topics()` continua NÃO sendo
+   usado como proxy numérico.
 5. **Taxas de passagem -- dado insuficiente é `None`, nunca zero.**
    `_taxas_passagem` só calcula uma taxa quando o estágio de origem tem
    valor real (> 0); do contrário retorna `None` para aquela taxa --
@@ -171,8 +172,8 @@ _ACAO_PRODUZIR = "produzir"
 _ACAO_RADAR = "radar"
 
 _NOTA_FUNIL = (
-    'Funil COBRA-RACE · "Criar" = mediana de engajamento por post de UGC do piloto '
-    "(até 5 posts de terceiros por governador) · Reach baseado em Reels."
+    'Funil COBRA-RACE · "Criar" = volume de UGC orgânico (menções de terceiros) · '
+    "Reach baseado em Reels."
 )
 
 # Teto de posts de UGC por governador na coleta do piloto (ADR 0020, Ficha 8):
@@ -351,43 +352,43 @@ def _username_de_url(url) -> str:
 
 
 def _engage_por_governador(df_ugc: pd.DataFrame) -> pd.DataFrame:
-    """`username`/`engage`/`n_posts` por governador: `engage` = MEDIANA de
-    `likesCount + commentsCount` por post, entre os posts ORGÂNICOS (publi
-    paga é filtrada antes); `n_posts` = quantos posts orgânicos entraram.
-    Mediana, e não soma: com no máximo 5 posts por governador, um único post
-    viral domina a soma (ADR 0032). Vazio (colunas fixas) se a tabela estiver
-    vazia ou sem as colunas esperadas."""
-    colunas = ["username", "engage", "n_posts"]
-    obrigatorias = {"governor_username", "likesCount", "commentsCount"}
-    if df_ugc.empty or not obrigatorias <= set(df_ugc.columns):
+    """`username`/`engage` por governador: `engage` = NÚMERO de posts de UGC
+    ORGÂNICOS (volume de UGC; publi paga é filtrada antes de contar). Linhas
+    sem `governor_username` são ignoradas. Vazio (colunas fixas) se a tabela
+    estiver vazia ou sem as colunas esperadas."""
+    colunas = ["username", "engage"]
+    if df_ugc.empty or "governor_username" not in df_ugc.columns:
         return pd.DataFrame(columns=colunas)
     df = df_ugc.dropna(subset=["governor_username"])
     if "is_organic" in df.columns:
         df = df[df["is_organic"].fillna(False).astype(bool)]
     if df.empty:
         return pd.DataFrame(columns=colunas)
-    engajamento = df["likesCount"].fillna(0) + df["commentsCount"].fillna(0)
-    agrupado = engajamento.groupby(df["governor_username"].astype(str).str.lower())
-    out = agrupado.agg(["median", "count"]).reset_index()
+    out = df.groupby(df["governor_username"].astype(str).str.lower()).size()
+    out = out.astype(float).reset_index()
     out.columns = colunas
     return out
 
 
-def _engage_para_selecao(
-    governor_url: str, df_ugc: pd.DataFrame
-) -> tuple[float, int | None]:
-    """`(engage, n_posts)` para a seleção do seletor único. Governador único:
-    mediana por post e nº de posts de UGC dele (`(0.0, 0)` sem UGC). Todos:
-    MÉDIA por governador (da mediana por post), só entre quem tem UGC (> 0, mesma regra dos demais
-    estágios), com `n_posts = None`."""
+def _ugc_e_amostra_piloto(df_ugc: pd.DataFrame) -> bool:
+    """`True` enquanto o máximo de posts de UGC por governador for <= ao teto
+    da coleta do piloto (`_MAX_POSTS_UGC_PILOTO`): a contagem reflete o teto,
+    não o volume real. Some sozinho quando houver uma coleta completa."""
     por_gov = _engage_por_governador(df_ugc)
+    return bool(not por_gov.empty and por_gov["engage"].max() <= _MAX_POSTS_UGC_PILOTO)
+
+
+def _engage_para_selecao(governor_url: str, df_ugc: pd.DataFrame) -> float:
+    """Nº de posts de UGC para a seleção do seletor único. Governador único:
+    a contagem dele (`0.0` sem UGC). Todos: MÉDIA por governador, só entre
+    quem tem UGC (mesma regra de "média por governador" dos demais estágios)."""
+    por_gov = _engage_por_governador(df_ugc)
+    if por_gov.empty:
+        return 0.0
     if governor_url == TODOS_OS_GOVERNADORES:
-        media = float(por_gov["engage"].mean()) if not por_gov.empty else 0.0
-        return (media, None)
+        return float(por_gov["engage"].mean())
     linha = por_gov[por_gov["username"] == _username_de_url(governor_url)]
-    if linha.empty:
-        return (0.0, 0)
-    return (float(linha["engage"].iloc[0]), int(linha["n_posts"].iloc[0]))
+    return float(linha["engage"].iloc[0]) if not linha.empty else 0.0
 
 
 def _estagios_com_engage_por_governador(
@@ -856,31 +857,28 @@ def _html_selo_conversao(
     return f'<div class="f-pill" style="top:{y:.0f}px">{corpo}{selo}</div>'
 
 
-def _html_engage(
-    engage: float, n_posts: int | None, dif: float | None, is_todos: bool
-) -> str:
+def _html_engage(engage: float, dif: float | None, is_todos: bool, piloto: bool) -> str:
     """Bloco do Engage·Criar, separado do funil (ver docstring, decisão 4).
-    O número é a MEDIANA de curtidas + comentários por post de UGC. "Sem
-    dado" = nenhum post de UGC coletado; mediana 0 é um valor válido (posts
-    sem nenhuma interação)."""
-    sem_ugc = engage <= 0 if is_todos else not n_posts
-    if sem_ugc:
+    O número é a quantidade de posts de UGC orgânico. Com `piloto`, mostra o
+    selo e avisa que o número reflete o teto da coleta."""
+    selo = '<span class="f-badge">piloto</span>' if piloto else ""
+    if engage <= 0:
         valor = "sem dado"
         detalhe = "nenhum UGC orgânico coletado para este governador"
     else:
         valor = _fmt_int_br(engage) + (f" · {_fmt_dif(dif)}" if dif is not None else "")
-        quantos = (
-            "média entre os governadores com UGC"
-            if is_todos
-            else f"{n_posts} conteúdo{'s' if n_posts != 1 else ''} de UGC"
-        )
         detalhe = (
-            f"mediana de curtidas + comentários por post · {quantos} · amostra do "
-            f"piloto (coleta limitada a {_MAX_POSTS_UGC_PILOTO} posts por governador)"
+            "média de posts de UGC orgânico entre os governadores com UGC"
+            if is_todos
+            else "posts de UGC orgânico (menções de terceiros)"
+        )
+    if piloto:
+        detalhe += (
+            f" · amostra do piloto: coleta limitada a {_MAX_POSTS_UGC_PILOTO} posts "
+            "por governador, então o número reflete o teto da coleta"
         )
     return (
-        '<div class="f-engage-card"><i>Engage · Criar</i>'
-        '<span class="f-badge">piloto</span>'
+        f'<div class="f-engage-card"><i>Engage · Criar</i>{selo}'
         f"<b>{valor}</b><small>{detalhe}</small></div>"
     )
 
@@ -890,9 +888,9 @@ def _html_funil(
     taxas: dict,
     gargalo: str | None,
     engage: float = 0.0,
-    n_posts_engage: int | None = None,
     comparativos: dict | None = None,
     is_todos: bool = False,
+    piloto: bool = False,
 ) -> str:
     """Funil de 3 etapas (trapézios contínuos, largura em escala log): título e
     valor dentro de cada etapa (com ▲/▼ + diferença vs. a mediana dos demais
@@ -977,7 +975,7 @@ def _html_funil(
         '<div class="funil-viz">'
         '<div style="max-width:620px;margin:0 auto;position:relative">'
         f"{svg}{''.join(rotulos)}{''.join(selos)}</div>"
-        + _html_engage(engage, n_posts_engage, dif.get(_ESTAGIO_ENGAGE), is_todos)
+        + _html_engage(engage, dif.get(_ESTAGIO_ENGAGE), is_todos, piloto)
         + f'<div class="f-legenda">{legenda}</div></div>'
     )
 
@@ -1009,14 +1007,17 @@ def render(governor_url: str) -> None:
     )
 
     # ---- Engage (UGC do piloto) + comparativo vs. mediana dos demais ----
-    engage, n_posts_engage = _engage_para_selecao(governor_url, df_ugc)
+    engage = _engage_para_selecao(governor_url, df_ugc)
+    piloto = _ugc_e_amostra_piloto(df_ugc)
+    valores_comparativo = {
+        _ESTAGIO_REACH: estagios[0],
+        _ESTAGIO_ACT: estagios[1],
+        _ESTAGIO_CONVERT: estagios[2],
+    }
+    if not piloto:  # com o teto do piloto, comparar contagens é ruído
+        valores_comparativo[_ESTAGIO_ENGAGE] = engage
     comparativos = _diferencas_vs_mediana(
-        {
-            _ESTAGIO_REACH: estagios[0],
-            _ESTAGIO_ACT: estagios[1],
-            _ESTAGIO_CONVERT: estagios[2],
-            _ESTAGIO_ENGAGE: engage,
-        },
+        valores_comparativo,
         _estagios_com_engage_por_governador(
             df_clusters, df_reels, df_engagement, df_sentiment, df_ugc
         ),
@@ -1062,9 +1063,9 @@ def render(governor_url: str) -> None:
             taxas,
             gargalo,
             engage=engage,
-            n_posts_engage=n_posts_engage,
             comparativos=comparativos,
             is_todos=is_todos,
+            piloto=piloto,
         ),
         unsafe_allow_html=True,
     )

@@ -376,7 +376,7 @@ TABLES: list[dict] = [
         "grao": "Uma linha por post de UGC (grão fino -- agregação por governador é uma view em memória, não persistida).",
         "modo_escrita": "overwrite",
         "escrito_por": "src/features/gold/ugc_mentions_aggregator.py (GovernorUGCAggregator), chamado por scripts/run_ugc_mentions.py",
-        "lido_por": "dashboard/screens/resumo_funil.py (sub-aba Funil do Resumo) via dashboard/core/data.py::load_ugc_mentions: o estágio Engage·Criar mostra a mediana de curtidas + comentários por post orgânico de cada governador, com selo 'piloto' (ADR 0032, que revisa a proibição original da issue #114). Limitação: o piloto coletou no máximo 5 posts por governador.",
+        "lido_por": "dashboard/screens/resumo_funil.py (sub-aba Funil do Resumo) via dashboard/core/data.py::load_ugc_mentions: o estágio Engage·Criar mostra o número de posts de UGC orgânico de cada governador, com selo 'piloto' (ADR 0032, que revisa a proibição original da issue #114). Limitação: o piloto atual é uma amostra de teste que coletou no máximo 5 posts por governador (a tela avisa e esconde o comparativo enquanto o máximo for <= 5).",
         "status": "Produção -- mesma execução real de 2026-09-19 de Bronze/Silver ugc_mentions",
         "adr": "ADR 0020 Ficha 8 / issue #93",
         "descricao": "UGC orgânico vs. publi paga por post, com `is_organic` derivado de `paidPartnership` -- separa apoio espontâneo de publi paga ANTES de qualquer agregação.",
