@@ -526,17 +526,35 @@ def test_html_funil_mostra_selos_de_taxa_gargalo_e_bloco_do_engage():
     estagios = (1_000_000.0, 100_000.0, 100.0)
     taxas = funil._taxas_passagem(*estagios)
     html = funil._html_funil(
-        estagios, taxas, funil._identificar_gargalo(taxas), engage=3.0, piloto=True
+        estagios, taxas, funil._identificar_gargalo(taxas), engage=3.0
     )
     assert "10% avançam" in html
     assert "0,10% avançam" in html
-    assert html.count("gargalo") == 1
-    assert "Engage · Criar" in html and "piloto" in html
+    assert "3,0% avançam" in html  # Convert -> Engage: 3 / 100
+    assert html.count("gargalo") == 1  # Convert→Engage nunca é gargalo
+    assert "Engage · Criar" in html
     assert "<b>3</b>" in html
-    assert "reflete o teto da coleta" in html
+    assert "posts de UGC orgânico" in html
+    assert "piloto" not in html  # a tela não exibe aviso de piloto
     # sem governador selecionado: nenhuma seta de comparação e legenda explica
-    assert "▲" not in html  # o selo de conversão usa só ▼
+    assert "▲" not in html  # os selos de conversão usam só ▼
     assert "aparece ao selecionar um governador" in html
+
+
+def test_html_funil_selo_engage_acima_de_100_pct_usa_multiplo():
+    estagios = (1_000.0, 100.0, 10.0)
+    taxas = funil._taxas_passagem(*estagios)
+    html = funil._html_funil(estagios, taxas, None, engage=45.0)
+    assert "▲ 4,5× a etapa anterior" in html
+
+
+def test_html_funil_selo_engage_sem_dado_quando_falta_convert_ou_engage():
+    estagios = (1_000.0, 100.0, 0.0)
+    html = funil._html_funil(estagios, funil._taxas_passagem(*estagios), None, 5.0)
+    assert 'f-pill-flow"><div class="f-pill">sem dado' in html
+    estagios2 = (1_000.0, 100.0, 10.0)
+    html2 = funil._html_funil(estagios2, funil._taxas_passagem(*estagios2), None, 0.0)
+    assert 'f-pill-flow"><div class="f-pill">sem dado' in html2
 
 
 def test_html_funil_com_comparativo_mostra_seta_e_percentual_absoluto():
@@ -544,14 +562,12 @@ def test_html_funil_com_comparativo_mostra_seta_e_percentual_absoluto():
     taxas = funil._taxas_passagem(*estagios)
     comparativos = {"dif": {"reach": -0.67, "convert": 1.29, "engage": 0.5}, "n": 24}
     html = funil._html_funil(
-        estagios, taxas, None, engage=40.0, comparativos=comparativos, piloto=False
+        estagios, taxas, None, engage=40.0, comparativos=comparativos
     )
     assert "▼ 67%" in html
     assert "▲ 129%" in html
     assert "▲ 50%" in html  # no bloco do Engage
     assert "n = 24" in html
-    # coleta completa: sem selo nem aviso de piloto
-    assert "piloto" not in html
 
 
 def test_html_funil_estagio_sem_dado_e_engage_sem_ugc_nao_quebram():
@@ -559,13 +575,34 @@ def test_html_funil_estagio_sem_dado_e_engage_sem_ugc_nao_quebram():
     taxas = funil._taxas_passagem(*estagios)
     html = funil._html_funil(estagios, taxas, None)
     assert "sem dado" in html
-    assert "nenhum UGC orgânico coletado" in html
+    assert "nenhum post de UGC orgânico coletado" in html
 
 
 def test_html_engage_todos_usa_texto_de_media_por_governador():
-    html = funil._html_engage(4.3, None, is_todos=True, piloto=False)
-    assert "média de posts de UGC orgânico entre os governadores com UGC" in html
+    html = funil._html_engage(4.3, None, is_todos=True)
+    assert "média de posts de UGC orgânico por governador" in html
     assert "<b>4</b>" in html
+
+
+def test_taxa_engage_e_none_sem_dado_e_pode_passar_de_100_pct():
+    assert funil._taxa_engage(40.0, 5.0) == 0.125
+    assert funil._taxa_engage(0.0, 5.0) is None
+    assert funil._taxa_engage(40.0, 0.0) is None
+    assert funil._taxa_engage(10.0, 45.0) == 4.5
+
+
+def test_texto_como_ler_descreve_as_quatro_etapas_e_como_interpretar():
+    for is_todos in (True, False):
+        texto = funil._texto_como_ler(is_todos)
+        for etapa in ("Reach", "Act", "Convert", "Engage"):
+            assert etapa in texto
+        assert "escala logarítmica" in texto
+        assert "avançam" in texto
+        assert "gargalo" in texto.lower()
+    assert "média por governador" in funil._texto_como_ler(True)
+    assert "diferença do valor dele" in funil._texto_como_ler(False)
+    assert "mediana dos demais governadores" in funil._texto_como_ler(False)
+    assert "mediana" not in funil._texto_como_ler(True)
 
 
 def test_html_funil_nao_usa_a_palavra_alcance():

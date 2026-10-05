@@ -67,8 +67,8 @@ subjacente, ambos coexistem no rótulo "Estágio · Nível").
 
 **Gargalo**:
 O estágio do funil com a menor taxa de passagem entre execuções, entre os estágios que têm dado real
-(Convert→Engage nunca é taxa nem gargalo: o Engage é o engajamento de uma amostra de UGC, outra
-unidade e outra população — ver "Visualizações" vs. "alcance"). Marcado com o selo "gargalo" no
+(Convert→Engage é exibida, mas nunca é gargalo: compara comentários com posts de UGC de
+terceiros, outra unidade e outra população — ver "Visualizações" vs. "alcance"). Marcado com o selo "gargalo" no
 selo de conversão da sub-aba Funil do Resumo.
 _Avoid_: Bottleneck, ponto fraco.
 

@@ -60,24 +60,25 @@ texto completo):
    `governor_ugc_mentions` passou a existir (piloto de 2026-09-19), então o
    Engage agora mostra o NÚMERO DE POSTS de UGC ORGÂNICO do governador (o
    "volume de UGC" do nível Criar do COBRA; publi paga fica de fora, ver
-   `_engage_por_governador`). Os dados atuais são só uma AMOSTRA DE TESTE: o
-   piloto coletou no máximo 5 posts por governador, então a contagem reflete
-   o teto da coleta. Enquanto o máximo por governador for <= 5
-   (`_ugc_e_amostra_piloto`), a tela mostra o selo "piloto" e a nota do teto
-   e esconde o comparativo ▲/▼ do Engage (seria ruído); quando houver uma
-   coleta completa, o selo, a nota e o comparativo aparecem/somem sozinhos.
-   O Engage nunca é ligado a uma taxa -- `Convert/Engage` continua NUNCA
-   sendo uma chave calculada, porque as unidades e as populações são
-   diferentes. Ele fica num bloco SEPARADO abaixo do funil (não é uma 4ª
-   etapa do desenho), porque o volume de UGC pode ser maior que o de Convert
-   e quebraria o afunilamento. `load_discourse_topics()` continua NÃO sendo
-   usado como proxy numérico.
+   `_engage_por_governador`). A taxa Convert -> Engage (posts de UGC por
+   comentário positivo) aparece num selo entre o funil e o bloco do Engage
+   (`_taxa_engage`), mas NUNCA entra em `_taxas_passagem` nem na identificação
+   do gargalo: as unidades e as populações são diferentes (posts de terceiros
+   x comentários). Os dados atuais são só uma AMOSTRA DE TESTE (no máximo 5
+   posts por governador): enquanto o máximo por governador for <= 5
+   (`_ugc_e_amostra_piloto`), o comparativo ▲/▼ do Engage fica oculto (seria
+   ruído); com uma coleta completa ele aparece sozinho. A tela não exibe
+   aviso de "piloto". O Engage fica num bloco SEPARADO abaixo do funil (não é
+   uma 4ª etapa do desenho), porque o volume de UGC pode ser maior que o de
+   Convert e quebraria o afunilamento. `load_discourse_topics()` continua NÃO
+   sendo usado como proxy numérico.
 5. **Taxas de passagem -- dado insuficiente é `None`, nunca zero.**
    `_taxas_passagem` só calcula uma taxa quando o estágio de origem tem
    valor real (> 0); do contrário retorna `None` para aquela taxa --
    `_identificar_gargalo` exclui candidatos `None` do cálculo, nunca os
    trata como "taxa de 0%" (que seria uma afirmação diferente e mais forte
-   do que "não sei"). `Convert/Engage` nunca é uma chave calculada (ver decisão 4).
+   do que "não sei"). `Convert/Engage` é exibida num selo próprio, mas nunca entra aqui nem no
+   gargalo (ver decisão 4).
 6. **Gargalo -- desempate determinístico.** Em caso de empate entre `"act"`
    e `"convert"`, o desempate favorece o estágio mais cedo no funil
    (`_ORDEM_ESTAGIOS_GARGALO` = Act antes de Convert) -- um gargalo mais
@@ -339,7 +340,7 @@ def _estagios_para_selecao(
 
 
 # ---------------------------------------------------------------------------
-# Engage·Criar -- engajamento do UGC do piloto (ADR 0032) e comparativo
+# Engage·Criar -- volume de UGC orgânico (ADR 0032) e comparativo
 # ---------------------------------------------------------------------------
 
 
@@ -389,6 +390,15 @@ def _engage_para_selecao(governor_url: str, df_ugc: pd.DataFrame) -> float:
         return float(por_gov["engage"].mean())
     linha = por_gov[por_gov["username"] == _username_de_url(governor_url)]
     return float(linha["engage"].iloc[0]) if not linha.empty else 0.0
+
+
+def _taxa_engage(convert: float, engage: float) -> float | None:
+    """Convert -> Engage: posts de UGC por comentário positivo. `None` sem
+    dado nos dois lados. Pode passar de 1 (mais posts que comentários). NUNCA
+    entra em `_taxas_passagem`/gargalo (ver docstring, decisão 4)."""
+    if convert <= 0 or engage <= 0:
+        return None
+    return engage / convert
 
 
 def _estagios_com_engage_por_governador(
@@ -808,6 +818,8 @@ _CSS_FUNIL = (
   box-shadow:0 1px 3px rgba(0,0,0,.25); font-size:13px; font-weight:600; }
 .funil-viz .f-badge { font-size:11px; border-radius:6px; padding:1px 8px; margin-left:8px;
   border:1px solid currentColor; font-weight:400; }
+.funil-viz .f-pill-flow { text-align:center; margin:10px 0 0; }
+.funil-viz .f-pill-flow .f-pill { position:static; transform:none; display:inline-block; }
 .funil-viz .f-engage-card { border:2px dashed var(--f-engage); border-radius:10px;
   padding:10px 16px; margin:12px auto 0; max-width:420px; text-align:center; }
 .funil-viz .f-engage-card i { font-style:normal; font-size:12px; font-weight:600; }
@@ -843,42 +855,43 @@ def _fmt_taxa_pct(taxa: float) -> str:
     return f"{p:.{casas}f}".replace(".", ",") + "%"
 
 
+def _texto_taxa(taxa: float | None, destino_tem_dado: bool) -> str:
+    """Texto de um selo de conversão: `X% avançam`; acima de 100% (a etapa
+    seguinte é maior que a anterior), `N× a etapa anterior`."""
+    if not destino_tem_dado or taxa is None:
+        return "sem dado"
+    if taxa <= 0:
+        return "▼ nenhum avança"
+    if taxa > 1:
+        return f"▲ {taxa:.1f}× a etapa anterior".replace(".", ",")
+    return f"▼ {_fmt_taxa_pct(taxa)} avançam"
+
+
 def _html_selo_conversao(
     y: float, taxa: float | None, destino_tem_dado: bool, gargalo: bool
 ) -> str:
     """Selo de conversão centrado na fronteira entre duas etapas (`y` em px)."""
-    if not destino_tem_dado or taxa is None:
-        corpo = "sem dado"
-    elif taxa <= 0:
-        corpo = "▼ nenhum avança"
-    else:
-        corpo = f"▼ {_fmt_taxa_pct(taxa)} avançam"
+    corpo = _texto_taxa(taxa, destino_tem_dado)
     selo = '<span class="f-badge">gargalo</span>' if gargalo else ""
     return f'<div class="f-pill" style="top:{y:.0f}px">{corpo}{selo}</div>'
 
 
-def _html_engage(engage: float, dif: float | None, is_todos: bool, piloto: bool) -> str:
-    """Bloco do Engage·Criar, separado do funil (ver docstring, decisão 4).
-    O número é a quantidade de posts de UGC orgânico. Com `piloto`, mostra o
-    selo e avisa que o número reflete o teto da coleta."""
-    selo = '<span class="f-badge">piloto</span>' if piloto else ""
+def _html_engage(engage: float, dif: float | None, is_todos: bool) -> str:
+    """Bloco do Engage·Criar, separado do funil (ver docstring, decisão 4):
+    quantidade de posts de UGC orgânico, em uma frase objetiva."""
     if engage <= 0:
         valor = "sem dado"
-        detalhe = "nenhum UGC orgânico coletado para este governador"
+        detalhe = "nenhum post de UGC orgânico coletado para este governador"
     else:
         valor = _fmt_int_br(engage) + (f" · {_fmt_dif(dif)}" if dif is not None else "")
         detalhe = (
-            "média de posts de UGC orgânico entre os governadores com UGC"
+            "média de posts de UGC orgânico por governador"
             if is_todos
-            else "posts de UGC orgânico (menções de terceiros)"
-        )
-    if piloto:
-        detalhe += (
-            f" · amostra do piloto: coleta limitada a {_MAX_POSTS_UGC_PILOTO} posts "
-            "por governador, então o número reflete o teto da coleta"
+            else "posts de UGC orgânico: conteúdos de terceiros, não pagos, que "
+            "mencionam o governador"
         )
     return (
-        f'<div class="f-engage-card"><i>Engage · Criar</i>{selo}'
+        '<div class="f-engage-card"><i>Engage · Criar</i>'
         f"<b>{valor}</b><small>{detalhe}</small></div>"
     )
 
@@ -890,12 +903,11 @@ def _html_funil(
     engage: float = 0.0,
     comparativos: dict | None = None,
     is_todos: bool = False,
-    piloto: bool = False,
 ) -> str:
     """Funil de 3 etapas (trapézios contínuos, largura em escala log): título e
     valor dentro de cada etapa (com ▲/▼ + diferença vs. a mediana dos demais
-    quando há `comparativos`), selo de conversão entre as etapas e o bloco do
-    Engage separado abaixo. Ver docstring do módulo, decisões 4 e 10."""
+    quando há `comparativos`), selo de conversão entre as etapas e, abaixo, o
+    selo Convert -> Engage e o bloco do Engage. Ver docstring do módulo, decisões 4 e 10."""
     dif = (comparativos or {}).get("dif", {})
     larguras = [w if w is not None else 0.0 for w in _larguras_log(estagios)]
     bases = larguras[1:] + [larguras[-1] * 0.8]
@@ -971,12 +983,57 @@ def _html_funil(
         "Largura em escala logarítmica: cada degrau equivale a uma ordem de "
         "grandeza, não ao volume proporcional."
     )
+    selo_engage = _texto_taxa(
+        _taxa_engage(estagios[2], engage), estagios[2] > 0 and engage > 0
+    )
     return (
         '<div class="funil-viz">'
         '<div style="max-width:620px;margin:0 auto;position:relative">'
         f"{svg}{''.join(rotulos)}{''.join(selos)}</div>"
-        + _html_engage(engage, dif.get(_ESTAGIO_ENGAGE), is_todos, piloto)
+        f'<div class="f-pill-flow"><div class="f-pill">{selo_engage}</div></div>'
+        + _html_engage(engage, dif.get(_ESTAGIO_ENGAGE), is_todos)
         + f'<div class="f-legenda">{legenda}</div></div>'
+    )
+
+
+def _texto_como_ler(is_todos: bool) -> str:
+    """Markdown do expander "Como ler este funil": o que cada etapa mede e
+    como interpretar os números da visualização."""
+    escopo = (
+        "Em **Todos os Governadores**, cada etapa é a **média por governador** e "
+        'não há comparação (não existem "demais").'
+        if is_todos
+        else "Com um governador selecionado, cada etapa mostra **▲/▼ e um %**: a "
+        "diferença do valor dele contra a **mediana dos demais governadores**."
+    )
+    return (
+        "**O que cada etapa mede**\n"
+        "- **Reach · Alcançar:** visualizações. Soma das reproduções dos Reels do "
+        "governador.\n"
+        "- **Act · Consumir:** curtidas. Total de curtidas do perfil.\n"
+        "- **Convert · Contribuir:** comentários positivos. Quantos comentários "
+        "foram classificados como positivos.\n"
+        "- **Engage · Criar:** posts de UGC orgânico. Conteúdos publicados por "
+        "terceiros, sem pagamento, que mencionam o governador.\n\n"
+        "**Como interpretar os números**\n"
+        "- **Largura do funil:** escala logarítmica. Cada degrau equivale a uma "
+        "ordem de grandeza (10×), não ao volume proporcional. Leia o número "
+        "dentro da etapa.\n"
+        '- **Selo "X% avançam":** a etapa de baixo dividida pela de cima. '
+        '"5,3% avançam" entre Reach e Act significa 5,3 curtidas a cada 100 '
+        "visualizações. As unidades mudam a cada etapa, então é uma razão entre "
+        "grandezas diferentes, não a fração de pessoas que avançou.\n"
+        "- **Gargalo:** a menor taxa entre Reach→Act e Act→Convert. "
+        "Convert→Engage aparece, mas não entra no gargalo (compara comentários "
+        "com posts de terceiros).\n"
+        f"- **Setas dentro das etapas:** {escopo} Isso mostra **tamanho** "
+        "(escala do perfil), não eficiência. Para eficiência, olhe os selos de "
+        "taxa.\n\n"
+        "**Cuidados**\n"
+        "- Act é do perfil inteiro, enquanto Reach conta só Reels: a taxa "
+        "Reach→Act é uma aproximação.\n"
+        "- Engage depende da coleta de UGC e hoje vem de uma amostra de teste; "
+        "a taxa Convert→Engage reflete essa amostra."
     )
 
 
@@ -1065,10 +1122,11 @@ def render(governor_url: str) -> None:
             engage=engage,
             comparativos=comparativos,
             is_todos=is_todos,
-            piloto=piloto,
         ),
         unsafe_allow_html=True,
     )
+    with st.expander("Como ler este funil"):
+        st.markdown(_texto_como_ler(is_todos))
 
     # ---- Leitura automática para a assessoria ----
     nivel = _nivel_decisao(gargalo, convert_caindo)

@@ -37,15 +37,16 @@ e Engage como texto fixo "em construção". Na verificação visual da feature, 
 4. **Engage mostra o volume de UGC orgânico**, em bloco separado abaixo do funil: o número de posts de UGC
    orgânico do governador (média entre os governadores com UGC em "Todos"). É o "volume de UGC" do nível Criar
    do COBRA (ADR 0020). O bloco é separado porque o volume de UGC pode superar o de Convert (dezenas) e
-   quebraria o afunilamento. `Convert/Engage` continua não sendo uma taxa nem um gargalo. Isso **revisa a
+   quebraria o afunilamento. A taxa Convert→Engage (posts de UGC por comentário positivo) aparece num selo entre o
+   funil e o bloco, mas nunca entra no gargalo, porque as unidades e as populações são diferentes. Isso **revisa a
    decisão 4 da issue #114**: o módulo passa a ler `governor_ugc_mentions` (via
    `dashboard/core/data.py::load_ugc_mentions`), e o teste estático de proibição foi removido, substituído por
    testes do cálculo.
 5. **Os dados atuais são uma amostra de teste, e a tela se adapta sozinha à coleta completa.** O piloto coletou
    no máximo 5 posts por governador, então a contagem reflete o teto da coleta. Enquanto o máximo de posts por
-   governador for menor ou igual ao teto (`_ugc_e_amostra_piloto`), o bloco mostra o selo "piloto" e a nota do
-   teto, e o comparativo ▲/▼ do Engage fica oculto (comparar contagens saturadas é ruído). Com uma coleta
-   completa, o selo e a nota somem e o comparativo contra a mediana dos demais aparece, sem mudança de código.
+   governador for menor ou igual ao teto (`_ugc_e_amostra_piloto`), o comparativo ▲/▼ do Engage fica oculto (comparar contagens saturadas é ruído). Com uma coleta
+   completa, o comparativo contra a mediana dos demais aparece, sem mudança de código. A tela não exibe aviso de "piloto" (pedido do usuário), então, enquanto a
+   amostra for de teste, a taxa Convert→Engage reflete o teto da coleta.
    Duas métricas foram descartadas na prototipagem: a soma de curtidas + comentários (um único post viral
    concentrava 98% da soma de um governador e fazia o comparativo mostrar "▲ 1074%") e a mediana de
    engajamento por post (cada mediana saía de no máximo 5 posts).
