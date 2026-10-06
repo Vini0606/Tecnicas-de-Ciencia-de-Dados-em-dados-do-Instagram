@@ -88,5 +88,9 @@ A spec #210 levantou quatro problemas.
   com o mesmo timeout de 300 s (Terraform não alterado). As Lambdas `transform`/`load` ainda não gravam
   Silver/Gold de UGC nem comentários de posts, e o caminho serverless segue sem paridade com o pipeline
   local.
-- A aceitação de `onlyPostsNewerThan` pelo tagged-scraper deve ser confirmada na validação com dado real
-  (issue #216) e registrada aqui.
+- **Confirmado com dado real (2026-10-06, issue #216):** o `apify/instagram-tagged-scraper` **respeita**
+  `onlyPostsNewerThan`. Com `--days 5`, 233 dos 234 itens com data estavam dentro da janela; o único fora
+  ficou por pouco além da borda. A salvaguarda `filtrar_ugc_por_janela` continua como defesa, sem efeito
+  prático. Nessa coleta (26 governadores, teto 30), o actor devolveu 246 itens (~US$ 0,57), 12 deles
+  itens de erro sem `id` (governador sem marcação no período), descartados pelo cleaner, e nenhum perfil
+  bateu no teto.
