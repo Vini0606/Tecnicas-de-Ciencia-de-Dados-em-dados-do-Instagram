@@ -1,9 +1,11 @@
 import argparse
 import logging
 import os
+import sys
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from typing import Callable
+from pathlib import Path
+from typing import Callable, Iterable
 
 import pandas as pd
 from apify_client import ApifyClient
@@ -31,6 +33,13 @@ from src.features.silver.ugc_mention_cleaner import UGCMentionCleaner
 from src.logging_setup import attach_run_log_handler, configure_console_logging
 from src.modeling.config import ModelingConfig
 from src.modeling.orchestration import run_deterministic_modeling
+from src.pipeline_report import (
+    TABELAS_ESPERADAS,
+    TabelaEsperada,
+    avaliar_tabelas,
+    codigo_de_saida,
+    formatar_relatorio,
+)
 from src.run_id import build_run_id
 
 logger = logging.getLogger(__name__)
@@ -315,6 +324,34 @@ def run_medallion_pipeline(
     return run_id
 
 
+def relatorio_final(
+    started_at: datetime,
+    run_modeling: bool,
+    run_id: str,
+    caminho_log: Path,
+    tabelas: Iterable[TabelaEsperada] = TABELAS_ESPERADAS,
+) -> int:
+    """Relatório de tabelas esperadas (issue #214) e código de saída do
+    processo: 1 se alguma tabela lida pelo dashboard, de um estágio que rodou
+    nesta execução, está AUSENTE, VAZIA ou DESATUALIZADA."""
+    estagios = {"silver", "gold", "ugc"} | ({"modelagem"} if run_modeling else set())
+    resultado = avaliar_tabelas(tabelas, started_at, estagios)
+    logger.info(formatar_relatorio(resultado, caminho_log))
+    codigo = codigo_de_saida(resultado)
+    if codigo:
+        n = sum(r.falhou and r.tabela.usada_pelo_dashboard for r in resultado)
+        logger.error(
+            f"[FALHA] Pipeline Medallion finalizado com run_id: {run_id} -- "
+            f"{n} tabela(s) do dashboard com problema (ver relatorio acima)."
+        )
+    else:
+        logger.info(
+            f"[OK] Pipeline Medallion finalizado com run_id: {run_id} -- "
+            "todas as tabelas do dashboard OK."
+        )
+    return codigo
+
+
 def _inteiro_positivo(valor: str) -> int:
     try:
         numero = int(valor)
@@ -380,6 +417,9 @@ def build_arg_parser() -> argparse.ArgumentParser:
 if __name__ == "__main__":
     load_dotenv()
 
+    # Antes de qualquer trabalho: tabela com último commit anterior a este
+    # instante não foi reescrita nesta execução (DESATUALIZADA, issue #214).
+    started_at = datetime.now(timezone.utc)
     args = build_arg_parser().parse_args()
     params = resolver_extracao(args.days, args.results_limit, args.force_extract)
 
@@ -419,4 +459,6 @@ if __name__ == "__main__":
     )
     # Sem emoji: o console padrão do Windows usa cp1252 e levanta
     # UnicodeEncodeError ao imprimi-los.
-    logger.info(f"[OK] Pipeline Medallion finalizado com run_id: {run_id}")
+    # Pasta de logs (não só a deste run_id): a modelagem cunha um run_id
+    # próprio e registra os estágios pulados no log dele (ADR 0015).
+    sys.exit(relatorio_final(started_at, args.run_modeling, run_id, settings.LOGS_DIR))
