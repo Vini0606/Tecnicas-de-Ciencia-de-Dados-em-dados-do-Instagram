@@ -177,9 +177,8 @@ def formatar_relatorio(resultado: list[StatusTabela], caminho_log: Path) -> str:
         partes.append(f"[RELATORIO] Tabelas do dashboard com problema: {', '.join(falhas)}.")
     if avisos:
         partes.append(f"[RELATORIO] Aviso (fora do dashboard): {', '.join(avisos)}.")
-    if falhas or avisos:
-        partes.append(
-            "[RELATORIO] Estagios pulados ficam registrados nos logs do pipeline e da "
-            f"modelagem (cada um sob o seu run_id) em: {caminho_log}"
-        )
+    partes.append(
+        "[RELATORIO] Logs do pipeline e da modelagem (cada um sob o seu run_id, com os "
+        f"estagios pulados): {caminho_log}"
+    )
     return "\n".join(partes)
