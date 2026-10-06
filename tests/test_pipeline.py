@@ -498,3 +498,79 @@ def test_run_medallion_pipeline_nao_grava_silver_de_comentarios_de_posts_vazia(m
     pipeline.run_medallion_pipeline(apify_api_token="token", links=["l"], run_id="r1")
 
     post_cleaner.write.assert_not_called()
+
+
+def test_run_medallion_pipeline_com_days_repassa_janela_a_posts_reels_e_ugc(monkeypatch, tmp_path):
+    """Issue #213: a janela chega às três coleções pagas."""
+    import pipeline
+
+    _setup_extraction_branch(monkeypatch, tmp_path)
+    fake_scraper = pipeline.InstagramScraper(None, None)
+
+    pipeline.run_medallion_pipeline(
+        apify_api_token="token", links=["u1"], run_id="run_extract", force_extract=True, days=90
+    )
+
+    janela = {"onlyPostsNewerThan": "90 days"}
+    assert fake_scraper.scrape_posts.call_args.kwargs["extra_run_input"] == janela
+    assert fake_scraper.scrape_reels.call_args.kwargs["extra_run_input"] == janela
+    assert fake_scraper.scrape_mentions.call_args.kwargs["extra_run_input"] == janela
+
+
+def test_run_medallion_pipeline_com_days_estima_custo_pela_janela(monkeypatch, tmp_path):
+    import pipeline
+
+    _setup_extraction_branch(monkeypatch, tmp_path)
+    custos = []
+
+    pipeline.run_medallion_pipeline(
+        apify_api_token="token",
+        links=["u1"],
+        results_limit=500,
+        run_id="run_extract",
+        force_extract=True,
+        days=60,
+        confirm_extraction=lambda custo: custos.append(custo) or True,
+    )
+
+    assert custos == [pipeline.estimar_custo(days=60, results_limit=500, n_governors=1)["total"]]
+
+
+def test_run_medallion_pipeline_avisa_perfis_que_bateram_no_teto(monkeypatch, tmp_path, caplog):
+    import pipeline
+
+    _setup_extraction_branch(monkeypatch, tmp_path)
+    fake_scraper = pipeline.InstagramScraper(None, None)
+    fake_scraper.scrape_posts.return_value = [{"inputUrl": "u1", "id": f"p{i}"} for i in range(2)]
+
+    with caplog.at_level("WARNING"):
+        pipeline.run_medallion_pipeline(
+            apify_api_token="token",
+            links=["u1"],
+            results_limit=2,
+            run_id="run_extract",
+            force_extract=True,
+        )
+
+    assert "bateram no teto de 2" in caplog.text
+    assert "posts=['u1']" in caplog.text
+
+
+def test_run_medallion_pipeline_com_days_filtra_silver_de_ugc_pela_janela(monkeypatch):
+    import pipeline
+
+    _patch_medallion_dependencies(monkeypatch, pd.DataFrame({"id": ["1"]}), pd.DataFrame())
+    df_ugc_silver = pd.DataFrame(
+        {
+            "id": ["antigo", "recente"],
+            "data_hora": [pd.Timestamp("2013-01-01"), pd.Timestamp.now()],
+        }
+    )
+    ugc_cleaner, ugc_aggregator, _ = _patch_ugc(
+        monkeypatch, pd.DataFrame({"id": ["m1"]}), df_ugc_silver
+    )
+    monkeypatch.setattr("pipeline._bronze_has_data", lambda bronze: True)
+
+    pipeline.run_medallion_pipeline(apify_api_token="token", links=["l"], run_id="r1", days=30)
+
+    assert list(ugc_cleaner.write.call_args.args[0]["id"]) == ["recente"]
