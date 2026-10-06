@@ -54,6 +54,8 @@ SILVER_PROFILES = SILVER_DIR / "profiles_clean"
 SILVER_POSTS = SILVER_DIR / "posts_clean"
 SILVER_REELS = SILVER_DIR / "reels_clean"
 SILVER_COMMENTS = SILVER_DIR / "comments_clean"
+# Issue #212: comentários de posts de feed, separados dos de reels.
+SILVER_POST_COMMENTS = SILVER_DIR / "post_comments_clean"
 SILVER_GOVERNORS_METADATA = SILVER_DIR / "governors_metadata"
 SILVER_UGC_MENTIONS = SILVER_DIR / "ugc_mentions"
 

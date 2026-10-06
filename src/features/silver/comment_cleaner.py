@@ -6,15 +6,22 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import ClassVar
+from typing import ClassVar, Literal
 
 import pandas as pd
 
 from src.delta_io import deduplicate_latest, write_delta
-from src.schemas_delta import SILVER_COMMENTS_SCHEMA
+from src.schemas_delta import SILVER_COMMENTS_SCHEMA, SILVER_POST_COMMENTS_SCHEMA
+
+_SCHEMA_POR_ORIGEM = {"reel": SILVER_COMMENTS_SCHEMA, "post": SILVER_POST_COMMENTS_SCHEMA}
 
 
 class CommentCleaner:
+    """Explode `latestComments` da Bronze de reels (`origem="reel"`, padrão,
+    grava `comments_clean` com `id_reel`) ou de posts de feed (`origem=
+    "post"`, issue #212, grava `post_comments_clean` com `id_post`). Mesmas
+    regras para as duas origens."""
+
     MAX_TEXT_LENGTH = 512
     COLUMNS_TO_DROP: ClassVar[list[str]] = [
         "hashtags",
@@ -26,6 +33,11 @@ class CommentCleaner:
         "taggedUsers",
         "coauthorProducers",
     ]
+
+    def __init__(self, origem: Literal["reel", "post"] = "reel"):
+        if origem not in _SCHEMA_POR_ORIGEM:
+            raise ValueError(f"origem desconhecida: {origem!r} (use 'reel' ou 'post')")
+        self._origem = origem
 
     def clean(
         self,
@@ -61,7 +73,7 @@ class CommentCleaner:
         df_normalized.index = df_exploded.index
 
         df_result = df_exploded.drop("latestComments", axis=1).join(
-            df_normalized, lsuffix="_reel", rsuffix="_comment"
+            df_normalized, lsuffix=f"_{self._origem}", rsuffix="_comment"
         )
 
         if "text" not in df_result.columns:
@@ -93,4 +105,4 @@ class CommentCleaner:
         return df
 
     def write(self, df_silver: pd.DataFrame, path: Path | str) -> None:
-        write_delta(path, df_silver, SILVER_COMMENTS_SCHEMA)
+        write_delta(path, df_silver, _SCHEMA_POR_ORIGEM[self._origem])

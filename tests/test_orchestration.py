@@ -1193,3 +1193,114 @@ def test_run_deterministic_modeling_degrada_sem_derrubar_pipeline_se_cluster_per
     clusters_reels_out = DeltaTable(str(config.gold_clusters_reels_path)).to_pandas()
     assert (clusters_reels_out["_run_id"] == result.run_id).all()
     assert not config.gold_profile_clusters_engagement_path.exists()
+
+
+def _config_completa(tmp_path):
+    return ModelingConfig(
+        cluster=ClusterConfig(max_evals_per_algo=10, random_state=42, max_n_clusters=5),
+        gold_clusters_reels_path=tmp_path / "governor_clusters_reels",
+        gold_clusters_posts_path=tmp_path / "governor_clusters_posts",
+        gold_sentiment_path=tmp_path / "governor_sentiment",
+        gold_sentiment_history_path=tmp_path / "governor_sentiment_history",
+        gold_discourse_topics_path=tmp_path / "governor_discourse_topics",
+        gold_topic_priority_score_path=tmp_path / "topic_priority_score",
+        gold_content_topic_priority_score_path=tmp_path / "content_topic_priority_score",
+        gold_nsm_path=tmp_path / "governor_nsm",
+        gold_nsm_history_path=tmp_path / "governor_nsm_history",
+        gold_governor_scorecard_path=tmp_path / "governor_scorecard",
+        gold_post_performance_coefficients_path=tmp_path / "post_performance_coefficients",
+        gold_post_performance_predictions_path=tmp_path / "post_performance_predictions",
+        gold_profile_clusters_engagement_path=tmp_path / "governor_profile_clusters_engagement",
+        checkpoints_dir=tmp_path / "checkpoints",
+        logs_dir=tmp_path / "logs",
+    )
+
+
+def _df_post_comments():
+    # c3 repete um comentário de reel (mesmo id) -- deve contar uma vez só.
+    return pd.DataFrame(
+        {
+            "id_post": ["post_5", "post_0"],
+            "id_comment": ["c_post", "c3"],
+            "text": ["gostei do post", "concordo com a proposta"],
+            "inputUrl": "https://instagram.com/governador_teste",
+        }
+    )
+
+
+def _patch_modelagem_leve(monkeypatch):
+    monkeypatch.setattr("src.modeling.orchestration.analyze_sentiment", _fake_analyze_sentiment)
+    monkeypatch.setattr(
+        "src.modeling.orchestration.model_topics",
+        _make_fake_model_topics("0_provisorio", "0_refinado"),
+    )
+    monkeypatch.setattr(
+        "src.modeling.orchestration.apply_gemini_refinement", _fake_apply_gemini_refinement
+    )
+    _patch_post_performance_fakes(monkeypatch)
+
+
+def test_run_deterministic_modeling_inclui_comentarios_de_posts_com_origem(monkeypatch, tmp_path):
+    """Issue #212: comentários de posts entram no sentimento (tabela e
+    histórico) com `origem_comentario == "post"`, sem duplicar o comentário
+    que também veio pelos reels."""
+    _patch_modelagem_leve(monkeypatch)
+    config = _config_completa(tmp_path)
+
+    run_deterministic_modeling(
+        _df_reels(),
+        _df_comments(),
+        _df_posts_placeholder(),
+        _df_engagement_placeholder(),
+        config,
+        df_post_comments=_df_post_comments(),
+    )
+
+    for path in (config.gold_sentiment_path, config.gold_sentiment_history_path):
+        comentarios = DeltaTable(str(path)).to_pandas().query("fonte == 'comentario'")
+        origens = comentarios.set_index("id_comment")["origem_comentario"].to_dict()
+        assert origens == {"c1": "reel", "c2": "reel", "c3": "reel", "c_post": "post"}
+        assert comentarios.set_index("id_comment").loc["c_post", "id_reel"] == "post_5"
+
+
+def test_run_deterministic_modeling_sem_comentarios_de_posts_marca_tudo_como_reel(
+    monkeypatch, tmp_path
+):
+    _patch_modelagem_leve(monkeypatch)
+    config = _config_completa(tmp_path)
+
+    run_deterministic_modeling(
+        _df_reels(), _df_comments(), _df_posts_placeholder(), _df_engagement_placeholder(), config
+    )
+
+    comentarios = (
+        DeltaTable(str(config.gold_sentiment_path)).to_pandas().query("fonte == 'comentario'")
+    )
+    assert (comentarios["origem_comentario"] == "reel").all()
+
+
+def test_refine_topics_with_gemini_preserva_origem_do_comentario(monkeypatch, tmp_path):
+    _patch_modelagem_leve(monkeypatch)
+    config = _config_completa(tmp_path)
+    result = run_deterministic_modeling(
+        _df_reels(),
+        _df_comments(),
+        _df_posts_placeholder(),
+        _df_engagement_placeholder(),
+        config,
+        df_post_comments=_df_post_comments(),
+    )
+    gemini_config = GeminiRefinerConfig(
+        api_key="fake-key",
+        gold_sentiment_path=config.gold_sentiment_path,
+        gold_topic_priority_score_path=config.gold_topic_priority_score_path,
+        gold_content_topic_priority_score_path=config.gold_content_topic_priority_score_path,
+    )
+
+    refine_topics_with_gemini(result.topic_model, result.docs, result.df_comments, gemini_config)
+
+    comentarios = (
+        DeltaTable(str(config.gold_sentiment_path)).to_pandas().query("fonte == 'comentario'")
+    )
+    assert (comentarios["Name"] == "0_refinado").all()
+    assert comentarios.set_index("id_comment").loc["c_post", "origem_comentario"] == "post"
