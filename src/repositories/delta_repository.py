@@ -63,6 +63,13 @@ class DeltaRepository(DataRepository):
                 raise
             return self._load(_join(self._silver_dir, "comments_clean"))
 
+    def load_post_comments(self) -> pd.DataFrame:
+        """`post_comments_clean` (Silver) -- comentários de posts de feed,
+        separados dos de reels (issue #212)."""
+        if self._silver_dir is None:
+            raise ValueError("silver_dir não foi configurado neste repositório.")
+        return self._load(_join(self._silver_dir, "post_comments_clean"))
+
     def load_sentiment_history(self) -> pd.DataFrame:
         """Histórico de sentimento (mode append, uma linha por comentário por
         execução de modelagem) -- ver issue #52 / ADR 0017. Separada de

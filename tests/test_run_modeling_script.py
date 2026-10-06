@@ -70,3 +70,37 @@ def test_run_sem_run_id_deixa_orquestrador_gerar_um_novo(monkeypatch):
 
     kwargs = fake_run_deterministic_modeling.call_args.kwargs
     assert kwargs["run_id"] is None
+
+
+def test_run_repassa_comentarios_de_posts_ao_orquestrador(monkeypatch):
+    """Issue #212: a Silver `post_comments_clean` chega à modelagem."""
+    import scripts.run_modeling as run_modeling_script
+
+    fake_repo = _fake_repo()
+    fake_repo.load_post_comments.return_value = pd.DataFrame({"id_post": ["p1"]})
+    monkeypatch.setattr("scripts.run_modeling.DeltaRepository", lambda **kwargs: fake_repo)
+    fake_run_deterministic_modeling = MagicMock(return_value=MagicMock(run_id="r"))
+    monkeypatch.setattr(
+        "scripts.run_modeling.run_deterministic_modeling", fake_run_deterministic_modeling
+    )
+
+    run_modeling_script.run()
+
+    kwargs = fake_run_deterministic_modeling.call_args.kwargs
+    assert kwargs["df_post_comments"] is fake_repo.load_post_comments.return_value
+
+
+def test_run_sem_silver_de_comentarios_de_posts_segue_sem_eles(monkeypatch):
+    import scripts.run_modeling as run_modeling_script
+
+    fake_repo = _fake_repo()
+    fake_repo.load_post_comments.side_effect = FileNotFoundError("sem tabela")
+    monkeypatch.setattr("scripts.run_modeling.DeltaRepository", lambda **kwargs: fake_repo)
+    fake_run_deterministic_modeling = MagicMock(return_value=MagicMock(run_id="r"))
+    monkeypatch.setattr(
+        "scripts.run_modeling.run_deterministic_modeling", fake_run_deterministic_modeling
+    )
+
+    run_modeling_script.run()
+
+    assert fake_run_deterministic_modeling.call_args.kwargs["df_post_comments"] is None

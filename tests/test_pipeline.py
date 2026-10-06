@@ -56,6 +56,12 @@ def _patch_medallion_dependencies(monkeypatch, df_reels_silver, df_comments_silv
     post_cleaner.clean_reels.return_value = df_reels_silver
     comment_cleaner = MagicMock()
     comment_cleaner.clean.return_value = df_comments_silver
+    # Issue #212: comentários de posts usam o mesmo cleaner com origem="post".
+    post_comment_cleaner = MagicMock()
+    post_comment_cleaner.clean.return_value = pd.DataFrame(
+        {"id_post": ["1"], "id_comment": ["pc1"], "text": ["oi"]}
+    )
+    comment_cleaners = {"reel": comment_cleaner, "post": post_comment_cleaner}
     aggregator = MagicMock()
     aggregator.aggregate.return_value = pd.DataFrame({"id": ["1"]})
 
@@ -64,7 +70,9 @@ def _patch_medallion_dependencies(monkeypatch, df_reels_silver, df_comments_silv
 
     monkeypatch.setattr("pipeline.ProfileCleaner", lambda: profile_cleaner)
     monkeypatch.setattr("pipeline.PostCleaner", lambda: post_cleaner)
-    monkeypatch.setattr("pipeline.CommentCleaner", lambda: comment_cleaner)
+    monkeypatch.setattr(
+        "pipeline.CommentCleaner", lambda origem="reel": comment_cleaners[origem]
+    )
     monkeypatch.setattr("pipeline.EngagementAggregator", lambda: aggregator)
     monkeypatch.setattr("pipeline.GovernorsMetadataCleaner", lambda: governors_cleaner)
     monkeypatch.setattr(
@@ -451,3 +459,42 @@ def test_run_medallion_pipeline_falha_inesperada_de_ugc_nao_derruba_o_engajament
 
     ugc_aggregator.write.assert_not_called()
     assert aggregator.write.call_count == 2
+
+
+def test_run_medallion_pipeline_grava_comentarios_de_posts_em_silver_separada(monkeypatch):
+    """Issue #212: comentários de posts vão para `post_comments_clean`,
+    separada de `comments_clean` (reels), e chegam à modelagem."""
+    import pipeline
+    from config import settings
+
+    df_comments_silver = pd.DataFrame({"text": ["oi"]})
+    fake_modeling, _ = _patch_medallion_dependencies(
+        monkeypatch, pd.DataFrame({"id": ["1"]}), df_comments_silver
+    )
+
+    pipeline.run_medallion_pipeline(
+        apify_api_token="token", links=["l"], run_id="r1", run_modeling=True
+    )
+
+    post_cleaner = pipeline.CommentCleaner(origem="post")
+    reel_cleaner = pipeline.CommentCleaner()
+    df_posts_bronze = pipeline.BronzeWriter().get_latest_posts()
+    assert post_cleaner.clean.call_args.args == (df_posts_bronze, ["u1"])
+    assert post_cleaner.write.call_args.args == (
+        post_cleaner.clean.return_value,
+        settings.SILVER_POST_COMMENTS,
+    )
+    assert reel_cleaner.write.call_args.args[1] == settings.SILVER_COMMENTS
+    assert fake_modeling.call_args.kwargs["df_post_comments"] is post_cleaner.clean.return_value
+
+
+def test_run_medallion_pipeline_nao_grava_silver_de_comentarios_de_posts_vazia(monkeypatch):
+    import pipeline
+
+    _patch_medallion_dependencies(monkeypatch, pd.DataFrame({"id": ["1"]}), pd.DataFrame())
+    post_cleaner = pipeline.CommentCleaner(origem="post")
+    post_cleaner.clean.return_value = pd.DataFrame()
+
+    pipeline.run_medallion_pipeline(apify_api_token="token", links=["l"], run_id="r1")
+
+    post_cleaner.write.assert_not_called()

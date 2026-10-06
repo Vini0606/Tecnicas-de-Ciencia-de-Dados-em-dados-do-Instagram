@@ -166,3 +166,13 @@ def test_load_governor_scorecard_le_tabela_gold(tmp_path):
     out = DeltaRepository(gold_dir=tmp_path).load_governor_scorecard()
 
     assert out["escore"].iloc[0] == 61.5
+
+
+def test_load_post_comments_le_tabela_silver(tmp_path):
+    # Issue #212.
+    df = pd.DataFrame({"id_post": ["p1"], "id_comment": ["c1"]})
+    write_deltalake(str(tmp_path / "silver" / "post_comments_clean"), df, mode="overwrite")
+
+    out = DeltaRepository(gold_dir=tmp_path / "gold", silver_dir=tmp_path / "silver").load_post_comments()
+
+    assert list(out["id_comment"]) == ["c1"]
