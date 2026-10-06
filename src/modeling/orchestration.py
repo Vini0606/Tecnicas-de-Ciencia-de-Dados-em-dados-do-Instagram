@@ -16,6 +16,7 @@ from src.features.gold.topic_priority_scorer import TopicPriorityScorer
 from src.logging_setup import attach_run_log_handler
 from src.modeling.checkpoint import save_checkpoint
 from src.modeling.clustering import cluster_feed_posts, cluster_reels
+from src.modeling.comment_sources import combine_comment_sources
 from src.modeling.config import GeminiRefinerConfig, ModelingConfig
 from src.modeling.gemini_refiner import (
     DEGENERATE_TOPIC_LABEL,
@@ -105,6 +106,7 @@ def run_deterministic_modeling(
     config: ModelingConfig,
     run_id: str | None = None,
     parent_run_id: str | None = None,
+    df_post_comments: pd.DataFrame | None = None,
 ) -> DeterministicModelingResult:
     """Estágio 100% automatizável: PCA -> clustering (reels e posts do feed,
     ADR 0020 Ficha 2) -> sentimento (comentário/legenda/transcrição, ADR
@@ -128,7 +130,13 @@ def run_deterministic_modeling(
     `parent_run_id`, se informado, é só rastreabilidade -- o `run_id` da
     extração/invocação de `pipeline.py` que disparou esta chamada, gravado
     no checkpoint (ver `save_checkpoint`). Nunca substitui o `run_id` novo
-    que esta função sempre cunha para a modelagem (ADR 0001)."""
+    que esta função sempre cunha para a modelagem (ADR 0001).
+
+    `df_post_comments` (issue #212, opcional): comentários de posts de feed
+    (`post_comments_clean`), unidos aos de reels por
+    `combine_comment_sources` antes do sentimento -- todos os estágios que
+    leem comentários passam a ver as duas origens, discriminadas por
+    `origem_comentario` em `governor_sentiment`."""
     run_id = build_run_id(run_id)
     # Handler de arquivo trocado aqui, não em pipeline.py -- este é o ponto
     # onde o run_id da modelagem é de fato cunhado (ADR 0015, decisão 5).
@@ -157,6 +165,8 @@ def run_deterministic_modeling(
 
     logger.info("[CLUSTERING] Agrupando posts do feed...")
     df_posts_clustered, *_cluster_feed_rest = cluster_feed_posts(df_posts_pca, config.cluster)
+
+    df_comments = combine_comment_sources(df_comments, df_post_comments)
 
     logger.info("[SENTIMENTO] Analisando sentimento dos comentários...")
     df_comments_sentiment = analyze_sentiment(df_comments, config.sentiment)
