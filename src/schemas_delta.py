@@ -44,6 +44,12 @@ BRONZE_POSTS_SCHEMA = pa.schema(
         pa.field("videoPlayCount", pa.int64(), nullable=True),
         pa.field("videoDuration", pa.float64(), nullable=True),
         pa.field("locationName", pa.string(), nullable=True),
+        # Issue #212: comentários de posts de feed (o `apify/instagram-post-
+        # scraper` já os retornava, mas eram descartados aqui). Mesmo formato
+        # de `BRONZE_REELS_SCHEMA.latestComments` (lista serializada como JSON
+        # string pelo `BronzeWriter`); append com `schema_mode="merge"` faz
+        # Bronzes antigas ganharem a coluna sem migração (linhas antigas nulas).
+        pa.field("latestComments", pa.string(), nullable=True),
         pa.field("_ingested_at", pa.timestamp("us", tz="UTC"), nullable=False),
         pa.field("_run_id", pa.string(), nullable=False),
         pa.field("_source", pa.string(), nullable=False),
@@ -239,6 +245,18 @@ SILVER_COMMENTS_SCHEMA = pa.schema(
     ]
 )
 
+# Issue #212: comentários de posts de feed em tabela Silver SEPARADA de
+# `comments_clean` (reels), para as duas origens poderem ser analisadas à
+# parte. Mesmo contrato de SILVER_COMMENTS_SCHEMA, trocando `id_reel` por
+# `id_post` (id do post comentado -- inclui reels capturados no grid de posts,
+# ver issue #152). A modelagem une as duas (`combine_comment_sources`).
+SILVER_POST_COMMENTS_SCHEMA = pa.schema(
+    [
+        pa.field("id_post", pa.string(), nullable=True),
+        *[field for field in SILVER_COMMENTS_SCHEMA if field.name != "id_reel"],
+    ]
+)
+
 SILVER_GOVERNORS_METADATA_SCHEMA = pa.schema(
     [
         pa.field("inputUrl", pa.string(), nullable=False),
@@ -329,6 +347,11 @@ GOLD_SENTIMENT_SCHEMA = pa.schema(
         # `includeTranscript`). Sem esta coluna, as três fontes ficariam
         # indistinguíveis na mesma tabela (ver `ModelEnricher.write_sentiment`).
         pa.field("fonte", pa.string(), nullable=False),
+        # Issue #212: em que publicação o comentário foi feito -- "reel"
+        # (`comments_clean`) ou "post" (`post_comments_clean`), só nas linhas
+        # `fonte == "comentario"`; nulo em legenda/transcrição. Com as duas
+        # origens, `id_reel` passa a significar "id da publicação comentada".
+        pa.field("origem_comentario", pa.string(), nullable=True),
         pa.field("sentiment_label", pa.string(), nullable=True),
         pa.field("sentiment_score", pa.float64(), nullable=True),
         pa.field("Topic", pa.int64(), nullable=True),

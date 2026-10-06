@@ -28,6 +28,13 @@ def run(run_id: str | None = None, parent_run_id: str | None = None) -> str:
     df_comments = repo.load_comments()
     df_posts = repo.load_posts()
     df_engagement = repo.load_profiles()
+    # Issue #212: Silver anterior à coleta de comentários de posts não tem a
+    # tabela -- segue só com os de reels.
+    try:
+        df_post_comments = repo.load_post_comments()
+    except FileNotFoundError:
+        print("[AVISO] post_comments_clean não encontrada -- modelando só comentários de reels.")
+        df_post_comments = None
 
     result = run_deterministic_modeling(
         df_reels,
@@ -37,6 +44,7 @@ def run(run_id: str | None = None, parent_run_id: str | None = None) -> str:
         ModelingConfig(),
         run_id=run_id,
         parent_run_id=parent_run_id,
+        df_post_comments=df_post_comments,
     )
     return result.run_id
 

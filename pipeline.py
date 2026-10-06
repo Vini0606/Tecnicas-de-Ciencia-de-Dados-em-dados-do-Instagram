@@ -141,11 +141,20 @@ def run_medallion_pipeline(
         df_posts_silver = post_cleaner.clean_posts(df_posts, governor_usernames)
         df_reels_silver = post_cleaner.clean_reels(df_reels, governor_usernames)
         df_comments_silver = comment_cleaner.clean(df_reels, governor_usernames)
+        # Issue #212: comentários de posts de feed, em Silver separada.
+        post_comment_cleaner = CommentCleaner(origem="post")
+        df_post_comments_silver = post_comment_cleaner.clean(df_posts, governor_usernames)
 
         profile_cleaner.write(df_profiles_silver, settings.SILVER_PROFILES)
         post_cleaner.write_posts(df_posts_silver, settings.SILVER_POSTS)
         post_cleaner.write_reels(df_reels_silver, settings.SILVER_REELS)
         comment_cleaner.write(df_comments_silver, settings.SILVER_COMMENTS)
+        if df_post_comments_silver.empty:
+            logger.warning(
+                "[SILVER] Nenhum comentário de post na Bronze -- post_comments_clean não gravada."
+            )
+        else:
+            post_comment_cleaner.write(df_post_comments_silver, settings.SILVER_POST_COMMENTS)
 
         # Dimensão de metadados dos governadores (nome/UF/partido), ingerida
         # de `governadores.xlsx` -- não vem do scraper, então não passa por
@@ -197,6 +206,7 @@ def run_medallion_pipeline(
                 df_gold,
                 ModelingConfig(),
                 parent_run_id=run_id,
+                df_post_comments=df_post_comments_silver,
             )
             logger.info(f"[MODELAGEM] Concluída com run_id: {result.run_id}")
         except Exception as e:
