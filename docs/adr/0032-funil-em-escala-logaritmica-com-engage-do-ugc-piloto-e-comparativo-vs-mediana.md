@@ -42,7 +42,10 @@ e Engage como texto fixo "em construção". Na verificação visual da feature, 
    decisão 4 da issue #114**: o módulo passa a ler `governor_ugc_mentions` (via
    `dashboard/core/data.py::load_ugc_mentions`), e o teste estático de proibição foi removido, substituído por
    testes do cálculo.
-5. **Os dados atuais são uma amostra de teste, e a tela se adapta sozinha à coleta completa.** O piloto coletou
+5. **Os dados atuais são uma amostra de teste, e a tela se adapta sozinha à coleta completa.**
+   _(A ocultação do comparativo descrita neste item foi revista pelo ADR
+   [0033](0033-comparativo-vs-mediana-no-nsm-rankings-completos-com-rolagem-e-engage-sempre-comparado.md):
+   o ▲/▼ do Engage agora aparece sempre.)_ O piloto coletou
    no máximo 5 posts por governador, então a contagem reflete o teto da coleta. Enquanto o máximo de posts por
    governador for menor ou igual ao teto (`_ugc_e_amostra_piloto`), o comparativo ▲/▼ do Engage fica oculto (comparar contagens saturadas é ruído). Com uma coleta
    completa, o comparativo contra a mediana dos demais aparece, sem mudança de código. A tela não exibe aviso de "piloto" (pedido do usuário), então, enquanto a

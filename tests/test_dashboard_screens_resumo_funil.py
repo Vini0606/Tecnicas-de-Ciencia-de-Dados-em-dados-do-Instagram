@@ -395,23 +395,10 @@ def test_engage_para_selecao_todos_e_media_por_governador_com_ugc():
     assert funil._engage_para_selecao(TODOS_OS_GOVERNADORES, pd.DataFrame()) == 0.0
 
 
-def test_ugc_e_amostra_piloto_detecta_o_teto_e_some_com_coleta_maior():
-    teto = funil._MAX_POSTS_UGC_PILOTO
-    piloto = pd.DataFrame(
-        {
-            "governor_username": ["a"] * teto + ["b"] * 2,
-            "is_organic": [True] * (teto + 2),
-        }
-    )
-    assert funil._ugc_e_amostra_piloto(piloto) is True
-    completa = pd.DataFrame(
-        {
-            "governor_username": ["a"] * (teto + 1) + ["b"] * 2,
-            "is_organic": [True] * (teto + 3),
-        }
-    )
-    assert funil._ugc_e_amostra_piloto(completa) is False
-    assert funil._ugc_e_amostra_piloto(pd.DataFrame()) is False
+def test_valores_comparativo_inclui_engage_mesmo_com_amostra_de_teste_de_ugc():
+    estagios = (1_000.0, 100.0, 10.0)
+    valores = funil._valores_comparativo(estagios, engage=3.0)
+    assert valores == {"reach": 1_000.0, "act": 100.0, "convert": 10.0, "engage": 3.0}
 
 
 def test_funil_nunca_liga_convert_ao_engage_em_taxa():
@@ -534,7 +521,6 @@ def test_html_funil_mostra_selos_de_taxa_gargalo_e_bloco_do_engage():
     assert html.count("gargalo") == 1  # Convert→Engage nunca é gargalo
     assert "Engage · Criar" in html
     assert "<b>3</b>" in html
-    assert "posts de UGC orgânico" in html
     assert "piloto" not in html  # a tela não exibe aviso de piloto
     # sem governador selecionado: nenhuma seta de comparação e legenda explica
     assert "▲" not in html  # os selos de conversão usam só ▼
@@ -575,13 +561,18 @@ def test_html_funil_estagio_sem_dado_e_engage_sem_ugc_nao_quebram():
     taxas = funil._taxas_passagem(*estagios)
     html = funil._html_funil(estagios, taxas, None)
     assert "sem dado" in html
-    assert "nenhum post de UGC orgânico coletado" in html
+    assert "nenhum post de UGC orgânico coletado" not in html
 
 
-def test_html_engage_todos_usa_texto_de_media_por_governador():
-    html = funil._html_engage(4.3, None, is_todos=True)
-    assert "média de posts de UGC orgânico por governador" in html
+def test_html_engage_nao_tem_linha_descritiva_e_mostra_a_contagem():
+    html = funil._html_engage(4.3, None)
+    assert "<small>" not in html
+    assert "média de posts de UGC orgânico por governador" not in html
     assert "<b>4</b>" in html
+    html = funil._html_engage(3.0, 0.5)
+    assert "<small>" not in html
+    assert "conteúdos de terceiros" not in html
+    assert "▲ 50%" in html
 
 
 def test_taxa_engage_e_none_sem_dado_e_pode_passar_de_100_pct():

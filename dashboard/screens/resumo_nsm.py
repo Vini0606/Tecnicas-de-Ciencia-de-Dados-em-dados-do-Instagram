@@ -1,7 +1,8 @@
 """Sub-aba NSM do Resumo (ADR 0031 / issues #183 e #187).
 
-Mostra os cartões de NSM, melhor aprovação e maior rejeição e o contraste dos
-rankings top 10 por engajamento bruto x qualificado (NSM como índice 0-100).
+Mostra os cartões de NSM (com ▲/▼ do comparativo vs. mediana, ADR 0033),
+melhor aprovação e maior rejeição e o contraste dos rankings completos (com
+rolagem) por engajamento bruto x qualificado (NSM como índice 0-100).
 A frase de decisão e as linhas de KPIs (incluindo Crescimento) que a sub-aba
 herdou do Resumo foram removidas da sub-aba.
 
@@ -59,7 +60,6 @@ def _fmt_int_br(valor: float | None) -> str:
 # (mesma normalizacao do Scorecard, ADR 0030): 100 = lider, 0 = ultimo.
 # ---------------------------------------------------------------------------
 
-TOP_N = 10
 ETIQUETA_SUBIU = "SUBIU"
 ETIQUETA_CAIU = "CAIU"
 
@@ -172,14 +172,13 @@ def linhas_ranking(
     coluna: str,
     chave_selecionada: str | None,
     com_etiqueta: bool = False,
-    n: int = TOP_N,
 ) -> list[dict]:
-    """Linhas do ranking por `coluna`: os `n` primeiros mais, se o governador
-    selecionado (`chave_selecionada`, `None` = "Todos") estiver fora do top
-    `n` e tiver posicao, uma linha extra com `extra=True` e a posicao real.
-    Cada linha: `posicao`, `nome`, `valor`, `selecionado`, `etiqueta`,
-    `extra`. A etiqueta SUBIU/CAIU (so com `com_etiqueta=True`) compara as
-    posicoes nos rankings completos por `bruto` e `nsm`."""
+    """Linhas do ranking COMPLETO por `coluna` (todos os perfis com valor),
+    em ordem de posicao; o governador selecionado (`chave_selecionada`,
+    `None` = "Todos") vem marcado em `selecionado`. Cada linha: `posicao`,
+    `nome`, `valor`, `selecionado`, `etiqueta`. A etiqueta SUBIU/CAIU (so
+    com `com_etiqueta=True`) compara as posicoes nos rankings completos por
+    `bruto` e `nsm`."""
     pos = posicoes(tabela, coluna)
     if not pos:
         return []
@@ -187,7 +186,7 @@ def linhas_ranking(
     pos_nsm = posicoes(tabela, "nsm")
     por_chave = tabela.set_index("chave")
 
-    def linha(chave: str, extra: bool) -> dict:
+    def linha(chave: str) -> dict:
         reg = por_chave.loc[chave]
         return {
             "posicao": pos[chave],
@@ -199,14 +198,9 @@ def linhas_ranking(
                 if com_etiqueta
                 else None
             ),
-            "extra": extra,
         }
 
-    ordenadas = sorted(pos, key=pos.__getitem__)
-    linhas = [linha(c, False) for c in ordenadas[:n]]
-    if chave_selecionada in pos and pos[chave_selecionada] > n:
-        linhas.append(linha(chave_selecionada, True))
-    return linhas
+    return [linha(c) for c in sorted(pos, key=pos.__getitem__)]
 
 
 def valor_cartao_nsm(
@@ -223,16 +217,88 @@ def valor_cartao_nsm(
     return float(linha.iloc[0]) if not linha.empty else None
 
 
+def comparativo_nsm(tabela: pd.DataFrame, chave_selecionada: str | None) -> dict | None:
+    """Comparativo vs. mediana do cartao principal (ADR 0033), em PONTOS do
+    indice 0-100: governador selecionado contra a mediana dos DEMAIS perfis
+    com NSM (`modo="selecionado"`); em "Todos" (`None`), a media do grupo
+    contra a mediana do grupo (`modo="todos"`, sinal de assimetria). Devolve
+    `{"dif", "n", "modo"}`, ou `None` sem valor do selecionado ou sem pares."""
+    if tabela.empty or "nsm" not in tabela.columns:
+        return None
+    validos = tabela.dropna(subset=["nsm"])
+    if chave_selecionada is None:
+        if len(validos) < 2:
+            return None
+        return {
+            "dif": float(validos["nsm"].mean() - validos["nsm"].median()),
+            "n": len(validos),
+            "modo": "todos",
+        }
+    proprio = validos.loc[validos["chave"] == chave_selecionada, "nsm"]
+    pares = validos.loc[validos["chave"] != chave_selecionada, "nsm"]
+    if proprio.empty or pares.empty:
+        return None
+    return {
+        "dif": float(proprio.iloc[0] - pares.median()),
+        "n": len(pares),
+        "modo": "selecionado",
+    }
+
+
+def html_seta(comparativo: dict | None) -> str:
+    """Seta ▲/▼ + diferenca em pontos ao lado do valor do cartao. Verde/
+    vermelha com governador selecionado; neutra em "Todos" (nao e desempenho).
+    Sinal e valor sempre em texto. Vazio sem comparativo."""
+    if comparativo is None:
+        return ""
+    dif = comparativo["dif"]
+    if round(abs(dif), 1) == 0:
+        texto, tom = "= 0,0 pts", "neutro"
+    else:
+        sinal = "▲ +" if dif > 0 else "▼ −"
+        texto = f"{sinal}{abs(dif):.1f}".replace(".", ",") + " pts"
+        if comparativo["modo"] == "todos":
+            tom = "neutro"
+        else:
+            tom = "verde" if dif > 0 else "verm"
+    return f'<span class="n-seta {tom}">{texto}</span>'
+
+
+def legenda_comparativo(comparativo: dict | None) -> str:
+    """Legenda da seta, distinta da de SUBIU/CAIU (posicao)."""
+    if comparativo is None:
+        return ""
+    if comparativo["modo"] == "todos":
+        leitura = (
+            "média abaixo da mediana = poucos perfis baixos puxam a média"
+            if comparativo["dif"] < 0
+            else "média acima da mediana = poucos perfis altos puxam a média"
+        )
+        return (
+            "▲/▼ ao lado do engajamento qualificado: média do grupo contra a "
+            f"mediana do grupo, em pontos; {leitura}."
+        )
+    return (
+        "▲/▼ ao lado do engajamento qualificado: diferença, em pontos do "
+        "índice, contra a mediana dos demais governadores "
+        f"(n = {comparativo['n']})."
+    )
+
+
 # Tokens de cor de dado (claro, escuro): azul/verde/vermelho reaproveitados
 # dos tokens validados com a skill `dataviz` no Funil (superficies #fcfcfb /
 # #1a1a19). Etiquetas e valores sempre tem texto, nunca so cor.
 _AZUL = ("#2a78d6", "#5a9df0")
 _VERDE = ("#008300", "#3fae3f")
 _VERMELHO = ("#a32d2d", "#e66767")
+_NEUTRO = ("#52525b", "#a1a1aa")
 
 
 def _vars_cor(i: int) -> str:
-    return f"--n-azul:{_AZUL[i]};--n-verde:{_VERDE[i]};--n-verm:{_VERMELHO[i]};"
+    return (
+        f"--n-azul:{_AZUL[i]};--n-verde:{_VERDE[i]};--n-verm:{_VERMELHO[i]};"
+        f"--n-neutro:{_NEUTRO[i]};"
+    )
 
 
 _CSS_NSM = (
@@ -255,7 +321,11 @@ _CSS_NSM = (
 .nsm-viz .n-linha { display: flex; align-items: center; gap: 8px; margin: 4px 0;
   font-size: 13px; padding: 2px 6px; border-radius: 6px; }
 .nsm-viz .n-linha.sel { outline: 2px solid currentColor; font-weight: 600; }
-.nsm-viz .n-linha.extra { margin-top: 10px; }
+.nsm-viz .n-scroll { max-height: 320px; overflow-y: auto; padding-right: 4px; }
+.nsm-viz .n-seta { font-size: 13px; font-weight: 600; margin-left: 8px; }
+.nsm-viz .n-seta.verde { color: var(--n-verde); }
+.nsm-viz .n-seta.verm { color: var(--n-verm); }
+.nsm-viz .n-seta.neutro { color: var(--n-neutro); }
 .nsm-viz .n-pos { width: 28px; text-align: right; opacity: .7; }
 .nsm-viz .n-nome { width: 150px; overflow: hidden; text-overflow: ellipsis;
   white-space: nowrap; }
@@ -273,10 +343,12 @@ _CSS_NSM = (
 )
 
 
-def _html_cartao(titulo: str, valor: str, sub: str, tom: str | None) -> str:
+def _html_cartao(
+    titulo: str, valor: str, sub: str, tom: str | None, seta: str = ""
+) -> str:
     return (
         f'<div class="n-card {tom or ""}"><div class="n-card-t">{html.escape(titulo)}'
-        f'</div><div class="n-card-v">{html.escape(valor)}</div>'
+        f'</div><div class="n-card-v">{html.escape(valor)}{seta}</div>'
         f'<div class="n-card-s">{html.escape(sub)}</div></div>'
     )
 
@@ -301,7 +373,6 @@ def _html_ranking(linhas: list[dict], cor: str, fmt) -> str:
             else ""
         )
         classes = "n-linha" + (" sel" if item["selecionado"] else "")
-        classes += " extra" if item["extra"] else ""
         nome = html.escape(item["nome"])
         partes.append(
             f'<div class="{classes}"><span class="n-pos">{item["posicao"]}º</span>'
@@ -310,7 +381,7 @@ def _html_ranking(linhas: list[dict], cor: str, fmt) -> str:
             f'style="width:{largura:.1f}%"></div></span>'
             f'<span class="n-val">{fmt(item["valor"])}</span>{et}</div>'
         )
-    return "".join(partes)
+    return f'<div class="n-scroll">{"".join(partes)}</div>'
 
 
 def _fmt_nsm_0_100(valor: float | None) -> str:
@@ -339,12 +410,14 @@ def _render_contraste(governor_url: str, is_todos: bool) -> None:
     valor = valor_cartao_nsm(tabela, chave)
     melhor = extremo(tabela, "pct_pos", maior=True)
     pior = extremo(tabela, "pct_neg", maior=True)
+    comparativo = comparativo_nsm(tabela, chave)
     cartoes = [
         _html_cartao(
             "Engajamento qualificado" + (" (média dos perfis)" if is_todos else ""),
             _fmt_nsm_0_100(valor),
             "índice de 0 a 100",
             "verde",
+            seta=html_seta(comparativo),
         ),
         _html_cartao(
             "Melhor aprovação",
@@ -373,7 +446,8 @@ def _render_contraste(governor_url: str, is_todos: bool) -> None:
     )
     st.caption(
         "Engajamento bruto = total de curtidas e comentários por perfil. "
-        "SUBIU/CAIU compara a posição no ranking qualificado com a do bruto."
+        "SUBIU/CAIU compara a posição no ranking qualificado com a do bruto. "
+        + legenda_comparativo(comparativo)
     )
 
 
