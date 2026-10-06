@@ -1,6 +1,11 @@
+import argparse
 import logging
 import os
-from typing import Callable
+import sys
+from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
+from typing import Callable, Iterable
 
 import pandas as pd
 from apify_client import ApifyClient
@@ -8,9 +13,12 @@ from dotenv import load_dotenv
 
 from config import settings
 from scripts.apify_backfill_shared import (
+    default_results_limit,
+    estimate_cost_usd,
     estimate_cost_usd_for_results_limit,
     load_governor_usernames,
     load_links,
+    profiles_hitting_limit,
 )
 from src.data_extract.bronze_writer import BronzeWriter
 from src.data_extract.ingestion import extract_and_land
@@ -25,9 +33,98 @@ from src.features.silver.ugc_mention_cleaner import UGCMentionCleaner
 from src.logging_setup import attach_run_log_handler, configure_console_logging
 from src.modeling.config import ModelingConfig
 from src.modeling.orchestration import run_deterministic_modeling
+from src.pipeline_report import (
+    TABELAS_ESPERADAS,
+    TabelaEsperada,
+    avaliar_tabelas,
+    codigo_de_saida,
+    formatar_relatorio,
+)
 from src.run_id import build_run_id
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class ParametrosExtracao:
+    """Parâmetros efetivos da extração (issue #213), resolvidos a partir das
+    flags de CLI por `resolver_extracao`."""
+
+    force_extract: bool
+    results_limit: int
+    days: int | None
+
+    @property
+    def extra_run_input(self) -> dict | None:
+        return janela_run_input(self.days)
+
+
+def janela_run_input(days: int | None) -> dict | None:
+    """`onlyPostsNewerThan` no mesmo formato de `scripts/run_apify_backfill.py`."""
+    return {"onlyPostsNewerThan": f"{days} days"} if days else None
+
+
+def resolver_extracao(
+    days: int | None = None,
+    results_limit: int | None = None,
+    force_extract: bool = False,
+) -> ParametrosExtracao:
+    """Regras das flags `--days`/`--results-limit`/`--force-extract`:
+
+    - `--days` implica extração real: sem isso, a Bronze em cache seria
+      reaproveitada e a janela pedida, ignorada em silêncio.
+    - Teto efetivo: `--results-limit` se informado; senão, com `--days`, o
+      mesmo padrão por janela do backfill (`default_results_limit`); senão,
+      `settings.RESULTS_LIMIT`."""
+    if results_limit is None:
+        results_limit = default_results_limit(days) if days else settings.RESULTS_LIMIT
+    return ParametrosExtracao(
+        force_extract=force_extract or bool(days),
+        results_limit=results_limit,
+        days=days,
+    )
+
+
+def estimar_custo(days: int | None, results_limit: int, n_governors: int) -> dict[str, float]:
+    """Custo estimado (US$, pior caso) das três coleções pagas. Sem janela,
+    as três são limitadas pelo teto; com janela, posts+reels usam a taxa
+    calibrada por dia (`estimate_cost_usd`) e o UGC, sem baseline diário,
+    fica no pior caso pelo teto."""
+    ugc = estimate_cost_usd_for_results_limit(results_limit, n_governors, media_types=1)
+    if days:
+        posts_reels = estimate_cost_usd(days, n_governors)
+        total = round(posts_reels + ugc, 2)
+    else:
+        posts_reels = estimate_cost_usd_for_results_limit(results_limit, n_governors, media_types=2)
+        total = estimate_cost_usd_for_results_limit(results_limit, n_governors, media_types=3)
+    return {"posts_reels": posts_reels, "ugc": ugc, "total": total}
+
+
+def filtrar_ugc_por_janela(
+    df_silver_ugc: pd.DataFrame, days: int | None, agora: datetime
+) -> pd.DataFrame:
+    """Salvaguarda da janela no UGC (issue #213): não está confirmado que o
+    `apify/instagram-tagged-scraper` aceita `onlyPostsNewerThan`, então, com
+    `--days`, a Silver de UGC descarta posts publicados antes de
+    `agora - days`. Inócuo se o actor já respeita a janela. `data_hora` é
+    naive (SILVER_UGC_MENTIONS_SCHEMA), comparada com `agora` sem fuso."""
+    if not days:
+        return df_silver_ugc
+    desde = agora.replace(tzinfo=None) - timedelta(days=days)
+    return df_silver_ugc[df_silver_ugc["data_hora"] >= desde]
+
+
+def _warn_truncated(result: dict, results_limit: int) -> None:
+    truncados = {
+        entidade: profiles_hitting_limit(result.get(entidade, []), results_limit)
+        for entidade in ("posts", "reels", "ugc_mentions")
+    }
+    if any(truncados.values()):
+        logger.warning(
+            f"[BRONZE] Perfis que bateram no teto de {results_limit} (resultado provavelmente "
+            f"truncado): posts={truncados['posts']} reels={truncados['reels']} "
+            f"ugc_mentions={truncados['ugc_mentions']}. Rode de novo com --results-limit maior."
+        )
 
 
 def _bronze_has_data(bronze: BronzeWriter) -> bool:
@@ -39,7 +136,7 @@ def _bronze_has_data(bronze: BronzeWriter) -> bool:
 
 
 def _clean_ugc_mentions(
-    bronze: BronzeWriter, run_id: str, governor_usernames: list[str]
+    bronze: BronzeWriter, run_id: str, governor_usernames: list[str], days: int | None = None
 ) -> pd.DataFrame | None:
     """Silver de UGC (issue #211) a partir da Bronze de UGC inteira (append
     de todas as execuções, como as demais entidades). Devolve `None` -- sem
@@ -54,6 +151,7 @@ def _clean_ugc_mentions(
     try:
         cleaner = UGCMentionCleaner()
         df_silver_ugc = cleaner.clean(df_bronze_ugc, run_id, governor_usernames)
+        df_silver_ugc = filtrar_ugc_por_janela(df_silver_ugc, days, datetime.now(timezone.utc))
         if df_silver_ugc.empty:
             logger.warning("[SILVER] Silver de UGC vazia -- etapa de UGC pulada.")
             return None
@@ -83,7 +181,12 @@ def run_medallion_pipeline(
     force_extract: bool = False,
     run_modeling: bool = False,
     confirm_extraction: Callable[[float], bool] | None = None,
+    days: int | None = None,
 ) -> str:
+    """`days` (issue #213): janela `onlyPostsNewerThan` repassada a posts,
+    reels e UGC na extração, usada na estimativa de custo e na salvaguarda
+    de janela da Silver de UGC. Não força extração por si -- quem resolve
+    "`--days` implica extração" é `resolver_extracao`, no `__main__`."""
     run_id = build_run_id(run_id)
 
     bronze = BronzeWriter(
@@ -104,10 +207,8 @@ def run_medallion_pipeline(
                     "APIFY_API_TOKEN não fornecido e não há dados brutos locais."
                 )
             if confirm_extraction is not None:
-                # Issue #211: posts + reels + UGC -- três coleções pagas.
-                estimated_cost = estimate_cost_usd_for_results_limit(
-                    results_limit, len(links), media_types=3
-                )
+                # Issues #211/#213: posts + reels + UGC -- três coleções pagas.
+                estimated_cost = estimar_custo(days, results_limit, len(links))["total"]
                 if not confirm_extraction(estimated_cost):
                     raise SystemExit(1)
             logger.info("[1/3] BRONZE: Extraindo dados brutos...")
@@ -115,7 +216,15 @@ def run_medallion_pipeline(
                 client=ApifyClient(apify_api_token),
                 config=ScraperConfig(results_limit=results_limit),
             )
-            extract_and_land(scraper, bronze, settings.LANDING_DIR, links, run_id=run_id)
+            result = extract_and_land(
+                scraper,
+                bronze,
+                settings.LANDING_DIR,
+                links,
+                run_id=run_id,
+                extra_run_input=janela_run_input(days),
+            )
+            _warn_truncated(result, results_limit)
 
             df_profiles = bronze.get_latest_profiles()
             df_posts = bronze.get_latest_posts()
@@ -170,7 +279,7 @@ def run_medallion_pipeline(
             f"[SILVER] Falha na limpeza e conformação dos dados: {e}"
         ) from e
 
-    df_ugc_silver = _clean_ugc_mentions(bronze, run_id, governor_usernames)
+    df_ugc_silver = _clean_ugc_mentions(bronze, run_id, governor_usernames, days)
 
     try:
         logger.info("[3/3] GOLD: Agregando métricas de engajamento...")
@@ -215,11 +324,45 @@ def run_medallion_pipeline(
     return run_id
 
 
-if __name__ == "__main__":
-    import argparse
+def relatorio_final(
+    started_at: datetime,
+    run_modeling: bool,
+    run_id: str,
+    caminho_log: Path,
+    tabelas: Iterable[TabelaEsperada] = TABELAS_ESPERADAS,
+) -> int:
+    """Relatório de tabelas esperadas (issue #214) e código de saída do
+    processo: 1 se alguma tabela lida pelo dashboard, de um estágio que rodou
+    nesta execução, está AUSENTE, VAZIA ou DESATUALIZADA."""
+    estagios = {"silver", "gold", "ugc"} | ({"modelagem"} if run_modeling else set())
+    resultado = avaliar_tabelas(tabelas, started_at, estagios)
+    logger.info(formatar_relatorio(resultado, caminho_log))
+    codigo = codigo_de_saida(resultado)
+    if codigo:
+        n = sum(r.falhou and r.tabela.usada_pelo_dashboard for r in resultado)
+        logger.error(
+            f"[FALHA] Pipeline Medallion finalizado com run_id: {run_id} -- "
+            f"{n} tabela(s) do dashboard com problema (ver relatorio acima)."
+        )
+    else:
+        logger.info(
+            f"[OK] Pipeline Medallion finalizado com run_id: {run_id} -- "
+            "todas as tabelas do dashboard OK."
+        )
+    return codigo
 
-    load_dotenv()
 
+def _inteiro_positivo(valor: str) -> int:
+    try:
+        numero = int(valor)
+    except ValueError:
+        numero = 0
+    if numero <= 0:
+        raise argparse.ArgumentTypeError(f"esperado um inteiro positivo, recebido {valor!r}")
+    return numero
+
+
+def build_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Roda o pipeline Medallion (Bronze/Silver/Gold).")
     parser.add_argument(
         "--run-modeling",
@@ -234,13 +377,51 @@ if __name__ == "__main__":
         "--yes",
         action="store_true",
         help=(
-            "Confirma uma extracao real na Apify (custo real), caso nao haja "
-            "Bronze/raw local em cache. Obrigatorio so quando o cache esta "
-            "vazio -- se a Bronze ja tem dado, o pipeline reusa e nao pede "
-            "confirmacao."
+            "Confirma uma extracao real na Apify (custo real). Obrigatorio "
+            "sempre que houver extracao: Bronze vazia, --force-extract ou "
+            "--days. Com Bronze existente e sem essas flags, o pipeline "
+            "reusa a Bronze e nao pede confirmacao."
         ),
     )
-    args = parser.parse_args()
+    parser.add_argument(
+        "--days",
+        type=_inteiro_positivo,
+        default=None,
+        help=(
+            "Coleta so publicacoes dos ultimos N dias (onlyPostsNewerThan) em "
+            "posts, reels e UGC. Implica extracao real (custo na Apify, exige "
+            "--yes). Sem --results-limit, o teto vira max(200, 10 x N)."
+        ),
+    )
+    parser.add_argument(
+        "--results-limit",
+        type=_inteiro_positivo,
+        default=None,
+        help=(
+            "Teto de itens por perfil em cada colecao (posts, reels, UGC). "
+            f"Padrao: {settings.RESULTS_LIMIT} sem --days; max(200, 10 x N) com --days."
+        ),
+    )
+    parser.add_argument(
+        "--force-extract",
+        action="store_true",
+        help=(
+            "Forca uma extracao real na Apify mesmo com Bronze existente "
+            "(custo real, exige --yes). A Bronze e append: a coleta nova se "
+            "soma ao historico e a Silver fica com a versao mais recente de cada id."
+        ),
+    )
+    return parser
+
+
+if __name__ == "__main__":
+    load_dotenv()
+
+    # Antes de qualquer trabalho: tabela com último commit anterior a este
+    # instante não foi reescrita nesta execução (DESATUALIZADA, issue #214).
+    started_at = datetime.now(timezone.utc)
+    args = build_arg_parser().parse_args()
+    params = resolver_extracao(args.days, args.results_limit, args.force_extract)
 
     configure_console_logging()
     # run_id gerado aqui (não deixado para run_medallion_pipeline) porque o
@@ -255,11 +436,13 @@ if __name__ == "__main__":
     def _confirm_extraction(estimated_cost: float) -> bool:
         if args.yes:
             return True
+        custo = estimar_custo(params.days, params.results_limit, len(links))
+        janela = f"ultimos {params.days} dias" if params.days else "sem janela de data"
         logger.info(
-            f"[ABORTADO] Nao ha Bronze/raw local em cache -- rodar agora "
-            f"dispararia uma extracao real na Apify (~${estimated_cost} "
-            f"estimado no pior caso para {len(links)} governadores, posts + reels + UGC, "
-            f"resultsLimit={settings.RESULTS_LIMIT}, sem janela de data). "
+            f"[ABORTADO] Rodar agora dispararia uma extracao real na Apify para "
+            f"{len(links)} governadores (resultsLimit={params.results_limit}, {janela}). "
+            f"Custo estimado no pior caso: posts + reels ~${custo['posts_reels']}, "
+            f"UGC ~${custo['ugc']}, total ~${custo['total']}. "
             "Rode de novo com --yes para confirmar."
         )
         return False
@@ -267,11 +450,15 @@ if __name__ == "__main__":
     run_id = run_medallion_pipeline(
         apify_api_token=token,
         links=links,
-        results_limit=settings.RESULTS_LIMIT,
+        results_limit=params.results_limit,
         run_id=run_id,
+        force_extract=params.force_extract,
         run_modeling=args.run_modeling,
         confirm_extraction=_confirm_extraction,
+        days=params.days,
     )
     # Sem emoji: o console padrão do Windows usa cp1252 e levanta
     # UnicodeEncodeError ao imprimi-los.
-    logger.info(f"[OK] Pipeline Medallion finalizado com run_id: {run_id}")
+    # Pasta de logs (não só a deste run_id): a modelagem cunha um run_id
+    # próprio e registra os estágios pulados no log dele (ADR 0015).
+    sys.exit(relatorio_final(started_at, args.run_modeling, run_id, settings.LOGS_DIR))

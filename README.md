@@ -195,9 +195,9 @@ flowchart LR
 
 | Camada | Caminho | Tabelas | Escrita por | Garante |
 |---|---|---|---|---|
-| **Bronze** | `data/bronze/` | `instagram_profiles`, `instagram_posts`, `instagram_reels` | `src/data_extract/bronze_writer.py` | Imutabilidade — append-only, nada é sobrescrito |
-| **Silver** | `data/silver/` | `profiles_clean`, `posts_clean`, `reels_clean`, `comments_clean` | `src/features/silver/*_cleaner.py` | Conformidade — tipos, deduplicação, comentários explodidos |
-| **Gold** | `data/gold/` | `governor_engagement(_history)`, `governor_sentiment(_history)`, `governor_discourse_topics`, `governor_clusters_reels`, `governor_clusters_posts`, `governor_profile_clusters_engagement`, `post_performance_coefficients`/`predictions`, `topic_priority_score`, `content_topic_priority_score`, `governor_nsm`, `governor_scorecard`, `governor_growth_metrics`, `ugc_mentions` — lista completa e colunas em `reference/dicionario_de_dados_medallion.xlsx` | `src/features/gold/*`, `src/modeling/*` | Prontidão — métricas agregadas, resultados de modelagem |
+| **Bronze** | `data/bronze/` | `instagram_profiles`, `instagram_posts` (com `latestComments`), `instagram_reels`, `ugc_mentions` | `src/data_extract/bronze_writer.py`, via `extract_and_land` | Imutabilidade — append-only, nada é sobrescrito |
+| **Silver** | `data/silver/` | `profiles_clean`, `posts_clean`, `reels_clean`, `comments_clean` (reels), `post_comments_clean` (posts), `governors_metadata`, `ugc_mentions` | `src/features/silver/*_cleaner.py` | Conformidade — tipos, deduplicação, comentários explodidos |
+| **Gold** | `data/gold/` | `governor_engagement(_history)`, `governor_sentiment(_history)`, `governor_discourse_topics`, `governor_clusters_reels`, `governor_clusters_posts`, `governor_profile_clusters_engagement`, `post_performance_coefficients`/`predictions`, `topic_priority_score`, `content_topic_priority_score`, `governor_nsm`, `governor_scorecard`, `governor_growth_metrics`, `governor_ugc_mentions` — lista completa e colunas em `reference/dicionario_de_dados_medallion.xlsx` | `src/features/gold/*`, `src/modeling/*` | Prontidão — métricas agregadas, resultados de modelagem |
 
 `governor_engagement_history` e `governor_sentiment_history` são tabelas paralelas a
 `governor_engagement`/`governor_sentiment`, mesmo schema, escritas em modo `append` a cada execução
@@ -208,6 +208,14 @@ e [ADR 0017](docs/adr/0017-reestruturacao-do-dashboard-para-produto-externo.md))
 tópicos via Gemini (`scripts/refine_topics.py`) reescreve as linhas de comentário de `governor_sentiment` (preservando legenda/transcrição) mas **não** grava no
 histórico — não gera uma nova medição de sentimento, só reescreve rótulos de tópico. Clusters ainda
 não têm tabela de histórico equivalente.
+
+**Comentários de reels e de posts** ([ADR 0033](docs/adr/0033-pipeline-ponto-unico-ugc-no-extrator-comentarios-de-posts-janela-e-relatorio.md)).
+Os comentários de posts de feed ficam numa Silver própria (`post_comments_clean`, com `id_post`),
+separada de `comments_clean` (reels, `id_reel`). A modelagem une as duas origens
+(`src/modeling/comment_sources.py`), deduplicando por `id_comment` e preferindo a linha de reel
+(um reel também aparece no scraper de posts). Em `governor_sentiment`/`_history`, a coluna
+`origem_comentario` (`reel`/`post`) diz de onde veio cada comentário, e `id_reel` passa a
+significar "id da publicação comentada". Legenda e transcrição têm `origem_comentario` nulo.
 
 ### Leitura dos dados
 
@@ -223,13 +231,23 @@ repo_v3 = DeltaRepository(settings.GOLD_DIR, as_of_version=3)
 
 ### Pipeline local
 
-`pipeline.py` orquestra as três camadas e resolve a fonte dos dados em cascata ([`pipeline.py:62-101`](pipeline.py)):
+`pipeline.py` é o **ponto único** de geração de todas as tabelas que o dashboard lê
+([ADR 0033](docs/adr/0033-pipeline-ponto-unico-ugc-no-extrator-comentarios-de-posts-janela-e-relatorio.md)).
+A fonte dos dados é resolvida assim:
 
-1. Tabelas Bronze já existentes — o caminho mais barato
-2. JSONs em `data/raw/` — migra para Bronze sem chamar a API
-3. API Apify — só quando não há nada local (consome créditos)
+1. Tabelas Bronze já existentes: o caminho mais barato, sem custo.
+2. API Apify: quando a Bronze está vazia, ou com `--force-extract`/`--days`. Consome créditos e exige `--yes`.
 
-Passar `force_extract=True` pula direto para a API.
+A extração (`src/data_extract/ingestion.py::extract_and_land`) coleta **perfis, posts, reels e UGC**
+(posts de terceiros que marcam ou mencionam o governador) sob o mesmo `run_id`, arquivando cada JSON
+em `data/landing/<run_id>/` antes da Bronze. O UGC é a última coleta e é tolerante a falha: se o
+actor falhar, perfis, posts e reels já gravados não se perdem. As Silver e Gold de UGC
+(`ugc_mentions`, `governor_ugc_mentions`) são recalculadas a cada execução, inclusive com Bronze
+reaproveitada.
+
+Ao final, o pipeline imprime um **relatório de tabelas** (`src/pipeline_report.py`) e sai com código
+1 se alguma tabela lida pelo dashboard estiver AUSENTE, VAZIA ou DESATUALIZADA (não reescrita nesta
+execução). Ver "Como executar".
 
 `uv run python pipeline.py --run-modeling` (ou `run_medallion_pipeline(..., run_modeling=True)` chamado diretamente) roda também o estágio determinístico de modelagem (`src.modeling.orchestration.run_deterministic_modeling`) ao final do Gold — desligado por padrão porque é pesado (o embedding do BERTopic sozinho leva ~14 min). Isso inclui a clusterização de PERFIL de governador por engajamento (Fase 2, ADR 0020, `governor_profile_clusters_engagement`), que fecha a paridade com `lambdas/model/handler.py` (o pipeline serverless já fazia isso sozinho; localmente exigia rodar `scripts/run_profile_clustering_engagement.py` à parte, e sem isso a Tela 4 "Comparar perfis" do dashboard ficava vazia). O refinamento de tópicos via Gemini nunca é chamado daqui: continua manual, só via `scripts/refine_topics.py` (ver [ADR 0001](docs/adr/0001-separar-modelagem-em-etapas-deterministicas-e-refinamento-manual.md)).
 
@@ -364,6 +382,10 @@ TF_VAR_image_tag=$(git rev-parse origin/main) terraform apply
   timeout máximo de Lambda (900s, hard limit da AWS). Um `RESULTS_LIMIT` muito alto pode estourar
   esse teto; a migração para Step Functions é o caminho natural se isso virar um problema real (a
   lógica de cada etapa não muda, só quem as invoca).
+- **`extract` também coleta UGC** (issue #211): mais uma chamada síncrona de actor dentro do mesmo
+  timeout de 300 s da Lambda `extract`, sem ajuste no Terraform. Se estourar, é preciso subir o
+  timeout dela. As Lambdas `transform`/`load` ainda não gravam Silver/Gold de UGC nem comentários de
+  posts; o caminho serverless segue sem paridade com o `pipeline.py` local (ADR 0033).
 - **Sem gatilho agendado** — não há regra EventBridge/cron configurada; o pipeline roda só quando
   invocado manualmente (`aws lambda invoke` na Lambda orquestradora, payload `{"links": [...]}`).
   Adicionar um agendamento é uma mudança pequena e aditiva em `infra/main.tf`.
@@ -402,12 +424,12 @@ TF_VAR_image_tag=$(git rev-parse origin/main) terraform apply
 │   ├── model/              # Gold engagement -> clusterização de perfil, Fase 2 (S3)
 │   └── orchestrator/       # Invoca extract -> transform -> load -> model em sequência
 ├── notebooks/              # 01 extração e limpeza · 02 EDA · 03 modelagem híbrida · 05 visualização e conclusões · 06/07 regressão de performance (vídeo / estático)
-├── tests/                  # 49 arquivos de teste (pytest)
+├── tests/                  # 61 arquivos de teste (pytest)
 ├── data/                   # Efêmero, fora do git (.gitignore) -- ver seção 3 pra Bronze/Silver/Gold
 │   ├── landing/<run_id>/           # JSON bruto do scraper, sem schema, anterior à Bronze (ADR 0011/0014)
-│   ├── bronze/                     # Delta append-only: instagram_profiles, instagram_posts, instagram_reels
-│   ├── silver/                     # Delta limpo/conformado: profiles_clean, posts_clean, reels_clean, comments_clean, governors_metadata
-│   ├── gold/                       # Delta agregado: governor_engagement(_history), governor_sentiment(_history), governor_discourse_topics, governor_clusters_reels, governor_clusters_posts, governor_profile_clusters_engagement, post_performance_coefficients/predictions, topic_priority_score, content_topic_priority_score, governor_nsm, governor_scorecard, governor_growth_metrics, ugc_mentions
+│   ├── bronze/                     # Delta append-only: instagram_profiles, instagram_posts, instagram_reels, ugc_mentions
+│   ├── silver/                     # Delta limpo/conformado: profiles_clean, posts_clean, reels_clean, comments_clean, post_comments_clean, governors_metadata, ugc_mentions
+│   ├── gold/                       # Delta agregado: governor_engagement(_history), governor_sentiment(_history), governor_discourse_topics, governor_clusters_reels, governor_clusters_posts, governor_profile_clusters_engagement, post_performance_coefficients/predictions, topic_priority_score, content_topic_priority_score, governor_nsm, governor_scorecard, governor_growth_metrics, governor_ugc_mentions
 │   ├── model_checkpoints/<run_id>/ # Checkpoint do estágio determinístico de modelagem -- topic_model, PCA, clustering (ADR 0003)
 │   ├── logs/<run_id>/              # Log estruturado por run_id -- console INFO / arquivo DEBUG (ADR 0015)
 │   ├── backfill/                   # Relatórios de `scripts/run_apify_backfill.py` (contagens, taxa calibrada, projeção de custo)
@@ -450,12 +472,15 @@ uv sync --extra dev
 # 3. Variáveis de ambiente
 cp .env.example .env      # editar e preencher APIFY_API_TOKEN
 
-# 4. Bronze -> Silver -> Gold (extrai da Apify se a Bronze estiver vazia; reusa se já houver dado local)
-uv run python pipeline.py --yes
+# 4. Tudo num comando: extração (perfis, posts, reels, UGC) -> Silver -> Gold -> modelagem
+#    (PCA -> clustering -> sentimento -> tópicos de comentário/discurso -> NSM -> Score ICE ->
+#    ICE de pautas -> performance-por-post -> cluster de perfil -> Scorecard) -> relatório de tabelas
+uv run python pipeline.py --yes --run-modeling
+#    Com janela de histórico (recomendado para a Consistência do Scorecard e as linhas mensais):
+#    uv run python pipeline.py --yes --run-modeling --days 150 --results-limit 400
 
-# 5. (opcional) Modelagem determinística sobre o mesmo Bronze/Silver/Gold do passo 4
-#    (PCA -> clustering -> sentimento -> tópicos de comentário/discurso -> NSM -> Score ICE -> performance-por-post -> cluster de perfil por engajamento)
-uv run python pipeline.py --run-modeling
+# 5. (opcional) Rótulos legíveis de pauta e de grupo de comentários (manual, ADR 0001; exige API_GEMINI)
+uv run python scripts/refine_topics.py --run-id <RUN_ID_DA_MODELAGEM>
 
 # 6. Abrir os dashboards
 uv run streamlit run dashboard/app.py     # http://localhost:8501
@@ -465,7 +490,39 @@ uv run pytest tests/ -v --cov=src --cov-report=term-missing
 uv run ruff check src/
 ```
 
-> **Sobre créditos da API:** o passo 4 só extrai de verdade (e só então exige `--yes`) se a Bronze estiver vazia — é o caso de um clone novo. A extração padrão é uma **amostra recente** (`resultsLimit=30` por perfil, sem janela de data), não um backfill histórico; para uma janela de dias específica, use o fluxo de calibração/backfill abaixo. Se a Bronze já tiver dado local (de uma execução anterior ou de um dos fluxos alternativos), o pipeline reusa e não gasta crédito de novo. O passo 5 é opcional e pesado (~10-14 min, o embedding do BERTopic é o gargalo) — pule se só quiser ver os dashboards com Bronze/Silver/Gold de engajamento.
+**Flags do `pipeline.py`:**
+
+| Flag | Efeito |
+|---|---|
+| `--yes` | Confirma uma extração real na Apify (custo real). Obrigatória sempre que houver extração. Sem ela, o pipeline aborta e mostra o custo estimado. |
+| `--run-modeling` | Roda também a modelagem determinística (~15–30 min; na primeira vez, baixa ~2,5 GB de modelos do Hugging Face). |
+| `--days N` | Coleta só publicações dos últimos N dias (`onlyPostsNewerThan`) em posts, reels e UGC. **Implica extração real.** |
+| `--results-limit M` | Teto de itens por perfil em cada coleção. Padrão: 30 sem `--days`; max(200, 10 × N) com `--days`. |
+| `--force-extract` | Força uma coleta nova mesmo com Bronze existente. A Bronze é append, então a coleta se soma ao histórico. |
+
+> **Sobre créditos da API:** sem `--days`/`--force-extract`, o pipeline só extrai se a Bronze estiver vazia (clone novo); com Bronze local, reusa e não gasta crédito. São três coleções pagas (posts, reels e UGC). Sem janela, cada uma é limitada pelo teto: com 26 perfis e teto 30, ~US$ 5,38 no pior caso. Com `--days`, posts e reels são estimados pela taxa calibrada por dia e o UGC pelo teto. **Atenção:** o teto padrão com janela (max(200, 10 × N)) vale também para o UGC; se o actor de UGC ignorar a janela, o custo dele cresce com o teto. Por isso, passe `--results-limit` explícito. Para medir a taxa real antes de uma janela grande, use o teste de calibração abaixo.
+
+**Relatório de tabelas e código de saída.** Ao final, o pipeline lista cada tabela esperada com status, linhas e último commit:
+
+```
+[RELATORIO] Tabelas esperadas:
+tabela                | estagio   | dashboard | status         | linhas | ultimo commit (UTC)
+...
+governor_scorecard    | modelagem | sim       | OK             | 26     | 2026-10-06 15:42:10
+governor_ugc_mentions | ugc       | sim       | AUSENTE        | -      | -
+[RELATORIO] Resumo: OK=20, AUSENTE=1, NAO SOLICITADA=0.
+[FALHA] Pipeline Medallion finalizado com run_id: ... -- 1 tabela(s) do dashboard com problema
+```
+
+| Status | Significado |
+|---|---|
+| `OK` | Reescrita nesta execução, com linhas. |
+| `AUSENTE` | A tabela não existe. |
+| `VAZIA` | Reescrita nesta execução, sem linhas. |
+| `DESATUALIZADA` | O último commit é anterior ao início da execução (estágio pulado; versão velha no disco). |
+| `NAO SOLICITADA` | O estágio não rodou, por exemplo a modelagem sem `--run-modeling`. Não é falha. |
+
+O processo sai com **1** se alguma tabela **lida pelo dashboard** de um estágio executado não estiver OK. Tabelas que só o pipeline usa (por exemplo `post_performance_*`, que a ADR 0019 pula com pouco dado) aparecem como aviso. Os estágios pulados ficam no log, em `data/logs/<run_id>/`. A modelagem tem `run_id` próprio.
 
 ### Fluxos alternativos
 
@@ -473,7 +530,7 @@ Scripts standalone em `scripts/`, para cenários que o fluxo principal não cobr
 
 #### Calibrar e rodar um backfill histórico com janela de dias (custo financeiro real)
 
-Antes de comprometer com uma janela grande, meça o custo com o teste de calibração (isolado, não escreve em produção); só depois disso rode o backfill de verdade:
+Para o fluxo principal, prefira `pipeline.py --days N`, que coleta a janela e já cascateia Silver, Gold e a modelagem. O backfill dedicado continua útil pelo relatório de calibração (`data/backfill/`). Antes de comprometer com uma janela grande, meça o custo com o teste de calibração (isolado, não escreve em produção); só depois disso rode o backfill de verdade:
 
 ```bash
 # 1. Estimativa de custo, sem gastar nada (roda sem --yes primeiro)
@@ -534,11 +591,7 @@ O piloto (`apify/instagram-tagged-scraper`, `resultsLimit` baixo) já rodou de v
 uv run python scripts/run_apify_mentions_pilot.py --yes
 ```
 
-A coleta de produção (`scripts/run_ugc_mentions.py`, Bronze→Silver→Gold sob o mesmo `run_id`, gravando `ugc_mentions`/`governor_ugc_mentions` de verdade) também já rodou pela primeira vez em 2026-09-19 — ver PR #139/#140. Standalone de propósito (fora de `pipeline.py`): UGC tem actor e cadência próprios.
-
-```bash
-uv run python scripts/run_ugc_mentions.py --yes
-```
+A coleta de produção de UGC faz parte da extração do `pipeline.py` desde a issue #211 ([ADR 0033](docs/adr/0033-pipeline-ponto-unico-ugc-no-extrator-comentarios-de-posts-janela-e-relatorio.md)). O antigo `scripts/run_ugc_mentions.py` (coleta standalone, cadência própria) foi removido.
 
 #### Inspecionar `run_id`s espalhados pelo projeto
 
@@ -580,7 +633,7 @@ As variáveis acima de S3 são lidas diretamente pelos handlers em `lambdas/`, n
 
 ## 6. Estado atual e limitações conhecidas
 
-O pipeline roda de ponta a ponta: `uv run python pipeline.py` materializa Bronze, Silver e Gold, e `dashboard/app.py` carrega em seguida. As tabelas Delta não são versionadas (`data/` está no `.gitignore`), então um clone novo precisa executar o pipeline uma vez — os JSONs de `data/raw/` bastam, sem consumir créditos da API.
+O pipeline roda de ponta a ponta: `uv run python pipeline.py --yes --run-modeling` materializa Bronze, Silver, Gold e a modelagem, valida as tabelas no relatório final, e `dashboard/app.py` carrega em seguida. As tabelas Delta não são versionadas (`data/` está no `.gitignore`), então um clone novo precisa executar o pipeline uma vez, com uma extração real na Apify (custo real, exige `--yes`). O `pipeline.py` não lê JSONs de `data/raw/`: ou reaproveita a Bronze local, ou chama a API.
 
 Esta seção registra honestamente o que ainda não está fechado.
 
@@ -602,7 +655,7 @@ As telas 1 (Resumo) e 3 (Radar) migraram parte das comparações de "execução 
 
 **NSM validado contra dado real (ADR 0020, Ficha 5).** O critério de aceite da issue #90 (ranking por NSM diferir do ranking por engajamento bruto em pelo menos 1 caso real, entre os 27 perfis) foi confirmado em 2026-09-19: 25 dos 27 perfis mudam de posição entre os dois rankings, inclusive o 1º lugar. O KPI "Engajamento qualificado" do Resumo deixou de levar o selo "em validação". Desde a ADR 0027, `src/modeling/orchestration.py` já grava `governor_nsm_history` em modo `append` a cada execução (fora do próprio `NsmScorer.write`, que continua só sobrescrevendo `governor_nsm`) — mas a tabela segue vazia em disco porque a pipeline não rodou de novo desde essa mudança (26/09); o comparativo "vs. média histórica" desse KPI específico degrada para vazio até acumular pelo menos uma execução nova.
 
-**A sub-aba "Funil de engajamento" do Resumo (antiga Tela 6, carro-chefe) tem 1 dos 4 estágios permanentemente sem dado real na interface, mesmo já existindo dado real na tabela.** O estágio "Engage · Criar" é texto fixo "em construção" — `dashboard/screens/resumo_funil.py` proíbe estruturalmente qualquer referência a tabelas `ugc_*` (garantido por teste de inspeção de AST, `test_funil_module_never_references_ugc_tables`). Isto não é mais por falta de dado: a coleta de produção de UGC (`scripts/run_ugc_mentions.py`) rodou pela primeira vez em 2026-09-19 (ver seção "Como executar" abaixo) e `governor_ugc_mentions` já tem linhas reais em `data/`. É uma decisão de design documentada (issue #114) para não fingir precisão que o volume de dado ainda coletado não sustenta.
+**Engage do Funil a partir de UGC orgânico.** O estágio "Engage · Criar" da sub-aba Funil do Resumo lê `governor_ugc_mentions` (via `dashboard/core/data.py::load_ugc_mentions`) e mostra o número de posts de UGC orgânico, em bloco separado do funil ([ADR 0032](docs/adr/0032-funil-em-escala-logaritmica-com-engage-do-ugc-piloto-e-comparativo-vs-mediana.md)). O teste estático que proibia ler tabelas `ugc_*` foi removido. Desde a issue #211, essa tabela é gravada pelo `pipeline.py` a cada execução. Com o teto padrão (30), a contagem deixa de saturar no teto do piloto (5), e o comparativo ▲/▼ do Engage passa a aparecer sozinho. Continuam abertas duas perguntas: o Engage deve usar uma janela de tempo? "Todos os Governadores" deve usar mediana em vez de média? (ADR 0032)
 
 **Pendências de documentação.** Os capítulos 6 (Resultados) e 7 (Conclusões) do TCC ainda estão no texto-modelo, embora os resultados já existam e estejam redigidos no capítulo 5.
 
@@ -632,7 +685,7 @@ As telas 1 (Resumo) e 3 (Radar) migraram parte das comparações de "execução 
 | `test_transform_lambda.py` | Handler Silver retorna `200` / `silver_complete`; retorna `400` sem `S3_BUCKET` |
 | `test_load_lambda.py` | Handler Gold retorna `200` / `gold_complete`; retorna `400` sem `S3_BUCKET` |
 
-**Resultado atual: 661 testes (53 arquivos), todos passando.** A tabela acima cobre só os arquivos mais ilustrativos do pipeline Bronze/Silver/Gold e das Lambdas; a suíte completa também cobre o dashboard por decisão (`test_dashboard_loaders.py`, `test_dashboard_core_data.py`, `test_dashboard_core_deltas.py`, `test_comparisons.py`, `test_dashboard_screens_{resumo,resumo_nsm,resumo_funil,resumo_scorecard,produzir,radar,comparar,comparar_clusters,discurso_reacao}.py`, ver ADR 0021/0023/0025/0026/0031), o escore composto e o ICE de pautas (`test_governor_scorecard.py`, `test_content_topic_priority_scorer.py`, `test_discourse_refinement.py`), as métricas de growth da ADR 0020 (`test_growth_history.py`, `test_nsm_scorer.py`, `test_topic_priority_scorer.py`, `test_post_performance.py`), a clusterização de perfil (`test_profile_clustering.py`) e o pipeline de UGC/menções, hoje em produção (`test_ugc_mention_cleaner.py`, `test_ugc_mentions_aggregator.py`, `test_run_ugc_mentions_script.py`).
+**Resultado atual: 842 testes passando e 3 pulados (61 arquivos).** A tabela acima cobre só os arquivos mais ilustrativos do pipeline Bronze/Silver/Gold e das Lambdas; a suíte completa também cobre o dashboard por decisão (`test_dashboard_loaders.py`, `test_dashboard_core_data.py`, `test_dashboard_core_deltas.py`, `test_comparisons.py`, `test_dashboard_screens_{resumo,resumo_nsm,resumo_funil,resumo_scorecard,produzir,radar,comparar,comparar_clusters,discurso_reacao}.py`, ver ADR 0021/0023/0025/0026/0031), o escore composto e o ICE de pautas (`test_governor_scorecard.py`, `test_content_topic_priority_scorer.py`, `test_discourse_refinement.py`), as métricas de growth da ADR 0020 (`test_growth_history.py`, `test_nsm_scorer.py`, `test_topic_priority_scorer.py`, `test_post_performance.py`), a clusterização de perfil (`test_profile_clustering.py`) o pipeline de UGC/menções, hoje dentro do `pipeline.py` (`test_ingestion.py`, `test_ugc_mention_cleaner.py`, `test_ugc_mentions_aggregator.py`), os comentários de posts (`test_post_comments.py`), as flags de extração (`test_pipeline_extracao.py`) e o relatório de tabelas (`test_pipeline_report.py`).
 
 `.github/workflows/python-app.yml` roda a cada push e pull request na `main`: checkout, Python 3.11, `pip install -e .[dev]`, pytest com cobertura e `ruff check src/`.
 
