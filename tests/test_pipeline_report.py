@@ -240,3 +240,15 @@ def test_relatorio_final_sem_modelagem_marca_nao_solicitada_e_sai_com_0(tmp_path
     assert codigo == 0
     assert "NAO SOLICITADA" in caplog.text
     assert "[OK] Pipeline Medallion finalizado com run_id: run_x" in caplog.text
+
+
+def test_formatar_relatorio_mostra_o_caminho_dos_logs_mesmo_sem_problema():
+    """Issue #224: o resumo sempre aponta onde ficam os logs (#214)."""
+    resultado = _avaliar(
+        [_tabela("tela")], commits={"tela": INICIO + timedelta(minutes=1)}, linhas={"tela": 1}
+    )
+
+    texto = formatar_relatorio(resultado, Path("data/logs"))
+
+    assert str(Path("data/logs")) in texto
+    assert "Resumo: OK=1." in texto

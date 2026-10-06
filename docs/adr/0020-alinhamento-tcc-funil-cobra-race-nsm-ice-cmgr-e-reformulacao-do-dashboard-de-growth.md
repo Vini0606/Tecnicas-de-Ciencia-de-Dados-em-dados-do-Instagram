@@ -2,6 +2,12 @@
 status: accepted
 ---
 
+> **Nota (superseded parcial):** a coleta de UGC deixou de ser um script standalone com cadência
+> própria (Ficha 8): a ADR
+> [0034](0034-pipeline-ponto-unico-ugc-no-extrator-comentarios-de-posts-janela-e-relatorio.md)
+> a colocou na extração única do `pipeline.py`. Actor, schema e a separação orgânico × publi da
+> Ficha 8 continuam valendo.
+
 > **Nota (superseded parcial):** o Engage deixou de ser "em construção": a ADR
 > [0032](0032-funil-em-escala-logaritmica-com-engage-do-ugc-piloto-e-comparativo-vs-mediana.md)
 > passou a mostrar o engajamento do UGC piloto.

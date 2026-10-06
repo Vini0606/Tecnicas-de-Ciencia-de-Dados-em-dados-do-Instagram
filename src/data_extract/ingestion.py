@@ -50,7 +50,7 @@ def extract_and_land(
     links: list[str],
     run_id: str,
     extra_run_input: dict | None = None,
-) -> dict[str, list[dict]]:
+) -> dict[str, list[dict] | str]:
     """Raspa perfis+posts+reels+UGC, arquiva cada entidade na landing zone e
     escreve na Bronze, nessa ordem, entidade por entidade. `extra_run_input`
     (ex: `onlyPostsNewerThan`) se aplica a posts/reels/UGC, não a perfis — o
@@ -74,7 +74,7 @@ def extract_and_land(
     archive_raw_json(landing_dir, "reels", reels, run_id)
     bronze.write_reels(reels, run_id=run_id)
 
-    result: dict = {"profiles": profiles, "posts": posts, "reels": reels, "ugc_mentions": []}
+    result: dict[str, list[dict] | str] = {"profiles": profiles, "posts": posts, "reels": reels, "ugc_mentions": []}
     try:
         mentions = scraper.scrape_mentions(links, extra_run_input=extra_run_input)
         if not mentions:

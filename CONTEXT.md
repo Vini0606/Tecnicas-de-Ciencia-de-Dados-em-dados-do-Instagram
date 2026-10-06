@@ -38,7 +38,7 @@ _Avoid_: Tema, pauta (reservado ao assunto do conteúdo).
 **Origem do comentário**:
 A publicação em que um comentário foi feito: `reel` ou `post` (de feed). Os comentários de cada origem
 ficam em tabelas Silver separadas (`comments_clean` e `post_comments_clean`) e convivem em
-`governor_sentiment` pela coluna `origem_comentario` (ver ADR 0033). Um comentário capturado nas duas
+`governor_sentiment` pela coluna `origem_comentario` (ver ADR 0034). Um comentário capturado nas duas
 origens (reel que também aparece no grid de posts) conta uma vez, como `reel`.
 _Avoid_: Fonte (reservado a comentario/legenda/transcricao em `governor_sentiment`), tipo.
 

@@ -209,7 +209,7 @@ tópicos via Gemini (`scripts/refine_topics.py`) reescreve as linhas de comentá
 histórico — não gera uma nova medição de sentimento, só reescreve rótulos de tópico. Clusters ainda
 não têm tabela de histórico equivalente.
 
-**Comentários de reels e de posts** ([ADR 0033](docs/adr/0033-pipeline-ponto-unico-ugc-no-extrator-comentarios-de-posts-janela-e-relatorio.md)).
+**Comentários de reels e de posts** ([ADR 0034](docs/adr/0034-pipeline-ponto-unico-ugc-no-extrator-comentarios-de-posts-janela-e-relatorio.md)).
 Os comentários de posts de feed ficam numa Silver própria (`post_comments_clean`, com `id_post`),
 separada de `comments_clean` (reels, `id_reel`). A modelagem une as duas origens
 (`src/modeling/comment_sources.py`), deduplicando por `id_comment` e preferindo a linha de reel
@@ -232,7 +232,7 @@ repo_v3 = DeltaRepository(settings.GOLD_DIR, as_of_version=3)
 ### Pipeline local
 
 `pipeline.py` é o **ponto único** de geração de todas as tabelas que o dashboard lê
-([ADR 0033](docs/adr/0033-pipeline-ponto-unico-ugc-no-extrator-comentarios-de-posts-janela-e-relatorio.md)).
+([ADR 0034](docs/adr/0034-pipeline-ponto-unico-ugc-no-extrator-comentarios-de-posts-janela-e-relatorio.md)).
 A fonte dos dados é resolvida assim:
 
 1. Tabelas Bronze já existentes: o caminho mais barato, sem custo.
@@ -385,7 +385,7 @@ TF_VAR_image_tag=$(git rev-parse origin/main) terraform apply
 - **`extract` também coleta UGC** (issue #211): mais uma chamada síncrona de actor dentro do mesmo
   timeout de 300 s da Lambda `extract`, sem ajuste no Terraform. Se estourar, é preciso subir o
   timeout dela. As Lambdas `transform`/`load` ainda não gravam Silver/Gold de UGC nem comentários de
-  posts; o caminho serverless segue sem paridade com o `pipeline.py` local (ADR 0033).
+  posts; o caminho serverless segue sem paridade com o `pipeline.py` local (ADR 0034).
 - **Sem gatilho agendado** — não há regra EventBridge/cron configurada; o pipeline roda só quando
   invocado manualmente (`aws lambda invoke` na Lambda orquestradora, payload `{"links": [...]}`).
   Adicionar um agendamento é uma mudança pequena e aditiva em `infra/main.tf`.
@@ -510,7 +510,8 @@ tabela                | estagio   | dashboard | status         | linhas | ultimo
 ...
 governor_scorecard    | modelagem | sim       | OK             | 26     | 2026-10-06 15:42:10
 governor_ugc_mentions | ugc       | sim       | AUSENTE        | -      | -
-[RELATORIO] Resumo: OK=20, AUSENTE=1, NAO SOLICITADA=0.
+[RELATORIO] Resumo: OK=20, AUSENTE=1.
+[RELATORIO] Logs do pipeline e da modelagem (cada um sob o seu run_id, com os estagios pulados): data/logs
 [FALHA] Pipeline Medallion finalizado com run_id: ... -- 1 tabela(s) do dashboard com problema
 ```
 
@@ -522,7 +523,7 @@ governor_ugc_mentions | ugc       | sim       | AUSENTE        | -      | -
 | `DESATUALIZADA` | O último commit é anterior ao início da execução (estágio pulado; versão velha no disco). |
 | `NAO SOLICITADA` | O estágio não rodou, por exemplo a modelagem sem `--run-modeling`. Não é falha. |
 
-O processo sai com **1** se alguma tabela **lida pelo dashboard** de um estágio executado não estiver OK. Tabelas que só o pipeline usa (por exemplo `post_performance_*`, que a ADR 0019 pula com pouco dado) aparecem como aviso. Os estágios pulados ficam no log, em `data/logs/<run_id>/`. A modelagem tem `run_id` próprio.
+O processo sai com **1** se alguma tabela **lida pelo dashboard** de um estágio executado não estiver OK. Tabelas que só o pipeline usa (por exemplo `post_performance_*`, que a ADR 0019 pula com pouco dado) aparecem como aviso. O relatório sempre aponta a pasta de logs (`data/logs/`): os estágios pulados ficam no log de cada `run_id`, e a modelagem tem `run_id` próprio. Status com contagem zero não aparecem no resumo.
 
 ### Fluxos alternativos
 
@@ -591,7 +592,7 @@ O piloto (`apify/instagram-tagged-scraper`, `resultsLimit` baixo) já rodou de v
 uv run python scripts/run_apify_mentions_pilot.py --yes
 ```
 
-A coleta de produção de UGC faz parte da extração do `pipeline.py` desde a issue #211 ([ADR 0033](docs/adr/0033-pipeline-ponto-unico-ugc-no-extrator-comentarios-de-posts-janela-e-relatorio.md)). O antigo `scripts/run_ugc_mentions.py` (coleta standalone, cadência própria) foi removido.
+A coleta de produção de UGC faz parte da extração do `pipeline.py` desde a issue #211 ([ADR 0034](docs/adr/0034-pipeline-ponto-unico-ugc-no-extrator-comentarios-de-posts-janela-e-relatorio.md)). O antigo `scripts/run_ugc_mentions.py` (coleta standalone, cadência própria) foi removido.
 
 #### Inspecionar `run_id`s espalhados pelo projeto
 
