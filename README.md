@@ -594,6 +594,35 @@ uv run python scripts/run_apify_mentions_pilot.py --yes
 
 A coleta de produção de UGC faz parte da extração do `pipeline.py` desde a issue #211 ([ADR 0034](docs/adr/0034-pipeline-ponto-unico-ugc-no-extrator-comentarios-de-posts-janela-e-relatorio.md)). O antigo `scripts/run_ugc_mentions.py` (coleta standalone, cadência própria) foi removido.
 
+#### Levar os dados coletados para outra máquina (dataset privado no Hugging Face)
+
+A coleta é paga, e o repositório é público, com dado pessoal de terceiros na landing e na Bronze. Por isso, os
+dados **não** vão para o git. Eles ficam num **dataset privado no Hugging Face**, que espelha `data/landing/`
+e `data/bronze/` 1:1 ([ADR 0035](docs/adr/0035-dados-coletados-distribuidos-por-dataset-privado-no-hugging-face.md)). Silver, Gold e checkpoints não sobem: o
+`pipeline.py --run-modeling` regenera tudo a partir da Bronze, sem chamar a Apify.
+
+1. **Uma vez por máquina:** crie no Hugging Face um token **fine-grained** com acesso só ao dataset (escrita
+   na máquina que coleta, leitura basta nas demais) e preencha `HF_TOKEN` e `HF_DATASET_REPO` no `.env`.
+2. **Na máquina que coletou:** envie a landing e a Bronze (um commit no dataset):
+3. **Na outra máquina:** baixe e rode a modelagem:
+
+```bash
+# 2. envio (máquina que coletou)
+uv run python -c "import os; from dotenv import load_dotenv; load_dotenv('.env'); from huggingface_hub import HfApi; HfApi(token=os.environ['HF_TOKEN']).upload_folder(repo_id=os.environ['HF_DATASET_REPO'], repo_type='dataset', folder_path='data', allow_patterns=['landing/**','bronze/**'], ignore_patterns=['**/.gitkeep'], commit_message='push manual: landing + bronze')"
+
+# 3. download + modelagem (outra máquina)
+uv run python -c "import os; from dotenv import load_dotenv; load_dotenv('.env'); from huggingface_hub import snapshot_download; snapshot_download(os.environ['HF_DATASET_REPO'], repo_type='dataset', token=os.environ['HF_TOKEN'], local_dir='data', allow_patterns=['landing/**','bronze/**'])"
+uv run python pipeline.py --run-modeling      # sem custo: reaproveita a Bronze baixada
+```
+
+**Escritor único:** só uma máquina coleta por vez. A Bronze é Delta só de acréscimos, e duas máquinas
+coletando divergem o `_delta_log`; quem envia por último sobrescreve a outra.
+
+> **Provisório.** Enquanto o `scripts/sync_dados_hf.py push|pull` (issue #232) não existir, o download é o
+> comando avulso acima, e o envio foi feito uma vez, manualmente (primeira carga em 2026-10-06, ver ADR 0035).
+> O script vai substituir os dois, com `push --yes`, trava de escritor único e `pull` que não sobrescreve
+> dado local não enviado.
+
 #### Inspecionar `run_id`s espalhados pelo projeto
 
 Consolida `data/landing/`, `data/logs/`, `data/model_checkpoints/`, `data/backfill/` e as colunas `_run_id` da Bronze/Silver/Gold numa visão única:
@@ -626,6 +655,8 @@ uv run python scripts/inspect_runs.py --pipeline <ID>     # extração <ID> + to
 | `RANDOM_STATE` | Não | `42` | Semente de reprodutibilidade |
 | `S3_BUCKET` | Só em cloud | `""` | Bucket para as Lambdas |
 | `S3_BRONZE_PREFIX` / `S3_SILVER_PREFIX` / `S3_GOLD_PREFIX` | Não | `bronze/` `silver/` `gold/` | Prefixos S3 por camada |
+| `HF_TOKEN` | Só para trocar dados entre máquinas | — | Token fine-grained do Hugging Face, com acesso só ao dataset (ADR 0035) |
+| `HF_DATASET_REPO` | Só para trocar dados entre máquinas | — | Dataset privado `<usuario>/<nome>` com landing + Bronze (ADR 0035) |
 
 As variáveis acima de S3 são lidas diretamente pelos handlers em `lambdas/`, não por
 `config/settings.py` (ver ADR 0007). Lista completa das demais em `config/settings.py`.
@@ -634,7 +665,7 @@ As variáveis acima de S3 são lidas diretamente pelos handlers em `lambdas/`, n
 
 ## 6. Estado atual e limitações conhecidas
 
-O pipeline roda de ponta a ponta: `uv run python pipeline.py --yes --run-modeling` materializa Bronze, Silver, Gold e a modelagem, valida as tabelas no relatório final, e `dashboard/app.py` carrega em seguida. As tabelas Delta não são versionadas (`data/` está no `.gitignore`), então um clone novo precisa executar o pipeline uma vez, com uma extração real na Apify (custo real, exige `--yes`). O `pipeline.py` não lê JSONs de `data/raw/`: ou reaproveita a Bronze local, ou chama a API.
+O pipeline roda de ponta a ponta: `uv run python pipeline.py --yes --run-modeling` materializa Bronze, Silver, Gold e a modelagem, valida as tabelas no relatório final, e `dashboard/app.py` carrega em seguida. As tabelas Delta não são versionadas (`data/` está no `.gitignore`), então um clone novo tem dois caminhos: baixar a landing e a Bronze do dataset privado no Hugging Face e rodar `pipeline.py --run-modeling`, sem custo ([ADR 0035](docs/adr/0035-dados-coletados-distribuidos-por-dataset-privado-no-hugging-face.md)), ou fazer uma extração real na Apify (custo real, exige `--yes`). O `pipeline.py` não lê JSONs de `data/raw/` nem da landing: ou reaproveita a Bronze local, ou chama a API.
 
 Esta seção registra honestamente o que ainda não está fechado.
 
