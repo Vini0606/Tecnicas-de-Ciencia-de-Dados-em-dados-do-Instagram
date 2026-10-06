@@ -603,25 +603,18 @@ e `data/bronze/` 1:1 ([ADR 0035](docs/adr/0035-dados-coletados-distribuidos-por-
 
 1. **Uma vez por máquina:** crie no Hugging Face um token **fine-grained** com acesso só ao dataset (escrita
    na máquina que coleta, leitura basta nas demais) e preencha `HF_TOKEN` e `HF_DATASET_REPO` no `.env`.
-2. **Na máquina que coletou:** envie a landing e a Bronze (um commit no dataset):
-3. **Na outra máquina:** baixe e rode a modelagem:
+2. **Na máquina que coletou:** `uv run python scripts/sync_dados_hf.py push` mostra o plano; com `--yes`, envia tudo num único commit.
+3. **Na outra máquina:** `pull` baixa landing + Bronze (`--revisao <commit>` para uma versão antiga, `--force` para sobrescrever dado local não enviado) e depois roda a modelagem:
 
 ```bash
-# 2. envio (máquina que coletou)
-uv run python -c "import os; from dotenv import load_dotenv; load_dotenv('.env'); from huggingface_hub import HfApi; HfApi(token=os.environ['HF_TOKEN']).upload_folder(repo_id=os.environ['HF_DATASET_REPO'], repo_type='dataset', folder_path='data', allow_patterns=['landing/**','bronze/**'], ignore_patterns=['**/.gitkeep'], commit_message='push manual: landing + bronze')"
-
-# 3. download + modelagem (outra máquina)
-uv run python -c "import os; from dotenv import load_dotenv; load_dotenv('.env'); from huggingface_hub import snapshot_download; snapshot_download(os.environ['HF_DATASET_REPO'], repo_type='dataset', token=os.environ['HF_TOKEN'], local_dir='data', allow_patterns=['landing/**','bronze/**'])"
+uv run python scripts/sync_dados_hf.py pull
 uv run python pipeline.py --run-modeling      # sem custo: reaproveita a Bronze baixada
 ```
 
 **Escritor único:** só uma máquina coleta por vez. A Bronze é Delta só de acréscimos, e duas máquinas
 coletando divergem o `_delta_log`; quem envia por último sobrescreve a outra.
 
-> **Provisório.** Enquanto o `scripts/sync_dados_hf.py push|pull` (issue #232) não existir, o download é o
-> comando avulso acima, e o envio foi feito uma vez, manualmente (primeira carga em 2026-10-06, ver ADR 0035).
-> O script vai substituir os dois, com `push --yes`, trava de escritor único e `pull` que não sobrescreve
-> dado local não enviado.
+O `push` recusa se a Bronze remota estiver à frente ou divergente (faça `pull` antes), e o `pull` recusa sobrescrever landing ou Bronze locais ainda não enviadas. Silver, Gold, checkpoints e logs nunca são tocados.
 
 #### Inspecionar `run_id`s espalhados pelo projeto
 

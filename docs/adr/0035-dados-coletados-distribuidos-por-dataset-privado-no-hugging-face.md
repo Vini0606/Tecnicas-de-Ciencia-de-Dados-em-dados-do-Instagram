@@ -69,5 +69,4 @@ Decidido em sessão de grilling com o usuário em 2026-10-06 (spec #231).
 - **Evolução:** se mais de uma máquina passar a coletar, o caminho é tratar a landing como fonte única e
   reconstruir a Bronze localmente a partir dela (carregador landing → Bronze, hoje inexistente), eliminando
   o conflito de `_delta_log` por construção.
-- Enquanto o script da #232 não existir, o download é um comando avulso do `huggingface_hub` (ver README,
-  §5).
+- O script `scripts/sync_dados_hf.py push|pull` (issue #232) substitui os comandos avulsos do `huggingface_hub`.
