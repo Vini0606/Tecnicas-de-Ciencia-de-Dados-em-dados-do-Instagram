@@ -197,22 +197,18 @@ def _tabela_doze():
     return _tabela(linhas)
 
 
-def test_linhas_ranking_top10_sem_selecionado_em_todos():
+def test_linhas_ranking_lista_todos_os_perfis_sem_selecionado_em_todos():
     linhas = resumo.linhas_ranking(_tabela_doze(), "bruto", None)
-    assert [item["posicao"] for item in linhas] == list(range(1, 11))
-    assert not any(item["selecionado"] or item["extra"] for item in linhas)
+    assert [item["posicao"] for item in linhas] == list(range(1, 13))
+    assert not any(item["selecionado"] for item in linhas)
 
 
-def test_linhas_ranking_selecionado_fora_do_top10_ganha_linha_extra():
+def test_linhas_ranking_destaca_o_selecionado_na_sua_posicao_real():
     linhas = resumo.linhas_ranking(_tabela_doze(), "bruto", "p12")
-    assert len(linhas) == 11
-    assert linhas[-1]["extra"] and linhas[-1]["selecionado"]
-    assert linhas[-1]["posicao"] == 12
-
-
-def test_linhas_ranking_selecionado_dentro_do_top10_so_destaca():
+    assert len(linhas) == 12
+    assert [i["posicao"] for i in linhas if i["selecionado"]] == [12]
     linhas = resumo.linhas_ranking(_tabela_doze(), "bruto", "p03")
-    assert len(linhas) == 10
+    assert len(linhas) == 12
     assert [i["posicao"] for i in linhas if i["selecionado"]] == [3]
 
 
@@ -288,3 +284,77 @@ def test_montar_tabela_contraste_descarta_url_repetida():
     )
     t = resumo.montar_tabela_contraste(df_nsm, pd.DataFrame(), pd.DataFrame())
     assert len(t) == 1
+
+
+# ---------------------------------------------------------------------------
+# Comparativo vs. mediana no cartão principal (ADR 0033 / issue #208)
+# ---------------------------------------------------------------------------
+
+
+def _tabela_nsm(valores):
+    return _tabela([(k, 1, v, 0, 0) for k, v in valores.items()])
+
+
+def test_comparativo_nsm_selecionado_usa_mediana_dos_demais_em_pontos():
+    t = _tabela_nsm({"a": 60.0, "b": 10.0, "c": 20.0, "d": 100.0})
+    comp = resumo.comparativo_nsm(t, "a")
+    assert comp["modo"] == "selecionado"
+    assert comp["n"] == 3
+    assert comp["dif"] == 40.0  # 60 - mediana(10, 20, 100) = 60 - 20
+
+
+def test_comparativo_nsm_ignora_demais_sem_nsm_e_none_sem_pares_ou_sem_valor():
+    t = _tabela_nsm({"a": 30.0, "b": 10.0, "c": None})
+    assert resumo.comparativo_nsm(t, "a")["n"] == 1
+    assert resumo.comparativo_nsm(t, "c") is None  # selecionado sem NSM
+    assert resumo.comparativo_nsm(_tabela_nsm({"a": 30.0}), "a") is None  # sem pares
+    assert resumo.comparativo_nsm(_tabela([]), "a") is None
+
+
+def test_comparativo_nsm_todos_compara_media_com_mediana_do_grupo():
+    t = _tabela_nsm({"a": 100.0, "b": 0.0, "c": 0.0, "d": 20.0})
+    comp = resumo.comparativo_nsm(t, None)
+    assert comp["modo"] == "todos"
+    assert comp["n"] == 4
+    assert comp["dif"] == 20.0  # media 30 - mediana de (0, 0, 20, 100) = 10
+
+
+def test_html_seta_selecionado_acima_verde_abaixo_vermelha_com_sinal_em_texto():
+    acima = resumo.html_seta({"dif": 12.44, "n": 25, "modo": "selecionado"})
+    assert "▲ +12,4 pts" in acima and "verde" in acima
+    abaixo = resumo.html_seta({"dif": -3.0, "n": 25, "modo": "selecionado"})
+    assert "▼ −3,0 pts" in abaixo and "verm" in abaixo
+
+
+def test_html_seta_todos_e_neutra_sem_verde_nem_vermelho():
+    html = resumo.html_seta({"dif": 20.0, "n": 26, "modo": "todos"})
+    assert "▲ +20,0 pts" in html and "neutro" in html
+    assert "verde" not in html and "verm" not in html
+
+
+def test_html_seta_sem_comparativo_ou_diferenca_nula():
+    assert resumo.html_seta(None) == ""
+    assert "= 0,0 pts" in resumo.html_seta({"dif": 0.0, "n": 5, "modo": "selecionado"})
+
+
+def test_legenda_comparativo_muda_por_modo_e_mostra_n():
+    sel = resumo.legenda_comparativo({"dif": 1.0, "n": 25, "modo": "selecionado"})
+    assert "mediana dos demais governadores (n = 25)" in sel
+    todos = resumo.legenda_comparativo({"dif": 1.0, "n": 26, "modo": "todos"})
+    assert "média" in todos and "mediana" in todos and "poucos perfis" in todos
+    assert resumo.legenda_comparativo(None) == ""
+
+
+def test_html_cartao_coloca_a_seta_ao_lado_do_valor():
+    html = resumo._html_cartao("T", "62,3", "sub", "verde", seta="<b>SETA</b>")
+    assert html.index("62,3") < html.index("SETA") < html.index("sub")
+    assert "SETA" not in resumo._html_cartao("T", "62,3", "sub", None)
+
+
+def test_html_ranking_lista_todos_em_container_rolavel_e_destaca_selecionado():
+    linhas = resumo.linhas_ranking(_tabela_doze(), "nsm", "p12", com_etiqueta=True)
+    html = resumo._html_ranking(linhas, "verde", resumo._fmt_nsm_0_100)
+    assert 'class="n-scroll"' in html
+    assert html.count('class="n-linha') == 12
+    assert html.count("(selecionado)") == 1
+    assert "SUBIU" in html and "CAIU" in html

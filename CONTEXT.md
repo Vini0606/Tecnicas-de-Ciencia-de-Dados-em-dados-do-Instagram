@@ -17,6 +17,12 @@ Divisão interna de uma Tela (ex.: NSM, Funil e Scorecard dentro do Resumo). Dis
 da navegação lateral.
 _Avoid_: Tela (para algo interno a outra Tela), aba solta (ambíguo).
 
+**Comparativo vs. mediana**:
+Seta ▲/▼ que compara o valor do governador selecionado com a mediana dos demais governadores (no Funil,
+em percentual; no NSM, em pontos do índice). Em "Todos" no NSM, compara a média do grupo com a mediana do
+grupo e indica assimetria, não desempenho. Distinta de SUBIU/CAIU, que compara posições de ranking.
+_Avoid_: Projeção, tendência (não há comparação no tempo).
+
 **Pauta**:
 Assunto de um conteúdo publicado (legenda de reel/post) agrupado pelo modelo de tópicos de discurso e
 rotulado após refino. É a unidade da fila de "O que produzir": mede quanto comentário positivo os

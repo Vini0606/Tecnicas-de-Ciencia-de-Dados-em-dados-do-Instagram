@@ -65,10 +65,10 @@ texto completo):
    (`_taxa_engage`), mas NUNCA entra em `_taxas_passagem` nem na identificação
    do gargalo: as unidades e as populações são diferentes (posts de terceiros
    x comentários). Os dados atuais são só uma AMOSTRA DE TESTE (no máximo 5
-   posts por governador): enquanto o máximo por governador for <= 5
-   (`_ugc_e_amostra_piloto`), o comparativo ▲/▼ do Engage fica oculto (seria
-   ruído); com uma coleta completa ele aparece sozinho. A tela não exibe
-   aviso de "piloto". O Engage fica num bloco SEPARADO abaixo do funil (não é
+   posts por governador), mas o comparativo ▲/▼ do Engage aparece sempre,
+   igual ao das outras etapas (ADR 0033, que revisa a ocultação do ADR 0032).
+   O bloco não tem linha descritiva. A tela não exibe aviso de "piloto".
+   O Engage fica num bloco SEPARADO abaixo do funil (não é
    uma 4ª etapa do desenho), porque o volume de UGC pode ser maior que o de
    Convert e quebraria o afunilamento. `load_discourse_topics()` continua NÃO
    sendo usado como proxy numérico.
@@ -176,10 +176,6 @@ _NOTA_FUNIL = (
     'Funil COBRA-RACE · "Criar" = volume de UGC orgânico (menções de terceiros) · '
     "Reach baseado em Reels."
 )
-
-# Teto de posts de UGC por governador na coleta do piloto (ADR 0020, Ficha 8):
-# só alimenta a nota exibida junto do Engage, nunca entra em conta nenhuma.
-_MAX_POSTS_UGC_PILOTO = 5
 
 
 # ---------------------------------------------------------------------------
@@ -371,14 +367,6 @@ def _engage_por_governador(df_ugc: pd.DataFrame) -> pd.DataFrame:
     return out
 
 
-def _ugc_e_amostra_piloto(df_ugc: pd.DataFrame) -> bool:
-    """`True` enquanto o máximo de posts de UGC por governador for <= ao teto
-    da coleta do piloto (`_MAX_POSTS_UGC_PILOTO`): a contagem reflete o teto,
-    não o volume real. Some sozinho quando houver uma coleta completa."""
-    por_gov = _engage_por_governador(df_ugc)
-    return bool(not por_gov.empty and por_gov["engage"].max() <= _MAX_POSTS_UGC_PILOTO)
-
-
 def _engage_para_selecao(governor_url: str, df_ugc: pd.DataFrame) -> float:
     """Nº de posts de UGC para a seleção do seletor único. Governador único:
     a contagem dele (`0.0` sem UGC). Todos: MÉDIA por governador, só entre
@@ -416,6 +404,19 @@ def _estagios_com_engage_por_governador(
     mapa = dict(zip(por_gov["username"], por_gov["engage"], strict=True))
     base["engage"] = [float(mapa.get(_username_de_url(u), 0.0)) for u in base["url"]]
     return base
+
+
+def _valores_comparativo(
+    estagios: tuple[float, float, float], engage: float
+) -> dict[str, float]:
+    """Valores absolutos comparados com a mediana dos demais: Reach, Act,
+    Convert e Engage (este sempre, mesmo com a amostra de teste de UGC)."""
+    return {
+        _ESTAGIO_REACH: estagios[0],
+        _ESTAGIO_ACT: estagios[1],
+        _ESTAGIO_CONVERT: estagios[2],
+        _ESTAGIO_ENGAGE: engage,
+    }
 
 
 def _diferencas_vs_mediana(
@@ -824,7 +825,6 @@ _CSS_FUNIL = (
   padding:10px 16px; margin:12px auto 0; max-width:420px; text-align:center; }
 .funil-viz .f-engage-card i { font-style:normal; font-size:12px; font-weight:600; }
 .funil-viz .f-engage-card b { display:block; font-size:18px; margin:2px 0; }
-.funil-viz .f-engage-card small { display:block; font-size:11px; opacity:.7; }
 .funil-viz .f-legenda { font-size:11px; opacity:.65; margin-top:8px; }
 .funil-viz .f-card { border: 1px solid var(--f-track); border-left: 4px solid var(--f-convert);
   border-radius: 8px; padding: 12px 16px; margin: 14px 0; }
@@ -876,24 +876,14 @@ def _html_selo_conversao(
     return f'<div class="f-pill" style="top:{y:.0f}px">{corpo}{selo}</div>'
 
 
-def _html_engage(engage: float, dif: float | None, is_todos: bool) -> str:
+def _html_engage(engage: float, dif: float | None) -> str:
     """Bloco do Engage·Criar, separado do funil (ver docstring, decisão 4):
-    quantidade de posts de UGC orgânico, em uma frase objetiva."""
+    quantidade de posts de UGC orgânico + ▲/▼ vs. a mediana dos demais."""
     if engage <= 0:
         valor = "sem dado"
-        detalhe = "nenhum post de UGC orgânico coletado para este governador"
     else:
         valor = _fmt_int_br(engage) + (f" · {_fmt_dif(dif)}" if dif is not None else "")
-        detalhe = (
-            "média de posts de UGC orgânico por governador"
-            if is_todos
-            else "posts de UGC orgânico: conteúdos de terceiros, não pagos, que "
-            "mencionam o governador"
-        )
-    return (
-        '<div class="f-engage-card"><i>Engage · Criar</i>'
-        f"<b>{valor}</b><small>{detalhe}</small></div>"
-    )
+    return f'<div class="f-engage-card"><i>Engage · Criar</i><b>{valor}</b></div>'
 
 
 def _html_funil(
@@ -902,7 +892,6 @@ def _html_funil(
     gargalo: str | None,
     engage: float = 0.0,
     comparativos: dict | None = None,
-    is_todos: bool = False,
 ) -> str:
     """Funil de 3 etapas (trapézios contínuos, largura em escala log): título e
     valor dentro de cada etapa (com ▲/▼ + diferença vs. a mediana dos demais
@@ -991,7 +980,7 @@ def _html_funil(
         '<div style="max-width:620px;margin:0 auto;position:relative">'
         f"{svg}{''.join(rotulos)}{''.join(selos)}</div>"
         f'<div class="f-pill-flow"><div class="f-pill">{selo_engage}</div></div>'
-        + _html_engage(engage, dif.get(_ESTAGIO_ENGAGE), is_todos)
+        + _html_engage(engage, dif.get(_ESTAGIO_ENGAGE))
         + f'<div class="f-legenda">{legenda}</div></div>'
     )
 
@@ -1065,16 +1054,8 @@ def render(governor_url: str) -> None:
 
     # ---- Engage (UGC do piloto) + comparativo vs. mediana dos demais ----
     engage = _engage_para_selecao(governor_url, df_ugc)
-    piloto = _ugc_e_amostra_piloto(df_ugc)
-    valores_comparativo = {
-        _ESTAGIO_REACH: estagios[0],
-        _ESTAGIO_ACT: estagios[1],
-        _ESTAGIO_CONVERT: estagios[2],
-    }
-    if not piloto:  # com o teto do piloto, comparar contagens é ruído
-        valores_comparativo[_ESTAGIO_ENGAGE] = engage
     comparativos = _diferencas_vs_mediana(
-        valores_comparativo,
+        _valores_comparativo(estagios, engage),
         _estagios_com_engage_por_governador(
             df_clusters, df_reels, df_engagement, df_sentiment, df_ugc
         ),
@@ -1121,7 +1102,6 @@ def render(governor_url: str) -> None:
             gargalo,
             engage=engage,
             comparativos=comparativos,
-            is_todos=is_todos,
         ),
         unsafe_allow_html=True,
     )
