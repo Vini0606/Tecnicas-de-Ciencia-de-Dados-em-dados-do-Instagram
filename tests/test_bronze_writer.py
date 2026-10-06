@@ -84,3 +84,24 @@ def test_write_ugc_mentions_sem_path_configurado_levanta_erro(tmp_path):
 
     with pytest.raises(KeyError):
         writer.write_ugc_mentions([{"id": "m1"}])
+
+
+def test_write_reels_converte_owner_id_numerico_para_string(tmp_path):
+    """Issue #229: a Apify devolveu `ownerId` como int em 2 de 522 reels reais
+    (2026-10-06), e a Bronze abortava a extração inteira na conversão para o
+    `pa.string()` do schema."""
+    writer = BronzeWriter(tmp_path / "profiles", tmp_path / "posts", tmp_path / "reels")
+
+    writer.write_reels(
+        [
+            {"id": "r1", "ownerId": "111"},
+            {"id": "r2", "ownerId": 222},
+            {"id": "r3", "ownerId": 333.0},
+            {"id": "r4", "ownerId": None},
+        ],
+        run_id="run_1",
+    )
+
+    out = writer.get_latest_reels().set_index("id")["ownerId"]
+    assert out[["r1", "r2", "r3"]].tolist() == ["111", "222", "333"]
+    assert pd.isna(out["r4"])

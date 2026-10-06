@@ -6,6 +6,7 @@ BronzeWriter implementation using deltalake write_deltalake.
 from __future__ import annotations
 
 import json
+import math
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -21,6 +22,17 @@ from src.schemas_delta import (
     BRONZE_REELS_SCHEMA,
     BRONZE_UGC_MENTIONS_SCHEMA,
 )
+
+
+def _escalar_para_texto(value: bool | int | float) -> str | None:
+    """Float com parte inteira exata (ex.: id `333.0`) vira `"333"`, não
+    `"333.0"`; NaN vira nulo."""
+    if isinstance(value, float):
+        if math.isnan(value):
+            return None
+        if value.is_integer():
+            return str(int(value))
+    return str(value)
 
 
 class BronzeWriter:
@@ -85,14 +97,25 @@ class BronzeWriter:
         dt = DeltaTable(self._paths[entity], storage_options=self._storage_options)
         return pd.DataFrame(dt.history())
 
-    def _add_ingestion_metadata(self, raw_data: list[dict], run_id: str) -> list[dict]:
+    def _add_ingestion_metadata(
+        self, raw_data: list[dict], run_id: str, schema: pa.Schema | None = None
+    ) -> list[dict]:
         now_utc = datetime.now(timezone.utc)
+        # Issue #229: a Apify não é consistente no tipo de campos escalares
+        # (ex.: `ownerId` veio int em 2 de 522 reels reais) -- em campo que o
+        # schema Bronze declara string, int/float/bool viram texto antes da
+        # conformação, em vez de abortar a extração inteira já paga.
+        campos_texto = (
+            {f.name for f in schema if pa.types.is_string(f.type)} if schema is not None else set()
+        )
         enriched = []
         for record in raw_data:
             enriched_record = dict(record)
             for key, value in list(enriched_record.items()):
                 if isinstance(value, (list, dict)):
                     enriched_record[key] = json.dumps(value, ensure_ascii=False)
+                elif key in campos_texto and isinstance(value, (bool, int, float)):
+                    enriched_record[key] = _escalar_para_texto(value)
             enriched_record["_ingested_at"] = now_utc
             enriched_record["_run_id"] = run_id
             enriched_record["_source"] = "apify"
@@ -106,7 +129,7 @@ class BronzeWriter:
             raise ValueError(f"Nenhum dado fornecido para escrita em Bronze: {path}")
 
         run_id = run_id or str(uuid.uuid4())
-        enriched = self._add_ingestion_metadata(raw_data, run_id)
+        enriched = self._add_ingestion_metadata(raw_data, run_id, schema)
         df = pd.DataFrame(enriched)
 
         write_delta(
