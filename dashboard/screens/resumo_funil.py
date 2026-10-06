@@ -1052,7 +1052,7 @@ def render(governor_url: str) -> None:
         governor_url, df_clusters, df_reels, df_engagement, df_sentiment
     )
 
-    # ---- Engage (UGC do piloto) + comparativo vs. mediana dos demais ----
+    # ---- Engage (UGC orgânico) + comparativo vs. mediana dos demais ----
     engage = _engage_para_selecao(governor_url, df_ugc)
     comparativos = _diferencas_vs_mediana(
         _valores_comparativo(estagios, engage),

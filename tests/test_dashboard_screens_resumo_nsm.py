@@ -342,7 +342,13 @@ def test_legenda_comparativo_muda_por_modo_e_mostra_n():
     assert "mediana dos demais governadores (n = 25)" in sel
     todos = resumo.legenda_comparativo({"dif": 1.0, "n": 26, "modo": "todos"})
     assert "média" in todos and "mediana" in todos and "poucos perfis" in todos
+    abaixo = resumo.legenda_comparativo({"dif": -2.0, "n": 26, "modo": "todos"})
+    assert "média abaixo da mediana" in abaixo and "poucos perfis baixos" in abaixo
     assert resumo.legenda_comparativo(None) == ""
+
+
+def test_css_da_seta_neutra_tem_cor_propria_e_nao_herda_o_verde_do_cartao():
+    assert ".n-seta.neutro { color: var(--n-neutro)" in resumo._CSS_NSM
 
 
 def test_html_cartao_coloca_a_seta_ao_lado_do_valor():

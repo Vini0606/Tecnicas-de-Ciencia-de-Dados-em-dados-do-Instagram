@@ -269,10 +269,14 @@ def legenda_comparativo(comparativo: dict | None) -> str:
     if comparativo is None:
         return ""
     if comparativo["modo"] == "todos":
+        leitura = (
+            "média abaixo da mediana = poucos perfis baixos puxam a média"
+            if comparativo["dif"] < 0
+            else "média acima da mediana = poucos perfis altos puxam a média"
+        )
         return (
             "▲/▼ ao lado do engajamento qualificado: média do grupo contra a "
-            "mediana do grupo, em pontos; média acima da mediana = poucos "
-            "perfis altos puxam a média."
+            f"mediana do grupo, em pontos; {leitura}."
         )
     return (
         "▲/▼ ao lado do engajamento qualificado: diferença, em pontos do "
@@ -287,10 +291,14 @@ def legenda_comparativo(comparativo: dict | None) -> str:
 _AZUL = ("#2a78d6", "#5a9df0")
 _VERDE = ("#008300", "#3fae3f")
 _VERMELHO = ("#a32d2d", "#e66767")
+_NEUTRO = ("#52525b", "#a1a1aa")
 
 
 def _vars_cor(i: int) -> str:
-    return f"--n-azul:{_AZUL[i]};--n-verde:{_VERDE[i]};--n-verm:{_VERMELHO[i]};"
+    return (
+        f"--n-azul:{_AZUL[i]};--n-verde:{_VERDE[i]};--n-verm:{_VERMELHO[i]};"
+        f"--n-neutro:{_NEUTRO[i]};"
+    )
 
 
 _CSS_NSM = (
@@ -317,7 +325,7 @@ _CSS_NSM = (
 .nsm-viz .n-seta { font-size: 13px; font-weight: 600; margin-left: 8px; }
 .nsm-viz .n-seta.verde { color: var(--n-verde); }
 .nsm-viz .n-seta.verm { color: var(--n-verm); }
-.nsm-viz .n-seta.neutro { opacity: .8; }
+.nsm-viz .n-seta.neutro { color: var(--n-neutro); }
 .nsm-viz .n-pos { width: 28px; text-align: right; opacity: .7; }
 .nsm-viz .n-nome { width: 150px; overflow: hidden; text-overflow: ellipsis;
   white-space: nowrap; }
