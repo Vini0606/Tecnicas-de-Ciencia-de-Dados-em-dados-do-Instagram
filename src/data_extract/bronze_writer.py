@@ -30,11 +30,11 @@ class BronzeWriter:
         bronze_posts_path: Path | str,
         bronze_reels_path: Path | str,
         storage_options: dict | None = None,
-        # ADR 0020 (Ficha 8) / issue #93: opcional e por último -- coleção
-        # independente (actor/cadência próprios), nem todo chamador de
-        # BronzeWriter precisa dela (ex.: lambdas/extract, pipeline.py
-        # principal). Ausente se não passado -- write_ugc_mentions levanta
-        # KeyError explícito nesse caso, em vez de aceitar um path "None".
+        # ADR 0020 (Ficha 8) / issue #93: opcional e por último, por
+        # compatibilidade. Desde a issue #211 todo chamador de
+        # `extract_and_land` passa este caminho (UGC é parte da extração);
+        # ausente, write_ugc_mentions levanta KeyError explícito -- que
+        # `extract_and_land` trata como "coleta de UGC pulada".
         bronze_ugc_mentions_path: Path | str | None = None,
     ):
         self._paths = {

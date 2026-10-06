@@ -1,5 +1,5 @@
 """
-Ponto único compartilhado de "raspar perfis+posts+reels e escrever na
+Ponto único compartilhado de "raspar perfis+posts+reels+UGC e escrever na
 Bronze" — usado por `pipeline.py`, `scripts/run_apify_backfill.py` e
 `lambdas/extract/handler.py`, que antes duplicavam essa sequência sem
 nenhum compartilhamento (ver ADR 0011, decisão 2).
@@ -15,10 +15,13 @@ dado bruto já raspado (e já pago) da Apify.
 from __future__ import annotations
 
 import json
+import logging
 from pathlib import Path
 
 from src.data_extract.bronze_writer import BronzeWriter
 from src.data_extract.scraper import InstagramScraper
+
+logger = logging.getLogger(__name__)
 
 
 def archive_raw_json(
@@ -48,11 +51,17 @@ def extract_and_land(
     run_id: str,
     extra_run_input: dict | None = None,
 ) -> dict[str, list[dict]]:
-    """Raspa perfis+posts+reels, arquiva cada entidade na landing zone e
+    """Raspa perfis+posts+reels+UGC, arquiva cada entidade na landing zone e
     escreve na Bronze, nessa ordem, entidade por entidade. `extra_run_input`
-    (ex: `onlyPostsNewerThan`) se aplica a posts/reels, não a perfis — o
+    (ex: `onlyPostsNewerThan`) se aplica a posts/reels/UGC, não a perfis — o
     ator de perfis da Apify não aceita esse parâmetro. Retorna os itens
-    brutos raspados por entidade."""
+    brutos raspados por entidade.
+
+    UGC (ADR 0020 Ficha 8, issue #211) é a ÚLTIMA coleta e é tolerante a
+    falha: exceção do actor, lista vazia ou Bronze sem caminho de UGC viram
+    `ugc_mentions == []` mais `ugc_error` no retorno, sem levantar --
+    perfis/posts/reels já pagos e gravados nunca são descartados por ela.
+    Perfis/posts/reels continuam fail-fast."""
     profiles = scraper.scrape_profiles(links)
     archive_raw_json(landing_dir, "profiles", profiles, run_id)
     bronze.write_profiles(profiles, run_id=run_id)
@@ -65,23 +74,15 @@ def extract_and_land(
     archive_raw_json(landing_dir, "reels", reels, run_id)
     bronze.write_reels(reels, run_id=run_id)
 
-    return {"profiles": profiles, "posts": posts, "reels": reels}
-
-
-def extract_and_land_ugc_mentions(
-    scraper: InstagramScraper,
-    bronze: BronzeWriter,
-    landing_dir: Path | str,
-    links: list[str],
-    run_id: str,
-    extra_run_input: dict | None = None,
-) -> list[dict]:
-    """Raspa UGC de menções (ADR 0020, Ficha 8 / issue #93), arquiva na
-    landing zone e escreve na Bronze -- mesmo padrão de `extract_and_land`,
-    mas separado dele de propósito: UGC tem actor/cadência próprios,
-    coletado independentemente de profiles/posts/reels (`bronze` aqui
-    precisa ter sido construído com `bronze_ugc_mentions_path`)."""
-    mentions = scraper.scrape_mentions(links, extra_run_input=extra_run_input)
-    archive_raw_json(landing_dir, "ugc_mentions", mentions, run_id)
-    bronze.write_ugc_mentions(mentions, run_id=run_id)
-    return mentions
+    result: dict = {"profiles": profiles, "posts": posts, "reels": reels, "ugc_mentions": []}
+    try:
+        mentions = scraper.scrape_mentions(links, extra_run_input=extra_run_input)
+        if not mentions:
+            raise ValueError("a coleta de UGC não retornou nenhum post")
+        archive_raw_json(landing_dir, "ugc_mentions", mentions, run_id)
+        bronze.write_ugc_mentions(mentions, run_id=run_id)
+        result["ugc_mentions"] = mentions
+    except Exception as e:
+        logger.exception("[BRONZE] Coleta de UGC pulada -- perfis/posts/reels preservados.")
+        result["ugc_error"] = f"{type(e).__name__}: {e}"
+    return result

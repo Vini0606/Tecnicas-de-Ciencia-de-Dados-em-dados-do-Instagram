@@ -4,10 +4,20 @@ import pandas as pd
 import pytest
 
 
-def _fake_bronze_writer_class(df_profiles, df_posts, df_reels):
+def _fake_bronze_writer_class(df_profiles, df_posts, df_reels, df_ugc=None):
+    """`df_ugc=None` simula uma Bronze anterior à issue #211, sem a tabela de
+    UGC (`get_latest_ugc_mentions` levanta FileNotFoundError, como o real)."""
+
     class FakeBronzeWriter:
+        init_kwargs = {}
+
         def __init__(self, **kwargs):
-            pass
+            FakeBronzeWriter.init_kwargs = kwargs
+
+        def get_latest_ugc_mentions(self):
+            if df_ugc is None:
+                raise FileNotFoundError("Tabela Bronze não encontrada")
+            return df_ugc
 
         def get_latest_profiles(self):
             return df_profiles
@@ -194,6 +204,12 @@ def _fake_bronze_writer_class_recording(calls):
         def write_reels(self, raw_data, run_id=None):
             calls.append(("reels", raw_data, run_id))
 
+        def write_ugc_mentions(self, raw_data, run_id=None):
+            calls.append(("ugc_mentions", raw_data, run_id))
+
+        def get_latest_ugc_mentions(self):
+            raise FileNotFoundError("Tabela Bronze não encontrada")
+
     return FakeBronzeWriter
 
 
@@ -218,6 +234,7 @@ def test_run_medallion_pipeline_branch_de_extracao_usa_extract_and_land(
     fake_scraper.scrape_profiles.return_value = [{"inputUrl": "u1", "username": "gov1"}]
     fake_scraper.scrape_posts.return_value = [{"inputUrl": "u1", "id": "p1"}]
     fake_scraper.scrape_reels.return_value = [{"inputUrl": "u1", "id": "r1"}]
+    fake_scraper.scrape_mentions.return_value = [{"inputUrl": "u1", "id": "m1"}]
     monkeypatch.setattr("pipeline.ApifyClient", lambda token: MagicMock())
     monkeypatch.setattr(
         "pipeline.InstagramScraper", lambda client, config: fake_scraper
@@ -228,8 +245,9 @@ def test_run_medallion_pipeline_branch_de_extracao_usa_extract_and_land(
         apify_api_token="token", links=["u1"], run_id="run_extract", force_extract=True
     )
 
-    assert {kind for kind, _, _ in bronze_calls} == {"profiles", "posts", "reels"}
+    assert {kind for kind, _, _ in bronze_calls} == {"profiles", "posts", "reels", "ugc_mentions"}
     assert all(run_id == "run_extract" for _, _, run_id in bronze_calls)
+    assert (tmp_path / "landing" / "run_extract" / "ugc_mentions.json").exists()
     assert (tmp_path / "landing" / "run_extract" / "profiles.json").exists()
     assert (tmp_path / "landing" / "run_extract" / "posts.json").exists()
     assert (tmp_path / "landing" / "run_extract" / "reels.json").exists()
@@ -251,6 +269,7 @@ def _setup_extraction_branch(monkeypatch, tmp_path):
     fake_scraper.scrape_profiles.return_value = [{"inputUrl": "u1", "username": "gov1"}]
     fake_scraper.scrape_posts.return_value = [{"inputUrl": "u1", "id": "p1"}]
     fake_scraper.scrape_reels.return_value = [{"inputUrl": "u1", "id": "r1"}]
+    fake_scraper.scrape_mentions.return_value = [{"inputUrl": "u1", "id": "m1"}]
     monkeypatch.setattr("pipeline.ApifyClient", lambda token: MagicMock())
     monkeypatch.setattr(
         "pipeline.InstagramScraper", lambda client, config: fake_scraper
@@ -291,7 +310,7 @@ def test_confirm_extraction_aceita_prossegue_com_extracao(monkeypatch, tmp_path)
         confirm_extraction=lambda estimated_cost: True,
     )
 
-    assert {kind for kind, _, _ in bronze_calls} == {"profiles", "posts", "reels"}
+    assert {kind for kind, _, _ in bronze_calls} == {"profiles", "posts", "reels", "ugc_mentions"}
 
 
 def test_confirm_extraction_recebe_estimativa_baseada_em_results_limit(monkeypatch, tmp_path):
@@ -314,7 +333,10 @@ def test_confirm_extraction_recebe_estimativa_baseada_em_results_limit(monkeypat
         confirm_extraction=_confirm,
     )
 
-    assert custos_recebidos == [estimate_cost_usd_for_results_limit(50, n_governors=1)]
+    # Issue #211: posts + reels + UGC -- tres colecoes pagas.
+    assert custos_recebidos == [
+        estimate_cost_usd_for_results_limit(50, n_governors=1, media_types=3)
+    ]
 
 
 def test_confirm_extraction_nao_e_chamada_quando_bronze_ja_tem_dado(monkeypatch):
@@ -337,3 +359,95 @@ def test_confirm_extraction_nao_e_chamada_quando_bronze_ja_tem_dado(monkeypatch)
     )
 
     confirm_extraction.assert_not_called()
+
+
+def _patch_ugc(monkeypatch, df_ugc, df_ugc_silver):
+    """Substitui a Bronze (com `df_ugc`) e os componentes de UGC por mocks;
+    devolve (cleaner, aggregator, FakeBronzeWriter)."""
+    df = pd.DataFrame({"id": ["1"]})
+    fake_bronze = _fake_bronze_writer_class(df, df, df, df_ugc=df_ugc)
+    monkeypatch.setattr("pipeline.BronzeWriter", fake_bronze)
+    ugc_cleaner = MagicMock()
+    ugc_cleaner.clean.return_value = df_ugc_silver
+    ugc_aggregator = MagicMock()
+    ugc_aggregator.enrich.return_value = pd.DataFrame({"id": ["m1"]})
+    monkeypatch.setattr("pipeline.UGCMentionCleaner", lambda: ugc_cleaner)
+    monkeypatch.setattr("pipeline.GovernorUGCAggregator", lambda: ugc_aggregator)
+    return ugc_cleaner, ugc_aggregator, fake_bronze
+
+
+def test_run_medallion_pipeline_grava_silver_e_gold_de_ugc_com_bronze_reaproveitada(monkeypatch):
+    """Issue #211: UGC passa pelos mesmos estagios Silver/Gold do pipeline,
+    inclusive quando a Bronze e reaproveitada (sem extracao)."""
+    import pipeline
+    from config import settings
+
+    _patch_medallion_dependencies(monkeypatch, pd.DataFrame({"id": ["1"]}), pd.DataFrame())
+    df_ugc = pd.DataFrame({"id": ["m1"]})
+    df_ugc_silver = pd.DataFrame({"id": ["m1"], "governor_username": ["u1"]})
+    ugc_cleaner, ugc_aggregator, _ = _patch_ugc(monkeypatch, df_ugc, df_ugc_silver)
+
+    pipeline.run_medallion_pipeline(apify_api_token="token", links=["l"], run_id="r1")
+
+    assert ugc_cleaner.clean.call_args.args == (df_ugc, "r1", ["u1"])
+    assert ugc_cleaner.write.call_args.args == (df_ugc_silver, settings.SILVER_UGC_MENTIONS)
+    assert ugc_aggregator.enrich.call_args.args[0] is df_ugc_silver
+    assert ugc_aggregator.enrich.call_args.kwargs == {"run_id": "r1"}
+    assert ugc_aggregator.write.call_args.args == (
+        ugc_aggregator.enrich.return_value,
+        settings.GOLD_UGC_MENTIONS,
+    )
+
+
+def test_run_medallion_pipeline_passa_caminho_bronze_de_ugc_ao_bronze_writer(monkeypatch):
+    import pipeline
+    from config import settings
+
+    _patch_medallion_dependencies(monkeypatch, pd.DataFrame({"id": ["1"]}), pd.DataFrame())
+    _, _, fake_bronze = _patch_ugc(monkeypatch, None, pd.DataFrame())
+
+    pipeline.run_medallion_pipeline(apify_api_token="token", links=["l"], run_id="r1")
+
+    assert fake_bronze.init_kwargs["bronze_ugc_mentions_path"] == settings.BRONZE_UGC_MENTIONS
+
+
+@pytest.mark.parametrize(
+    ("df_ugc", "df_ugc_silver"),
+    [(None, pd.DataFrame()), (pd.DataFrame({"id": ["m1"]}), pd.DataFrame())],
+    ids=["bronze_de_ugc_ausente", "silver_de_ugc_vazia"],
+)
+def test_run_medallion_pipeline_segue_sem_gravar_ugc_quando_nao_ha_dado(
+    monkeypatch, df_ugc, df_ugc_silver
+):
+    """Bronze anterior a #211 (sem tabela de UGC) ou Silver vazia: o pipeline
+    segue, grava o engajamento e nao grava Silver/Gold de UGC -- o relatorio
+    de tabelas (#214) e quem acusa a falta."""
+    import pipeline
+
+    _fake_modeling, aggregator = _patch_medallion_dependencies(
+        monkeypatch, pd.DataFrame({"id": ["1"]}), pd.DataFrame()
+    )
+    ugc_cleaner, ugc_aggregator, _ = _patch_ugc(monkeypatch, df_ugc, df_ugc_silver)
+
+    pipeline.run_medallion_pipeline(apify_api_token="token", links=["l"], run_id="r1")
+
+    ugc_cleaner.write.assert_not_called()
+    ugc_aggregator.write.assert_not_called()
+    assert aggregator.write.call_count == 2
+
+
+def test_run_medallion_pipeline_falha_inesperada_de_ugc_nao_derruba_o_engajamento(monkeypatch):
+    import pipeline
+
+    _fake_modeling, aggregator = _patch_medallion_dependencies(
+        monkeypatch, pd.DataFrame({"id": ["1"]}), pd.DataFrame()
+    )
+    ugc_cleaner, ugc_aggregator, _ = _patch_ugc(
+        monkeypatch, pd.DataFrame({"id": ["m1"]}), pd.DataFrame({"id": ["m1"]})
+    )
+    ugc_aggregator.enrich.side_effect = RuntimeError("schema inesperado")
+
+    pipeline.run_medallion_pipeline(apify_api_token="token", links=["l"], run_id="r1")
+
+    ugc_aggregator.write.assert_not_called()
+    assert aggregator.write.call_count == 2

@@ -74,26 +74,30 @@ def run(apify_api_token: str, days: int, results_limit: int, run_id: str | None 
         bronze_profiles_path=settings.BRONZE_PROFILES,
         bronze_posts_path=settings.BRONZE_POSTS,
         bronze_reels_path=settings.BRONZE_REELS,
+        bronze_ugc_mentions_path=settings.BRONZE_UGC_MENTIONS,
     )
 
     result = extract_and_land(
         scraper, bronze, settings.LANDING_DIR, links, run_id=run_id, extra_run_input=extra_run_input
     )
     profiles, posts, reels = result["profiles"], result["posts"], result["reels"]
+    ugc_mentions = result["ugc_mentions"]
 
     print(
         f"[2/3] Resultado bruto: {len(profiles)} profiles, {len(posts)} posts, "
-        f"{len(reels)} reels. Escrito na Bronze de producao."
+        f"{len(reels)} reels, {len(ugc_mentions)} posts de UGC. Escrito na Bronze de producao."
     )
     truncated = {
         "posts": profiles_hitting_limit(posts, results_limit),
         "reels": profiles_hitting_limit(reels, results_limit),
+        "ugc_mentions": profiles_hitting_limit(ugc_mentions, results_limit),
     }
-    if truncated["posts"] or truncated["reels"]:
+    if any(truncated.values()):
         print(
             "[AVISO] resultsLimit provavelmente truncou o resultado real para "
             f"estes perfis (bateram exatamente no teto de {results_limit}): "
-            f"posts={truncated['posts']} reels={truncated['reels']}. "
+            f"posts={truncated['posts']} reels={truncated['reels']} "
+            f"ugc_mentions={truncated['ugc_mentions']}. "
             "Rode de novo com --results-limit maior para esses casos."
         )
 
@@ -106,7 +110,12 @@ def run(apify_api_token: str, days: int, results_limit: int, run_id: str | None 
         "n_governors": n_governors,
         "window_days": days,
         "results_limit": results_limit,
-        "raw_counts": {"profiles": len(profiles), "posts": len(posts), "reels": len(reels)},
+        "raw_counts": {
+            "profiles": len(profiles),
+            "posts": len(posts),
+            "reels": len(reels),
+            "ugc_mentions": len(ugc_mentions),
+        },
         "rate_per_governor_per_day": {
             "reels": {"baseline": BASELINE_REELS_PER_DAY, "calibrated": round(actual_reels_per_day, 3)},
             "posts": {"baseline": BASELINE_POSTS_PER_DAY, "calibrated": round(actual_posts_per_day, 3)},
