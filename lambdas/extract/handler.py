@@ -43,6 +43,7 @@ def handler(event, context):
         bronze_profiles_path=f"s3://{bucket}/{bronze_prefix}instagram_profiles",
         bronze_posts_path=f"s3://{bucket}/{bronze_prefix}instagram_posts",
         bronze_reels_path=f"s3://{bucket}/{bronze_prefix}instagram_reels",
+        bronze_ugc_mentions_path=f"s3://{bucket}/{bronze_prefix}ugc_mentions",
         storage_options=STORAGE_OPTIONS,
     )
 
@@ -56,6 +57,7 @@ def handler(event, context):
                 "profiles": len(result["profiles"]),
                 "posts": len(result["posts"]),
                 "reels": len(result["reels"]),
+                "ugc_mentions": len(result["ugc_mentions"]),
             }
         ),
     }

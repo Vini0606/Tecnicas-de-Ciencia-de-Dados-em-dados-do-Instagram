@@ -16,10 +16,12 @@ from src.data_extract.bronze_writer import BronzeWriter
 from src.data_extract.ingestion import extract_and_land
 from src.data_extract.scraper import InstagramScraper, ScraperConfig
 from src.features.gold.engagement_aggregator import EngagementAggregator
+from src.features.gold.ugc_mentions_aggregator import GovernorUGCAggregator
 from src.features.silver.comment_cleaner import CommentCleaner
 from src.features.silver.governors_metadata_cleaner import GovernorsMetadataCleaner
 from src.features.silver.post_cleaner import PostCleaner
 from src.features.silver.profile_cleaner import ProfileCleaner
+from src.features.silver.ugc_mention_cleaner import UGCMentionCleaner
 from src.logging_setup import attach_run_log_handler, configure_console_logging
 from src.modeling.config import ModelingConfig
 from src.modeling.orchestration import run_deterministic_modeling
@@ -34,6 +36,43 @@ def _bronze_has_data(bronze: BronzeWriter) -> bool:
         return not df.empty
     except Exception:
         return False
+
+
+def _clean_ugc_mentions(
+    bronze: BronzeWriter, run_id: str, governor_usernames: list[str]
+) -> pd.DataFrame | None:
+    """Silver de UGC (issue #211) a partir da Bronze de UGC inteira (append
+    de todas as execuções, como as demais entidades). Devolve `None` -- sem
+    gravar nada -- quando não há dado de UGC (Bronze anterior a #211 ou
+    Silver vazia) ou quando a limpeza falha: UGC nunca derruba o restante do
+    pipeline; o relatório de tabelas é quem acusa a ausência."""
+    try:
+        df_bronze_ugc = bronze.get_latest_ugc_mentions()
+    except FileNotFoundError:
+        logger.warning("[SILVER] Bronze de UGC inexistente -- etapa de UGC pulada.")
+        return None
+    try:
+        cleaner = UGCMentionCleaner()
+        df_silver_ugc = cleaner.clean(df_bronze_ugc, run_id, governor_usernames)
+        if df_silver_ugc.empty:
+            logger.warning("[SILVER] Silver de UGC vazia -- etapa de UGC pulada.")
+            return None
+        cleaner.write(df_silver_ugc, settings.SILVER_UGC_MENTIONS)
+        return df_silver_ugc
+    except Exception:
+        logger.exception("[SILVER] Falha na limpeza de UGC -- etapa de UGC pulada.")
+        return None
+
+
+def _aggregate_ugc_mentions(df_silver_ugc: pd.DataFrame, run_id: str) -> None:
+    """Gold `governor_ugc_mentions` (overwrite) -- lida pelo estágio Engage
+    da sub-aba Funil (ADR 0032). Mesma tolerância a falha da Silver."""
+    try:
+        aggregator = GovernorUGCAggregator()
+        df_gold_ugc = aggregator.enrich(df_silver_ugc, run_id=run_id)
+        aggregator.write(df_gold_ugc, settings.GOLD_UGC_MENTIONS)
+    except Exception:
+        logger.exception("[GOLD] Falha na agregação de UGC -- etapa de UGC pulada.")
 
 
 def run_medallion_pipeline(
@@ -51,6 +90,7 @@ def run_medallion_pipeline(
         bronze_profiles_path=settings.BRONZE_PROFILES,
         bronze_posts_path=settings.BRONZE_POSTS,
         bronze_reels_path=settings.BRONZE_REELS,
+        bronze_ugc_mentions_path=settings.BRONZE_UGC_MENTIONS,
     )
 
     try:
@@ -64,8 +104,9 @@ def run_medallion_pipeline(
                     "APIFY_API_TOKEN não fornecido e não há dados brutos locais."
                 )
             if confirm_extraction is not None:
+                # Issue #211: posts + reels + UGC -- três coleções pagas.
                 estimated_cost = estimate_cost_usd_for_results_limit(
-                    results_limit, len(links)
+                    results_limit, len(links), media_types=3
                 )
                 if not confirm_extraction(estimated_cost):
                     raise SystemExit(1)
@@ -120,6 +161,8 @@ def run_medallion_pipeline(
             f"[SILVER] Falha na limpeza e conformação dos dados: {e}"
         ) from e
 
+    df_ugc_silver = _clean_ugc_mentions(bronze, run_id, governor_usernames)
+
     try:
         logger.info("[3/3] GOLD: Agregando métricas de engajamento...")
         aggregator = EngagementAggregator()
@@ -133,6 +176,9 @@ def run_medallion_pipeline(
         aggregator.write(df_gold, settings.GOLD_ENGAGEMENT_HISTORY, mode="append")
     except Exception as e:
         raise RuntimeError(f"[GOLD] Falha na agregação de métricas: {e}") from e
+
+    if df_ugc_silver is not None:
+        _aggregate_ugc_mentions(df_ugc_silver, run_id)
 
     if run_modeling:
         # Só o estágio determinístico. O refinamento de tópicos via Gemini
@@ -202,7 +248,7 @@ if __name__ == "__main__":
         logger.info(
             f"[ABORTADO] Nao ha Bronze/raw local em cache -- rodar agora "
             f"dispararia uma extracao real na Apify (~${estimated_cost} "
-            f"estimado no pior caso para {len(links)} governadores, "
+            f"estimado no pior caso para {len(links)} governadores, posts + reels + UGC, "
             f"resultsLimit={settings.RESULTS_LIMIT}, sem janela de data). "
             "Rode de novo com --yes para confirmar."
         )

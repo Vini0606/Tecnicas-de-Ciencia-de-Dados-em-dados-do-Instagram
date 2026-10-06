@@ -7,6 +7,7 @@ class _FakeInstagramScraper:
         self.config = config
         self.posts_extra_run_input = None
         self.reels_extra_run_input = None
+        self.mentions_extra_run_input = None
 
     def scrape_profiles(self, links):
         return [{"inputUrl": "https://instagram.com/gov1", "username": "gov1"}]
@@ -19,11 +20,17 @@ class _FakeInstagramScraper:
         self.reels_extra_run_input = extra_run_input
         return [{"inputUrl": "https://instagram.com/gov1", "id": "r1"}]
 
+    def scrape_mentions(self, links, extra_run_input=None):
+        self.mentions_extra_run_input = extra_run_input
+        return [{"inputUrl": "https://instagram.com/gov1", "id": "m1"}]
+
 
 def _fake_bronze_writer_class(calls):
     class FakeBronzeWriter:
+        init_kwargs = {}
+
         def __init__(self, **kwargs):
-            pass
+            FakeBronzeWriter.init_kwargs = kwargs
 
         def write_profiles(self, raw_data, run_id=None):
             calls.append(("profiles", raw_data, run_id))
@@ -35,6 +42,10 @@ def _fake_bronze_writer_class(calls):
 
         def write_reels(self, raw_data, run_id=None):
             calls.append(("reels", raw_data, run_id))
+            return run_id
+
+        def write_ugc_mentions(self, raw_data, run_id=None):
+            calls.append(("ugc_mentions", raw_data, run_id))
             return run_id
 
     return FakeBronzeWriter
@@ -53,7 +64,7 @@ def _patch_backfill_dependencies(monkeypatch, tmp_path, scraper_class=_FakeInsta
     return calls
 
 
-def test_run_escreve_profiles_posts_reels_na_bronze_sob_o_mesmo_run_id(monkeypatch, tmp_path):
+def test_run_escreve_profiles_posts_reels_e_ugc_na_bronze_sob_o_mesmo_run_id(monkeypatch, tmp_path):
     import scripts.run_apify_backfill as backfill_script
 
     calls = _patch_backfill_dependencies(monkeypatch, tmp_path)
@@ -63,8 +74,10 @@ def test_run_escreve_profiles_posts_reels_na_bronze_sob_o_mesmo_run_id(monkeypat
     )
 
     assert report["run_id"] == "run_fixo"
-    assert len(calls) == 3
-    assert {kind for kind, _, _ in calls} == {"profiles", "posts", "reels"}
+    assert len(calls) == 4
+    assert {kind for kind, _, _ in calls} == {"profiles", "posts", "reels", "ugc_mentions"}
+    assert report["raw_counts"]["ugc_mentions"] == 1
+    assert "ugc_mentions" in report["truncated_profiles"]
     assert all(run_id == "run_fixo" for _, _, run_id in calls)
 
 
@@ -91,7 +104,7 @@ def test_run_nao_grava_json_bruto_de_itens_so_o_relatorio(monkeypatch, tmp_path)
     assert files[0].name.startswith("backfill_report_")
 
 
-def test_run_propaga_only_posts_newer_than_para_posts_e_reels_nao_para_profiles(
+def test_run_propaga_only_posts_newer_than_para_posts_reels_e_ugc_nao_para_profiles(
     monkeypatch, tmp_path
 ):
     import scripts.run_apify_backfill as backfill_script
@@ -110,3 +123,16 @@ def test_run_propaga_only_posts_newer_than_para_posts_e_reels_nao_para_profiles(
     scraper = scraper_instances[0]
     assert scraper.posts_extra_run_input == {"onlyPostsNewerThan": "180 days"}
     assert scraper.reels_extra_run_input == {"onlyPostsNewerThan": "180 days"}
+    assert scraper.mentions_extra_run_input == {"onlyPostsNewerThan": "180 days"}
+
+
+def test_run_passa_caminho_bronze_de_ugc_ao_bronze_writer(monkeypatch, tmp_path):
+    import scripts.run_apify_backfill as backfill_script
+    from config import settings
+
+    _patch_backfill_dependencies(monkeypatch, tmp_path)
+    fake_bronze = backfill_script.BronzeWriter
+
+    backfill_script.run(apify_api_token="token", days=30, results_limit=500)
+
+    assert fake_bronze.init_kwargs["bronze_ugc_mentions_path"] == settings.BRONZE_UGC_MENTIONS

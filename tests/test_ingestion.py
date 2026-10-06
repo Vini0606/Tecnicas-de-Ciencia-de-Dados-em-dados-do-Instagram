@@ -5,7 +5,6 @@ import pytest
 from src.data_extract.ingestion import (
     archive_raw_json,
     extract_and_land,
-    extract_and_land_ugc_mentions,
 )
 
 
@@ -72,6 +71,10 @@ class _OrderCheckingBronzeWriter:
         self._assert_archived("reels", run_id)
         self.write_order.append("reels")
 
+    def write_ugc_mentions(self, raw_data, run_id=None):
+        self._assert_archived("ugc_mentions", run_id)
+        self.write_order.append("ugc_mentions")
+
 
 def test_archive_raw_json_grava_json_bruto_por_run_id_e_entidade(tmp_path):
     path = archive_raw_json(tmp_path, "posts", [{"id": "p1"}], run_id="run_1")
@@ -81,7 +84,7 @@ def test_archive_raw_json_grava_json_bruto_por_run_id_e_entidade(tmp_path):
     assert '"id": "p1"' in path.read_text(encoding="utf-8")
 
 
-def test_extract_and_land_arquiva_e_escreve_as_tres_entidades_sob_o_mesmo_run_id(tmp_path):
+def test_extract_and_land_arquiva_e_escreve_as_quatro_entidades_sob_o_mesmo_run_id(tmp_path):
     scraper = _FakeScraper()
     bronze = _FakeBronzeWriter()
 
@@ -89,17 +92,20 @@ def test_extract_and_land_arquiva_e_escreve_as_tres_entidades_sob_o_mesmo_run_id
         scraper, bronze, tmp_path, links=["https://instagram.com/gov1"], run_id="run_fixo"
     )
 
-    assert {kind for kind, _, _ in bronze.calls} == {"profiles", "posts", "reels"}
+    assert {kind for kind, _, _ in bronze.calls} == {"profiles", "posts", "reels", "ugc_mentions"}
     assert all(run_id == "run_fixo" for _, _, run_id in bronze.calls)
     assert (tmp_path / "run_fixo" / "profiles.json").exists()
     assert (tmp_path / "run_fixo" / "posts.json").exists()
     assert (tmp_path / "run_fixo" / "reels.json").exists()
+    assert (tmp_path / "run_fixo" / "ugc_mentions.json").exists()
     assert result["profiles"][0]["username"] == "gov1"
     assert result["posts"][0]["id"] == "p1"
     assert result["reels"][0]["id"] == "r1"
+    assert result["ugc_mentions"][0]["id"] == "m1"
+    assert "ugc_error" not in result
 
 
-def test_extract_and_land_propaga_extra_run_input_so_para_posts_e_reels(tmp_path):
+def test_extract_and_land_propaga_extra_run_input_para_posts_reels_e_ugc(tmp_path):
     scraper = _FakeScraper()
     bronze = _FakeBronzeWriter()
 
@@ -114,6 +120,7 @@ def test_extract_and_land_propaga_extra_run_input_so_para_posts_e_reels(tmp_path
 
     assert scraper.posts_calls[0][1] == {"onlyPostsNewerThan": "90 days"}
     assert scraper.reels_calls[0][1] == {"onlyPostsNewerThan": "90 days"}
+    assert scraper.mentions_calls[0][1] == {"onlyPostsNewerThan": "90 days"}
 
 
 def test_extract_and_land_arquiva_cada_entidade_antes_de_escreve_la_na_bronze(tmp_path):
@@ -122,7 +129,7 @@ def test_extract_and_land_arquiva_cada_entidade_antes_de_escreve_la_na_bronze(tm
 
     extract_and_land(scraper, bronze, tmp_path, links=["l"], run_id="run_1")
 
-    assert bronze.write_order == ["profiles", "posts", "reels"]
+    assert bronze.write_order == ["profiles", "posts", "reels", "ugc_mentions"]
 
 
 class _BronzeWriterFalhandoEmReels:
@@ -155,33 +162,52 @@ def test_extract_and_land_preserva_o_arquivado_mesmo_se_a_bronze_falhar(tmp_path
     assert (tmp_path / "run_1" / "reels.json").exists()
 
 
-def test_extract_and_land_ugc_mentions_arquiva_e_escreve(tmp_path):
-    """ADR 0020 (Ficha 8) / issue #93 -- mesmo padrão de extract_and_land,
-    mas função separada (actor/cadência próprios, roda independente de
-    profiles/posts/reels)."""
-    scraper = _FakeScraper()
-    bronze = _FakeBronzeWriter()
+class _ScraperComUgcFalhando(_FakeScraper):
+    def scrape_mentions(self, links, extra_run_input=None):
+        raise RuntimeError("actor de UGC indisponivel")
 
-    result = extract_and_land_ugc_mentions(
-        scraper, bronze, tmp_path, links=["https://instagram.com/gov1"], run_id="run_ugc"
+
+class _ScraperComUgcVazio(_FakeScraper):
+    def scrape_mentions(self, links, extra_run_input=None):
+        return []
+
+
+class _BronzeWriterSemUgc(_FakeBronzeWriter):
+    """Espelha o BronzeWriter real construido sem `bronze_ugc_mentions_path`
+    (KeyError ao gravar UGC)."""
+
+    def write_ugc_mentions(self, raw_data, run_id=None):
+        raise KeyError("ugc_mentions")
+
+
+@pytest.mark.parametrize(
+    ("scraper", "bronze"),
+    [
+        (_ScraperComUgcFalhando(), _FakeBronzeWriter()),
+        (_ScraperComUgcVazio(), _FakeBronzeWriter()),
+        (_FakeScraper(), _BronzeWriterSemUgc()),
+    ],
+    ids=["actor_falha", "lista_vazia", "bronze_sem_caminho_de_ugc"],
+)
+def test_extract_and_land_tolera_falha_de_ugc_sem_perder_as_demais_entidades(
+    tmp_path, scraper, bronze
+):
+    """Issue #211: UGC e a ultima coleta e e tolerante a falha -- perfis,
+    posts e reels (ja pagos e gravados) nunca sao descartados por ela."""
+    result = extract_and_land(scraper, bronze, tmp_path, links=["l"], run_id="run_1")
+
+    gravadas = [kind for kind, _, _ in bronze.calls]
+    assert gravadas[:3] == ["profiles", "posts", "reels"]
+    assert "ugc_mentions" not in gravadas
+    assert result["ugc_mentions"] == []
+    assert result["ugc_error"]
+    assert len(result["reels"]) == 1
+
+
+def test_extract_and_land_arquiva_ugc_mesmo_se_a_escrita_na_bronze_falhar(tmp_path):
+    result = extract_and_land(
+        _FakeScraper(), _BronzeWriterSemUgc(), tmp_path, links=["l"], run_id="run_1"
     )
 
-    assert bronze.calls == [("ugc_mentions", result, "run_ugc")]
-    assert (tmp_path / "run_ugc" / "ugc_mentions.json").exists()
-    assert result[0]["id"] == "m1"
-
-
-def test_extract_and_land_ugc_mentions_propaga_extra_run_input(tmp_path):
-    scraper = _FakeScraper()
-    bronze = _FakeBronzeWriter()
-
-    extract_and_land_ugc_mentions(
-        scraper,
-        bronze,
-        tmp_path,
-        links=["https://instagram.com/gov1"],
-        run_id="run_1",
-        extra_run_input={"resultsLimit": 5},
-    )
-
-    assert scraper.mentions_calls[0][1] == {"resultsLimit": 5}
+    assert (tmp_path / "run_1" / "ugc_mentions.json").exists()
+    assert "ugc_error" in result

@@ -4,8 +4,10 @@ from unittest.mock import MagicMock
 
 def _fake_bronze_writer_class():
     class FakeBronzeWriter:
+        init_kwargs = {}
+
         def __init__(self, **kwargs):
-            pass
+            FakeBronzeWriter.init_kwargs = kwargs
 
         def write_profiles(self, *a, **k):
             pass
@@ -16,14 +18,18 @@ def _fake_bronze_writer_class():
         def write_reels(self, *a, **k):
             pass
 
+        def write_ugc_mentions(self, *a, **k):
+            pass
+
     return FakeBronzeWriter
 
 
-def _patch_extract_dependencies(monkeypatch, tmp_path, profiles, posts, reels):
+def _patch_extract_dependencies(monkeypatch, tmp_path, profiles, posts, reels, mentions=()):
     fake_scraper = MagicMock()
     fake_scraper.scrape_profiles.return_value = profiles
     fake_scraper.scrape_posts.return_value = posts
     fake_scraper.scrape_reels.return_value = reels
+    fake_scraper.scrape_mentions.return_value = list(mentions)
 
     monkeypatch.setattr("lambdas.extract.handler.ApifyClient", lambda token: MagicMock())
     monkeypatch.setattr(
@@ -46,6 +52,7 @@ def test_extract_handler(monkeypatch, tmp_path):
         profiles=[{"id": "1"}],
         posts=[{"id": "1"}],
         reels=[{"id": "1"}, {"id": "2"}],
+        mentions=[{"id": "m1"}, {"id": "m2"}, {"id": "m3"}],
     )
 
     resp = extract_handler.handler(
@@ -54,7 +61,18 @@ def test_extract_handler(monkeypatch, tmp_path):
 
     assert resp["statusCode"] == 200
     body = json.loads(resp["body"])
-    assert body == {"run_id": "test-run", "profiles": 1, "posts": 1, "reels": 2}
+    assert body == {
+        "run_id": "test-run",
+        "profiles": 1,
+        "posts": 1,
+        "reels": 2,
+        "ugc_mentions": 3,
+    }
+    assert (
+        extract_handler.BronzeWriter.init_kwargs["bronze_ugc_mentions_path"]
+        == "s3://dummy-bucket/bronze/ugc_mentions"
+    )
+    assert (tmp_path / "landing" / "test-run" / "ugc_mentions.json").exists()
     assert (tmp_path / "landing" / "test-run" / "profiles.json").exists()
     assert (tmp_path / "landing" / "test-run" / "posts.json").exists()
     assert (tmp_path / "landing" / "test-run" / "reels.json").exists()
