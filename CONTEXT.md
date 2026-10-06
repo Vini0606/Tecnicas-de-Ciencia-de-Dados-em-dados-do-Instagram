@@ -35,6 +35,13 @@ que o público diz, não o que o conteúdo trata. Exibido em "Maiores grupos de 
 positivos e negativos, no escopo do governador selecionado.
 _Avoid_: Tema, pauta (reservado ao assunto do conteúdo).
 
+**Origem do comentário**:
+A publicação em que um comentário foi feito: `reel` ou `post` (de feed). Os comentários de cada origem
+ficam em tabelas Silver separadas (`comments_clean` e `post_comments_clean`) e convivem em
+`governor_sentiment` pela coluna `origem_comentario` (ver ADR 0033). Um comentário capturado nas duas
+origens (reel que também aparece no grid de posts) conta uma vez, como `reel`.
+_Avoid_: Fonte (reservado a comentario/legenda/transcricao em `governor_sentiment`), tipo.
+
 **Frase de decisão** (faixa de decisão / decision band):
 A frase em destaque no topo de cada tela, numa faixa colorida por semáforo, que responde
 "e agora, o que eu faço?" antes de qualquer gráfico. Sempre a primeira coisa lida na tela.
