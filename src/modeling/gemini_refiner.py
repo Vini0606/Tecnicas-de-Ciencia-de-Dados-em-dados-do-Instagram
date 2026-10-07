@@ -14,6 +14,7 @@ from bertopic.representation import BaseRepresentation
 from scipy.sparse import csr_matrix
 
 from src.modeling.config import GeminiRefinerConfig
+from src.modeling.topic_labels import DEGENERATE_TOPIC_LABEL
 
 DEFAULT_PROMPT_TEMPLATE = (
     "Escreva uma descrição de um parágrafo que descreva detalhadamente o que os "
@@ -28,10 +29,8 @@ DISCOURSE_PROMPT_TEMPLATE = (
     "pontuação final) que nomeie o assunto em comum desses textos: {documents}"
 )
 
-# Rótulo explícito do tópico degenerado (sem palavra alguma, ex.: o "1____"
-# do discurso real) -- decisão da issue #186: nome honesto em vez de um
-# assunto inventado pelo Gemini.
-DEGENERATE_TOPIC_LABEL = "sem assunto definido"
+# `DEGENERATE_TOPIC_LABEL` vive em `topic_labels` (sem dependência de NLP) para
+# o dashboard usá-lo sem importar bertopic; segue exportado daqui.
 
 _WORD_RE = re.compile(r"[^\W\d_]{2,}")
 
