@@ -596,18 +596,19 @@ A coleta de produção de UGC faz parte da extração do `pipeline.py` desde a i
 
 #### Publicar o dashboard no Streamlit Cloud (dados do Hugging Face)
 
-O dashboard lê `data/silver` e `data/gold`, que não vão para o git. Em um deploy, esses diretórios são baixados de um
-**dataset privado de publicação** no Hugging Face (diferente do dataset da landing/Bronze), só com Silver e Gold
-([ADR 0036](docs/adr/0036-dashboard-no-streamlit-cloud-com-silver-e-gold-baixados-do-hugging-face.md)).
+O dashboard lê `data/silver` e `data/gold`, que não vão para o git. Em um deploy, esses diretórios são baixados do
+**dataset privado do Hugging Face** que você já usa para a landing/Bronze: `silver/` e `gold/` convivem com
+`landing/` e `bronze/` ([ADR 0036](docs/adr/0036-dashboard-no-streamlit-cloud-com-silver-e-gold-baixados-do-hugging-face.md)).
 
-1. **Uma vez:** crie um dataset privado no Hugging Face e dois tokens fine-grained só para ele, um de **escrita** (seu
-   `.env`) e um de **leitura** (Secrets do app).
-2. **Publicar** (de quem rodou a pipeline): coloque `HF_TOKEN` e `HF_DATASET_REPO_PUBLICACAO=<usuario>/<nome>` no `.env` e
-   rode `uv run python scripts/publicar_dashboard_hf.py` (mostra o plano) e depois `... --yes` (envia).
-3. **No Streamlit Cloud:** entrypoint `dashboard/app.py`; em *Settings > Secrets* adicione
-   `HF_TOKEN = "<token de leitura>"` e `HF_DATASET_REPO_PUBLICACAO = "<usuario>/<nome>"`. Em *Share*, restrinja os
-   visualizadores (há comentários de terceiros nos dados).
-4. **Atualizar:** rode a pipeline, publique de novo e reinicie o app (*Reboot*).
+1. **Publicar** (de quem rodou a pipeline), com `HF_TOKEN` (escrita) e `HF_DATASET_REPO` no `.env`:
+   `uv run python scripts/publicar_dashboard_hf.py` (mostra o plano) e depois `... --yes` (envia).
+2. **No Streamlit Cloud:** entrypoint `dashboard/app.py`; em *Settings > Secrets* adicione
+   `HF_TOKEN = "<token>"` e `HF_DATASET_REPO = "<usuario>/<nome>"`. Em *Share*, restrinja os visualizadores (há
+   comentários de terceiros nos dados). Depois, *Reboot*.
+3. **Atualizar:** rode a pipeline, publique de novo e reinicie o app.
+
+Opcional e mais seguro: um dataset só do dashboard (`HF_DATASET_REPO_PUBLICACAO`) com um token só de leitura nos
+Secrets, para o app nunca alcançar a landing e a Bronze.
 
 O deploy instala só `dashboard/requirements.txt` (sem bertopic nem PyTorch).
 
