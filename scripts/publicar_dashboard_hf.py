@@ -2,9 +2,10 @@
 Publica `data/silver` e `data/gold` em um dataset privado do Hugging Face, de
 onde o dashboard (Streamlit Cloud) baixa os dados na inicialização (ADR 0036).
 
-Credenciais no `.env`: `HF_TOKEN` (escrita, só nesse dataset) e
-`HF_DATASET_REPO_PUBLICACAO` (`<usuario>/<nome>`), um dataset DIFERENTE do da
-landing/Bronze (`HF_DATASET_REPO`).
+Credenciais no `.env`: `HF_TOKEN` (com escrita no dataset) e o dataset. Usa
+`HF_DATASET_REPO_PUBLICACAO` se existir (um dataset só do dashboard, recomendado)
+e, senão, o `HF_DATASET_REPO` da landing/Bronze: `silver/` e `gold/` convivem
+com `landing/` e `bronze/` sem colidir.
 
 Uso:
     uv run python scripts/publicar_dashboard_hf.py          # mostra o plano
@@ -51,7 +52,7 @@ def main(argv: list[str] | None = None) -> int:
     config = configuracao_hf(os.environ)
     if config is None:
         print(
-            "erro: defina HF_TOKEN e HF_DATASET_REPO_PUBLICACAO no .env",
+            "erro: defina HF_TOKEN e HF_DATASET_REPO (ou HF_DATASET_REPO_PUBLICACAO) no .env",
             file=sys.stderr,
         )
         return 2

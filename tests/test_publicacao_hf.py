@@ -63,6 +63,37 @@ def test_configuracao_usa_a_primeira_fonte_completa():
     assert configuracao_hf(env, secrets) == ConfigHF(token="t2", repo="u/d")
 
 
+def test_configuracao_usa_o_dataset_padrao_sem_dataset_de_publicacao():
+    env = {"HF_TOKEN": "t", "HF_DATASET_REPO": "u/landing-bronze"}
+    assert configuracao_hf(env) == ConfigHF(token="t", repo="u/landing-bronze")
+
+
+def test_configuracao_dataset_de_publicacao_tem_prioridade_sobre_o_padrao():
+    env = {
+        "HF_TOKEN": "t",
+        "HF_DATASET_REPO": "u/landing-bronze",
+        "HF_DATASET_REPO_PUBLICACAO": "u/dashboard",
+    }
+    assert configuracao_hf(env) == ConfigHF(token="t", repo="u/dashboard")
+
+
+def test_sync_antigo_ignora_silver_e_gold_no_mesmo_dataset():
+    """Silver/Gold no mesmo dataset da landing/Bronze não entram no inventário
+    do sync da ADR 0035 (não geram plano nem recusa)."""
+    from src.dados_hf import inventario_de_caminhos
+
+    inv = inventario_de_caminhos(
+        [
+            "landing/run1/arquivo.json",
+            "bronze/posts_raw/_delta_log/00000000000000000000.json",
+            "gold/governor_engagement/_delta_log/00000000000000000000.json",
+            "silver/posts_clean/part-0.parquet",
+        ]
+    )
+    assert inv.landing == frozenset({"run1"})
+    assert set(inv.bronze) == {"posts_raw"}
+
+
 def test_configuracao_none_sem_token_ou_sem_repositorio():
     assert configuracao_hf({}, None) is None
     assert configuracao_hf({"HF_TOKEN": "t"}) is None

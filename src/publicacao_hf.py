@@ -27,6 +27,9 @@ _TABELA_SENTINELA = Path("gold") / "governor_engagement" / "_delta_log"
 
 VAR_TOKEN = "HF_TOKEN"
 VAR_REPO = "HF_DATASET_REPO_PUBLICACAO"
+# Sem dataset de publicação próprio, usa o mesmo da landing/Bronze (ADR 0036):
+# o layout espelho não colide (`silver/`, `gold/` x `landing/`, `bronze/`).
+VAR_REPO_PADRAO = "HF_DATASET_REPO"
 
 
 @dataclass(frozen=True)
@@ -36,12 +39,13 @@ class ConfigHF:
 
 
 def configuracao_hf(*fontes: Mapping[str, object] | None) -> ConfigHF | None:
-    """Primeira fonte (env, secrets...) que tiver token e repositório."""
+    """Primeira fonte (env, secrets...) com token e repositório. O repositório é
+    `HF_DATASET_REPO_PUBLICACAO` se houver, senão `HF_DATASET_REPO`."""
     for fonte in fontes:
         if not fonte:
             continue
         token = str(fonte.get(VAR_TOKEN) or "").strip()
-        repo = str(fonte.get(VAR_REPO) or "").strip()
+        repo = str(fonte.get(VAR_REPO) or fonte.get(VAR_REPO_PADRAO) or "").strip()
         if token and repo:
             return ConfigHF(token=token, repo=repo)
     return None
