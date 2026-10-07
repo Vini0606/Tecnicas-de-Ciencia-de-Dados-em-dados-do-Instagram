@@ -120,6 +120,11 @@ def hashtags_to_text(hashtags: Any) -> str:
 
 def _build_post_documents(df_posts: pd.DataFrame) -> pd.Series:
     captions = df_posts["caption"].fillna("")
+    # A Bronze pode vir sem `hashtags` (o actor não devolve o campo em todas as
+    # coletas); a Silver só ganha a coluna (nula) ao gravar, pelo schema. Sem
+    # a coluna em memória, o documento é só a caption.
+    if "hashtags" not in df_posts.columns:
+        return captions.str.strip()
     hashtags_texto = df_posts["hashtags"].apply(hashtags_to_text)
     return (captions + " " + hashtags_texto).str.strip()
 

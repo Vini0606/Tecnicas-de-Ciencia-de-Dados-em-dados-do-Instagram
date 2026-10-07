@@ -8,6 +8,7 @@ from src.modeling.config import (
     TopicModelConfig,
 )
 from src.modeling.topics import (
+    _build_post_documents,
     classify_post_topics,
     hashtags_to_text,
     merge_topic_info,
@@ -224,3 +225,8 @@ def test_classify_post_topics_caption_nula_ou_vazia_nao_quebra():
     )
 
     assert len(df_final) == len(df_posts)
+
+
+def test_build_post_documents_sem_coluna_hashtags_usa_so_a_caption():
+    df = pd.DataFrame({"caption": ["  obra nova ", None]})
+    assert _build_post_documents(df).tolist() == ["obra nova", ""]
