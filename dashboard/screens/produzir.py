@@ -69,7 +69,7 @@ import streamlit as st
 
 from dashboard.core import data
 from dashboard.core.components import decision_band, footnote, stage_label
-from src.modeling.gemini_refiner import DEGENERATE_TOPIC_LABEL
+from src.modeling.topic_labels import DEGENERATE_TOPIC_LABEL
 
 _PLACEHOLDER_SEM_GOVERNADOR = "—"
 

@@ -16,9 +16,10 @@ não tem, e o `pull` recusa sobrescrever dado local ainda não enviado.
 from __future__ import annotations
 
 import re
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Iterable, Protocol
+from typing import Protocol
 
 PADROES_SYNC = ["landing/**", "bronze/**"]
 _VERSAO_DELTA = re.compile(r"^(\d{20})\.json$")
@@ -181,7 +182,7 @@ class ClienteHFReal:
             return list(
                 self._api.list_repo_files(self._repo, repo_type="dataset", revision=revisao)
             )
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 - qualquer falha vira ErroHF sem o token
             raise self._falha("listagem do dataset", exc) from None
 
     def enviar(self, pasta: Path, padroes: list[str], mensagem: str) -> None:
@@ -194,7 +195,7 @@ class ClienteHFReal:
                 ignore_patterns=["**/.gitkeep"],
                 commit_message=mensagem,
             )
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 - qualquer falha vira ErroHF sem o token
             raise self._falha("envio ao dataset", exc) from None
 
     def baixar(self, pasta: Path, padroes: list[str], revisao: str | None = None) -> None:
@@ -209,5 +210,5 @@ class ClienteHFReal:
                 allow_patterns=padroes,
                 revision=revisao,
             )
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 - qualquer falha vira ErroHF sem o token
             raise self._falha("download do dataset", exc) from None

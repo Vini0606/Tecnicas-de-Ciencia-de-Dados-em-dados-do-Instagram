@@ -1,0 +1,128 @@
+"""
+Publicação das tabelas do dashboard (Silver + Gold) em um dataset privado do
+Hugging Face, e download delas na inicialização do app (ADR 0036).
+
+O dashboard lê `data/silver` e `data/gold`, que não vão para o git. Em um
+deploy (Streamlit Community Cloud) esses diretórios chegam vazios; aqui eles
+são baixados do dataset de publicação, separado do dataset da landing/Bronze
+(`src/dados_hf.py`, ADR 0035) para que o token do app, só de leitura, nunca
+alcance o dado bruto.
+
+A lógica de decisão é pura (tabelas presentes, configuração), e o cliente HF é
+injetável (o `ClienteHFReal` de `dados_hf`), então os testes não usam rede.
+"""
+
+from __future__ import annotations
+
+from collections.abc import Callable, Mapping
+from dataclasses import dataclass
+from pathlib import Path
+
+from src.dados_hf import ClienteHF, ClienteHFReal, ErroHF
+
+PADROES_PUBLICACAO = ["silver/**", "gold/**"]
+
+# Tabela cuja presença indica que os dados do dashboard já estão no disco.
+_TABELA_SENTINELA = Path("gold") / "governor_engagement" / "_delta_log"
+
+VAR_TOKEN = "HF_TOKEN"
+VAR_REPO = "HF_DATASET_REPO_PUBLICACAO"
+
+
+@dataclass(frozen=True)
+class ConfigHF:
+    token: str
+    repo: str
+
+
+def configuracao_hf(*fontes: Mapping[str, object] | None) -> ConfigHF | None:
+    """Primeira fonte (env, secrets...) que tiver token e repositório."""
+    for fonte in fontes:
+        if not fonte:
+            continue
+        token = str(fonte.get(VAR_TOKEN) or "").strip()
+        repo = str(fonte.get(VAR_REPO) or "").strip()
+        if token and repo:
+            return ConfigHF(token=token, repo=repo)
+    return None
+
+
+def dados_presentes(data_dir: Path | str) -> bool:
+    """`True` se o Gold do dashboard já está em `data_dir`."""
+    return (Path(data_dir) / _TABELA_SENTINELA).is_dir()
+
+
+def tabelas_publicaveis(data_dir: Path | str) -> list[str]:
+    """Tabelas Delta de Silver e Gold presentes em `data_dir` (`gold/<tabela>`)."""
+    base = Path(data_dir)
+    tabelas: list[str] = []
+    for camada in ("silver", "gold"):
+        pasta = base / camada
+        if not pasta.is_dir():
+            continue
+        tabelas += [
+            f"{camada}/{t.name}"
+            for t in sorted(pasta.iterdir())
+            if (t / "_delta_log").is_dir()
+        ]
+    return tabelas
+
+
+def descrever_publicacao(tabelas: list[str]) -> str:
+    if not tabelas:
+        return "publicar: nada a enviar (nenhuma tabela Delta em data/silver ou data/gold)."
+    return "publicar: plano\n" + "\n".join(f"  {t}" for t in tabelas)
+
+
+def publicar(
+    data_dir: Path | str,
+    config: ConfigHF,
+    cliente: ClienteHF | None = None,
+    mensagem: str = "publicar: silver + gold do dashboard",
+) -> list[str]:
+    """Envia Silver e Gold. Recusa se não houver Gold (evita publicar um
+    dataset que deixaria o app vazio)."""
+    tabelas = tabelas_publicaveis(data_dir)
+    if not any(t.startswith("gold/") for t in tabelas):
+        raise ErroHF(
+            "nenhuma tabela Gold em data/gold: rode a pipeline antes de publicar."
+        )
+    cliente = cliente or ClienteHFReal(config.repo, config.token)
+    cliente.enviar(Path(data_dir), PADROES_PUBLICACAO, mensagem)
+    return tabelas
+
+
+def baixar(
+    data_dir: Path | str,
+    config: ConfigHF,
+    cliente: ClienteHF | None = None,
+) -> None:
+    """Baixa Silver e Gold para `data_dir`, mantendo o layout espelho."""
+    cliente = cliente or ClienteHFReal(config.repo, config.token)
+    cliente.baixar(Path(data_dir), PADROES_PUBLICACAO)
+
+
+def garantir_dados(
+    data_dir: Path | str,
+    config: ConfigHF | None,
+    baixador: Callable[[Path | str, ConfigHF], None] = baixar,
+) -> str:
+    """Garante que os dados do dashboard estejam em `data_dir`. Devolve o
+    estado: `local` (já havia), `baixado`, `sem_configuracao` (nada a fazer, o
+    dashboard mostra o aviso de dados ausentes) ou `erro: <motivo>` (sem token)."""
+    if dados_presentes(data_dir):
+        return "local"
+    if config is None:
+        return "sem_configuracao"
+    try:
+        baixador(data_dir, config)
+    except ErroHF as exc:
+        return f"erro: {exc}"
+    except Exception as exc:  # noqa: BLE001 - app não pode cair por falha de rede
+        detalhe = str(exc).replace(config.token, "***")
+        return f"erro: {type(exc).__name__}: {detalhe}"
+    return (
+        "baixado"
+        if dados_presentes(data_dir)
+        else "erro: o dataset não trouxe o Gold esperado."
+    )

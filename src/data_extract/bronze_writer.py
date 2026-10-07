@@ -24,7 +24,7 @@ from src.schemas_delta import (
 )
 
 
-def _escalar_para_texto(value: bool | int | float) -> str | None:
+def _escalar_para_texto(value: bool | float) -> str | None:
     """Float com parte inteira exata (ex.: id `333.0`) vira `"333"`, não
     `"333.0"`; NaN vira nulo."""
     if isinstance(value, float):

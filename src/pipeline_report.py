@@ -16,11 +16,11 @@ Delta é a única evidência uniforme de "reescrita nesta execução".
 
 from __future__ import annotations
 
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
-from typing import Callable, Iterable
 
 from deltalake import DeltaTable
 

@@ -28,7 +28,7 @@ from pathlib import Path
 import pandas as pd
 
 from src.delta_io import write_delta
-from src.modeling.gemini_refiner import DEGENERATE_TOPIC_LABEL
+from src.modeling.topic_labels import DEGENERATE_TOPIC_LABEL
 from src.schemas_delta import GOLD_CONTENT_TOPIC_PRIORITY_SCORE_SCHEMA
 
 _RESULT_COLUMNS = [

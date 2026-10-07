@@ -594,6 +594,23 @@ uv run python scripts/run_apify_mentions_pilot.py --yes
 
 A coleta de produção de UGC faz parte da extração do `pipeline.py` desde a issue #211 ([ADR 0034](docs/adr/0034-pipeline-ponto-unico-ugc-no-extrator-comentarios-de-posts-janela-e-relatorio.md)). O antigo `scripts/run_ugc_mentions.py` (coleta standalone, cadência própria) foi removido.
 
+#### Publicar o dashboard no Streamlit Cloud (dados do Hugging Face)
+
+O dashboard lê `data/silver` e `data/gold`, que não vão para o git. Em um deploy, esses diretórios são baixados de um
+**dataset privado de publicação** no Hugging Face (diferente do dataset da landing/Bronze), só com Silver e Gold
+([ADR 0036](docs/adr/0036-dashboard-no-streamlit-cloud-com-silver-e-gold-baixados-do-hugging-face.md)).
+
+1. **Uma vez:** crie um dataset privado no Hugging Face e dois tokens fine-grained só para ele, um de **escrita** (seu
+   `.env`) e um de **leitura** (Secrets do app).
+2. **Publicar** (de quem rodou a pipeline): coloque `HF_TOKEN` e `HF_DATASET_REPO_PUBLICACAO=<usuario>/<nome>` no `.env` e
+   rode `uv run python scripts/publicar_dashboard_hf.py` (mostra o plano) e depois `... --yes` (envia).
+3. **No Streamlit Cloud:** entrypoint `dashboard/app.py`; em *Settings > Secrets* adicione
+   `HF_TOKEN = "<token de leitura>"` e `HF_DATASET_REPO_PUBLICACAO = "<usuario>/<nome>"`. Em *Share*, restrinja os
+   visualizadores (há comentários de terceiros nos dados).
+4. **Atualizar:** rode a pipeline, publique de novo e reinicie o app (*Reboot*).
+
+O deploy instala só `dashboard/requirements.txt` (sem bertopic nem PyTorch).
+
 #### Levar os dados coletados para outra máquina (dataset privado no Hugging Face)
 
 A coleta é paga, e o repositório é público, com dado pessoal de terceiros na landing e na Bronze. Por isso, os
