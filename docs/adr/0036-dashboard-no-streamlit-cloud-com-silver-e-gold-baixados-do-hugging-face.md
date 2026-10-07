@@ -17,13 +17,15 @@ importava `DEGENERATE_TOPIC_LABEL` de `src/modeling/gemini_refiner.py`, que impo
 
 ## Decisão
 
-1. **Publicar Silver e Gold em um dataset privado do HF, separado do dataset da landing/Bronze.** Um segundo
-   dataset (`HF_DATASET_REPO_PUBLICACAO`) recebe só `silver/**` e `gold/**`. O token do app é de leitura e vale só
-   para esse dataset, então nunca alcança o dado bruto pago e insubstituível. Isso **revisa a ADR 0035** apenas no
-   ponto "Silver e Gold não sobem": eles sobem, mas para outro dataset e só para alimentar o dashboard.
+1. **Publicar Silver e Gold em um dataset privado do HF.** Por padrão vão para o mesmo dataset da
+   landing/Bronze (`HF_DATASET_REPO`): o layout espelho (`silver/**` e `gold/**` ao lado de `landing/**` e
+   `bronze/**`) não colide, e o sync da ADR 0035 ignora o que não é landing nem Bronze. Se `HF_DATASET_REPO_PUBLICACAO`
+   estiver definida, ela tem prioridade (um dataset só do dashboard, **recomendado**: o token do app, só de leitura,
+   nunca alcançaria o dado bruto pago e insubstituível). Isso **revisa a ADR 0035** apenas no ponto "Silver e Gold
+   não sobem".
 2. **Baixar na inicialização.** `dashboard/core/bootstrap_dados.py` roda no topo de `dashboard/app.py`, uma vez
    por processo (`st.cache_resource`). Se `data/gold/governor_engagement` já existe (uso local), não faz nada. Se
-   não existe e `HF_TOKEN` e `HF_DATASET_REPO_PUBLICACAO` estão nos Secrets (ou no `.env`), baixa Silver e Gold com
+   não existe e `HF_TOKEN` e o dataset estão nos Secrets (ou no `.env`), baixa Silver e Gold com
    `snapshot_download`. Sem configuração, o comportamento antigo se mantém (aviso de dados ausentes). Falha de rede
    ou de permissão vira uma mensagem de erro na tela, sem derrubar o app e sem o token.
 3. **Publicar do computador de quem rodou a pipeline:** `scripts/publicar_dashboard_hf.py` mostra o plano e só
@@ -40,7 +42,9 @@ importava `DEGENERATE_TOPIC_LABEL` de `src/modeling/gemini_refiner.py`, que impo
   remove tabelas apagadas do dataset.
 - **Dado pessoal de terceiros.** O Gold inclui textos de comentários e métricas de UGC de terceiros. O dataset é
   privado, mas o app deve ser restrito a visualizadores autorizados no Streamlit Cloud (Share), e não público.
-- **Credenciais:** `HF_TOKEN` (leitura) e `HF_DATASET_REPO_PUBLICACAO` nos Secrets do app. Para publicar, o token
-  do `.env` precisa de escrita nesse dataset.
+- **Credenciais:** `HF_TOKEN` e `HF_DATASET_REPO` (ou `HF_DATASET_REPO_PUBLICACAO`) nos Secrets do app. Para
+  publicar, o token do `.env` precisa de escrita. Usar o mesmo dataset e o mesmo token da landing/Bronze significa
+  que **o token guardado nos Secrets do Streamlit Cloud alcança o dado bruto, e com escrita** se for o mesmo token
+  do `.env`: um token só de leitura, ou um dataset separado, reduz esse risco.
 - Ponto em aberto: a escolha de onde hospedar (Streamlit Cloud, container com S3) continua podendo mudar. O
   `DeltaRepository` já aceita `s3://`, mas o dashboard ainda não passa `storage_options`.

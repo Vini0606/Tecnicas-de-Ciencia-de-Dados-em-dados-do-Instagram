@@ -1,9 +1,9 @@
 """Garante os dados do dashboard no disco antes de qualquer tela ler uma tabela.
 
 No Streamlit Community Cloud o clone do repositório chega sem `data/` (que não
-vai para o git). Se `HF_TOKEN` e `HF_DATASET_REPO_PUBLICACAO` estiverem nos
-Secrets (ou no `.env`, localmente), baixa Silver + Gold do dataset privado de
-publicação (ADR 0036). Sem configuração, não faz nada: as telas mostram o aviso
+vai para o git). Se `HF_TOKEN` e o dataset (`HF_DATASET_REPO_PUBLICACAO` ou, na
+falta dele, `HF_DATASET_REPO`) estiverem nos Secrets (ou no `.env`,
+localmente), baixa Silver + Gold do dataset privado (ADR 0036). Sem configuração, não faz nada: as telas mostram o aviso
 de dados ausentes de sempre.
 """
 
