@@ -31,12 +31,14 @@ ROOT_DIR = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
 if ROOT_DIR not in sys.path:
     sys.path.insert(0, ROOT_DIR)
 
+from dashboard.core.acesso import exigir_acesso  # noqa: E402
 from dashboard.core.bootstrap_dados import avisar_se_falhou  # noqa: E402
 from dashboard.core.theme import inject_theme  # noqa: E402
 from dashboard.screens import comparar, discurso_reacao, produzir, radar, resumo  # noqa: E402
 
 st.set_page_config(page_title="Growth — Assessoria", layout="wide")
 inject_theme()
+exigir_acesso()  # senha antes de baixar dados e de renderizar telas (ADR 0037)
 avisar_se_falhou()  # Streamlit Cloud: baixa Silver + Gold do HF (ADR 0036)
 
 TELAS: dict[str, object] = {

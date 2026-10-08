@@ -603,7 +603,9 @@ O dashboard lê `data/silver` e `data/gold`, que não vão para o git. Em um dep
 1. **Publicar** (de quem rodou a pipeline), com `HF_TOKEN` (escrita) e `HF_DATASET_REPO` no `.env`:
    `uv run python scripts/publicar_dashboard_hf.py` (mostra o plano) e depois `... --yes` (envia).
 2. **No Streamlit Cloud:** entrypoint `dashboard/app.py`; em *Settings > Secrets* adicione
-   `HF_TOKEN = "<token>"` e `HF_DATASET_REPO = "<usuario>/<nome>"`. Em *Share*, restrinja os visualizadores (há
+   `HF_TOKEN = "<token>"`, `HF_DATASET_REPO = "<usuario>/<nome>"` e
+   `APP_PASSWORD = "<senha longa>"` (o app pede essa senha; sem ela, fora do `localhost`, ele fica
+   **bloqueado**, [ADR 0037](docs/adr/0037-dashboard-exige-senha-no-proprio-app.md)). Em *Share*, restrinja os visualizadores (há
    comentários de terceiros nos dados). Depois, *Reboot*.
 3. **Atualizar:** rode a pipeline, publique de novo e reinicie o app.
 
