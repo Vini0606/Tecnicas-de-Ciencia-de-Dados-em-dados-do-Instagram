@@ -69,6 +69,7 @@ import streamlit as st
 
 from dashboard.core import data
 from dashboard.core.components import decision_band, footnote, stage_label
+from dashboard.core.rotulos import rotulo_se_emoji
 from src.modeling.topic_labels import DEGENERATE_TOPIC_LABEL
 
 _PLACEHOLDER_SEM_GOVERNADOR = "—"
@@ -392,7 +393,11 @@ _COLUNAS_GRUPOS = ["Topic", "Grupo", "n", "pct"]
 def _rotulo_grupo(name: object) -> str:
     """Rótulo do grupo de comentários: reaproveita `_rotulo_exibicao` (bruto
     ou refinado); rótulo degenerado/nulo vira texto neutro, sem a palavra
-    "assunto" (reservada a pauta)."""
+    "assunto" (reservada a pauta). Grupos que são só emojis ("mãos aplaudindo",
+    "tecla 3") ganham um nome legível (ADR 0038)."""
+    emoji = rotulo_se_emoji(name)
+    if emoji:
+        return emoji
     rotulo = _rotulo_exibicao(name)
     return ROTULO_GRUPO_SEM_ROTULO if rotulo == DEGENERATE_TOPIC_LABEL else rotulo
 

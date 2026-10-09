@@ -87,6 +87,7 @@ from dashboard.core.deltas import (
     parse_publication_dates,
     quebrar_em_segmentos,
 )
+from dashboard.core.rotulos import rotular_topico
 from dashboard.core.theme import COLORS
 
 _PLACEHOLDER_SEM_GOVERNADOR = "—"
@@ -124,7 +125,9 @@ def _governor_options(df_metadata: pd.DataFrame) -> dict[str, str]:
         .drop_duplicates(subset=["inputUrl"])
     )
     nomes = pares[col_nome].fillna(pares["inputUrl"])
-    return dict(sorted(zip(nomes, pares["inputUrl"], strict=True), key=lambda kv: kv[0]))
+    return dict(
+        sorted(zip(nomes, pares["inputUrl"], strict=True), key=lambda kv: kv[0])
+    )
 
 
 def _filtrar_por_governador(
@@ -141,11 +144,18 @@ def _filtrar_por_governador(
 # ---------------------------------------------------------------------------
 
 _COLUNAS_OBRIGATORIAS_TOPICO = {
-    "Topic", "Name", "sentiment_label", "timestamp", "id_comment", "_run_id"
+    "Topic",
+    "Name",
+    "sentiment_label",
+    "timestamp",
+    "id_comment",
+    "_run_id",
 }
 
 
-def _comentarios_com_topico_deduplicados(df_sentiment_history: pd.DataFrame) -> pd.DataFrame | None:
+def _comentarios_com_topico_deduplicados(
+    df_sentiment_history: pd.DataFrame,
+) -> pd.DataFrame | None:
     """Preparação compartilhada pelas duas leituras de "tema em maior
     negatividade" desta tela (`_tema_maior_alta_negatividade`, o alerta
     principal por janela fixa, e `_maior_alta_negatividade`, a 2ª leitura
@@ -190,7 +200,9 @@ def _tema_maior_alta_negatividade(df_sentiment_history: pd.DataFrame) -> dict | 
         return None
     df = df.assign(_is_negative=(df["sentiment_label"] == "negative").astype(float))
 
-    resultado = compare_publication_window(df, value_col="_is_negative", key_col="Topic")
+    resultado = compare_publication_window(
+        df, value_col="_is_negative", key_col="Topic"
+    )
     if not resultado:
         return None
 
@@ -257,7 +269,9 @@ def _maior_alta_negatividade(
     df = _comentarios_com_topico_deduplicados(df_sentiment_history)
     if df is None:
         return None
-    df = df.assign(_data_publicacao=parse_publication_dates(df)).dropna(subset=["_data_publicacao"])
+    df = df.assign(_data_publicacao=parse_publication_dates(df)).dropna(
+        subset=["_data_publicacao"]
+    )
     df = filter_by_date_range(df, "_data_publicacao", data_inicio, data_fim)
     if df.empty:
         return None
@@ -307,7 +321,11 @@ def _nivel_semaforo(
         return "good"
     if pct_negativo_atual >= limiar:
         return "danger"
-    if delta_percentual is not None and not pd.isna(delta_percentual) and delta_percentual > 0:
+    if (
+        delta_percentual is not None
+        and not pd.isna(delta_percentual)
+        and delta_percentual > 0
+    ):
         return "warn"
     return "good"
 
@@ -340,7 +358,9 @@ def _frase_decisao(nivel: str, tema: dict | None) -> str:
             f'Fique de olho: negatividade em "{nome}" {variacao}, mas '
             "ainda não cruzou o limite de alerta."
         )
-    return "Sem alertas hoje -- negatividade estável ou em queda nos temas com dado real."
+    return (
+        "Sem alertas hoje -- negatividade estável ou em queda nos temas com dado real."
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -376,7 +396,10 @@ def _cores_marcador(valores_pct: pd.Series, limiar_pct: float) -> list[str]:
     permanece sempre neutra (ver docstring de `render()`: colorir o
     segmento inteiro entre dois pontos distantes sugeriria uma tendência
     que o dado real não sustenta)."""
-    return [COLORS["danger"]["fg"] if v >= limiar_pct else COLORS["muted"] for v in valores_pct]
+    return [
+        COLORS["danger"]["fg"] if v >= limiar_pct else COLORS["muted"]
+        for v in valores_pct
+    ]
 
 
 # Quebra de linha em gap > `deltas.GAP_DIAS_QUEBRA_LINHA` dias: usa
@@ -438,7 +461,9 @@ def _comentarios_negativos_recentes(
         and "Topic" in df.columns
         and {"Topic", "Name"}.issubset(df_topic_priority.columns)
     ):
-        mapa_nomes = df_topic_priority.drop_duplicates(subset=["Topic"]).set_index("Topic")["Name"]
+        mapa_nomes = df_topic_priority.drop_duplicates(subset=["Topic"]).set_index(
+            "Topic"
+        )["Name"]
         temas = df["Topic"].map(mapa_nomes)
     else:
         temas = pd.Series([None] * len(df), index=df.index)
@@ -525,7 +550,9 @@ def render() -> None:
             max_value=data_max,
         )
         data_inicio, data_fim = normalize_date_input_range(intervalo)
-        df_timeline = _filtrar_por_intervalo(df_timeline_completo, data_inicio, data_fim)
+        df_timeline = _filtrar_por_intervalo(
+            df_timeline_completo, data_inicio, data_fim
+        )
 
         if df_timeline.empty:
             st.caption("Nenhum comentário publicado no período selecionado.")
@@ -571,19 +598,23 @@ def render() -> None:
         "alerta automático, é uma consulta livre (diferente da frase de "
         "decisão no topo da tela)."
     )
-    tema_periodo = _maior_alta_negatividade(df_sentiment_history_governador, data_inicio, data_fim)
+    tema_periodo = _maior_alta_negatividade(
+        df_sentiment_history_governador, data_inicio, data_fim
+    )
     if tema_periodo is None:
         st.caption("Nenhum tema com negatividade no período selecionado.")
     else:
         st.write(
-            f"**{tema_periodo['name']}** -- "
+            f"**{rotular_topico(tema_periodo['name'])}** -- "
             f"{tema_periodo['pct_negativo']:.1f}% de negatividade no período."
         )
 
     # ---- Lista de comentários negativos mais recentes ----
     st.markdown("#### Comentários negativos mais recentes")
     if tema_em_alta is not None:
-        st.caption(f"Tema em maior ascensão de negatividade: {tema_em_alta['name']}")
+        st.caption(
+            f"Tema em maior ascensão de negatividade: {rotular_topico(tema_em_alta['name'])}"
+        )
     topico_alvo = tema_em_alta["topic"] if tema_em_alta is not None else None
     df_comentarios = _comentarios_negativos_recentes(
         df_sentiment_governador, df_topic_priority, topico_alvo
@@ -591,8 +622,12 @@ def render() -> None:
     if df_comentarios.empty:
         st.caption("Nenhum comentário negativo recente para este governador.")
     else:
-        df_exibir = df_comentarios.rename(columns={"comentario": "Comentário", "tema": "Tema"})
-        df_exibir["Tema"] = df_exibir["Tema"].fillna(_PLACEHOLDER_SEM_TEMA)
+        df_exibir = df_comentarios.rename(
+            columns={"comentario": "Comentário", "tema": "Tema"}
+        )
+        df_exibir["Tema"] = df_exibir["Tema"].map(
+            lambda t: rotular_topico(t) if isinstance(t, str) else _PLACEHOLDER_SEM_TEMA
+        )
         st.dataframe(df_exibir, hide_index=True, width="stretch")
 
     footnote()

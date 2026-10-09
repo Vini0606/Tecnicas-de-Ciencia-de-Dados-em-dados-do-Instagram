@@ -15,6 +15,7 @@ import pandas as pd
 import streamlit as st
 
 from config import settings
+from dashboard.core.rotulos import extrair_mencoes, remover_mencoes
 from src.repositories.delta_repository import DeltaRepository
 
 _TTL_SECONDS = 600
@@ -43,13 +44,54 @@ def load_engagement_history() -> pd.DataFrame:
         return pd.DataFrame()
 
 
+def _usuario_de_url(url: object) -> str:
+    return str(url).strip().lower().split("?")[0].rstrip("/").rsplit("/", 1)[-1]
+
+
+@st.cache_data(ttl=_TTL_SECONDS)
+def mencoes_de_terceiros() -> frozenset[str]:
+    """Menções `@usuario` de TERCEIROS que aparecem nos textos (comentários e
+    legendas), para tirá-las dos nomes de tópico (ADR 0038). Os perfis dos
+    próprios governadores são figuras públicas e ficam de fora do conjunto."""
+    repo = get_repository()
+    textos: list[str] = []
+    for carregar in (repo.load_comments, repo.load_discourse_topics):
+        try:
+            df = carregar()
+        except FileNotFoundError:
+            continue
+        if "text" in df.columns:
+            textos += df["text"].dropna().astype(str).tolist()
+    mencoes = extrair_mencoes(textos)
+    try:
+        meta = repo.load_governors_metadata()
+    except FileNotFoundError:
+        meta = pd.DataFrame()
+    publicos = (
+        {_usuario_de_url(u) for u in meta["inputUrl"].dropna()}
+        if "inputUrl" in meta.columns
+        else set()
+    )
+    return frozenset(m for m in mencoes if m not in publicos)
+
+
+def _sem_mencoes(df: pd.DataFrame) -> pd.DataFrame:
+    """`df` com as menções de terceiros removidas da coluna `Name` (se houver)."""
+    if df.empty or "Name" not in df.columns:
+        return df
+    mencoes = mencoes_de_terceiros()
+    if not mencoes:
+        return df
+    return df.assign(Name=df["Name"].map(lambda n: remover_mencoes(n, mencoes)))
+
+
 @st.cache_data(ttl=_TTL_SECONDS)
 def load_sentiment() -> pd.DataFrame:
     """`governor_sentiment` cru (todas as `fonte`) -- use `comments_only()`
     para reação do público (comentários), não discurso da assessoria
     (legenda/transcrição)."""
     try:
-        return get_repository().load_comments()
+        return _sem_mencoes(get_repository().load_comments())
     except FileNotFoundError:
         return pd.DataFrame()
 
@@ -58,7 +100,7 @@ def load_sentiment() -> pd.DataFrame:
 def load_sentiment_history() -> pd.DataFrame:
     """`governor_sentiment_history` -- idem, modo append por execução."""
     try:
-        return get_repository().load_sentiment_history()
+        return _sem_mencoes(get_repository().load_sentiment_history())
     except FileNotFoundError:
         return pd.DataFrame()
 
@@ -131,7 +173,7 @@ def load_clusters_profile() -> pd.DataFrame:
 def load_discourse_topics() -> pd.DataFrame:
     """`governor_discourse_topics` -- 1 linha por legenda/transcrição."""
     try:
-        return get_repository().load_discourse_topics()
+        return _sem_mencoes(get_repository().load_discourse_topics())
     except FileNotFoundError:
         return pd.DataFrame()
 
@@ -141,7 +183,7 @@ def load_topic_priority() -> pd.DataFrame:
     """`topic_priority_score` -- 1 linha por tópico de comentário, ranking
     global (não por governador)."""
     try:
-        return get_repository().load_topic_priority_score()
+        return _sem_mencoes(get_repository().load_topic_priority_score())
     except FileNotFoundError:
         return pd.DataFrame()
 
@@ -151,7 +193,7 @@ def load_content_topic_priority() -> pd.DataFrame:
     """`content_topic_priority_score` -- 1 linha por pauta (assunto do
     conteúdo, issue #190), ranking global (não por governador)."""
     try:
-        return get_repository().load_content_topic_priority_score()
+        return _sem_mencoes(get_repository().load_content_topic_priority_score())
     except FileNotFoundError:
         return pd.DataFrame()
 

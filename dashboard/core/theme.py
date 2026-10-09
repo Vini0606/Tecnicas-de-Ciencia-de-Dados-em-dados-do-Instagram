@@ -20,7 +20,10 @@ de reinventado, como pede a issue #110.
 
 from __future__ import annotations
 
+import logging
+
 import streamlit as st
+import streamlit.components.v1 as components
 
 COLORS = {
     "good": {"bg": "#E1F5EE", "fg": "#0F6E56"},
@@ -32,8 +35,22 @@ COLORS = {
 
 # Chrome IESB -- só sidebar/títulos de tela, nunca dataviz (ver docstring
 # do módulo).
+logger = logging.getLogger(__name__)
+
 _IESB_RED = "#D92936"
 _IESB_BLACK = "#1D1D1B"
+
+
+# `<html lang>` do Streamlit é "en" e o conteúdo é pt-BR (leitores de tela e
+# corretor). O iframe de altura 0 ajusta o atributo da página pai.
+_SCRIPT_IDIOMA = "<script>try{window.parent.document.documentElement.lang='pt-BR';}catch(e){}</script>"
+
+
+def _definir_idioma() -> None:
+    try:
+        components.html(_SCRIPT_IDIOMA, height=0)
+    except Exception:  # detalhe cosmético, nunca derruba o app
+        logger.debug("não foi possível ajustar o idioma da página", exc_info=True)
 
 
 def inject_theme() -> None:
@@ -82,7 +99,13 @@ def inject_theme() -> None:
         section[data-testid="stSidebar"] h3 {{
             color: {_IESB_RED};
         }}
+        
+        /* iframe de altura 0 usado so para ajustar <html lang>: sem vao na tela */
+        [data-testid="stElementContainer"]:has(iframe[height="0"]) {{
+            position: absolute; width: 0; height: 0; margin: 0; overflow: hidden;
+        }}
         </style>
         """,
         unsafe_allow_html=True,
     )
+    _definir_idioma()

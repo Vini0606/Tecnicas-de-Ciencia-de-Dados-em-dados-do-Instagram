@@ -93,7 +93,7 @@ _PLACEHOLDER_SEM_DADO = "—"
 _STAGE = "Segmentação da audiência (Flesch)"
 _AVISO_EXPERIMENTAL = (
     "Agrupamento experimental -- a segmentação de perfil ainda não foi "
-    "validada plenamente contra os 27 perfis reais; não trate os grupos "
+    "validada plenamente contra os perfis reais; não trate os grupos "
     "abaixo como definitivos."
 )
 

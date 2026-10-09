@@ -1,0 +1,4 @@
+# Configuracao do Streamlit (ADR 0038).
+[browser]
+# Sem telemetria de uso: cada visita enviava um POST ao webhook do Streamlit.
+gatherUsageStats = false
