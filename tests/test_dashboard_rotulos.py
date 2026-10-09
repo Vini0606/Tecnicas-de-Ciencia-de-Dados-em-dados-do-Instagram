@@ -195,3 +195,11 @@ def test_pagina_declara_idioma_pt_br_e_falha_em_silencio(monkeypatch):
 
     monkeypatch.setattr(theme.components, "html", quebra)
     theme._definir_idioma()  # não lança
+
+
+def test_iframe_do_idioma_nao_deixa_vao_na_tela():
+    """O contêiner do iframe de altura 0 ainda ocupava 16 px (espaçamento do bloco
+    vertical): a regra de CSS precisa casar com o `srcdoc` do próprio iframe."""
+    fonte = Path("dashboard/core/theme.py").read_text(encoding="utf-8")
+    assert 'iframe[srcdoc*="documentElement.lang"]' in fonte
+    assert "documentElement.lang" in theme._SCRIPT_IDIOMA

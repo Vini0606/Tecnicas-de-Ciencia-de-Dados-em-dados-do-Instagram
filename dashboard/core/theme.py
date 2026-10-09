@@ -101,7 +101,7 @@ def inject_theme() -> None:
         }}
         
         /* iframe de altura 0 usado so para ajustar <html lang>: sem vao na tela */
-        [data-testid="stElementContainer"]:has(iframe[height="0"]) {{
+        [data-testid="stElementContainer"]:has(iframe[srcdoc*="documentElement.lang"]) {{
             position: absolute; width: 0; height: 0; margin: 0; overflow: hidden;
         }}
         </style>
