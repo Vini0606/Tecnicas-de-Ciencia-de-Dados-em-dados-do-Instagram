@@ -1,7 +1,8 @@
 # Copie para terraform.tfvars (ignorado pelo git) ou exporte como TF_VAR_*.
 
 bucket_name     = "seu-bucket-unico-aqui"
-apify_api_token = "seu-token-apify" # nunca commitar de verdade
+hf_token        = "seu-token-hf"    # nunca commitar de verdade
+hf_dataset_repo = "usuario/dataset" # dataset privado com as Coletas
 image_tag       = "latest"          # ou o SHA de um commit já publicado no ECR
 
 # Descomente se a conta AWS já tiver um provedor OIDC do GitHub Actions

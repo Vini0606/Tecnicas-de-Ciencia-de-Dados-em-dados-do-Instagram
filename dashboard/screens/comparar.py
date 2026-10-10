@@ -654,7 +654,7 @@ def render() -> None:
         st.caption(_AVISO_EXPERIMENTAL)
         st.info(
             "Nenhum governador disponível ainda -- rode a pipeline "
-            "(`uv run python pipeline.py`) para popular o dashboard."
+            "(`uv run python coleta.py baixar <tag>`) para popular o dashboard."
         )
         footnote()
         return

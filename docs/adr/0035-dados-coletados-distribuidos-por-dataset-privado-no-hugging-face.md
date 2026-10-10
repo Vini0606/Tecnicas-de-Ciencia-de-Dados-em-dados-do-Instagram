@@ -4,6 +4,12 @@ status: accepted (parcialmente superada pela ADR 0039)
 
 # Dados coletados distribuídos por um dataset privado no Hugging Face
 
+> **Nota: parcialmente superada pela [ADR 0039](0039-coleta-versionada-no-hf-bronze-fiel-e-aws-so-reconstroi.md).**
+> O dataset privado no Hugging Face continua sendo o meio de levar os dados entre máquinas. Mudou o conteúdo e o protocolo: não há
+> mais `landing/`, o dataset guarda o Snapshot de uma Coleta (Bronze, Silver, Gold e `manifesto.json`) e as regras de escritor único
+> e de divergência deram lugar a commit de substituição na `main` + tag por Coleta. `scripts/sync_dados_hf.py` foi substituído
+> por `coleta.py publicar|baixar|listar|restaurar`. O texto abaixo é o registro histórico da decisão original.
+
 ## Contexto
 
 A coleta na Apify é paga e acontece numa máquina (o notebook). A modelagem, pesada em CPU, precisa rodar

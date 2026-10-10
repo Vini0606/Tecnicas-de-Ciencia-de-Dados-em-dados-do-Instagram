@@ -5,7 +5,7 @@ variable "aws_region" {
 }
 
 variable "project_name" {
-  description = "Prefixo usado no nome de todos os recursos (bucket, funções, repositórios ECR)."
+  description = "Prefixo usado no nome de todos os recursos (bucket, função, repositório ECR)."
   type        = string
   default     = "instagram-governadores"
 }
@@ -15,8 +15,14 @@ variable "bucket_name" {
   type        = string
 }
 
-variable "apify_api_token" {
-  description = "Token da API Apify, usado só pela Lambda de extract. Nunca commitar em terraform.tfvars -- passar via TF_VAR_apify_api_token."
+variable "hf_token" {
+  description = "Token do Hugging Face (leitura do dataset privado), usado so pela Lambda rebuild. Nunca commitar em terraform.tfvars -- passar via TF_VAR_hf_token."
+  type        = string
+  sensitive   = true
+}
+
+variable "hf_dataset_repo" {
+  description = "Repositorio do dataset privado no Hugging Face (ex.: usuario/dataset), de onde a Lambda rebuild baixa a tag da Coleta."
   type        = string
   sensitive   = true
 }

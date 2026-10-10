@@ -116,10 +116,8 @@ def run_deterministic_modeling(
     discurso oficial (legenda+transcrição, ADR 0020 Ficha 4) ->
     performance-por-post (representação determinística via KeyBERTInspired,
     não via Gemini) -> clusterização de PERFIL de governador por engajamento
-    (Fase 2, ADR 0020) -- fecha a paridade com `lambdas/model/handler.py`, que
-    já rodava esse último estágio automaticamente no pipeline serverless;
-    localmente, até aqui, só rodava via `scripts/
-    run_profile_clustering_engagement.py` manual, e a Tela 4 ("Comparar
+    (Fase 2, ADR 0020) -- roda automaticamente, sem passo manual: antes só saía
+    de `scripts/run_profile_clustering_engagement.py`, e a Tela 4 ("Comparar
     perfis", ADR 0021) do dashboard ficava vazia se ninguém lembrasse de
     rodar esse script à parte. Escreve as oito tabelas Gold (clusters,
     sentimento/tópicos provisórios de comentário, Score ICE por tópico, NSM
@@ -128,7 +126,7 @@ def run_deterministic_modeling(
     sob um único `run_id` novo.
 
     `parent_run_id`, se informado, é só rastreabilidade -- o `run_id` da
-    extração/invocação de `pipeline.py` que disparou esta chamada, gravado
+    extração (`coleta.py coletar --modelar`) que disparou esta chamada, gravado
     no checkpoint (ver `save_checkpoint`). Nunca substitui o `run_id` novo
     que esta função sempre cunha para a modelagem (ADR 0001).
 
@@ -138,7 +136,7 @@ def run_deterministic_modeling(
     leem comentários passam a ver as duas origens, discriminadas por
     `origem_comentario` em `governor_sentiment`."""
     run_id = build_run_id(run_id)
-    # Handler de arquivo trocado aqui, não em pipeline.py -- este é o ponto
+    # Handler de arquivo trocado aqui, não na CLI da Coleta -- este é o ponto
     # onde o run_id da modelagem é de fato cunhado (ADR 0015, decisão 5).
     attach_run_log_handler(run_id, config.logs_dir)
     # Primeira linha do log da modelagem, sempre -- rastreabilidade completa

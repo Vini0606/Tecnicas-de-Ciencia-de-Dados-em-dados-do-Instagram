@@ -937,8 +937,7 @@ def test_run_deterministic_modeling_degrada_sem_derrubar_pipeline_se_performance
 
 # ---------------------------------------------------------------------------
 # Fase 2 (ADR 0020): clusterização de PERFIL de governador por engajamento,
-# integrada ao estágio determinístico -- fecha a paridade com
-# `lambdas/model/handler.py` (pipeline serverless já fazia isso sozinho).
+# integrada ao estágio determinístico (sem passo manual).
 # ---------------------------------------------------------------------------
 
 N_GOVERNADORES_CLUSTER_PERFIL = 8
@@ -974,8 +973,7 @@ def test_run_deterministic_modeling_grava_clusters_de_perfil_por_engajamento(
     """A modelagem determinística agora também clusteriza `df_engagement`
     por perfil (Fase 2, ADR 0020) e grava `governor_profile_clusters_engagement`
     sob o mesmo `run_id` das demais tabelas -- antes desta issue, só
-    `scripts/run_profile_clustering_engagement.py` (manual) ou
-    `lambdas/model/handler.py` (serverless) faziam isso; a Tela 4
+    `scripts/run_profile_clustering_engagement.py` (manual) fazia isso; a Tela 4
     ("Comparar perfis", ADR 0021) do dashboard dependia desse passo manual e
     ficava vazia sem ele."""
     monkeypatch.setattr(

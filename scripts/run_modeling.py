@@ -65,7 +65,7 @@ if __name__ == "__main__":
         "--parent-run-id",
         required=True,
         help=(
-            "run_id da extracao/execucao de pipeline.py que gerou a Silver sendo usada aqui -- "
+            "run_id da extracao/execucao de coleta.py que gerou a Silver sendo usada aqui -- "
             "obrigatorio para rastreabilidade completa (dados -> modelo, ver "
             "scripts/inspect_runs.py --pipeline). A Silver pode ter dado de multiplas extracoes "
             "misturadas (overwrite por _run_id mais recente por linha), entao nao da pra inferir "
