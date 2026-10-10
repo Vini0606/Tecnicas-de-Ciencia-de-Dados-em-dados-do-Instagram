@@ -10,7 +10,13 @@ from typing import ClassVar
 
 import pandas as pd
 
-from src.delta_io import deduplicate_latest, write_delta
+from src.delta_io import write_delta
+from src.features.silver.parsing import (
+    drop_duplicate_ids,
+    drop_invalid_timestamp,
+    parse_timestamp_sp,
+    to_numeric_logged,
+)
 from src.schemas_delta import SILVER_POSTS_SCHEMA, SILVER_REELS_SCHEMA
 
 logger = logging.getLogger(__name__)
@@ -32,8 +38,8 @@ class PostCleaner:
         df = df_bronze.copy()
         df = self._drop_null_id(df, entity="post")
         df = self._filter_delisted_governors(df, governor_usernames)
-        df = deduplicate_latest(df, id_col="id")
-        df = self._parse_timestamp(df)
+        df = drop_duplicate_ids(df, "id", "post")
+        df = self._parse_timestamp(df, entity="post")
         df = self._preserve_type_raw(df)
         df["Tipo"] = "FEED"
         df = self._cast_numerics(df)
@@ -47,8 +53,8 @@ class PostCleaner:
         df = df_bronze.copy()
         df = self._drop_null_id(df, entity="reel")
         df = self._filter_delisted_governors(df, governor_usernames)
-        df = deduplicate_latest(df, id_col="id")
-        df = self._parse_timestamp(df)
+        df = drop_duplicate_ids(df, "id", "reel")
+        df = self._parse_timestamp(df, entity="reel")
         df = self._preserve_type_raw(df)
         df["Tipo"] = "REELS"
         df["Total de Engajamento"] = (
@@ -85,30 +91,21 @@ class PostCleaner:
             df = df.rename(columns={"type": "type_raw"})
         return df
 
-    def _parse_timestamp(self, df: pd.DataFrame) -> pd.DataFrame:
+    def _parse_timestamp(self, df: pd.DataFrame, entity: str) -> pd.DataFrame:
+        # `data_hora` é NOT NULL no contrato Silver. Timestamp ilegível ou
+        # ausente gera warning e REJEITA a linha, em vez de derrubar a
+        # escrita inteira (nem sumir em silêncio). format="ISO8601" evita a
+        # inferência de formato pelo primeiro valor da série.
         if "timestamp" in df.columns:
-            # format="ISO8601" -- sem isso, pd.to_datetime infere o formato a
-            # partir do primeiro valor da série e aplica esse formato pra
-            # série inteira; um único timestamp sem timezone misturado com o
-            # restante (com timezone, formato real do Apify) faz quase todos
-            # os outros virarem NaT silenciosamente. Isso derruba a escrita
-            # da Silver inteira, já que `data_hora` é NOT NULL no schema --
-            # e numa Bronze acumulando muitos run_id (ADR 0011), basta um
-            # registro com timestamp em formato diferente pra travar tudo.
-            df["data_hora"] = (
-                pd.to_datetime(df["timestamp"], errors="coerce", utc=True, format="ISO8601")
-                .dt.tz_convert("America/Sao_Paulo")
-                .dt.tz_localize(None)
-            )
+            df["data_hora"] = parse_timestamp_sp(df["timestamp"], entity)
+            df = drop_invalid_timestamp(df, entity)
         return df
 
     def _cast_numerics(self, df: pd.DataFrame) -> pd.DataFrame:
         int64_cols = ["commentsCount", "likesCount", "videoPlayCount", "videoViewCount"]
         for col in int64_cols:
             if col in df.columns:
-                df[col] = (
-                    pd.to_numeric(df[col], errors="coerce").fillna(0).astype("int64")
-                )
+                df[col] = to_numeric_logged(df[col], col, "post/reel").fillna(0).astype("int64")
         return df
 
     def _drop_noise_columns(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -130,7 +127,7 @@ class PostCleaner:
                 )
                 logger.warning(
                     "Descartando %d %s(s) sem `id` (erro/indisponibilidade da Apify na "
-                    "extração, ver landing zone do run_id para o payload bruto)%s",
+                    "extração, ver a coluna `_raw` da Bronze para o payload bruto)%s",
                     len(sem_id),
                     entity,
                     f" -- perfis afetados: {owners}" if owners else "",
@@ -141,10 +138,9 @@ class PostCleaner:
     def _filter_delisted_governors(
         self, df: pd.DataFrame, governor_usernames: list[str] | None
     ) -> pd.DataFrame:
-        # Achado real (PR #137): a Bronze é append-only e nunca esquece um
-        # `id` -- sem este filtro, um governador removido de
-        # governadores.xlsx continua reaparecendo indefinidamente com o
-        # último post/reel real, cada vez mais desatualizado.
+        # Governador removido de governadores.xlsx pode constar na Coleta
+        # (Recorte mais amplo ou Coleta herdada) -- o filtro mantém só quem
+        # está na planilha atual.
         # `governor_usernames=None` preserva o comportamento antigo (sem
         # filtro) -- usado pelos testes unitários deste cleaner.
         if governor_usernames is not None and "ownerUsername" in df.columns:

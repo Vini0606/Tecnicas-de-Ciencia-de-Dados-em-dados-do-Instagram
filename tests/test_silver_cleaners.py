@@ -18,7 +18,7 @@ def test_profile_cleaner_basic():
         }
     )
     cleaner = ProfileCleaner()
-    out = cleaner.clean(df, run_id="r1")
+    out = cleaner.clean(df)
     assert "_source_layer" in out.columns
 
 
@@ -33,7 +33,7 @@ def test_profile_cleaner_adds_fullname_when_missing():
         }
     )
     cleaner = ProfileCleaner()
-    out = cleaner.clean(df, run_id="r1")
+    out = cleaner.clean(df)
     assert "fullName" in out.columns
     assert out.loc[0, "fullName"] == "g"
 
@@ -59,7 +59,7 @@ def test_profile_cleaner_descarta_linhas_com_id_nulo(caplog):
     )
     cleaner = ProfileCleaner()
     with caplog.at_level(logging.WARNING):
-        out = cleaner.clean(df, run_id="r1")
+        out = cleaner.clean(df)
     assert len(out) == 1
     assert out.iloc[0]["id"] == "1"
     assert len(caplog.records) == 1
@@ -82,7 +82,7 @@ def test_profile_cleaner_filtra_governador_removido_da_planilha():
         }
     )
     cleaner = ProfileCleaner()
-    out = cleaner.clean(df, run_id="r1", governor_usernames=["governador_atual"])
+    out = cleaner.clean(df, governor_usernames=["governador_atual"])
     assert len(out) == 1
     assert out.iloc[0]["username"] == "governador_atual"
 
@@ -100,7 +100,7 @@ def test_profile_cleaner_sem_governor_usernames_nao_filtra():
         }
     )
     cleaner = ProfileCleaner()
-    out = cleaner.clean(df, run_id="r1")
+    out = cleaner.clean(df)
     assert len(out) == 2
 
 
@@ -343,11 +343,9 @@ def test_post_cleaner_sem_type_ou_hashtags_nao_quebra():
     assert "hashtags" not in out.columns or out["hashtags"].isna().all()
 
 
-def test_post_cleaner_deduplica_execucoes_acumuladas():
-    """
-    A Bronze é append-only. Sem deduplicação, reprocessar o pipeline
-    multiplicaria as publicações e inflaria as métricas da camada Gold.
-    """
+def test_post_cleaner_nao_escolhe_por_run_id_e_loga_id_repetido(caplog):
+    """ADR 0039: ha uma Coleta vigente so. Um `id` repetido dentro dela nao e
+    "versao mais recente por run_id": mantem a primeira ocorrencia e AVISA."""
     linha = {
         "id": "p1",
         "ownerId": "1",
@@ -357,14 +355,49 @@ def test_post_cleaner_deduplica_execucoes_acumuladas():
         "timestamp": "2026-05-01T00:00:00+00:00",
         "_run_id": "r1",
     }
-    df = pd.DataFrame([linha, {**linha, "_run_id": "r2"}])
+    # a segunda linha e mais recente, mas a ordem da Coleta e que vale
+    df = pd.DataFrame([linha, {**linha, "_run_id": "r2", "likesCount": 99}])
     df["_ingested_at"] = pd.to_datetime(["2026-05-01", "2026-05-02"], utc=True)
 
-    out = PostCleaner().clean_posts(df)
+    with caplog.at_level(logging.WARNING):
+        out = PostCleaner().clean_posts(df)
 
     assert len(out) == 1
-    # Mantém a ingestão mais recente
-    assert out.iloc[0]["_run_id"] == "r2"
+    assert out.iloc[0]["likesCount"] == 2
+    assert any("repetido" in r.message and "p1" in r.message for r in caplog.records)
+
+
+def test_post_cleaner_rejeita_timestamp_ilegivel_com_warning(caplog):
+    df = pd.DataFrame(
+        {
+            "id": ["p1", "p2", "p3"],
+            "ownerUsername": ["g", "g", "g"],
+            "commentsCount": [1, 1, 1],
+            "likesCount": [2, 2, 2],
+            "timestamp": ["2026-05-01T00:00:00+00:00", "ontem de manha", None],
+        }
+    )
+    with caplog.at_level(logging.WARNING):
+        out = PostCleaner().clean_posts(df)
+    assert out["id"].tolist() == ["p1"]
+    assert any("ISO 8601" in r.message and "ontem de manha" in r.message for r in caplog.records)
+    assert any("Rejeitando 2" in r.message for r in caplog.records)
+
+
+def test_post_cleaner_avisa_contagem_nao_numerica(caplog):
+    df = pd.DataFrame(
+        {
+            "id": ["p1"],
+            "ownerUsername": ["g"],
+            "commentsCount": ["muitos"],
+            "likesCount": [2],
+            "timestamp": ["2026-05-01T00:00:00+00:00"],
+        }
+    )
+    with caplog.at_level(logging.WARNING):
+        out = PostCleaner().clean_posts(df)
+    assert out.iloc[0]["commentsCount"] == 0
+    assert any("commentsCount" in r.message and "muitos" in r.message for r in caplog.records)
 
 
 def test_post_cleaner_parseia_timestamps_com_formatos_mistos():
@@ -430,28 +463,62 @@ def test_comment_cleaner_promove_colunas_do_comentario():
     assert out.iloc[0]["timestamp"].startswith("2026-05-02")
 
 
-def test_comment_cleaner_deduplica_execucoes_acumuladas():
-    """
-    Assim como a Bronze de posts/reels, o mesmo comentário reaparece a cada
-    reprocessamento do pipeline (o reel é reingerido inteiro, com
-    latestComments embutido). Sem deduplicar por id_comment, comentários se
-    acumulariam a cada execução.
-    """
+def test_comment_cleaner_id_comment_repetido_mantem_primeiro_e_avisa(caplog):
+    """Mesmo comentario em duas linhas da Coleta: sem escolha por run_id,
+    mantem a primeira ocorrencia e registra warning."""
     comment = '[{"id": "c1", "text": "ok", "ownerUsername": "eleitor"}]'
     df_reels = pd.DataFrame(
         {
             "id": ["r1", "r1"],
             "ownerUsername": ["governador", "governador"],
             "latestComments": [comment, comment],
-            "_ingested_at": pd.to_datetime(["2026-05-01", "2026-05-02"], utc=True),
             "_run_id": ["r1_run", "r2_run"],
         }
     )
-
-    out = CommentCleaner().clean(df_reels)
+    with caplog.at_level(logging.WARNING):
+        out = CommentCleaner().clean(df_reels)
 
     assert len(out) == 1
-    assert out.iloc[0]["_run_id"] == "r2_run"
+    assert out.iloc[0]["_run_id"] == "r1_run"
+    assert any("repetido" in r.message and "c1" in r.message for r in caplog.records)
+
+
+def test_comment_cleaner_json_invalido_em_latest_comments_avisa_e_segue(caplog):
+    df_reels = pd.DataFrame(
+        {
+            "id": ["r1", "r2"],
+            "ownerUsername": ["g", "g"],
+            "latestComments": ["{quebrado", '[{"id": "c1", "text": "ok"}]'],
+        }
+    )
+    with caplog.at_level(logging.WARNING):
+        out = CommentCleaner().clean(df_reels)
+    assert len(out) == 1
+    assert any("latestComments" in r.message and "JSON" in r.message for r in caplog.records)
+
+
+def test_profile_cleaner_avisa_contagem_nao_numerica(caplog):
+    df = pd.DataFrame({"id": ["1"], "username": ["g"], "followersCount": ["muitos"]})
+    with caplog.at_level(logging.WARNING):
+        out = ProfileCleaner().clean(df)
+    assert out.iloc[0]["followersCount"] == 0
+    assert any("followersCount" in r.message and "muitos" in r.message for r in caplog.records)
+
+
+def test_profile_cleaner_id_repetido_mantem_primeiro_e_avisa(caplog):
+    df = pd.DataFrame(
+        {
+            "id": ["1", "1"],
+            "username": ["g", "g"],
+            "followersCount": [10, 20],
+            "_run_id": ["r1", "r2"],
+        }
+    )
+    with caplog.at_level(logging.WARNING):
+        out = ProfileCleaner().clean(df)
+    assert len(out) == 1
+    assert out.iloc[0]["followersCount"] == 10
+    assert any("repetido" in r.message for r in caplog.records)
 
 
 def test_profile_cleaner_resultado_nao_muda_com_a_coluna_raw_da_bronze_fiel():
@@ -468,7 +535,7 @@ def test_profile_cleaner_resultado_nao_muda_com_a_coluna_raw_da_bronze_fiel():
     )
     com_raw = base.assign(_raw='{"id": "1", "username": "g", "campoNovo": 1}')
 
-    sem = ProfileCleaner().clean(base, run_id="r1")
-    com = ProfileCleaner().clean(com_raw, run_id="r1")
+    sem = ProfileCleaner().clean(base)
+    com = ProfileCleaner().clean(com_raw)
 
     pd.testing.assert_frame_equal(sem, com.drop(columns=["_raw"], errors="ignore"))

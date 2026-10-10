@@ -120,7 +120,7 @@ def test_run_medallion_pipeline_propaga_governor_usernames_aos_cleaners_silver(m
     post_cleaner = pipeline.PostCleaner()
     comment_cleaner = pipeline.CommentCleaner()
 
-    assert profile_cleaner.clean.call_args.args[2] == ["u1"]
+    assert profile_cleaner.clean.call_args.args[1] == ["u1"]
     assert post_cleaner.clean_posts.call_args.args[1] == ["u1"]
     assert post_cleaner.clean_reels.call_args.args[1] == ["u1"]
     assert comment_cleaner.clean.call_args.args[1] == ["u1"]
@@ -390,7 +390,7 @@ def test_run_medallion_pipeline_grava_silver_e_gold_de_ugc_com_bronze_reaproveit
 
     pipeline.run_medallion_pipeline(apify_api_token="token", links=["l"], run_id="r1")
 
-    assert ugc_cleaner.clean.call_args.args == (df_ugc, "r1", ["u1"])
+    assert ugc_cleaner.clean.call_args.args == (df_ugc, ["u1"])
     assert ugc_cleaner.write.call_args.args == (df_ugc_silver, settings.SILVER_UGC_MENTIONS)
     assert ugc_aggregator.enrich.call_args.args[0] is df_ugc_silver
     assert ugc_aggregator.enrich.call_args.kwargs == {"run_id": "r1"}

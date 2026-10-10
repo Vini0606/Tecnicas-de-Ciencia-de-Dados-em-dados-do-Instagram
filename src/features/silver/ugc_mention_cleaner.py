@@ -13,13 +13,23 @@ governador informada a `clean()`.
 from __future__ import annotations
 
 import json
+import logging
 from pathlib import Path
 from typing import ClassVar
 
 import pandas as pd
 
-from src.delta_io import deduplicate_latest, write_delta
+from src.delta_io import write_delta
+from src.features.silver.parsing import (
+    drop_duplicate_ids,
+    drop_invalid_timestamp,
+    parse_timestamp_sp,
+    to_numeric_logged,
+)
 from src.schemas_delta import SILVER_UGC_MENTIONS_SCHEMA
+
+
+logger = logging.getLogger(__name__)
 
 
 class UGCMentionCleaner:
@@ -29,7 +39,6 @@ class UGCMentionCleaner:
     def clean(
         self,
         df_bronze: pd.DataFrame,
-        run_id: str,
         governor_usernames: list[str] | None = None,
     ) -> pd.DataFrame:
         df = df_bronze.copy()
@@ -39,6 +48,7 @@ class UGCMentionCleaner:
         df = self._normalize_author_username(df)
         df = self._resolve_governor_username(df, governor_usernames or [])
         df = self._parse_timestamp(df)
+        df = drop_invalid_timestamp(df, "UGC")
         df = self._cast_bools(df)
         df = self._cast_int64(df)
         df = self._cast_video_play_count(df)
@@ -63,11 +73,10 @@ class UGCMentionCleaner:
         return df[has_id | has_short_code]
 
     def _deduplicate_by_id_or_short_code(self, df: pd.DataFrame) -> pd.DataFrame:
-        # Dedup por `id`/`shortCode` (issue #93): usa `id` quando presente,
-        # cai para `shortCode` quando `id` faltar -- uma chave coalescida em
-        # vez de duas passagens de `deduplicate_latest`, que dedup por coluna
-        # única e deixaria duplicatas cruzadas (id nulo em uma execução,
-        # preenchido em outra) passarem.
+        # Repeticao por `id`/`shortCode` (issue #93): usa `id` quando
+        # presente, cai para `shortCode` quando `id` faltar -- uma chave
+        # coalescida, que pega duplicatas cruzadas (id nulo numa linha,
+        # preenchido noutra) dentro da Coleta. Mantem a primeira, com warning.
         if df.empty:
             return df
         id_col = df["id"] if "id" in df.columns else pd.Series(pd.NA, index=df.index)
@@ -75,7 +84,7 @@ class UGCMentionCleaner:
             df["shortCode"] if "shortCode" in df.columns else pd.Series(pd.NA, index=df.index)
         )
         df = df.assign(_dedup_key=id_col.fillna(short_code_col))
-        df = deduplicate_latest(df, id_col="_dedup_key")
+        df = drop_duplicate_ids(df, "_dedup_key", "UGC")
         return df.drop(columns=["_dedup_key"])
 
     def _normalize_author_username(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -106,25 +115,28 @@ class UGCMentionCleaner:
         # conhecido (post não correlacionável a um governador do projeto --
         # ver limitação declarada na ADR 0020, Ficha 8).
         known = set(governor_usernames)
+        invalidos = {"mentions": 0, "taggedUsers": 0}
+
+        def _parse_json_list(raw, campo: str) -> list:
+            try:
+                parsed = json.loads(raw) if isinstance(raw, str) else raw
+            except (json.JSONDecodeError, TypeError):
+                invalidos[campo] += 1
+                return []
+            if not isinstance(parsed, list):
+                invalidos[campo] += 1
+                return []
+            return parsed
 
         def _usernames_from_mentions(raw) -> list:
             if raw is None or (isinstance(raw, float) and pd.isna(raw)):
                 return []
-            try:
-                parsed = json.loads(raw) if isinstance(raw, str) else raw
-            except (json.JSONDecodeError, TypeError):
-                return []
-            return parsed if isinstance(parsed, list) else []
+            return _parse_json_list(raw, "mentions")
 
         def _usernames_from_tagged(raw) -> list:
             if raw is None or (isinstance(raw, float) and pd.isna(raw)):
                 return []
-            try:
-                parsed = json.loads(raw) if isinstance(raw, str) else raw
-            except (json.JSONDecodeError, TypeError):
-                return []
-            if not isinstance(parsed, list):
-                return []
+            parsed = _parse_json_list(raw, "taggedUsers")
             return [
                 person.get("username")
                 for person in parsed
@@ -142,19 +154,22 @@ class UGCMentionCleaner:
                     return username
             return None
 
-        df["governor_username"] = df.apply(_resolve, axis=1)
+        df["governor_username"] = df.apply(_resolve, axis=1) if len(df) else pd.Series(dtype=object)
+        for campo, n in invalidos.items():
+            if n:
+                logger.warning(
+                    "%d item(ns) de UGC com `%s` em JSON invalido ou que nao e lista -- "
+                    "sem correlacao por esse campo (payload original na coluna `_raw`)",
+                    n,
+                    campo,
+                )
         return df.drop(columns=["mentions", "taggedUsers"], errors="ignore")
 
     def _parse_timestamp(self, df: pd.DataFrame) -> pd.DataFrame:
-        # Mesmo cuidado de `PostCleaner._parse_timestamp`: format="ISO8601"
-        # evita que um único timestamp em formato diferente derrube o parse
-        # da série inteira via inferência pelo primeiro valor.
+        # Mesmo parsing de `PostCleaner` (ISO 8601 explicito, warning para
+        # valor ilegivel). Sem a coluna, `data_hora` fica nula.
         if "timestamp" in df.columns:
-            df["data_hora"] = (
-                pd.to_datetime(df["timestamp"], errors="coerce", utc=True, format="ISO8601")
-                .dt.tz_convert("America/Sao_Paulo")
-                .dt.tz_localize(None)
-            )
+            df["data_hora"] = parse_timestamp_sp(df["timestamp"], "UGC")
         else:
             df["data_hora"] = pd.NaT
         return df.drop(columns=["timestamp"], errors="ignore")
@@ -179,7 +194,7 @@ class UGCMentionCleaner:
     def _cast_int64(self, df: pd.DataFrame) -> pd.DataFrame:
         for col in self.INT64_COLUMNS:
             if col in df.columns:
-                df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0).astype("int64")
+                df[col] = to_numeric_logged(df[col], col, "UGC").fillna(0).astype("int64")
             else:
                 df[col] = 0
         return df
@@ -188,5 +203,5 @@ class UGCMentionCleaner:
         # Nullable (nem todo UGC é vídeo) -- fillna(0) quebraria a distinção
         # entre "não é vídeo" e "vídeo com 0 plays".
         if "videoPlayCount" in df.columns:
-            df["videoPlayCount"] = pd.to_numeric(df["videoPlayCount"], errors="coerce").astype("Int64")
+            df["videoPlayCount"] = to_numeric_logged(df["videoPlayCount"], "videoPlayCount", "UGC").astype("Int64")
         return df
