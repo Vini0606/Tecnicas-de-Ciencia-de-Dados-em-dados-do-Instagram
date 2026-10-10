@@ -9,7 +9,8 @@ entra por argumento, então os testes passam por aqui sem custo.
 
 O `destino` segue o layout de `config.settings` (`bronze/instagram_*`,
 `silver/*_clean`, `gold/governor_*`), o mesmo que o dashboard e a modelagem
-leem.
+leem. A derivação Silver/Gold mora em `src.coleta.derivacao` (compartilhada
+com a Lambda de reconstrução, issue #253).
 """
 
 from __future__ import annotations
@@ -23,18 +24,13 @@ from pathlib import Path
 import pandas as pd
 
 from src.coleta.custo import estimar_custo, teto_efetivo
+from src.coleta.derivacao import caminhos_do_destino, derivar_silver_gold
 from src.coleta.manifesto import escrever_manifesto, gerar_manifesto, versao_do_codigo
 from src.coleta.recorte import Recorte, gerar_tag
 from src.data_extract.bronze_writer import BronzeWriter
 from src.data_extract.ingestion import extract_and_land
 from src.data_extract.scraper import InstagramScraper, ScraperConfig
-from src.features.gold.engagement_aggregator import EngagementAggregator
-from src.features.gold.ugc_mentions_aggregator import GovernorUGCAggregator
-from src.features.silver.comment_cleaner import CommentCleaner
 from src.features.silver.governors_metadata_cleaner import GovernorsMetadataCleaner
-from src.features.silver.post_cleaner import PostCleaner
-from src.features.silver.profile_cleaner import ProfileCleaner
-from src.features.silver.ugc_mention_cleaner import UGCMentionCleaner
 from src.run_id import build_run_id
 
 logger = logging.getLogger(__name__)
@@ -93,26 +89,6 @@ class _ScraperRecortado:
         return self._recorte.dentro_do_recorte(publicado.date())
 
 
-def _caminhos(destino: Path) -> dict[str, Path]:
-    bronze, silver, gold = destino / "bronze", destino / "silver", destino / "gold"
-    return {
-        "bronze_profiles": bronze / "instagram_profiles",
-        "bronze_posts": bronze / "instagram_posts",
-        "bronze_reels": bronze / "instagram_reels",
-        "bronze_ugc": bronze / "ugc_mentions",
-        "silver_profiles": silver / "profiles_clean",
-        "silver_posts": silver / "posts_clean",
-        "silver_reels": silver / "reels_clean",
-        "silver_comments": silver / "comments_clean",
-        "silver_post_comments": silver / "post_comments_clean",
-        "silver_governors": silver / "governors_metadata",
-        "silver_ugc": silver / "ugc_mentions",
-        "gold_engagement": gold / "governor_engagement",
-        "gold_engagement_history": gold / "governor_engagement_history",
-        "gold_ugc": gold / "governor_ugc_mentions",
-    }
-
-
 def coletar(
     recorte: Recorte,
     destino: Path | str,
@@ -144,7 +120,7 @@ def coletar(
         raise ColetaNaoConfirmada(f"Custo estimado de US$ {custo['total']:.2f} não confirmado.")
 
     tag = gerar_tag(recorte, hoje, rotulo)
-    p = _caminhos(destino)
+    p = caminhos_do_destino(destino)
 
     bronze = BronzeWriter(
         bronze_profiles_path=p["bronze_profiles"],
@@ -159,47 +135,10 @@ def coletar(
         _ScraperRecortado(scraper, recorte), bronze, links, run_id=run_id, extra_run_input=extra
     )
 
-    df_profiles = bronze.get_latest_profiles()
-    df_posts = bronze.get_latest_posts()
-    df_reels = bronze.get_latest_reels()
-
-    profile_cleaner, post_cleaner = ProfileCleaner(), PostCleaner()
-    comment_cleaner, post_comment_cleaner = CommentCleaner(), CommentCleaner(origem="post")
-    silver_profiles = profile_cleaner.clean(df_profiles, governor_usernames)
-    silver_posts = post_cleaner.clean_posts(df_posts, governor_usernames)
-    silver_reels = post_cleaner.clean_reels(df_reels, governor_usernames)
-    silver_comments = comment_cleaner.clean(df_reels, governor_usernames)
-    silver_post_comments = post_comment_cleaner.clean(df_posts, governor_usernames)
-
-    profile_cleaner.write(silver_profiles, p["silver_profiles"])
-    post_cleaner.write_posts(silver_posts, p["silver_posts"])
-    post_cleaner.write_reels(silver_reels, p["silver_reels"])
-    comment_cleaner.write(silver_comments, p["silver_comments"])
-    if not silver_post_comments.empty:
-        post_comment_cleaner.write(silver_post_comments, p["silver_post_comments"])
     governors_cleaner = GovernorsMetadataCleaner()
     governors_cleaner.write(governors_cleaner.clean(df_governadores, run_id), p["silver_governors"])
 
-    silver_ugc = _silver_ugc(bronze, governor_usernames, p["silver_ugc"])
-
-    aggregator = EngagementAggregator()
-    gold = aggregator.aggregate(silver_profiles, silver_posts, silver_reels, run_id)
-    aggregator.write(gold, p["gold_engagement"])
-    aggregator.write(gold, p["gold_engagement_history"], mode="append")
-    if silver_ugc is not None:
-        ugc_aggregator = GovernorUGCAggregator()
-        ugc_aggregator.write(ugc_aggregator.enrich(silver_ugc, run_id=run_id), p["gold_ugc"])
-
-    if modelar is not None:
-        modelar(
-            {
-                "reels": silver_reels,
-                "comments": silver_comments,
-                "posts": silver_posts,
-                "post_comments": silver_post_comments,
-                "engagement": gold,
-            }
-        )
+    derivar_silver_gold(bronze, p, governor_usernames, run_id, modelar=modelar)
 
     manifesto = gerar_manifesto(
         destino,
@@ -213,24 +152,3 @@ def coletar(
     return ResultadoColeta(
         tag=tag, run_id=run_id, destino=destino, custo_estimado=custo, manifesto=manifesto
     )
-
-
-def _silver_ugc(bronze: BronzeWriter, governor_usernames: list[str], caminho: Path) -> pd.DataFrame | None:
-    """UGC nunca derruba a Coleta (issue #211): sem Bronze de UGC ou com falha
-    na limpeza, a etapa é pulada com aviso."""
-    try:
-        df_bronze_ugc = bronze.get_latest_ugc_mentions()
-    except FileNotFoundError:
-        logger.warning("[SILVER] Bronze de UGC inexistente -- etapa de UGC pulada.")
-        return None
-    try:
-        cleaner = UGCMentionCleaner()
-        df = cleaner.clean(df_bronze_ugc, governor_usernames)
-        if df.empty:
-            logger.warning("[SILVER] Silver de UGC vazia -- etapa de UGC pulada.")
-            return None
-        cleaner.write(df, caminho)
-        return df
-    except Exception:
-        logger.exception("[SILVER] Falha na limpeza de UGC -- etapa de UGC pulada.")
-        return None
