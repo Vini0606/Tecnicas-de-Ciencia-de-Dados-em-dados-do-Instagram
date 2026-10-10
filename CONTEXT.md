@@ -79,7 +79,7 @@ _Avoid_: Etapa, fase, nível (usar "estágio" para RACE; "nível" é o termo do 
 subjacente, ambos coexistem no rótulo "Estágio · Nível").
 
 **Gargalo**:
-O estágio do funil com a menor taxa de passagem entre execuções, entre os estágios que têm dado real
+O estágio do funil com a menor taxa de passagem entre estágios consecutivos, entre os estágios que têm dado real
 (Convert→Engage é exibida, mas nunca é gargalo: compara comentários com posts de UGC de
 terceiros, outra unidade e outra população — ver "Visualizações" vs. "alcance"). Marcado com o selo "gargalo" no
 selo de conversão da sub-aba Funil do Resumo.
@@ -120,3 +120,20 @@ contrastado com o ranking por engajamento bruto (total de curtidas e comentário
 2026-09-19): o ranking por NSM muda de posição para 25 dos 27 perfis frente ao ranking por
 engajamento bruto — deixou de levar o selo "em validação" no dashboard.
 _Avoid_: NSM (sigla técnica, nunca aparece sozinha na interface do usuário final; ok em código/ADR).
+
+**Coleta**:
+Uma extração completa do Instagram feita segundo um Recorte (ex.: últimos 90 dias, até 250 itens por perfil),
+guardada e versionada no Hugging Face. Uma Coleta substitui a anterior como a vigente; as anteriores continuam
+recuperáveis por tag. A Bronze guarda o dado exatamente como veio da Apify e é a fonte de onde Silver e Gold são
+reconstruídas.
+_Avoid_: Execução, run, rodada, extração (ambíguo: pode ser só a chamada ao Apify).
+
+**Snapshot**:
+A Coleta vigente junto com as tabelas Bronze, Silver e Gold derivadas dela, publicadas no mesmo commit e na mesma tag.
+É o que o dashboard publicado baixa.
+_Avoid_: Versão, release, dump.
+
+**Recorte**:
+O pedido de uma Coleta: janela relativa (últimos N dias), intervalo absoluto (início e fim), teto de itens por perfil, ou
+uma combinação. Distinto da cobertura real, que é o período efetivamente obtido por perfil e fica registrado junto da Coleta.
+_Avoid_: Filtro, parâmetros da extração.

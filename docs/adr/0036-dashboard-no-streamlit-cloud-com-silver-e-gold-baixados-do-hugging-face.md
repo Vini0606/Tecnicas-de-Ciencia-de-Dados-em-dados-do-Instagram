@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: accepted (parcialmente superada pela ADR 0039)
 ---
 
 # Dashboard no Streamlit Cloud, com Silver e Gold baixados de um dataset privado do Hugging Face

@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: accepted (parcialmente superada pela ADR 0039)
 ---
 
 # Orquestrar as 3 Lambdas via uma Lambda orquestradora única, empacotada em containers e provisionada via Terraform

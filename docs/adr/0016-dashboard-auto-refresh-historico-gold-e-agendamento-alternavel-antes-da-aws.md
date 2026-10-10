@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: superseded by ADR-0039
 ---
 
 # Preparar o Streamlit para monitoramento diário: histórico em Gold primeiro, auto-refresh no dashboard, agendamento alternável — antes de subir para a AWS

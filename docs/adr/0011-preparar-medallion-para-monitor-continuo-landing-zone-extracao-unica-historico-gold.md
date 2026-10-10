@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: accepted (parcialmente superada pela ADR 0039)
 ---
 
 # Preparar a arquitetura Medallion para um monitor contínuo de redes sociais: landing zone de dado bruto, extração consolidada e histórico em Gold
