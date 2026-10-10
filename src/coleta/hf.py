@@ -79,8 +79,8 @@ class Plano:
     def descrever(self) -> str:
         linhas = [
             f"Tag da Coleta: {self.tag}",
-            f"Commit unico na main: {len(self.adicionar)} novo(s), {len(self.substituir)} substituido(s), "
-            f"{len(self.apagar)} apagado(s); envio de {self.bytes_envio} bytes.",
+            (f"Commit unico na main: {len(self.adicionar)} novo(s), {len(self.substituir)} substituido(s), "
+            f"{len(self.apagar)} apagado(s); envio de {self.bytes_envio} bytes."),
         ]
         for titulo, itens in (
             ("Adicionar", self.adicionar),
