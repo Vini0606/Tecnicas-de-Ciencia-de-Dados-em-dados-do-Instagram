@@ -10,7 +10,8 @@ from typing import ClassVar
 
 import pandas as pd
 
-from src.delta_io import deduplicate_latest, write_delta
+from src.delta_io import write_delta
+from src.features.silver.parsing import drop_duplicate_ids, to_numeric_logged
 from src.schemas_delta import SILVER_PROFILES_SCHEMA
 
 logger = logging.getLogger(__name__)
@@ -41,7 +42,6 @@ class ProfileCleaner:
     def clean(
         self,
         df_bronze: pd.DataFrame,
-        run_id: str,
         governor_usernames: list[str] | None = None,
     ) -> pd.DataFrame:
         df = df_bronze.copy()
@@ -58,17 +58,16 @@ class ProfileCleaner:
                 )
                 logger.warning(
                     "Descartando %d perfil(is) sem `id` (erro/indisponibilidade da Apify na "
-                    "extração, ver landing zone do run_id para o payload bruto): %s",
+                    "extração, ver a coluna `_raw` da Bronze para o payload bruto): %s",
                     len(sem_id),
                     usernames or "[username também ausente]",
                 )
             df = df[df["id"].notna()]
 
-        # Achado real (PR #137): a Bronze é append-only e nunca esquece um
-        # `id` -- sem este filtro, um governador removido de
-        # governadores.xlsx (ex.: RJ/claudiocastrorj, sem Instagram
-        # rastreável desde 2026-03) continua reaparecendo indefinidamente
-        # com o último snapshot real, cada vez mais desatualizado.
+        # Governador removido de governadores.xlsx (ex.: RJ/claudiocastrorj,
+        # sem Instagram rastreável desde 2026-03) ainda pode constar numa
+        # Coleta anterior ou num Recorte mais amplo -- o filtro mantém só
+        # quem está na planilha atual.
         # `governor_usernames=None` preserva o comportamento antigo (sem
         # filtro) -- usado pelos testes unitários deste cleaner.
         if governor_usernames is not None and "username" in df.columns:
@@ -80,9 +79,7 @@ class ProfileCleaner:
 
         for col in self.INT32_COLUMNS:
             if col in df.columns:
-                df[col] = (
-                    pd.to_numeric(df[col], errors="coerce").fillna(0).astype("int32")
-                )
+                df[col] = to_numeric_logged(df[col], col, "perfil").fillna(0).astype("int32")
 
         for col in self.BOOL_COLUMNS:
             if col in df.columns:
@@ -93,7 +90,7 @@ class ProfileCleaner:
                 # bruto da Apify).
                 df[col] = df[col].astype("boolean").fillna(False).astype(bool)
 
-        df = deduplicate_latest(df, id_col="id")
+        df = drop_duplicate_ids(df, "id", "perfil")
 
         if "fullName" not in df.columns:
             if "username" in df.columns:

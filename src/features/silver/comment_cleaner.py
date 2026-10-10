@@ -5,15 +5,30 @@ Silver comment cleaner
 from __future__ import annotations
 
 import json
+import logging
 from pathlib import Path
 from typing import ClassVar, Literal
 
 import pandas as pd
 
-from src.delta_io import deduplicate_latest, write_delta
+from src.delta_io import write_delta
+from src.features.silver.parsing import drop_duplicate_ids
 from src.schemas_delta import SILVER_COMMENTS_SCHEMA, SILVER_POST_COMMENTS_SCHEMA
 
+logger = logging.getLogger(__name__)
+
 _SCHEMA_POR_ORIGEM = {"reel": SILVER_COMMENTS_SCHEMA, "post": SILVER_POST_COMMENTS_SCHEMA}
+
+
+def _parse_latest_comments(valor):
+    """Lista de comentarios; `None` sinaliza JSON invalido (o chamador avisa)."""
+    if isinstance(valor, str):
+        try:
+            parsed = json.loads(valor)
+        except json.JSONDecodeError:
+            return None
+        return parsed if isinstance(parsed, list) else None
+    return valor or []
 
 
 class CommentCleaner:
@@ -49,7 +64,7 @@ class CommentCleaner:
 
         df = df_reels_bronze.copy()
 
-        # Achado real (PR #137): filtra pelo `ownerUsername` do REEL (o
+        # Filtra pelo `ownerUsername` do REEL (o
         # governador) ANTES do explode/join abaixo -- depois deles,
         # `ownerUsername` passa a se referir ao autor do COMENTÁRIO, não ao
         # governador (ver `_promote_comment_columns`). `governor_usernames=
@@ -58,9 +73,19 @@ class CommentCleaner:
         if governor_usernames is not None and "ownerUsername" in df.columns:
             df = df[df["ownerUsername"].isin(governor_usernames)]
 
-        df["latestComments"] = df["latestComments"].apply(
-            lambda v: json.loads(v) if isinstance(v, str) else (v or [])
-        )
+        df["latestComments"] = df["latestComments"].apply(_parse_latest_comments)
+        invalidos = df["latestComments"].isna()
+        if invalidos.any():
+            logger.warning(
+                "%d %s(s) com `latestComments` em JSON invalido -- comentarios "
+                "desses itens ignorados (payload original na coluna `_raw` da Bronze): %s",
+                int(invalidos.sum()),
+                self._origem,
+                df.loc[invalidos, "id"].astype(str).tolist()[:10] if "id" in df.columns else [],
+            )
+            df["latestComments"] = df["latestComments"].apply(
+                lambda v: [] if not isinstance(v, list) else v
+            )
 
         df_exploded = df.explode("latestComments").copy()
         df_exploded = df_exploded[df_exploded["latestComments"].notna()]
@@ -86,7 +111,7 @@ class CommentCleaner:
             df_result = df_result.drop(columns=cols_to_drop)
         df_result["comprimento texto"] = df_result["text"].astype(str).str.len()
         df_result = df_result[df_result["comprimento texto"] < self.MAX_TEXT_LENGTH]
-        df_result = deduplicate_latest(df_result, id_col="id_comment")
+        df_result = drop_duplicate_ids(df_result, "id_comment", "comentario")
         df_result["_source_layer"] = "bronze"
 
         return df_result

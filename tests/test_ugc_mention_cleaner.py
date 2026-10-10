@@ -1,6 +1,7 @@
 """Testes de `UGCMentionCleaner` (ADR 0020, Ficha 8 / issue #93)."""
 
 import json
+import logging
 
 import pandas as pd
 
@@ -33,30 +34,48 @@ def _bronze_row(**overrides) -> dict:
     return row
 
 
-def test_dedup_por_id():
+def test_id_repetido_mantem_primeiro_sem_olhar_run_id(caplog):
     df = pd.DataFrame(
         [
-            _bronze_row(id="m1", _run_id="r1", _ingested_at=pd.Timestamp("2026-05-01", tz="UTC")),
-            _bronze_row(id="m1", _run_id="r2", _ingested_at=pd.Timestamp("2026-05-02", tz="UTC")),
+            _bronze_row(id="m1", likesCount=1),
+            _bronze_row(id="m1", likesCount=99, _run_id="r2"),
         ]
     )
-    out = UGCMentionCleaner().clean(df, run_id="r2")
+    with caplog.at_level(logging.WARNING):
+        out = UGCMentionCleaner().clean(df)
     assert len(out) == 1
-    assert out.iloc[0]["_run_id"] == "r2"
+    assert out.iloc[0]["likesCount"] == 1
+    assert any("repetido" in r.message for r in caplog.records)
 
 
-def test_dedup_por_short_code_quando_id_ausente():
-    """Issue #93: dedup por id/shortCode -- quando `id` falta em uma
-    execução mas `shortCode` é o mesmo, ainda precisa deduplicar."""
+def test_short_code_repetido_quando_id_ausente_mantem_primeiro():
+    """Issue #93: chave coalescida id/shortCode -- sem `id`, `shortCode`
+    repetido ainda e duplicata."""
     df = pd.DataFrame(
         [
-            _bronze_row(id=None, shortCode="abc123", _run_id="r1", _ingested_at=pd.Timestamp("2026-05-01", tz="UTC")),
-            _bronze_row(id=None, shortCode="abc123", _run_id="r2", _ingested_at=pd.Timestamp("2026-05-02", tz="UTC")),
+            _bronze_row(id=None, shortCode="abc123", likesCount=1),
+            _bronze_row(id=None, shortCode="abc123", likesCount=99),
         ]
     )
-    out = UGCMentionCleaner().clean(df, run_id="r2")
+    out = UGCMentionCleaner().clean(df)
     assert len(out) == 1
-    assert out.iloc[0]["_run_id"] == "r2"
+    assert out.iloc[0]["likesCount"] == 1
+
+
+def test_json_invalido_em_mentions_avisa_e_nao_correlaciona(caplog):
+    df = pd.DataFrame([_bronze_row(mentions="[nao e json", taggedUsers=json.dumps([]))])
+    with caplog.at_level(logging.WARNING):
+        out = UGCMentionCleaner().clean(df, governor_usernames=["governador_x"])
+    assert pd.isna(out.iloc[0]["governor_username"])
+    assert any("mentions" in r.message and "JSON" in r.message for r in caplog.records)
+
+
+def test_timestamp_ilegivel_e_rejeitado_com_warning(caplog):
+    df = pd.DataFrame([_bronze_row(), _bronze_row(id="m2", shortCode="z", timestamp="lixo")])
+    with caplog.at_level(logging.WARNING):
+        out = UGCMentionCleaner().clean(df)
+    assert out["id"].tolist() == ["m1"]
+    assert any("ISO 8601" in r.message and "lixo" in r.message for r in caplog.records)
 
 
 def test_descarta_linha_sem_id_e_sem_short_code():
@@ -66,7 +85,7 @@ def test_descarta_linha_sem_id_e_sem_short_code():
             _bronze_row(id="m2", shortCode="def456"),
         ]
     )
-    out = UGCMentionCleaner().clean(df, run_id="r1")
+    out = UGCMentionCleaner().clean(df)
     assert len(out) == 1
     assert out.iloc[0]["id"] == "m2"
 
@@ -76,37 +95,37 @@ def test_normaliza_handle_de_autor_a_partir_de_owner_username():
     (0% de presença) -- só `ownerUsername`. A normalização sempre cai para
     ele na prática."""
     df = pd.DataFrame([_bronze_row(ownerUsername="eleitor_1")])
-    out = UGCMentionCleaner().clean(df, run_id="r1")
+    out = UGCMentionCleaner().clean(df)
     assert out.iloc[0]["authorUsername"] == "eleitor_1"
 
 
 def test_normalizacao_de_handle_nao_quebra_com_owner_username_ausente():
     df = pd.DataFrame([_bronze_row(ownerUsername=None)])
-    out = UGCMentionCleaner().clean(df, run_id="r1")
+    out = UGCMentionCleaner().clean(df)
     assert pd.isna(out.iloc[0]["authorUsername"])
 
 
 def test_resolve_governor_username_a_partir_de_mentions():
     df = pd.DataFrame([_bronze_row(mentions=json.dumps(["governador_x", "outro_perfil"]))])
-    out = UGCMentionCleaner().clean(df, run_id="r1", governor_usernames=["governador_x", "governador_y"])
+    out = UGCMentionCleaner().clean(df, governor_usernames=["governador_x", "governador_y"])
     assert out.iloc[0]["governor_username"] == "governador_x"
 
 
 def test_governor_username_nulo_quando_mentions_nao_bate_com_conhecidos():
     df = pd.DataFrame([_bronze_row(mentions=json.dumps(["perfil_desconhecido"]))])
-    out = UGCMentionCleaner().clean(df, run_id="r1", governor_usernames=["governador_x"])
+    out = UGCMentionCleaner().clean(df, governor_usernames=["governador_x"])
     assert pd.isna(out.iloc[0]["governor_username"])
 
 
 def test_governor_username_nulo_quando_mentions_ausente():
     df = pd.DataFrame([_bronze_row()]).drop(columns=["mentions"])
-    out = UGCMentionCleaner().clean(df, run_id="r1", governor_usernames=["governador_x"])
+    out = UGCMentionCleaner().clean(df, governor_usernames=["governador_x"])
     assert pd.isna(out.iloc[0]["governor_username"])
 
 
 def test_governor_username_nulo_quando_mentions_e_json_invalido():
     df = pd.DataFrame([_bronze_row(mentions="{nao e json valido")])
-    out = UGCMentionCleaner().clean(df, run_id="r1", governor_usernames=["governador_x"])
+    out = UGCMentionCleaner().clean(df, governor_usernames=["governador_x"])
     assert pd.isna(out.iloc[0]["governor_username"])
 
 
@@ -124,7 +143,7 @@ def test_resolve_governor_username_a_partir_de_tagged_users():
             )
         ]
     )
-    out = UGCMentionCleaner().clean(df, run_id="r1", governor_usernames=["governador_x"])
+    out = UGCMentionCleaner().clean(df, governor_usernames=["governador_x"])
     assert out.iloc[0]["governor_username"] == "governador_x"
 
 
@@ -138,20 +157,20 @@ def test_resolve_governor_username_prefere_mentions_quando_ambos_batem():
         ]
     )
     out = UGCMentionCleaner().clean(
-        df, run_id="r1", governor_usernames=["governador_x", "governador_y"]
+        df, governor_usernames=["governador_x", "governador_y"]
     )
     assert out.iloc[0]["governor_username"] == "governador_x"
 
 
 def test_governor_username_nulo_quando_tagged_users_ausente():
     df = pd.DataFrame([_bronze_row(mentions=json.dumps([]))]).drop(columns=["taggedUsers"])
-    out = UGCMentionCleaner().clean(df, run_id="r1", governor_usernames=["governador_x"])
+    out = UGCMentionCleaner().clean(df, governor_usernames=["governador_x"])
     assert pd.isna(out.iloc[0]["governor_username"])
 
 
 def test_governor_username_nulo_quando_tagged_users_e_json_invalido():
     df = pd.DataFrame([_bronze_row(mentions=json.dumps([]), taggedUsers="{nao e json valido")])
-    out = UGCMentionCleaner().clean(df, run_id="r1", governor_usernames=["governador_x"])
+    out = UGCMentionCleaner().clean(df, governor_usernames=["governador_x"])
     assert pd.isna(out.iloc[0]["governor_username"])
 
 
@@ -160,7 +179,7 @@ def test_governor_username_nulo_quando_tagged_users_sem_username():
     df = pd.DataFrame(
         [_bronze_row(mentions=json.dumps([]), taggedUsers=json.dumps([{"full_name": "Sem handle"}]))]
     )
-    out = UGCMentionCleaner().clean(df, run_id="r1", governor_usernames=["governador_x"])
+    out = UGCMentionCleaner().clean(df, governor_usernames=["governador_x"])
     assert pd.isna(out.iloc[0]["governor_username"])
 
 
@@ -170,30 +189,30 @@ def test_flag_de_publi_default_para_false_quando_ausente():
     row = _bronze_row()
     del row["paidPartnership"]
     df = pd.DataFrame([row])
-    out = UGCMentionCleaner().clean(df, run_id="r1")
+    out = UGCMentionCleaner().clean(df)
     assert bool(out.iloc[0]["paidPartnership"]) is False
 
 
 def test_flag_de_publi_preserva_true():
     df = pd.DataFrame([_bronze_row(paidPartnership=True)])
-    out = UGCMentionCleaner().clean(df, run_id="r1")
+    out = UGCMentionCleaner().clean(df)
     assert bool(out.iloc[0]["paidPartnership"]) is True
 
 
 def test_parseia_timestamp_para_data_hora():
     df = pd.DataFrame([_bronze_row(timestamp="2026-05-01T00:00:00+00:00")])
-    out = UGCMentionCleaner().clean(df, run_id="r1")
+    out = UGCMentionCleaner().clean(df)
     assert out["data_hora"].notna().all()
 
 
 def test_conforma_ao_contrato_silver():
     df = pd.DataFrame([_bronze_row(), _bronze_row(id="m2", shortCode="def456")])
-    out = UGCMentionCleaner().clean(df, run_id="r1", governor_usernames=["governador_x"])
+    out = UGCMentionCleaner().clean(df, governor_usernames=["governador_x"])
     table = conform_to_schema(out, SILVER_UGC_MENTIONS_SCHEMA)
     assert table.num_rows == 2
 
 
 def test_video_play_count_nulo_nao_vira_zero():
     df = pd.DataFrame([_bronze_row(videoPlayCount=None)])
-    out = UGCMentionCleaner().clean(df, run_id="r1")
+    out = UGCMentionCleaner().clean(df)
     assert pd.isna(out.iloc[0]["videoPlayCount"])

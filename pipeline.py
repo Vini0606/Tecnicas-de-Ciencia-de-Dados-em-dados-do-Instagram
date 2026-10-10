@@ -136,10 +136,10 @@ def _bronze_has_data(bronze: BronzeWriter) -> bool:
 
 
 def _clean_ugc_mentions(
-    bronze: BronzeWriter, run_id: str, governor_usernames: list[str], days: int | None = None
+    bronze: BronzeWriter, governor_usernames: list[str], days: int | None = None
 ) -> pd.DataFrame | None:
-    """Silver de UGC (issue #211) a partir da Bronze de UGC inteira (append
-    de todas as execuções, como as demais entidades). Devolve `None` -- sem
+    """Silver de UGC (issue #211) a partir da Bronze de UGC da Coleta vigente (sem
+    versões por run_id, como as demais entidades). Devolve `None` -- sem
     gravar nada -- quando não há dado de UGC (Bronze anterior a #211 ou
     Silver vazia) ou quando a limpeza falha: UGC nunca derruba o restante do
     pipeline; o relatório de tabelas é quem acusa a ausência."""
@@ -150,7 +150,7 @@ def _clean_ugc_mentions(
         return None
     try:
         cleaner = UGCMentionCleaner()
-        df_silver_ugc = cleaner.clean(df_bronze_ugc, run_id, governor_usernames)
+        df_silver_ugc = cleaner.clean(df_bronze_ugc, governor_usernames)
         df_silver_ugc = filtrar_ugc_por_janela(df_silver_ugc, days, datetime.now(timezone.utc))
         if df_silver_ugc.empty:
             logger.warning("[SILVER] Silver de UGC vazia -- etapa de UGC pulada.")
@@ -245,7 +245,7 @@ def run_medallion_pipeline(
         # derivadas sem precisar filtrar cada uma individualmente.
         governor_usernames = load_governor_usernames()
 
-        df_profiles_silver = profile_cleaner.clean(df_profiles, run_id, governor_usernames)
+        df_profiles_silver = profile_cleaner.clean(df_profiles, governor_usernames)
         df_posts_silver = post_cleaner.clean_posts(df_posts, governor_usernames)
         df_reels_silver = post_cleaner.clean_reels(df_reels, governor_usernames)
         df_comments_silver = comment_cleaner.clean(df_reels, governor_usernames)
@@ -278,7 +278,7 @@ def run_medallion_pipeline(
             f"[SILVER] Falha na limpeza e conformação dos dados: {e}"
         ) from e
 
-    df_ugc_silver = _clean_ugc_mentions(bronze, run_id, governor_usernames, days)
+    df_ugc_silver = _clean_ugc_mentions(bronze, governor_usernames, days)
 
     try:
         logger.info("[3/3] GOLD: Agregando métricas de engajamento...")
