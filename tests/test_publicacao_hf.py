@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-from src.dados_hf import ErroHF
+from src.dados_hf import ClienteHFReal, ErroHF
 from src.publicacao_hf import (
     PADROES_PUBLICACAO,
     ConfigHF,
@@ -19,10 +19,7 @@ from src.publicacao_hf import (
     ler_manifesto,
     configuracao_hf,
     dados_presentes,
-    descrever_publicacao,
     garantir_dados,
-    publicar,
-    tabelas_publicaveis,
 )
 
 CONFIG = ConfigHF(token="hf_segredo_123", repo="usuario/dados-dashboard")
@@ -36,7 +33,6 @@ class ClienteFake:
     def __init__(
         self, cria_gold_ao_baixar: bool = True, falha: Exception | None = None
     ):
-        self.enviados: list[tuple[Path, list[str], str]] = []
         self.baixados: list[tuple[Path, list[str]]] = []
         self.revisoes: list[str | None] = []
         self._cria = cria_gold_ao_baixar
@@ -44,9 +40,6 @@ class ClienteFake:
 
     def listar_arquivos(self, revisao=None):
         return []
-
-    def enviar(self, pasta, padroes, mensagem):
-        self.enviados.append((pasta, padroes, mensagem))
 
     def baixar(self, pasta, padroes, revisao=None):
         if self._falha:
@@ -80,23 +73,6 @@ def test_configuracao_dataset_de_publicacao_tem_prioridade_sobre_o_padrao():
     assert configuracao_hf(env) == ConfigHF(token="t", repo="u/dashboard")
 
 
-def test_sync_antigo_ignora_silver_e_gold_no_mesmo_dataset():
-    """Silver/Gold no mesmo dataset da landing/Bronze não entram no inventário
-    do sync da ADR 0035 (não geram plano nem recusa)."""
-    from src.dados_hf import inventario_de_caminhos
-
-    inv = inventario_de_caminhos(
-        [
-            "landing/run1/arquivo.json",
-            "bronze/posts_raw/_delta_log/00000000000000000000.json",
-            "gold/governor_engagement/_delta_log/00000000000000000000.json",
-            "silver/posts_clean/part-0.parquet",
-        ]
-    )
-    assert inv.landing == frozenset({"run1"})
-    assert set(inv.bronze) == {"posts_raw"}
-
-
 def test_configuracao_none_sem_token_ou_sem_repositorio():
     assert configuracao_hf({}, None) is None
     assert configuracao_hf({"HF_TOKEN": "t"}) is None
@@ -109,19 +85,6 @@ def test_configuracao_none_sem_token_ou_sem_repositorio():
 # --------------------------------------------------------------------- tabelas
 
 
-def test_tabelas_publicaveis_lista_so_delta_de_silver_e_gold(tmp_path):
-    _tabela(tmp_path, "gold", "governor_nsm")
-    _tabela(tmp_path, "silver", "posts_clean")
-    (tmp_path / "gold" / "pasta_sem_delta").mkdir()
-    _tabela(tmp_path, "bronze", "posts_raw")  # bronze nunca entra
-    assert tabelas_publicaveis(tmp_path) == ["silver/posts_clean", "gold/governor_nsm"]
-
-
-def test_tabelas_publicaveis_vazio_sem_diretorios(tmp_path):
-    assert tabelas_publicaveis(tmp_path) == []
-    assert "nada a enviar" in descrever_publicacao([])
-
-
 def test_dados_presentes_depende_do_gold_de_engajamento(tmp_path):
     assert dados_presentes(tmp_path) is False
     _tabela(tmp_path, "gold", "governor_nsm")
@@ -130,29 +93,19 @@ def test_dados_presentes_depende_do_gold_de_engajamento(tmp_path):
     assert dados_presentes(tmp_path) is True
 
 
-# -------------------------------------------------------------------- publicar
-
-
-def test_publicar_envia_so_silver_e_gold(tmp_path):
-    _tabela(tmp_path, "gold", "governor_engagement")
-    _tabela(tmp_path, "silver", "posts_clean")
-    cliente = ClienteFake()
-    enviadas = publicar(tmp_path, CONFIG, cliente)
-    assert enviadas == ["silver/posts_clean", "gold/governor_engagement"]
-    pasta, padroes, _ = cliente.enviados[0]
-    assert pasta == tmp_path
-    assert padroes == PADROES_PUBLICACAO == ["silver/**", "gold/**", "manifesto.json"]
-
-
-def test_publicar_recusa_sem_gold(tmp_path):
-    _tabela(tmp_path, "silver", "posts_clean")
-    cliente = ClienteFake()
-    with pytest.raises(ErroHF, match="Gold"):
-        publicar(tmp_path, CONFIG, cliente)
-    assert cliente.enviados == []
-
-
 # ---------------------------------------------------------------------- baixar
+
+
+def test_cliente_real_nao_vaza_token_em_falha_de_download(monkeypatch):
+    import huggingface_hub
+
+    def quebrado(*a, **k):
+        raise RuntimeError(f"401 Unauthorized: Bearer {CONFIG.token}")
+
+    monkeypatch.setattr(huggingface_hub, "snapshot_download", quebrado)
+    with pytest.raises(ErroHF) as exc:
+        ClienteHFReal(CONFIG.repo, CONFIG.token).baixar(Path("x"), ["gold/**"])
+    assert CONFIG.token not in str(exc.value) and CONFIG.token not in repr(exc.value.__cause__)
 
 
 def test_baixar_pede_so_silver_e_gold(tmp_path):

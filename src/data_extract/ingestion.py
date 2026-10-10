@@ -1,6 +1,6 @@
 """
 Ponto único compartilhado de "raspar perfis+posts+reels+UGC e escrever na
-Bronze" — usado por `pipeline.py`, `scripts/run_apify_backfill.py` e
+Bronze" — usado por `src/coleta/coletar.py` e
 `lambdas/extract/handler.py`, que antes duplicavam essa sequência sem
 nenhum compartilhamento (ver ADR 0011, decisão 2).
 

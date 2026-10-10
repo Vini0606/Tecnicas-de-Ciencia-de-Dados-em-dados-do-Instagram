@@ -93,7 +93,7 @@ BRONZE_REELS_SCHEMA = pa.schema(
 # marcam/mencionam o perfil do governador (nível "Creating" do COBRA),
 # via `apify/instagram-tagged-scraper` (ScraperConfig.mentions_actor_id).
 # Quase todo campo abaixo é `nullable=True` de propósito: o piloto pequeno
-# exigido pela issue (`scripts/run_apify_mentions_pilot.py`) ainda NÃO foi
+# exigido pela issue (script de piloto, hoje removido) ainda NÃO foi
 # executado contra os 27 perfis reais nesta sessão (sem APIFY_API_TOKEN no
 # ambiente do agente, e a chamada real gera custo na conta Apify) -- os
 # nomes de campo abaixo seguem a especificação da issue/ADR, cruzada com

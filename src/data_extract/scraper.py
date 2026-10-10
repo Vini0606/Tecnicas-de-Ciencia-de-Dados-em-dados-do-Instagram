@@ -86,8 +86,8 @@ class InstagramScraper:
         que marcam/mencionam `usernames` -- não conteúdo publicado pelo
         próprio perfil. Mesmo padrão de `scrape_posts`/`scrape_reels`
         (`username`/`resultsLimit` no `run_input`, `extra_run_input` tem a
-        última palavra). Rodar com `results_limit` baixo (piloto, ver
-        `scripts/run_apify_mentions_pilot.py`) antes de qualquer coleta em
+        última palavra). Rodar com `results_limit` baixo (piloto, via
+        `coleta.py coletar --teto N`) antes de qualquer coleta em
         volume -- os nomes exatos de campo do actor ainda não foram
         confirmados contra os 27 perfis reais do projeto."""
         run_input = {
