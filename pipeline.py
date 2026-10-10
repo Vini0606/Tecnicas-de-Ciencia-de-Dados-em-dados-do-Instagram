@@ -219,7 +219,6 @@ def run_medallion_pipeline(
             result = extract_and_land(
                 scraper,
                 bronze,
-                settings.LANDING_DIR,
                 links,
                 run_id=run_id,
                 extra_run_input=janela_run_input(days),

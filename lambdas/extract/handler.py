@@ -13,13 +13,6 @@ STORAGE_OPTIONS = {
     "AWS_S3_ALLOW_UNSAFE_RENAME": "true",
 }
 
-# Landing zone ainda local/efemera (o /tmp gravavel da Lambda) -- suporte a
-# S3 para a landing zone e explicitamente fora de escopo ate a infra AWS ser
-# de fato aplicada (ver ADR 0011 e docs/agents -- LANDING_DIR pode apontar
-# para s3://.../landing/ no futuro sem mudar `extract_and_land`).
-LANDING_DIR = os.environ.get("LANDING_DIR", "/tmp/landing")
-
-
 def handler(event, context):
     links = event.get("links", [])
     token = os.environ.get("APIFY_API_TOKEN")
@@ -47,7 +40,7 @@ def handler(event, context):
         storage_options=STORAGE_OPTIONS,
     )
 
-    result = extract_and_land(scraper, bronze, LANDING_DIR, links, run_id=run_id)
+    result = extract_and_land(scraper, bronze, links, run_id=run_id)
 
     return {
         "statusCode": 200,

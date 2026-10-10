@@ -225,8 +225,7 @@ def test_run_medallion_pipeline_branch_de_extracao_usa_extract_and_land(
     monkeypatch, tmp_path
 ):
     """force_extract=True (sem Bronze/JSON local) deve raspar via
-    extract_and_land -- que arquiva na landing zone antes de escrever na
-    Bronze (ver ADR 0011)."""
+    extract_and_land -- que escreve a Bronze fiel (ADR 0039)."""
     import pipeline
 
     df_reels_silver = pd.DataFrame({"id": ["1"]})
@@ -247,7 +246,6 @@ def test_run_medallion_pipeline_branch_de_extracao_usa_extract_and_land(
     monkeypatch.setattr(
         "pipeline.InstagramScraper", lambda client, config: fake_scraper
     )
-    monkeypatch.setattr("pipeline.settings.LANDING_DIR", tmp_path / "landing")
 
     pipeline.run_medallion_pipeline(
         apify_api_token="token", links=["u1"], run_id="run_extract", force_extract=True
@@ -255,10 +253,6 @@ def test_run_medallion_pipeline_branch_de_extracao_usa_extract_and_land(
 
     assert {kind for kind, _, _ in bronze_calls} == {"profiles", "posts", "reels", "ugc_mentions"}
     assert all(run_id == "run_extract" for _, _, run_id in bronze_calls)
-    assert (tmp_path / "landing" / "run_extract" / "ugc_mentions.json").exists()
-    assert (tmp_path / "landing" / "run_extract" / "profiles.json").exists()
-    assert (tmp_path / "landing" / "run_extract" / "posts.json").exists()
-    assert (tmp_path / "landing" / "run_extract" / "reels.json").exists()
 
 
 def _setup_extraction_branch(monkeypatch, tmp_path):
@@ -282,7 +276,6 @@ def _setup_extraction_branch(monkeypatch, tmp_path):
     monkeypatch.setattr(
         "pipeline.InstagramScraper", lambda client, config: fake_scraper
     )
-    monkeypatch.setattr("pipeline.settings.LANDING_DIR", tmp_path / "landing")
     return bronze_calls
 
 

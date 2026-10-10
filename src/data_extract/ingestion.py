@@ -4,19 +4,14 @@ Bronze" — usado por `pipeline.py`, `scripts/run_apify_backfill.py` e
 `lambdas/extract/handler.py`, que antes duplicavam essa sequência sem
 nenhum compartilhamento (ver ADR 0011, decisão 2).
 
-Também responsável por arquivar o JSON bruto retornado pela Apify numa
-landing zone, antes de qualquer projeção de schema acontecer (a Bronze
-descarta silenciosamente campos fora do seu schema fixo — ver ADR 0011,
-decisão 1). O arquivamento acontece sempre antes da escrita na Bronze para
-cada entidade, então uma falha na escrita da Bronze não implica perda do
-dado bruto já raspado (e já pago) da Apify.
+A Bronze é fiel ao item da Apify (coluna `_raw` com o item completo, ADR 0039):
+não existe mais landing zone separada, então uma falha na escrita da Bronze de
+uma entidade não afeta as já gravadas.
 """
 
 from __future__ import annotations
 
-import json
 import logging
-from pathlib import Path
 
 from src.data_extract.bronze_writer import BronzeWriter
 from src.data_extract.scraper import InstagramScraper
@@ -24,35 +19,15 @@ from src.data_extract.scraper import InstagramScraper
 logger = logging.getLogger(__name__)
 
 
-def archive_raw_json(
-    landing_dir: Path | str, entity: str, raw_data: list[dict], run_id: str
-) -> Path:
-    """Grava a lista de itens brutos como veio da Apify, sem nenhuma
-    projeção de schema — fidelidade total, para não perder campos que a
-    Bronze ainda não modela.
-
-    Layout `<landing_dir>/<run_id>/<entity>.json` — pasta por `run_id`, não
-    por entidade — para que arquivar/apagar tudo de uma execução seja uma
-    operação de filesystem só (`rm -rf landing/<run_id>/`), sem precisar
-    acertar uma pasta por entidade. Cruzar por `run_id` continua igual de
-    fácil nos dois esquemas (é o nome da pasta em vez do nome do arquivo)."""
-    run_dir = Path(landing_dir) / run_id
-    run_dir.mkdir(parents=True, exist_ok=True)
-    path = run_dir / f"{entity}.json"
-    path.write_text(json.dumps(raw_data, ensure_ascii=False, indent=2), encoding="utf-8")
-    return path
-
-
 def extract_and_land(
     scraper: InstagramScraper,
     bronze: BronzeWriter,
-    landing_dir: Path | str,
     links: list[str],
     run_id: str,
     extra_run_input: dict | None = None,
 ) -> dict[str, list[dict] | str]:
-    """Raspa perfis+posts+reels+UGC, arquiva cada entidade na landing zone e
-    escreve na Bronze, nessa ordem, entidade por entidade. `extra_run_input`
+    """Raspa perfis+posts+reels+UGC, escreve na Bronze,
+    nessa ordem, entidade por entidade. `extra_run_input`
     (ex: `onlyPostsNewerThan`) se aplica a posts/reels/UGC, não a perfis — o
     ator de perfis da Apify não aceita esse parâmetro. Retorna os itens
     brutos raspados por entidade.
@@ -63,15 +38,12 @@ def extract_and_land(
     perfis/posts/reels já pagos e gravados nunca são descartados por ela.
     Perfis/posts/reels continuam fail-fast."""
     profiles = scraper.scrape_profiles(links)
-    archive_raw_json(landing_dir, "profiles", profiles, run_id)
     bronze.write_profiles(profiles, run_id=run_id)
 
     posts = scraper.scrape_posts(links, extra_run_input=extra_run_input)
-    archive_raw_json(landing_dir, "posts", posts, run_id)
     bronze.write_posts(posts, run_id=run_id)
 
     reels = scraper.scrape_reels(links, extra_run_input=extra_run_input)
-    archive_raw_json(landing_dir, "reels", reels, run_id)
     bronze.write_reels(reels, run_id=run_id)
 
     result: dict[str, list[dict] | str] = {"profiles": profiles, "posts": posts, "reels": reels, "ugc_mentions": []}
@@ -79,7 +51,6 @@ def extract_and_land(
         mentions = scraper.scrape_mentions(links, extra_run_input=extra_run_input)
         if not mentions:
             raise ValueError("a coleta de UGC não retornou nenhum post")
-        archive_raw_json(landing_dir, "ugc_mentions", mentions, run_id)
         bronze.write_ugc_mentions(mentions, run_id=run_id)
         result["ugc_mentions"] = mentions
     except Exception as e:
