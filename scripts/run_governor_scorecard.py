@@ -4,7 +4,7 @@ sobre a Silver/Gold ja existentes e grava `governor_scorecard`.
 
 Standalone, mesmo padrao de `scripts/run_growth_metrics.py`: o estagio tambem
 roda dentro de `src.modeling.orchestration.run_deterministic_modeling`
-(`pipeline.py --run-modeling` / `scripts/run_modeling.py`); este script serve
+(`coleta.py coletar --modelar` / `scripts/run_modeling.py`); este script serve
 para recalcular so a tabela, sem repetir toda a modelagem.
 
 Leitura sempre via `DeltaRepository` (somente leitura); escrita por

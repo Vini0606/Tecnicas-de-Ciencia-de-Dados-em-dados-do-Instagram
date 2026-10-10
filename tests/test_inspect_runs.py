@@ -105,7 +105,7 @@ def test_collect_run_recalculado_via_cache_hit_nao_e_classificado_como_modelagem
     tmp_path, monkeypatch
 ):
     """governor_engagement e recalculado em toda invocacao de
-    run_medallion_pipeline (cache-hit incluso, sem extracao nova nenhuma) --
+    a Coleta (cache-hit incluso, sem extracao nova nenhuma) --
     sozinho, nao deve classificar o run_id como "modelagem"."""
     monkeypatch.setattr("scripts.inspect_runs.settings.DATA_DIR", tmp_path)
     monkeypatch.setattr("scripts.inspect_runs.settings.LANDING_DIR", tmp_path / "landing")

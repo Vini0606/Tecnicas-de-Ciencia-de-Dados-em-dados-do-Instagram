@@ -108,7 +108,7 @@ GOLD_POST_PERFORMANCE_PREDICTIONS = GOLD_DIR / "post_performance_predictions"
 GOLD_GROWTH_METRICS = GOLD_DIR / "governor_growth_metrics"
 # ADR 0020 (Ficha 8) / issue #93: 1 linha por post de UGC (não agregada --
 # `GovernorUGCAggregator.aggregate_by_governor` é uma view em memória sobre
-# esta tabela, não persistida). Gravada pelo `pipeline.py` a cada execução
+# esta tabela, não persistida). Gravada pela Coleta (`src/coleta/derivacao.py`) a cada execução
 # (issue #211): a coleta de UGC faz parte de `extract_and_land`, junto de
 # perfis/posts/reels.
 GOLD_UGC_MENTIONS = GOLD_DIR / "governor_ugc_mentions"

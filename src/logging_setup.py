@@ -1,4 +1,4 @@
-"""Setup de `logging` para `pipeline.py` e `src/modeling/*` (ADR 0015).
+"""Setup de `logging` para `coleta.py` e `src/modeling/*` (ADR 0015).
 
 Console em INFO (mesmo volume dos `print()`s que substitui); arquivo em DEBUG,
 um por `run_id`, em `data/logs/<run_id>/pipeline.log`. O handler de arquivo

@@ -8,11 +8,11 @@ modelagem sempre tem run_id proprios, ver ADR 0001; nem todo script
 loga, ver ADR 0015).
 
 `data/calibration/` fica de fora de proposito: os relatorios de
-`run_apify_calibration_test.py` nao tem `run_id` nenhum, so um
+o antigo teste de calibracao nao tinha `run_id` nenhum, so um
 timestamp solto (`stamp`) -- nao ha o que correlacionar.
 
 O `run_id` de modelagem nunca reaproveita o `run_id` da extracao/invocacao de
-`pipeline.py` que a disparou (ADR 0001) -- mas `run_deterministic_modeling`
+Coleta (`coleta.py coletar --modelar`) que a disparou (ADR 0001) -- mas `run_deterministic_modeling`
 grava esse `run_id` de origem como `parent_run_id`, so em `metadata.json`
 do checkpoint, puramente informativo. E o que permite ligar as duas pontas
 aqui e no modo `--pipeline`.
@@ -54,7 +54,7 @@ GOLD_TABLES = {
     "governor_clusters_posts": settings.GOLD_CLUSTERS_POSTS,
     "governor_profile_clusters_engagement": settings.GOLD_PROFILE_CLUSTERS_ENGAGEMENT,
 }
-# governor_engagement e escrito por toda invocacao de run_medallion_pipeline,
+# governor_engagement e escrito por toda invocacao de a Coleta,
 # com ou sem --run-modeling -- nao e sinal de modelagem, ao contrario dos
 # outros tres (saida de run_deterministic_modeling/lambdas/model).
 GOLD_MODELING_TABLES = {
@@ -161,7 +161,7 @@ def collect() -> dict[str, dict]:
         # (ou de dado sintetico de teste reaproveitando um id à toa).
         # bronze so recebe linha nova numa extracao real (extract_and_land) --
         # silver/governor_engagement sao recalculados em toda invocacao de
-        # run_medallion_pipeline, inclusive no caminho de cache-hit (sem
+        # a Coleta, inclusive no caminho de cache-hit (sem
         # extracao nova nenhuma), entao sozinhos nao provam extracao.
         is_extraction = run_id in landing_ids or run_id in backfill_reports or bool(bronze)
         is_modeling = run_id in checkpoint_ids or bool(GOLD_MODELING_TABLES & gold.keys())
@@ -280,7 +280,7 @@ def print_detail(run_id: str, records: dict[str, dict]) -> None:
 
 
 def print_pipeline(run_id: str, records: dict[str, dict]) -> None:
-    """Mostra `run_id` (extracao/invocacao de pipeline.py) e toda modelagem
+    """Mostra `run_id` (extracao/invocacao de coleta.py) e toda modelagem
     cujo parent_run_id aponta pra ele -- a visao de "o que rodou nessa
     execucao completa do pipeline"."""
     if run_id not in records:
@@ -318,7 +318,7 @@ if __name__ == "__main__":
         "--pipeline",
         default=None,
         metavar="RUN_ID",
-        help="Mostra RUN_ID (extração/invocação de pipeline.py) e toda modelagem disparada por ele (parent_run_id).",
+        help="Mostra RUN_ID (extração/invocação de coleta.py) e toda modelagem disparada por ele (parent_run_id).",
     )
     args = parser.parse_args()
 

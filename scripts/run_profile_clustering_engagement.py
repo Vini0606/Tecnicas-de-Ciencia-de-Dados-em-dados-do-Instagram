@@ -10,7 +10,7 @@ sessão de design da Fase 2).
 
 NOTA: esta etapa já roda automaticamente dentro de
 `src.modeling.orchestration.run_deterministic_modeling` (chamado por
-`pipeline.py --run-modeling` / `scripts/run_modeling.py`), fechando a
+`coleta.py coletar --modelar` / `scripts/run_modeling.py`), fechando a
 paridade que já existia com `lambdas/model/handler.py` no pipeline
 serverless. Este script continua existindo só para re-rodar esse estágio
 isolado (ex.: depois de um ajuste que só afeta a clusterização de perfil),

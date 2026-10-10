@@ -1,6 +1,5 @@
 """
-Helpers compartilhados entre `scripts/run_apify_calibration_test.py` e
-`scripts/run_apify_backfill.py` -- estimativa de custo, limite de resultados
+Helpers compartilhados entre `src/coleta/custo.py` e `src/coleta/cli.py` -- estimativa de custo, limite de resultados
 escalavel e carregamento dos links dos governadores. Nao e um script
 executavel, so um modulo de import.
 """
@@ -97,13 +96,12 @@ def estimate_cost_usd_for_results_limit(
     results_limit: int, n_governors: int, media_types: int = 2
 ) -> float:
     """Estimativa PRE-run para uma extracao sem janela de data (sem
-    `onlyPostsNewerThan`, caso do branch de fallback de `pipeline.py`) --
+    `onlyPostsNewerThan`, caso de um Recorte so com teto) --
     `results_limit` e um teto por perfil por tipo de midia aplicado pela
     Apify, entao o pior caso -- e o unico limite que da pra calcular sem
     rodar -- e cada perfil bater o teto em todos os tipos de midia
     chamados. `media_types` default 2 preserva o comportamento original
-    (posts + reels, `pipeline.py`); `scripts/run_apify_mentions_pilot.py`
-    (ADR 0020, Ficha 8 / issue #93) chama com `media_types=1` -- um actor
+    (posts + reels); o UGC (ADR 0020, Ficha 8 / issue #93, via `src/coleta/custo.py`) chama com `media_types=1` -- um actor
     so (`apify/instagram-tagged-scraper`), nao dois."""
     worst_case_results = results_limit * media_types * n_governors
     return round(worst_case_results / 1000 * STARTER_PRICE_PER_1000_RESULTS, 2)

@@ -1,4 +1,4 @@
-"""Issue #214: relatório de tabelas esperadas ao final do pipeline.py."""
+"""Issue #214: relatório de tabelas esperadas ao final de uma Coleta com modelagem."""
 
 import ast
 from datetime import datetime, timedelta, timezone
@@ -15,6 +15,7 @@ from src.pipeline_report import (
     codigo_de_saida,
     formatar_relatorio,
     ler_ultimo_commit,
+    relatorio_final,
     contar_linhas,
 )
 
@@ -206,12 +207,10 @@ def test_anti_deriva_catalogo_bate_com_as_tabelas_lidas_pelas_telas():
 
 
 def test_relatorio_final_do_pipeline_sai_com_1_e_loga_falha(tmp_path, caplog):
-    import pipeline
-
     tabelas = [TabelaEsperada("governor_nsm", tmp_path / "governor_nsm", "modelagem", True)]
 
     with caplog.at_level("INFO"):
-        codigo = pipeline.relatorio_final(
+        codigo = relatorio_final(
             INICIO, run_modeling=True, run_id="run_x", caminho_log=tmp_path, tabelas=tabelas
         )
 
@@ -220,8 +219,6 @@ def test_relatorio_final_do_pipeline_sai_com_1_e_loga_falha(tmp_path, caplog):
 
 
 def test_relatorio_final_sem_modelagem_marca_nao_solicitada_e_sai_com_0(tmp_path, caplog):
-    import pipeline
-
     write_deltalake(str(tmp_path / "governor_engagement"), pd.DataFrame({"a": [1]}))
     tabelas = [
         TabelaEsperada("governor_engagement", tmp_path / "governor_engagement", "gold", True),
@@ -229,7 +226,7 @@ def test_relatorio_final_sem_modelagem_marca_nao_solicitada_e_sai_com_0(tmp_path
     ]
 
     with caplog.at_level("INFO"):
-        codigo = pipeline.relatorio_final(
+        codigo = relatorio_final(
             datetime.now(timezone.utc) - timedelta(minutes=1),
             run_modeling=False,
             run_id="run_x",
@@ -239,7 +236,7 @@ def test_relatorio_final_sem_modelagem_marca_nao_solicitada_e_sai_com_0(tmp_path
 
     assert codigo == 0
     assert "NAO SOLICITADA" in caplog.text
-    assert "[OK] Pipeline Medallion finalizado com run_id: run_x" in caplog.text
+    assert "[OK] Coleta finalizada com run_id: run_x" in caplog.text
 
 
 def test_formatar_relatorio_mostra_o_caminho_dos_logs_mesmo_sem_problema():

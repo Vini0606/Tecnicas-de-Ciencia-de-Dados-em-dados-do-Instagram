@@ -23,6 +23,7 @@ from pathlib import Path
 
 import pandas as pd
 
+from scripts.apify_backfill_shared import profiles_hitting_limit
 from src.coleta.custo import estimar_custo, teto_efetivo
 from src.coleta.derivacao import caminhos_do_destino, derivar_silver_gold
 from src.coleta.manifesto import escrever_manifesto, gerar_manifesto, versao_do_codigo
@@ -89,6 +90,20 @@ class _ScraperRecortado:
         return self._recorte.dentro_do_recorte(publicado.date())
 
 
+def _avisar_truncados(bruto: dict, teto: int) -> None:
+    """Perfis que bateram exatamente no teto: o resultado provavelmente foi truncado."""
+    truncados = {
+        entidade: profiles_hitting_limit(bruto.get(entidade, []), teto)
+        for entidade in ("posts", "reels", "ugc_mentions")
+    }
+    if any(truncados.values()):
+        logger.warning(
+            "[COLETA] Perfis que bateram no teto de %s (resultado provavelmente truncado): "
+            "posts=%s reels=%s ugc_mentions=%s. Rode de novo com --teto maior.",
+            teto, truncados["posts"], truncados["reels"], truncados["ugc_mentions"],
+        )
+
+
 def coletar(
     recorte: Recorte,
     destino: Path | str,
@@ -131,9 +146,10 @@ def coletar(
     dias = recorte.dias_a_extrair(hoje)
     extra = {"onlyPostsNewerThan": f"{dias} days"} if dias else None
     logger.info("[COLETA] %s: extraindo (custo estimado US$ %.2f)...", tag, custo["total"])
-    extract_and_land(
+    bruto = extract_and_land(
         _ScraperRecortado(scraper, recorte), bronze, links, run_id=run_id, extra_run_input=extra
     )
+    _avisar_truncados(bruto, teto_efetivo(recorte, hoje))
 
     governors_cleaner = GovernorsMetadataCleaner()
     governors_cleaner.write(governors_cleaner.clean(df_governadores, run_id), p["silver_governors"])
