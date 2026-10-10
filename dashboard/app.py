@@ -33,6 +33,7 @@ if ROOT_DIR not in sys.path:
 
 from dashboard.core.acesso import exigir_acesso  # noqa: E402
 from dashboard.core.bootstrap_dados import avisar_se_falhou  # noqa: E402
+from dashboard.core.coleta_em_uso import mostrar_coleta  # noqa: E402
 from dashboard.core.theme import inject_theme  # noqa: E402
 from dashboard.screens import comparar, discurso_reacao, produzir, radar, resumo  # noqa: E402
 
@@ -51,4 +52,5 @@ TELAS: dict[str, object] = {
 
 st.sidebar.title("Growth — Assessoria")
 tela_selecionada = st.sidebar.radio("Telas", options=list(TELAS.keys()), key="tela_selecionada")
+mostrar_coleta()  # tag, Recorte e cobertura da Coleta em uso (ADR 0039)
 TELAS[tela_selecionada]()
