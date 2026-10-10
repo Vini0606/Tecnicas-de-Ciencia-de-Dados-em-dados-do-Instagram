@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: accepted (parcialmente superada pela ADR 0039)
 ---
 
 # Dados coletados distribuídos por um dataset privado no Hugging Face

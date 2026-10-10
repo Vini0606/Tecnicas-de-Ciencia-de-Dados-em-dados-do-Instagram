@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: accepted (parcialmente superada pela ADR 0039)
 ---
 
 # Publicar as imagens das Lambdas via GitHub Actions, autenticando por OIDC, mantendo `terraform apply` manual

@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: accepted (parcialmente superada pela ADR 0039)
 ---
 
 # Generalizar DeltaRepository para suportar S3, aposentando S3DataRepository e IS_CLOUD
