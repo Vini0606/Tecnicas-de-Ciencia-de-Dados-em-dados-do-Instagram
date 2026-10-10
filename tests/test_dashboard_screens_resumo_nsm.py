@@ -364,3 +364,67 @@ def test_html_ranking_lista_todos_em_container_rolavel_e_destaca_selecionado():
     assert html.count('class="n-linha') == 12
     assert html.count("(selecionado)") == 1
     assert "SUBIU" in html and "CAIU" in html
+
+
+# ---------------------------------------------------------------------------
+# Melhor aprovação / Maior rejeição: mínimo de comentários (ADR 0038)
+# ---------------------------------------------------------------------------
+
+
+def _tabela_amostra() -> pd.DataFrame:
+    return pd.DataFrame(
+        {
+            "chave": ["a", "b", "c", "d"],
+            "nome": ["Pequeno", "Medio", "Grande", "Sem comentarios"],
+            "pct_pos": [1.0, 0.8, 0.6, float("nan")],
+            "pct_neg": [0.0, 0.1, 0.5, float("nan")],
+            "n_comentarios": [3, 40, 300, 0],
+        }
+    )
+
+
+def test_extremo_com_amostra_ignora_perfis_com_poucos_comentarios():
+    # "Pequeno" tem 100% positivo, mas só 3 comentários: não pode ser o melhor.
+    assert resumo.extremo_com_amostra(_tabela_amostra(), "pct_pos") == (
+        "Medio",
+        0.8,
+        40,
+    )
+    assert resumo.extremo_com_amostra(_tabela_amostra(), "pct_neg") == (
+        "Grande",
+        0.5,
+        300,
+    )
+
+
+def test_extremo_com_amostra_respeita_o_minimo_pedido_e_devolve_none_sem_elegiveis():
+    assert resumo.extremo_com_amostra(_tabela_amostra(), "pct_pos", minimo=1) == (
+        "Pequeno",
+        1.0,
+        3,
+    )
+    assert resumo.extremo_com_amostra(_tabela_amostra(), "pct_pos", minimo=1000) is None
+    assert resumo.extremo_com_amostra(pd.DataFrame(), "pct_pos") is None
+    sem_coluna = _tabela_amostra().drop(columns=["n_comentarios"])
+    assert resumo.extremo_com_amostra(sem_coluna, "pct_pos") is None
+
+
+def test_tabela_contraste_traz_o_numero_de_comentarios_por_perfil():
+    nsm = pd.DataFrame(
+        {
+            "inputUrl": ["https://instagram.com/a/", "https://instagram.com/b/"],
+            "nsm": [1.0, 2.0],
+            "username": ["a", "b"],
+            "total_engajamento": [10.0, 20.0],
+        }
+    )
+    comentarios = pd.DataFrame(
+        {
+            "inputUrl": ["https://instagram.com/a"] * 3,
+            "sentiment_label": ["positive", "positive", "negative"],
+        }
+    )
+    tabela = resumo.montar_tabela_contraste(nsm, comentarios, pd.DataFrame())
+    por_chave = dict(zip(tabela["nome"], tabela["n_comentarios"], strict=True))
+    assert por_chave == {"a": 3, "b": 0}
+    assert resumo.MIN_COMENTARIOS_CARTAO == 30

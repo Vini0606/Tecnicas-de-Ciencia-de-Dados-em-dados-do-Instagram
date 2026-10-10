@@ -76,6 +76,11 @@ def _indice_nsm_0_100(nsm: pd.Series) -> pd.Series:
     return (nsm - menor) / (maior - menor) * 100.0
 
 
+# Mínimo de comentários para um perfil disputar "Melhor aprovação" e "Maior
+# rejeição": com poucos comentários, 3 de 3 positivos viraria 100% (ADR 0038).
+MIN_COMENTARIOS_CARTAO = 30
+
+
 def montar_tabela_contraste(
     df_nsm: pd.DataFrame,
     df_comentarios: pd.DataFrame,
@@ -85,7 +90,7 @@ def montar_tabela_contraste(
     `bruto`, `nsm` (0-100, `NaN` = perfil sem NSM), `pct_pos`, `pct_neg`
     (fracoes 0-1 dos comentarios; `NaN` sem comentarios). Vazio (com as
     colunas) se `df_nsm` estiver vazio ou sem as colunas esperadas."""
-    colunas = ["chave", "nome", "bruto", "nsm", "pct_pos", "pct_neg"]
+    colunas = ["chave", "nome", "bruto", "nsm", "pct_pos", "pct_neg", "n_comentarios"]
     if df_nsm.empty or not {"inputUrl", "nsm"}.issubset(df_nsm.columns):
         return pd.DataFrame(columns=colunas)
 
@@ -125,6 +130,10 @@ def montar_tabela_contraste(
             chaves = _normalize_url(df_comentarios["inputUrl"])
             frac = (df_comentarios["sentiment_label"] == label).groupby(chaves).mean()
             tabela[coluna] = tabela["chave"].map(frac)
+    tabela["n_comentarios"] = 0
+    if not df_comentarios.empty and "inputUrl" in df_comentarios.columns:
+        contagem = _normalize_url(df_comentarios["inputUrl"]).value_counts()
+        tabela["n_comentarios"] = tabela["chave"].map(contagem).fillna(0).astype(int)
     # `linhas_ranking` indexa por `chave`: defensivo contra URL repetida.
     return (tabela[colunas].drop_duplicates(subset="chave", keep="first")).reset_index(
         drop=True
@@ -146,6 +155,24 @@ def extremo(
     )
     linha = ordenado.iloc[0]
     return str(linha["nome"]), float(linha[coluna])
+
+
+def extremo_com_amostra(
+    tabela: pd.DataFrame, coluna: str, minimo: int = MIN_COMENTARIOS_CARTAO
+) -> tuple[str, float, int] | None:
+    """Como `extremo` (maior `coluna`), mas só entre perfis com pelo menos
+    `minimo` comentários, e devolve também o nº de comentários. Evita que um
+    perfil com 3 comentários vire "melhor aprovação 100%". `None` se nenhum
+    perfil atinge o mínimo."""
+    if tabela.empty or not {coluna, "n_comentarios"}.issubset(tabela.columns):
+        return None
+    elegiveis = tabela[tabela["n_comentarios"] >= minimo].dropna(subset=[coluna])
+    if elegiveis.empty:
+        return None
+    linha = elegiveis.sort_values(
+        [coluna, "nome"], ascending=[False, True], kind="mergesort"
+    ).iloc[0]
+    return str(linha["nome"]), float(linha[coluna]), int(linha["n_comentarios"])
 
 
 def posicoes(tabela: pd.DataFrame, coluna: str) -> dict[str, int]:
@@ -408,8 +435,8 @@ def _render_contraste(governor_url: str, is_todos: bool) -> None:
         return
 
     valor = valor_cartao_nsm(tabela, chave)
-    melhor = extremo(tabela, "pct_pos", maior=True)
-    pior = extremo(tabela, "pct_neg", maior=True)
+    melhor = extremo_com_amostra(tabela, "pct_pos")
+    pior = extremo_com_amostra(tabela, "pct_neg")
     comparativo = comparativo_nsm(tabela, chave)
     cartoes = [
         _html_cartao(
@@ -422,13 +449,17 @@ def _render_contraste(governor_url: str, is_todos: bool) -> None:
         _html_cartao(
             "Melhor aprovação",
             _fmt_pct(melhor[1]) if melhor else _PLACEHOLDER_SEM_GOVERNADOR,
-            melhor[0] if melhor else "sem comentários",
+            f"{melhor[0]} · {melhor[2]} comentários"
+            if melhor
+            else f"nenhum perfil com {MIN_COMENTARIOS_CARTAO}+ comentários",
             None,
         ),
         _html_cartao(
             "Maior rejeição",
             _fmt_pct(pior[1]) if pior else _PLACEHOLDER_SEM_GOVERNADOR,
-            pior[0] if pior else "sem comentários",
+            f"{pior[0]} · {pior[2]} comentários"
+            if pior
+            else f"nenhum perfil com {MIN_COMENTARIOS_CARTAO}+ comentários",
             "verm",
         ),
     ]
@@ -447,6 +478,7 @@ def _render_contraste(governor_url: str, is_todos: bool) -> None:
     st.caption(
         "Engajamento bruto = total de curtidas e comentários por perfil. "
         "SUBIU/CAIU compara a posição no ranking qualificado com a do bruto. "
+        f"Melhor aprovação e Maior rejeição só consideram perfis com pelo menos {MIN_COMENTARIOS_CARTAO} comentários. "
         + legenda_comparativo(comparativo)
     )
 

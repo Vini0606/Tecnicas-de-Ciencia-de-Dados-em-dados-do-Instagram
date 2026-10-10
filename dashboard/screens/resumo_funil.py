@@ -952,8 +952,13 @@ def _html_funil(
             gargalo == _ESTAGIO_CONVERT,
         ),
     ]
+    descricao = (
+        f"Funil em escala logarítmica: Reach {_fmt_int_br(estagios[0])}, "
+        f"Act {_fmt_int_br(estagios[1])}, Convert {_fmt_int_br(estagios[2])}"
+    )
     svg = (
         f'<svg viewBox="0 0 100 {total_h}" preserveAspectRatio="none" '
+        f'role="img" aria-label="{descricao}" '
         f'style="width:100%;height:{total_h}px;display:block">'
         + "".join(formas)
         + "</svg>"
