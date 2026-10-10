@@ -53,5 +53,6 @@ Exemplos:
 - **Nunca apague o commit de uma Coleta anterior** nem reescreva a `main` com force-push. Marque a Coleta antes de
   substituí-la.
 - Restaurar uma Coleta antiga na `main` = baixar a tag e publicá-la como um novo commit (com tag nova).
+  Em código: `restaurar(tag, cliente=..., confirmar=..., rotulo="restaurada")` em `src/coleta/hf.py` (tag nova = `<tag>` com rótulo `restaurada`, data = extração original).
 - O dashboard publicado baixa a `main` (a Coleta vigente). A variável opcional `HF_DATASET_REVISAO` (tag ou commit) faz o
   app mostrar uma Coleta antiga, sem mexer na `main`. Trocar de Coleta = publicar a nova e reiniciar o app.
