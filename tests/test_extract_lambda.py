@@ -37,7 +37,6 @@ def _patch_extract_dependencies(monkeypatch, tmp_path, profiles, posts, reels, m
         lambda client, config: fake_scraper,
     )
     monkeypatch.setattr("lambdas.extract.handler.BronzeWriter", _fake_bronze_writer_class())
-    monkeypatch.setattr("lambdas.extract.handler.LANDING_DIR", tmp_path / "landing")
     return fake_scraper
 
 
@@ -72,10 +71,6 @@ def test_extract_handler(monkeypatch, tmp_path):
         extract_handler.BronzeWriter.init_kwargs["bronze_ugc_mentions_path"]
         == "s3://dummy-bucket/bronze/ugc_mentions"
     )
-    assert (tmp_path / "landing" / "test-run" / "ugc_mentions.json").exists()
-    assert (tmp_path / "landing" / "test-run" / "profiles.json").exists()
-    assert (tmp_path / "landing" / "test-run" / "posts.json").exists()
-    assert (tmp_path / "landing" / "test-run" / "reels.json").exists()
 
 
 def test_extract_handler_gera_run_id_quando_ausente(monkeypatch, tmp_path):

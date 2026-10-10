@@ -1,3 +1,5 @@
+import json
+
 import pandas as pd
 import pytest
 
@@ -20,19 +22,32 @@ def test_bronze_write_and_read(tmp_path):
     assert (df["_run_id"] == "run-test").all()
 
 
-def test_bronze_is_append_only(tmp_path):
-    profiles_path = tmp_path / "profiles"
-    posts_path = tmp_path / "posts"
-    reels_path = tmp_path / "reels"
-
-    writer = BronzeWriter(profiles_path, posts_path, reels_path)
+def test_bronze_nova_coleta_substitui_a_anterior(tmp_path):
+    """ADR 0039: uma Coleta substitui a outra -- a Bronze não acumula run_id."""
+    writer = BronzeWriter(tmp_path / "profiles", tmp_path / "posts", tmp_path / "reels")
 
     writer.write_profiles([{"id": "1", "username": "a"}], run_id="run-001")
     writer.write_profiles([{"id": "2", "username": "b"}], run_id="run-002")
 
     df = writer.get_latest_profiles()
-    assert len(df) == 2
-    assert df["_run_id"].nunique() == 2
+    assert len(df) == 1
+    assert df["_run_id"].tolist() == ["run-002"]
+
+
+def test_bronze_guarda_o_item_completo_inclusive_campos_fora_do_schema(tmp_path):
+    """ADR 0039: nenhum campo da Apify é descartado -- `_raw` reproduz o item."""
+    writer = BronzeWriter(tmp_path / "profiles", tmp_path / "posts", tmp_path / "reels")
+    item = {
+        "id": "p1",
+        "ownerUsername": "gov1",
+        "campoNovoDaApify": {"a": [1, 2], "b": "ç"},
+        "hashtags": ["x", "y"],
+    }
+
+    writer.write_posts([item], run_id="run-1")
+
+    df = writer.get_latest_posts()
+    assert json.loads(df["_raw"].iloc[0]) == item
 
 
 def test_write_empty_data_raises(tmp_path):

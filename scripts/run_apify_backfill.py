@@ -78,7 +78,7 @@ def run(apify_api_token: str, days: int, results_limit: int, run_id: str | None 
     )
 
     result = extract_and_land(
-        scraper, bronze, settings.LANDING_DIR, links, run_id=run_id, extra_run_input=extra_run_input
+        scraper, bronze, links, run_id=run_id, extra_run_input=extra_run_input
     )
     profiles, posts, reels = result["profiles"], result["posts"], result["reels"]
     ugc_mentions = result["ugc_mentions"]

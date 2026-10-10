@@ -111,6 +111,9 @@ class BronzeWriter:
         enriched = []
         for record in raw_data:
             enriched_record = dict(record)
+            # ADR 0039: a Bronze é fiel -- o item completo da Apify vai
+            # inteiro numa coluna, mesmo os campos que o schema não modela.
+            raw_item = json.dumps(record, ensure_ascii=False, default=str)
             for key, value in list(enriched_record.items()):
                 if isinstance(value, (list, dict)):
                     enriched_record[key] = json.dumps(value, ensure_ascii=False)
@@ -119,6 +122,7 @@ class BronzeWriter:
             enriched_record["_ingested_at"] = now_utc
             enriched_record["_run_id"] = run_id
             enriched_record["_source"] = "apify"
+            enriched_record["_raw"] = raw_item
             enriched.append(enriched_record)
         return enriched
 
@@ -136,7 +140,7 @@ class BronzeWriter:
             path,
             df,
             schema,
-            mode="append",
+            mode="overwrite",
             storage_options=self._storage_options,
         )
 

@@ -29,9 +29,9 @@ def test_bronze_de_posts_guarda_latest_comments_como_json(tmp_path):
     assert out.iloc[0]["latestComments"] == '[{"id": "c1", "text": "ok"}]'
 
 
-def test_bronze_de_posts_antiga_sem_latest_comments_aceita_append(tmp_path):
-    """Bronze de posts gravada antes da #212 (sem a coluna) recebe a coluna
-    nova no append, sem migração; linhas antigas ficam nulas."""
+def test_bronze_de_posts_antiga_sem_latest_comments_e_substituida_pela_coleta_nova(tmp_path):
+    """Bronze de posts gravada antes da #212 (sem a coluna) é substituída por
+    inteiro, com o esquema novo, pela Coleta seguinte (ADR 0039: overwrite)."""
     schema_antigo = pa.schema([f for f in BRONZE_POSTS_SCHEMA if f.name != "latestComments"])
     antiga = pd.DataFrame(
         {
@@ -39,6 +39,7 @@ def test_bronze_de_posts_antiga_sem_latest_comments_aceita_append(tmp_path):
             "_ingested_at": pd.to_datetime(["2026-09-01"], utc=True),
             "_run_id": ["run_0"],
             "_source": ["apify"],
+            "_raw": ["{}"],
         }
     )
     for field in schema_antigo:
@@ -53,7 +54,7 @@ def test_bronze_de_posts_antiga_sem_latest_comments_aceita_append(tmp_path):
     writer.write_posts([{"id": "p1", "latestComments": [{"id": "c1"}]}], run_id="run_1")
 
     out = writer.get_latest_posts().set_index("id")
-    assert pd.isna(out.loc["p0", "latestComments"])
+    assert "p0" not in out.index
     assert out.loc["p1", "latestComments"] == '[{"id": "c1"}]'
 
 

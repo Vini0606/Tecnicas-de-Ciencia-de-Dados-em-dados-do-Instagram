@@ -25,6 +25,7 @@ BRONZE_PROFILES_SCHEMA = pa.schema(
         pa.field("_ingested_at", pa.timestamp("us", tz="UTC"), nullable=False),
         pa.field("_run_id", pa.string(), nullable=False),
         pa.field("_source", pa.string(), nullable=False),
+        pa.field("_raw", pa.string(), nullable=False),
     ]
 )
 
@@ -53,6 +54,7 @@ BRONZE_POSTS_SCHEMA = pa.schema(
         pa.field("_ingested_at", pa.timestamp("us", tz="UTC"), nullable=False),
         pa.field("_run_id", pa.string(), nullable=False),
         pa.field("_source", pa.string(), nullable=False),
+        pa.field("_raw", pa.string(), nullable=False),
     ]
 )
 
@@ -83,6 +85,7 @@ BRONZE_REELS_SCHEMA = pa.schema(
         pa.field("_ingested_at", pa.timestamp("us", tz="UTC"), nullable=False),
         pa.field("_run_id", pa.string(), nullable=False),
         pa.field("_source", pa.string(), nullable=False),
+        pa.field("_raw", pa.string(), nullable=False),
     ]
 )
 
@@ -146,6 +149,7 @@ BRONZE_UGC_MENTIONS_SCHEMA = pa.schema(
         pa.field("_ingested_at", pa.timestamp("us", tz="UTC"), nullable=False),
         pa.field("_run_id", pa.string(), nullable=False),
         pa.field("_source", pa.string(), nullable=False),
+        pa.field("_raw", pa.string(), nullable=False),
     ]
 )
 

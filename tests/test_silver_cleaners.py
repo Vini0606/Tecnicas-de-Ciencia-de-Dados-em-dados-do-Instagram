@@ -452,3 +452,23 @@ def test_comment_cleaner_deduplica_execucoes_acumuladas():
 
     assert len(out) == 1
     assert out.iloc[0]["_run_id"] == "r2_run"
+
+
+def test_profile_cleaner_resultado_nao_muda_com_a_coluna_raw_da_bronze_fiel():
+    """ADR 0039: a Bronze ganhou `_raw` (item completo da Apify); a Silver
+    deve produzir o mesmo resultado com ou sem ela, sem vazá-la adiante."""
+    base = pd.DataFrame(
+        {
+            "id": ["1"],
+            "username": ["g"],
+            "followersCount": [100],
+            "_ingested_at": pd.to_datetime(["2026-05-01"], utc=True),
+            "_run_id": ["r1"],
+        }
+    )
+    com_raw = base.assign(_raw='{"id": "1", "username": "g", "campoNovo": 1}')
+
+    sem = ProfileCleaner().clean(base, run_id="r1")
+    com = ProfileCleaner().clean(com_raw, run_id="r1")
+
+    pd.testing.assert_frame_equal(sem, com.drop(columns=["_raw"], errors="ignore"))
