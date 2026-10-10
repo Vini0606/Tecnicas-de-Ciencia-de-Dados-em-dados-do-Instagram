@@ -28,7 +28,6 @@ from src.features.silver.parsing import (
 )
 from src.schemas_delta import SILVER_UGC_MENTIONS_SCHEMA
 
-
 logger = logging.getLogger(__name__)
 
 
