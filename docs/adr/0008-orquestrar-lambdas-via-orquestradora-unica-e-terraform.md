@@ -4,6 +4,12 @@ status: accepted (parcialmente superada pela ADR 0039)
 
 # Orquestrar as 3 Lambdas via uma Lambda orquestradora única, empacotada em containers e provisionada via Terraform
 
+> **Nota: parcialmente superada pela [ADR 0039](0039-coleta-versionada-no-hf-bronze-fiel-e-aws-so-reconstroi.md).**
+> O que continua valendo: Terraform em `infra/`, imagens de container no ECR e `terraform apply` manual.
+> O que mudou: a orquestradora única e as Lambdas `extract`/`transform`/`load`/`model` foram removidas, assim como o agendamento
+> (EventBridge). O Terraform declara só o bucket S3, o ECR e a Lambda `rebuild` e a role OIDC; a invocação é sempre manual
+> (`aws lambda invoke`). O texto abaixo é o registro histórico da decisão original.
+
 ## Contexto
 
 As 3 Lambdas (`lambdas/extract`, `lambdas/transform`, `lambdas/load`) já reproduzem o pipeline

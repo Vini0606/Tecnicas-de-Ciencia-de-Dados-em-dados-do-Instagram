@@ -7,8 +7,9 @@ Metadados técnicos (tabela, coluna, tipo, nullable) são extraídos direto de
 em runtime -- então a planilha nunca diverge do schema real por esquecimento
 de atualização manual. Descrição de negócio, papel da coluna, linhagem e
 status de cada tabela são curados manualmente neste script, a partir da
-leitura dos módulos que escrevem cada camada (`src/features/*`,
-`src/modeling/*`, `config/settings.py`).
+leitura dos módulos que escrevem cada camada (`src/coleta/*`, `src/features/*`,
+`src/modeling/*`, `config/settings.py`). Reflete a ADR 0039: Bronze fiel (coluna `_raw`),
+sem landing zone, Bronze em overwrite por Coleta e sem `governor_nsm_history`.
 
 Reexecutar após qualquer mudança em `src/schemas_delta.py` -- se uma coluna
 nova não tiver descrição neste script, ela aparece na planilha com um
@@ -49,56 +50,56 @@ TABLES: list[dict] = [
         "tabela": "instagram_profiles",
         "schema": sd.BRONZE_PROFILES_SCHEMA,
         "caminho": "data/bronze/instagram_profiles",
-        "grao": "Uma linha por resultado bruto do scraper Apify para um perfil de governador, por execução -- append-only, nada é sobrescrito nem deduplicado nesta camada.",
-        "modo_escrita": "append",
-        "escrito_por": "src/data_extract/bronze_writer.py (BronzeWriter.write_profiles), chamado por pipeline.py",
+        "grao": "Uma linha por item do scraper Apify para um perfil de governador, de UMA Coleta -- a Bronze é gravada em overwrite por Coleta; nada se acumula entre Coletas.",
+        "modo_escrita": "overwrite (por Coleta)",
+        "escrito_por": "src/data_extract/bronze_writer.py (BronzeWriter.write_profiles), chamado por src/coleta/coletar.py via src/data_extract/ingestion.py::extract_and_land (CLI `coleta.py coletar`)",
         "lido_por": "src/features/silver/profile_cleaner.py (ProfileCleaner.clean)",
         "status": "Produção",
-        "adr": "ADR 0011 (landing zone/Bronze)",
+        "adr": "ADR 0039 (Bronze fiel); ADR 0011",
         "descricao": "Metadados de perfil (seguidores, verificação, categoria de negócio) coletados via apify/instagram-scraper (ver aba Actors Apify), rodando em modo perfil (resultsType='details').",
-        "notas": "Fidelidade total ao retorno do Apify -- nenhuma limpeza aqui; campos list/dict do Apify são serializados como JSON string (BronzeWriter._add_ingestion_metadata). Payload bruto arquivado em data/landing/<run_id>/profiles.json (ou /tmp/landing/... na Lambda) ANTES desta escrita -- ver aba Linhagem.",
+        "notas": "Bronze fiel (ADR 0039): a coluna `_raw` guarda o item COMPLETO da Apify como JSON string, inclusive campos que o schema tipado não modela -- nada é descartado; parsing e validação ficam na Silver. Nenhuma limpeza aqui; campos list/dict do Apify são serializados como JSON string nas colunas tipadas (BronzeWriter._add_ingestion_metadata). NÃO existe landing zone: o JSON bruto não é mais arquivado à parte (data/landing/ foi removida). Cada Coleta sobrescreve a Bronze da anterior; as Coletas antigas ficam em tags do dataset privado no Hugging Face (ver aba Linhagem).",
     },
     {
         "camada": "Bronze",
         "tabela": "instagram_posts",
         "schema": sd.BRONZE_POSTS_SCHEMA,
         "caminho": "data/bronze/instagram_posts",
-        "grao": "Uma linha por post de feed (imagem/vídeo/carrossel) retornado pelo scraper, por execução -- append-only.",
-        "modo_escrita": "append",
-        "escrito_por": "src/data_extract/bronze_writer.py (BronzeWriter.write_posts), chamado por pipeline.py",
+        "grao": "Uma linha por post de feed (imagem/vídeo/carrossel) retornado pelo scraper, de UMA Coleta -- overwrite por Coleta.",
+        "modo_escrita": "overwrite (por Coleta)",
+        "escrito_por": "src/data_extract/bronze_writer.py (BronzeWriter.write_posts), chamado por src/coleta/coletar.py via src/data_extract/ingestion.py::extract_and_land (CLI `coleta.py coletar`)",
         "lido_por": "src/features/silver/post_cleaner.py (PostCleaner.clean_posts), src/features/silver/comment_cleaner.py (CommentCleaner(origem='post').clean)",
         "status": "Produção",
-        "adr": "ADR 0011",
+        "adr": "ADR 0039; ADR 0011",
         "descricao": "Posts do feed do Instagram (não-Reels) dos 27 perfis, via apify/instagram-post-scraper (ver aba Actors Apify).",
-        "notas": "Desde a issue #212 guarda `latestComments` (comentários mais recentes do post, JSON string), fonte de post_comments_clean -- antes a coluna era descartada aqui e só havia comentário de Reels no projeto. Bronzes antigas recebem a coluna no append (schema_mode=merge), com linhas antigas nulas. Payload bruto arquivado em data/landing/<run_id>/posts.json (ou /tmp/landing/... na Lambda) ANTES desta escrita -- ver aba Linhagem. Perfil sem NENHUM post próprio (0 itens, não confundir com perfil sem `id`) gera item de erro `{\"error\": \"no_items\", \"errorDescription\": \"Empty or private data...\"}` -- caso real (2026-09): claudiocastrorj (verificado, 2M+ seguidores) tinha só marcações de terceiros na grade, zero posts/reels próprios publicados.",
+        "notas": "Desde a issue #212 guarda `latestComments` (comentários mais recentes do post, JSON string), fonte de post_comments_clean -- antes a coluna era descartada aqui e só havia comentário de Reels no projeto. Item completo da Apify preservado em `_raw` (Bronze fiel, ADR 0039); não há landing zone. Perfil sem NENHUM post próprio (0 itens, não confundir com perfil sem `id`) gera item de erro `{\"error\": \"no_items\", \"errorDescription\": \"Empty or private data...\"}` -- caso real (2026-09): claudiocastrorj (verificado, 2M+ seguidores) tinha só marcações de terceiros na grade, zero posts/reels próprios publicados.",
     },
     {
         "camada": "Bronze",
         "tabela": "instagram_reels",
         "schema": sd.BRONZE_REELS_SCHEMA,
         "caminho": "data/bronze/instagram_reels",
-        "grao": "Uma linha por Reel retornado pelo scraper, por execução -- append-only.",
-        "modo_escrita": "append",
-        "escrito_por": "src/data_extract/bronze_writer.py (BronzeWriter.write_reels), chamado por pipeline.py",
+        "grao": "Uma linha por Reel retornado pelo scraper, de UMA Coleta -- overwrite por Coleta.",
+        "modo_escrita": "overwrite (por Coleta)",
+        "escrito_por": "src/data_extract/bronze_writer.py (BronzeWriter.write_reels), chamado por src/coleta/coletar.py via src/data_extract/ingestion.py::extract_and_land (CLI `coleta.py coletar`)",
         "lido_por": "src/features/silver/post_cleaner.py (PostCleaner.clean_reels), src/features/silver/comment_cleaner.py (CommentCleaner.clean)",
         "status": "Produção",
-        "adr": "ADR 0011; ADR 0020 Ficha 3 / issue #88 (transcript)",
+        "adr": "ADR 0039; ADR 0011; ADR 0020 Ficha 3 / issue #88 (transcript)",
         "descricao": "Reels dos 27 perfis, via apify/instagram-reel-scraper (ver aba Actors Apify), incluindo os comentários mais recentes embutidos (latestComments) e, quando a flag paga includeTranscript está ativa, a transcrição de fala do vídeo.",
-        "notas": "`transcript` é nullable e só vem preenchido quando a execução ligou explicitamente a flag paga do actor (custo por minuto de vídeo) -- não confundir ausência com 'sem fala'. Payload bruto arquivado em data/landing/<run_id>/reels.json (ou /tmp/landing/... na Lambda) ANTES desta escrita -- ver aba Linhagem. Mesma ressalva de instagram_posts sobre perfil com zero itens próprios (`error: 'no_items'`).",
+        "notas": "`transcript` é nullable e só vem preenchido quando a execução ligou explicitamente a flag paga do actor (custo por minuto de vídeo) -- não confundir ausência com 'sem fala'. Item completo da Apify preservado em `_raw` (Bronze fiel, ADR 0039); não há landing zone. Mesma ressalva de instagram_posts sobre perfil com zero itens próprios (`error: 'no_items'`).",
     },
     {
         "camada": "Bronze",
         "tabela": "ugc_mentions",
         "schema": sd.BRONZE_UGC_MENTIONS_SCHEMA,
         "caminho": "config/settings.py::BRONZE_UGC_MENTIONS (data/bronze/ugc_mentions)",
-        "grao": "Uma linha por post de TERCEIROS que marca/menciona o perfil do governador (nível 'Creating' do COBRA), por execução.",
-        "modo_escrita": "append",
-        "escrito_por": "src/data_extract/bronze_writer.py (BronzeWriter.write_ugc_mentions), chamado por src/data_extract/ingestion.py::extract_and_land (pipeline.py, scripts/run_apify_backfill.py, lambdas/extract) -- issue #211",
+        "grao": "Uma linha por post de TERCEIROS que marca/menciona o perfil do governador (nível 'Creating' do COBRA), de UMA Coleta -- overwrite por Coleta.",
+        "modo_escrita": "overwrite (por Coleta)",
+        "escrito_por": "src/data_extract/bronze_writer.py (BronzeWriter.write_ugc_mentions), chamado por src/coleta/coletar.py via src/data_extract/ingestion.py::extract_and_land (CLI `coleta.py coletar`) -- issue #211",
         "lido_por": "src/features/silver/ugc_mention_cleaner.py",
-        "status": "Produção -- coletada a cada extração do pipeline.py desde a issue #211 (antes, pelo script standalone scripts/run_ugc_mentions.py, removido; 1a execução real em 2026-09-19, PR #140)",
-        "adr": "ADR 0020 Ficha 8 / issue #93",
+        "status": "Produção -- coletada a cada Coleta (`coleta.py coletar`, issue #211); 1a execução real em 2026-09-19 (PR #140). Na amostra de teste atual são poucos posts por governador; a coleta completa vem depois.",
+        "adr": "ADR 0039; ADR 0020 Ficha 8 / issue #93",
         "descricao": "UGC (user-generated content) de terceiros mencionando/marcando o governador, via apify/instagram-tagged-scraper (ver aba Actors Apify).",
-        "notas": "O piloto obrigatório da issue #93 (scripts/run_apify_mentions_pilot.py) rodou de verdade em 2026-09-19 contra os 26 perfis com Instagram rastreável (119 posts, data/pilot/mentions_pilot_20260919T030401Z.json) -- grava em data/pilot/*.json, FORA do Delta Lake, não passa pela landing zone nem por BronzeWriter. O schema abaixo foi CORRIGIDO a partir desse resultado real: `authorUsername`/`authorIsVerified`/`isPaidPartnership`/`isAd`/`isAffiliate`/`matchTypes` da especificação original (issue #93) NÃO existem no retorno do actor -- removidos/substituídos por `ownerUsername`/`ownerFullName`/`ownerId`/`paidPartnership`/`taggedUsers` (nomes reais). Desde a issue #211 a coleta de UGC é a ÚLTIMA etapa de extract_and_land e é tolerante a falha (actor com erro ou lista vazia não descarta perfis/posts/reels já gravados); com --days, recebe o mesmo onlyPostsNewerThan (aceitação pelo actor não confirmada -- o pipeline filtra a Silver pela janela como salvaguarda).",
+        "notas": "O piloto obrigatório da issue #93 (script run_apify_mentions_pilot.py, removido na ADR 0039) rodou de verdade em 2026-09-19 contra os 26 perfis com Instagram rastreável (119 posts, data/pilot/mentions_pilot_20260919T030401Z.json) -- gravou em data/pilot/*.json, FORA do Delta Lake, sem passar por BronzeWriter. O schema abaixo foi CORRIGIDO a partir desse resultado real: `authorUsername`/`authorIsVerified`/`isPaidPartnership`/`isAd`/`isAffiliate`/`matchTypes` da especificação original (issue #93) NÃO existem no retorno do actor -- removidos/substituídos por `ownerUsername`/`ownerFullName`/`ownerId`/`paidPartnership`/`taggedUsers` (nomes reais). Desde a issue #211 a coleta de UGC é a ÚLTIMA etapa de extract_and_land e é tolerante a falha (actor com erro ou lista vazia não descarta perfis/posts/reels já gravados); com --days, recebe o mesmo onlyPostsNewerThan (aceitação pelo actor não confirmada -- o pipeline filtra a Silver pela janela como salvaguarda).",
     },
     # ---------------------------- SILVER --------------------------------
     {
@@ -113,7 +114,7 @@ TABLES: list[dict] = [
         "status": "Produção",
         "adr": "ADR 0011",
         "descricao": "Perfis conformados ao contrato Silver: tipos fechados (int32/bool não-nulos), colunas de baixo valor analítico descartadas (biografia, URLs de foto, endereço de negócio).",
-        "notas": "Linha sem `id` é descartada (não quebra a escrita da tabela inteira) E gera um `logger.warning` com o(s) username(s) afetado(s) -- achado real: o link morto do Espírito Santo (PR #132) gerava esse descarte silenciosamente até ser descoberto manualmente; `fullName` ausente cai para `username`, depois `inputUrl`, nunca fica nulo por acidente. `clean()` também filtra por `governor_usernames` (opcional, passado por pipeline.py via scripts.apify_backfill_shared.load_governor_usernames()) -- governador removido de governadores.xlsx some daqui e, em cascata, de toda a Gold derivada (achado original: PR #137).",
+        "notas": "Linha sem `id` é descartada (não quebra a escrita da tabela inteira) E gera um `logger.warning` com o(s) username(s) afetado(s) -- achado real: o link morto do Espírito Santo (PR #132) gerava esse descarte silenciosamente até ser descoberto manualmente; `fullName` ausente cai para `username`, depois `inputUrl`, nunca fica nulo por acidente. `clean()` também filtra por `governor_usernames` (opcional, passado por src/coleta via scripts.apify_backfill_shared.load_governor_usernames()) -- governador removido de governadores.xlsx some daqui e, em cascata, de toda a Gold derivada (achado original: PR #137).",
     },
     {
         "camada": "Silver",
@@ -164,8 +165,8 @@ TABLES: list[dict] = [
         "caminho": "config/settings.py::SILVER_POST_COMMENTS (data/silver/post_comments_clean)",
         "grao": "Uma linha por comentário de post de feed, explodido de `latestComments` (Bronze instagram_posts) e deduplicado por `id_comment`.",
         "modo_escrita": "overwrite (não gravada quando não há nenhum comentário de post na Bronze)",
-        "escrito_por": "src/features/silver/comment_cleaner.py (CommentCleaner(origem='post').clean/write), chamado por pipeline.py",
-        "lido_por": "src/repositories/delta_repository.py::load_post_comments (scripts/run_modeling.py); pipeline.py repassa direto à modelagem (src/modeling/comment_sources.py::combine_comment_sources)",
+        "escrito_por": "src/features/silver/comment_cleaner.py (CommentCleaner(origem='post').clean/write), chamado por src/coleta/derivacao.py (derivar_silver_gold)",
+        "lido_por": "src/repositories/delta_repository.py::load_post_comments (scripts/run_modeling.py); `coleta.py coletar --modelar` repassa direto à modelagem (src/modeling/comment_sources.py::combine_comment_sources)",
         "status": "Produção (issue #212)",
         "adr": "ADR 0034",
         "descricao": "Comentários de posts de feed, em tabela SEPARADA de comments_clean (reels) para as duas origens poderem ser analisadas à parte.",
@@ -192,8 +193,8 @@ TABLES: list[dict] = [
         "caminho": "config/settings.py::SILVER_UGC_MENTIONS (data/silver/ugc_mentions)",
         "grao": "Uma linha por post de UGC, com `governor_username` já resolvido e `authorUsername` já normalizado.",
         "modo_escrita": "overwrite",
-        "escrito_por": "src/features/silver/ugc_mention_cleaner.py (UGCMentionCleaner), chamado por pipeline.py (estágio Silver, a cada execução, inclusive com Bronze reaproveitada)",
-        "lido_por": "src/features/gold/ugc_mentions_aggregator.py, chamado por pipeline.py",
+        "escrito_por": "src/features/silver/ugc_mention_cleaner.py (UGCMentionCleaner), chamado por src/coleta/derivacao.py (derivar_silver_gold), a cada Coleta e na reconstrução da Lambda `rebuild`",
+        "lido_por": "src/features/gold/ugc_mentions_aggregator.py, chamado por src/coleta/derivacao.py",
         "status": "Produção -- mesma execução real de 2026-09-19 da Bronze ugc_mentions",
         "adr": "ADR 0020 Ficha 8 / issue #93",
         "descricao": "UGC de terceiros já limpo: `governor_username` derivado de `mentions` E `taggedUsers` (Bronze) cruzados com a lista de usernames conhecidos; `authorUsername` normaliza o handle do autor terceiro (na prática, sempre a partir de `ownerUsername` -- ver Bronze).",
@@ -205,7 +206,7 @@ TABLES: list[dict] = [
         "tabela": "governor_engagement",
         "schema": sd.GOLD_ENGAGEMENT_SCHEMA,
         "caminho": "data/gold/governor_engagement",
-        "grao": "Uma linha por perfil de governador -- snapshot agregado da execução mais recente.",
+        "grao": "Uma linha por perfil de governador -- snapshot agregado da Coleta mais recente.",
         "modo_escrita": "overwrite",
         "escrito_por": "src/features/gold/engagement_aggregator.py (EngagementAggregator)",
         "lido_por": "pages/*; src/modeling/post_performance.py; src/features/gold/nsm_scorer.py",
@@ -219,14 +220,14 @@ TABLES: list[dict] = [
         "tabela": "governor_engagement_history",
         "schema": sd.GOLD_ENGAGEMENT_SCHEMA,
         "caminho": "data/gold/governor_engagement_history",
-        "grao": "Uma linha por perfil POR EXECUÇÃO do pipeline (mesmo schema de governor_engagement, mas em modo append) -- histórico acumulado ao longo do tempo.",
-        "modo_escrita": "append",
-        "escrito_por": "src/features/gold/engagement_aggregator.py (mesmo EngagementAggregator, path diferente)",
+        "grao": "Uma linha por perfil POR execução de derivação na mesma pasta de dados (mesmo schema de governor_engagement).",
+        "modo_escrita": "append em `coleta.py coletar`; overwrite na reconstrução (Lambda `rebuild`)",
+        "escrito_por": "src/features/gold/engagement_aggregator.py (mesmo EngagementAggregator, path diferente), via src/coleta/derivacao.py (derivar_silver_gold, modo_historico)",
         "lido_por": "src/modeling/growth_history.py (CMGR); dashboard/core/data.py::load_engagement_history (comparação vs. média histórica no Resumo, ADR 0025)",
         "status": "Produção (histórico ainda curto -- ver governor_growth_metrics)",
         "adr": "ADR 0016",
         "descricao": "Base de série temporal de engajamento -- permite calcular tendência/crescimento sem reprocessar Bronze/Silver.",
-        "notas": "Nunca sobrescrita nem deduplicada por execução -- cresce indefinidamente; governor_engagement (sem sufixo) continua em overwrite para não quebrar consumidores existentes.",
+        "notas": "Em `coleta.py coletar` é gravada em append, mas a pasta de destino precisa estar vazia, então o Snapshot de uma Coleta nova começa com uma única execução; na reconstrução (Lambda `rebuild`) é overwrite, para ser idempotente (ADR 0039). A comparação entre Coletas distintas foi removida (ADR 0039, decisão 7); a comparação temporal vem das datas das publicações dentro de uma Coleta. governor_engagement (sem sufixo) é sempre overwrite.",
     },
     {
         "camada": "Gold",
@@ -305,12 +306,12 @@ TABLES: list[dict] = [
         "caminho": "data/gold/governor_profile_clusters_engagement",
         "grao": "Uma linha por GOVERNADOR (não por post) -- clusterização de PERFIL por padrão de engajamento.",
         "modo_escrita": "overwrite",
-        "escrito_por": "src/features/gold/model_enricher.py (ModelEnricher.write_profile_clusters_engagement), via src/modeling/orchestration.py::run_deterministic_modeling (pipeline.py --run-modeling / scripts/run_modeling.py) ou, isoladamente, via scripts/run_profile_clustering_engagement.py",
+        "escrito_por": "src/features/gold/model_enricher.py (ModelEnricher.write_profile_clusters_engagement), via src/modeling/orchestration.py::run_deterministic_modeling (`coleta.py coletar --modelar` / scripts/run_modeling.py) ou, isoladamente, via scripts/run_profile_clustering_engagement.py",
         "lido_por": "dashboard/screens/comparar.py (Tela 4 \"Comparar perfis\", ADR 0021 -- comparação de perfil vs. pares do mesmo cluster)",
         "status": "Produção",
         "adr": "ADR 0020 Fase 2 / issue #86; ADR 0004/0005 (schema próprio, não genérico)",
         "descricao": "Agrupa governadores por semelhança de padrão de engajamento (mesma pipeline PCA->AutoClusterHPO do nível de conteúdo, mas features agregadas por perfil).",
-        "notas": "Roda pós-Gold-de-engajamento (lê governor_engagement), dentro do mesmo estágio determinístico das demais tabelas de modelagem -- na Lambda serverless, é a etapa `model`, disparada depois de `load` (ver seção 3 do README). LIMITAÇÃO CORRIGIDA (2026-09-19): herdava o vazamento de governor_engagement (ver notas daquela tabela) -- agora que profiles_clean/posts_clean/reels_clean filtram contra governadores.xlsx atual, um governador removido nunca chega a ter governor_engagement calculado, então também não aparece mais aqui nem como 'par' na Tela 4 (Comparar perfis).",
+        "notas": "Roda pós-Gold-de-engajamento (lê governor_engagement), dentro do mesmo estágio determinístico das demais tabelas de modelagem -- a Lambda `model`, que também a rodava, foi removida (ADR 0039): a modelagem pesada é sempre local. LIMITAÇÃO CORRIGIDA (2026-09-19): herdava o vazamento de governor_engagement (ver notas daquela tabela) -- agora que profiles_clean/posts_clean/reels_clean filtram contra governadores.xlsx atual, um governador removido nunca chega a ter governor_engagement calculado, então também não aparece mais aqui nem como 'par' na Tela 4 (Comparar perfis).",
     },
     {
         "camada": "Gold",
@@ -370,27 +371,13 @@ TABLES: list[dict] = [
     },
     {
         "camada": "Gold",
-        "tabela": "governor_nsm_history",
-        "schema": sd.GOLD_NSM_SCHEMA,
-        "caminho": "data/gold/governor_nsm_history",
-        "grao": "Uma linha por perfil POR EXECUÇÃO do pipeline (mesmo schema de governor_nsm, mas em modo append) -- histórico acumulado ao longo do tempo.",
-        "modo_escrita": "append",
-        "escrito_por": "src/features/gold/nsm_scorer.py (mesmo NsmScorer, path diferente)",
-        "lido_por": "dashboard/core/data.py::load_nsm_history() -> dashboard/screens/resumo_nsm.py (Resumo, sub-aba NSM, delta \"vs. média histórica\" do KPI Engajamento qualificado)",
-        "status": "Produção -- fecha lacuna que a ADR 0025 previu e adiou (ADR 0027 / issue #160)",
-        "adr": "ADR 0020 Ficha 5 / ADR 0025 / ADR 0027 / issue #90 / issue #160",
-        "descricao": "Base de série temporal de NSM -- permite comparar o NSM da execução mais recente contra a média histórica de execuções anteriores, mesmo raciocínio de governor_engagement_history (ADR 0016).",
-        "notas": "Nunca sobrescrita nem deduplicada por execução -- cresce indefinidamente; governor_nsm (sem sufixo) continua em overwrite para não quebrar consumidores existentes. Precisa de >= 2 execuções acumuladas para o primeiro delta aparecer no dashboard (mesmo critério de compare_vs_historical_average já usado por % engajamento/Seguidores).",
-    },
-    {
-        "camada": "Gold",
         "tabela": "governor_ugc_mentions",
         "schema": sd.GOLD_UGC_MENTIONS_SCHEMA,
         "caminho": "config/settings.py::GOLD_UGC_MENTIONS (data/gold/governor_ugc_mentions)",
         "grao": "Uma linha por post de UGC (grão fino -- agregação por governador é uma view em memória, não persistida).",
         "modo_escrita": "overwrite",
-        "escrito_por": "src/features/gold/ugc_mentions_aggregator.py (GovernorUGCAggregator), chamado por pipeline.py (estágio Gold, issue #211)",
-        "lido_por": "dashboard/screens/resumo_funil.py (sub-aba Funil do Resumo) via dashboard/core/data.py::load_ugc_mentions: o estágio Engage·Criar mostra o número de posts de UGC orgânico de cada governador, com selo 'piloto' (ADR 0032, que revisa a proibição original da issue #114). Com o teto padrão do pipeline.py (30 por coleção, issue #211) a contagem deixa de saturar no teto do piloto (5) e o comparativo do Engage passa a aparecer (a tela o esconde enquanto o máximo for <= 5).",
+        "escrito_por": "src/features/gold/ugc_mentions_aggregator.py (GovernorUGCAggregator), chamado por src/coleta/derivacao.py (issue #211)",
+        "lido_por": "dashboard/screens/resumo_funil.py (sub-aba Funil do Resumo) via dashboard/core/data.py::load_ugc_mentions: o estágio Engage·Criar mostra o número de posts de UGC orgânico de cada governador, com selo 'piloto' (ADR 0032, que revisa a proibição original da issue #114). Com o teto padrão da Coleta (30 por coleção, issue #211) a contagem deixa de saturar no teto do piloto (5) e o comparativo do Engage passa a aparecer (a tela o esconde enquanto o máximo for <= 5).",
         "status": "Produção -- mesma execução real de 2026-09-19 de Bronze/Silver ugc_mentions",
         "adr": "ADR 0020 Ficha 8 / issue #93",
         "descricao": "UGC orgânico vs. publi paga por post, com `is_organic` derivado de `paidPartnership` -- separa apoio espontâneo de publi paga ANTES de qualquer agregação.",
@@ -408,7 +395,7 @@ TABLES: list[dict] = [
         "status": "PRODUÇÃO, mas resultado marcado ILUSTRATIVO (ver notas) -- não sustenta conclusão definitiva ainda",
         "adr": "ADR 0020 Ficha 7 / issue #92",
         "descricao": "CMGR (crescimento mensal composto de seguidores) e retenção de sentimento positivo, calculados sobre governor_engagement_history/governor_sentiment_history.",
-        "notas": "`cmgr_confiavel`/`retencao_confiavel` são False sempre que houver menos de MIN_PERIODS_CONFIAVEL=6 execuções mensais acumuladas -- em 2026-09 o pipeline ainda não acumulou histórico suficiente, então os valores validam a FÓRMULA, não sustentam conclusão real sobre crescimento dos perfis. `motivo`/`nota` explicam o porquê sempre que o valor for NaN ou não confiável.",
+        "notas": "`cmgr_confiavel`/`retencao_confiavel` são False sempre que houver menos de MIN_PERIODS_CONFIAVEL=6 execuções mensais acumuladas -- em 2026-09 o histórico ainda não acumulou o suficiente, então os valores validam a FÓRMULA, não sustentam conclusão real sobre crescimento dos perfis. `motivo`/`nota` explicam o porquê sempre que o valor for NaN ou não confiável.",
     },
     {
         "camada": "Gold",
@@ -417,7 +404,7 @@ TABLES: list[dict] = [
         "caminho": "data/gold/governor_scorecard",
         "grao": "Uma linha por governador (um perfil por `inputUrl` normalizado) -- snapshot recalculável a partir da Silver/Gold atual, sempre overwrite.",
         "modo_escrita": "overwrite",
-        "escrito_por": "src/modeling/governor_scorecard.py (GovernorScorecardScorer), via src/modeling/orchestration.py::run_deterministic_modeling (pipeline.py --run-modeling / scripts/run_modeling.py) ou, isoladamente, scripts/run_governor_scorecard.py",
+        "escrito_por": "src/modeling/governor_scorecard.py (GovernorScorecardScorer), via src/modeling/orchestration.py::run_deterministic_modeling (`coleta.py coletar --modelar` / scripts/run_modeling.py) ou, isoladamente, scripts/run_governor_scorecard.py",
         "lido_por": "dashboard/screens/resumo_scorecard.py (Resumo, sub-aba Scorecard) via dashboard/core/data.py::load_governor_scorecard() -- o dashboard só lê, nada é recalculado",
         "status": "Produção -- com selo de confiabilidade: dimensão Consistência pendente nos 26 governadores no dado de 2026-10-04 (ver notas)",
         "adr": "ADR 0030 / issue #184 (spec #182)",
@@ -467,7 +454,7 @@ APIFY_ACTORS: list[dict] = [
         "actor_id": "(resolvido pelo slug pela Apify -- não fixado como ID literal no código)",
         "dev": "Apify (oficial)",
         "status": "Produção",
-        "parametros_producao": "username=<usernames>, resultsLimit=30 (ScraperConfig.results_limit) + extra_run_input opcional (ex.: onlyPostsNewerThan, usado por scripts/run_apify_backfill.py para recorte incremental).",
+        "parametros_producao": "username=<usernames>, resultsLimit=30 (ScraperConfig.results_limit) + extra_run_input opcional (ex.: onlyPostsNewerThan, usado por src/coleta/coletar.py para o Recorte por janela relativa).",
         "confiabilidade": "Confirmado via página do actor + input-schema (docs/research/..., §1.1) -- pay-per-event, ~$1.00/1.000 posts.",
         "notas": "Não tem includeTranscript nem includeSharesCount (esses são do reel-scraper) -- não confundir com o actor genérico usado para perfis.",
     },
@@ -486,7 +473,7 @@ APIFY_ACTORS: list[dict] = [
         "actor_slug": "apify/instagram-tagged-scraper",
         "actor_id": "(resolvido pelo slug pela Apify -- não fixado como ID literal no código)",
         "dev": "Apify (oficial)",
-        "status": "Produção -- coletado a cada extração do pipeline.py (extract_and_land, issue #211); primeira execução real em 2026-09-19 (PR #140); o piloto isolado (scripts/run_apify_mentions_pilot.py, data/pilot/*.json) continua existindo à parte, para confirmar campo/schema antes de qualquer mudança futura de contrato.",
+        "status": "Produção -- coletado a cada Coleta (`coleta.py coletar`, via extract_and_land, issue #211); primeira execução real em 2026-09-19 (PR #140). O script de piloto isolado (run_apify_mentions_pilot.py) foi removido na ADR 0039.",
         "parametros_producao": "username=<usernames>, resultsLimit=<baixo no piloto> (ScraperConfig.mentions_actor_id, InstagramScraper.scrape_mentions).",
         "confiabilidade": "Escolhido sobre fetch_cat/instagram-mentions-scraper por reprodutibilidade (9.999 usuários, 5.0 estrelas vs. actor community \"under maintenance\", 2 usuários -- docs/research/..., §7.1). Schema de output confirmado 1:1 contra os 27 perfis do projeto pelo piloto real de 2026-09-19, e validado de novo pela execução de produção do mesmo dia.",
         "notas": "docs/research/apify-instagram-actors-cobra-mapping.md (§7) também mapeia uma rota alternativa sem integrar actor novo: reconfigurar o actor de perfis já em uso (shu8hvrXbJbY3Eb9W) para resultsType='mentions' -- capacidade confirmada, schema de output dessa rota específica NÃO confirmado por exemplo primário.",
@@ -499,7 +486,8 @@ APIFY_ACTORS: list[dict] = [
 
 COMMON_TECH: dict[str, str] = {
     "_ingested_at": "Timestamp UTC de quando o registro entrou na camada Bronze (BronzeWriter._add_ingestion_metadata).",
-    "_run_id": "Identificador da execução do pipeline que gravou a linha (src/run_id.py) -- rastreia de qual chamada de pipeline.py/scripts/*.py a linha se origina.",
+    "_run_id": "Identificador da execução (src/run_id.py) que gravou a linha -- na Bronze, o run_id da Coleta (`coleta.py coletar`); como a Bronze é overwrite por Coleta, cada tabela Bronze tem um único run_id. Nas demais camadas, o da etapa que gravou.",
+    "_raw": "Bronze fiel (ADR 0039): o item COMPLETO retornado pela Apify, serializado como JSON string (ensure_ascii=False), inclusive campos que as colunas tipadas não modelam. Fonte para reprocessar a Silver sem nova extração; parsing e validação ficam na Silver. Substitui a antiga landing zone.",
     "_source": "Origem do dado bruto -- sempre 'apify' hoje (src/data_extract/scraper.py).",
     "_source_layer": "Camada de origem da linha na Silver -- 'bronze' para a maioria, 'raw_xlsx' só para governors_metadata.",
     "_generated_at": "Timestamp UTC de quando a linha foi calculada/gravada na Gold -- distinto de _ingested_at (que é do dado bruto na Bronze).",
@@ -698,39 +686,21 @@ TABLE_COLUMN_OVERRIDES: dict[str, dict[str, str]] = {
 LINEAGE: list[dict] = [
     {
         "origem": "Apify (apify/instagram-scraper, ID shu8hvrXbJbY3Eb9W, modo resultsType='details' -- ver aba Actors Apify)",
-        "destino": "Landing zone: data/landing/<run_id>/profiles.json (local) ou /tmp/landing/<run_id>/profiles.json (Lambda, efêmero)",
-        "transformacao": "Arquivamento do JSON bruto retornado pela Apify, SEM projeção de schema -- fidelidade total, inclusive de campos que a Bronze descarta silenciosamente. Sempre executado antes da escrita Bronze, para que uma falha nesta não implique perda do dado já raspado (e já pago).",
-        "modulo": "src/data_extract/ingestion.py (archive_raw_json / extract_and_land)",
-    },
-    {
-        "origem": "Landing zone: profiles.json",
         "destino": "Bronze: instagram_profiles",
-        "transformacao": "Ingestão bruta + metadados de execução (_ingested_at/_run_id/_source); serialização de campos list/dict para JSON string. Destino físico: data/bronze/instagram_profiles (local) ou s3://<bucket>/bronze/instagram_profiles (Lambda, quando infra AWS aplicada).",
-        "modulo": "src/data_extract/bronze_writer.py",
+        "transformacao": "Ingestão FIEL (ADR 0039): o item completo da Apify vai para a coluna `_raw` (JSON string), além das colunas tipadas e dos metadados de ingestão (_ingested_at/_run_id/_source); campos list/dict viram JSON string nas colunas tipadas. Não há landing zone. Gravada em overwrite por Coleta. Destino físico: data/bronze/instagram_profiles (local) ou s3://<bucket>/bronze/instagram_profiles (reconstrução na Lambda `rebuild`).",
+        "modulo": "src/coleta/coletar.py -> src/data_extract/ingestion.py::extract_and_land -> src/data_extract/bronze_writer.py",
     },
     {
         "origem": "Apify (apify/instagram-post-scraper -- ver aba Actors Apify)",
-        "destino": "Landing zone: data/landing/<run_id>/posts.json (local) ou /tmp/landing/<run_id>/posts.json (Lambda, efêmero)",
-        "transformacao": "Idem profiles.json.",
-        "modulo": "src/data_extract/ingestion.py (archive_raw_json / extract_and_land)",
-    },
-    {
-        "origem": "Landing zone: posts.json",
         "destino": "Bronze: instagram_posts",
-        "transformacao": "Idem instagram_profiles. Destino físico: data/bronze/instagram_posts (local) ou s3://<bucket>/bronze/instagram_posts (Lambda).",
-        "modulo": "src/data_extract/bronze_writer.py",
+        "transformacao": "Idem instagram_profiles (inclui `_raw`). Destino físico: data/bronze/instagram_posts (local) ou s3://<bucket>/bronze/instagram_posts (reconstrução).",
+        "modulo": "src/coleta/coletar.py -> src/data_extract/ingestion.py::extract_and_land -> src/data_extract/bronze_writer.py",
     },
     {
         "origem": "Apify (apify/instagram-reel-scraper -- ver aba Actors Apify)",
-        "destino": "Landing zone: data/landing/<run_id>/reels.json (local) ou /tmp/landing/<run_id>/reels.json (Lambda, efêmero)",
-        "transformacao": "Idem profiles.json; payload já inclui latestComments e, opcionalmente, transcript (flag paga includeTranscript).",
-        "modulo": "src/data_extract/ingestion.py (archive_raw_json / extract_and_land)",
-    },
-    {
-        "origem": "Landing zone: reels.json",
         "destino": "Bronze: instagram_reels",
-        "transformacao": "Idem instagram_profiles; inclui latestComments e, opcionalmente, transcript (flag paga includeTranscript). Destino físico: data/bronze/instagram_reels (local) ou s3://<bucket>/bronze/instagram_reels (Lambda).",
-        "modulo": "src/data_extract/bronze_writer.py",
+        "transformacao": "Idem instagram_profiles (inclui `_raw`); o item já traz latestComments e, opcionalmente, transcript (flag paga includeTranscript). Destino físico: data/bronze/instagram_reels (local) ou s3://<bucket>/bronze/instagram_reels (reconstrução).",
+        "modulo": "src/coleta/coletar.py -> src/data_extract/ingestion.py::extract_and_land -> src/data_extract/bronze_writer.py",
     },
     {
         "origem": "Bronze: instagram_profiles",
@@ -843,8 +813,26 @@ LINEAGE: list[dict] = [
     {
         "origem": "Apify (apify/instagram-tagged-scraper -- ver aba Actors Apify)",
         "destino": "Bronze/Silver/Gold: ugc_mentions / governor_ugc_mentions",
-        "transformacao": "Coleta -> landing zone -> Bronze -> Silver (dedup id/shortCode, normalização de handle, resolução de governor_username via mentions+taggedUsers) -> Gold (is_organic a partir de paidPartnership), tudo sob o mesmo run_id da extração principal (coleta de UGC é a última etapa de extract_and_land, tolerante a falha). Schema corrigido contra o piloto real (scripts/run_apify_mentions_pilot.py, 2026-09-19, data/pilot/*.json, fora do Delta Lake). Writer de produção rodou contra a Apify de produção pela 1a vez em 2026-09-19 (achado no PR #140, que corrigiu um FutureWarning de pandas revelado por esse dado real).",
-        "modulo": "src/data_extract/ingestion.py::extract_and_land + src/data_extract/bronze_writer.py + src/features/silver/ugc_mention_cleaner.py + src/features/gold/ugc_mentions_aggregator.py, orquestrados por pipeline.py (issue #211)",
+        "transformacao": "Coleta -> Bronze fiel (com `_raw`) -> Silver (dedup id/shortCode, normalização de handle, resolução de governor_username via mentions+taggedUsers) -> Gold (is_organic a partir de paidPartnership), tudo sob o mesmo run_id da Coleta (a coleta de UGC é a última etapa de extract_and_land, tolerante a falha). Schema corrigido contra o piloto real de 2026-09-19 (script run_apify_mentions_pilot.py, removido na ADR 0039). Writer de produção rodou contra a Apify de produção pela 1a vez em 2026-09-19 (achado no PR #140, que corrigiu um FutureWarning de pandas revelado por esse dado real).",
+        "modulo": "src/data_extract/ingestion.py::extract_and_land + src/data_extract/bronze_writer.py + src/features/silver/ugc_mention_cleaner.py + src/features/gold/ugc_mentions_aggregator.py, orquestrados por src/coleta/coletar.py e src/coleta/derivacao.py (issue #211)",
+    },
+    {
+        "origem": "Snapshot local (Bronze + Silver + Gold + manifesto.json)",
+        "destino": "Hugging Face (dataset privado): main = Coleta vigente; Coletas anteriores em tags",
+        "transformacao": "Publicação do Snapshot inteiro como um único commit de substituição na main e criação da tag da Coleta (nada é apagado nem reescrito por force-push). O manifesto traz identidade, Recorte, cobertura real, custo e contagem de linhas das tabelas derivadas -- sem conteúdo nem segredos.",
+        "modulo": "src/coleta/hf.py + src/coleta/manifesto.py (CLI `coleta.py publicar|restaurar|listar|baixar`)",
+    },
+    {
+        "origem": "Hugging Face: tag de uma Coleta",
+        "destino": "S3: bronze/, silver/ e gold/ (Delta) -- Lambda `rebuild`",
+        "transformacao": "Baixa o Snapshot da tag e reconstrói Bronze, Silver e Gold de engajamento/UGC no S3, só com etapas determinísticas (sem Apify e sem modelagem pesada). Invocação sempre manual; a nuvem não extrai nem agenda.",
+        "modulo": "lambdas/rebuild/handler.py + src/coleta/reconstruir.py + src/coleta/derivacao.py",
+    },
+    {
+        "origem": "Hugging Face: main (ou revisão HF_DATASET_REVISAO)",
+        "destino": "data/silver e data/gold do app publicado (Streamlit Cloud)",
+        "transformacao": "O dashboard baixa só Silver, Gold e manifesto.json da Coleta vigente (ou da tag/commit pedido) na inicialização.",
+        "modulo": "src/publicacao_hf.py + dashboard/core/bootstrap_dados.py",
     },
     {
         "origem": "Gold (todas as tabelas acima)",
@@ -1012,9 +1000,10 @@ def build_overview_sheet(wb: Workbook) -> None:
         ("Gerado por: scripts/generate_data_dictionary.py -- reexecutar após qualquer mudança de schema.", None),
         ("", None),
         ("Camadas", Font(bold=True, size=12)),
-        ("Bronze -- append-only, fidelidade total ao retorno bruto do Apify (data/bronze/).", None),
-        ("Silver -- limpo e conformado a um contrato de tipos fechado; overwrite por execução (data/silver/).", None),
+        ("Bronze -- FIEL ao retorno da Apify (ADR 0039): o item completo vai na coluna `_raw`, além das colunas tipadas e dos metadados de ingestão; overwrite por Coleta, sem landing zone (data/bronze/).", None),
+        ("Silver -- limpo e conformado a um contrato de tipos fechado; overwrite por Coleta, sem deduplicação entre execuções (data/silver/).", None),
         ("Gold -- agregados e resultados de modelagem, prontos para consumo por dashboard/TCC (data/gold/).", None),
+        ("Coleta, Recorte e Snapshot (ADR 0039, módulo src/coleta/, CLI coleta.py) -- uma Coleta é uma extração segundo um Recorte; o Snapshot é a Coleta vigente com Bronze, Silver, Gold e manifesto.json, publicado num único commit do dataset privado do Hugging Face. Coletas anteriores ficam em tags. Não há landing zone nem histórico entre execuções (governor_nsm_history foi removida).", None),
         ("", None),
         ("Legenda de Status (aba Tabelas)", Font(bold=True, size=12)),
         ("Produção -- escrita e lida por pelo menos um caminho de código de produção, com dado real esperado em data/.", None),
@@ -1025,13 +1014,13 @@ def build_overview_sheet(wb: Workbook) -> None:
          "UGC de menções (ADR 0020 Ficha 8 / issue #93) saiu de PILOTO para Produção em 2026-09-19.", None),
         ("", None),
         ("Contagem de tabelas", Font(bold=True, size=12)),
-        ("Bronze: 4  |  Silver: 6  |  Gold: 17  |  Total: 27", None),
+        (_resumo_contagem(), None),
         ("", None),
         ("Como navegar", Font(bold=True, size=12)),
         ("1. Aba 'Tabelas' -- visão de 1 linha por tabela (grão, escrita, leitura, status, ADR).", None),
         ("2. Abas 'Colunas - Bronze/Silver/Gold' -- 1 linha por coluna de cada tabela da camada.", None),
-        ("3. Aba 'Linhagem' -- de onde cada tabela vem e o que a transformação aplica, incluindo o hop pela "
-         "landing zone (data/landing/<run_id>/*.json) ANTES de qualquer escrita Bronze.", None),
+        ("3. Aba 'Linhagem' -- de onde cada tabela vem e o que a transformação aplica, incluindo "
+         "o Snapshot publicado no Hugging Face e a reconstrução na Lambda rebuild (não há landing zone).", None),
         ("4. Aba 'Actors Apify' -- qual actor (slug + ID técnico) raspa cada entidade Bronze, com quais "
          "parâmetros REALMENTE usados em produção (src/data_extract/scraper.py), status produção/piloto e "
          "confiabilidade da fonte (cruzado com docs/research/apify-instagram-actors-cobra-mapping.md).", None),
@@ -1043,6 +1032,12 @@ def build_overview_sheet(wb: Workbook) -> None:
         if font:
             ws.cell(row=ws.max_row, column=1).font = font
         ws.cell(row=ws.max_row, column=1).alignment = Alignment(wrap_text=True, vertical="top")
+
+
+def _resumo_contagem() -> str:
+    """Contagem de tabelas calculada de TABLES (nunca digitada à mão)."""
+    por_camada = {c: sum(1 for t in TABLES if t["camada"] == c) for c in ("Bronze", "Silver", "Gold")}
+    return "  |  ".join(f"{c}: {n}" for c, n in por_camada.items()) + f"  |  Total: {sum(por_camada.values())}"
 
 
 def build_tables_sheet(wb: Workbook) -> None:
@@ -1065,9 +1060,9 @@ def build_tables_sheet(wb: Workbook) -> None:
 def _column_overrides_for_table(tabela: str) -> dict[str, str]:
     """`TABLE_COLUMN_OVERRIDES` da tabela, com fallback para a tabela-base
     quando `tabela` é uma variante "_history" (append) sem override próprio
-    -- mesmo schema/colunas da tabela-base, só o modo de escrita muda (ver
-    governor_nsm/governor_nsm_history, ADR 0027 / issue #160). Evita
-    duplicar a mesma descrição de coluna duas vezes."""
+    -- mesmo schema/colunas da tabela-base, só o modo de escrita muda (hoje
+    governor_engagement_history; governor_nsm_history foi removida na
+    ADR 0039). Evita duplicar a mesma descrição de coluna duas vezes."""
     return TABLE_COLUMN_OVERRIDES.get(tabela) or TABLE_COLUMN_OVERRIDES.get(
         tabela.removesuffix("_history"), {}
     )

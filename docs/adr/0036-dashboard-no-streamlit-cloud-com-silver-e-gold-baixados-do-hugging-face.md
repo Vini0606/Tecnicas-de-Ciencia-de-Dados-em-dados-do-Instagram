@@ -4,6 +4,12 @@ status: accepted (parcialmente superada pela ADR 0039)
 
 # Dashboard no Streamlit Cloud, com Silver e Gold baixados de um dataset privado do Hugging Face
 
+> **Nota: parcialmente superada pela [ADR 0039](0039-coleta-versionada-no-hf-bronze-fiel-e-aws-so-reconstroi.md).**
+> O que continua valendo: o dashboard baixa só Silver e Gold (mais o `manifesto.json`) do dataset privado no início e as dependências
+> enxutas. O que mudou: ele baixa a `main` (a Coleta vigente) ou a revisão indicada em `HF_DATASET_REVISAO`, e a publicação não é
+> mais por `scripts/publicar_dashboard_hf.py` (removido), e sim por `coleta.py publicar`, que envia o Snapshot inteiro.
+> O texto abaixo é o registro histórico da decisão original.
+
 ## Contexto
 
 O dashboard lê `data/silver` e `data/gold` (17 tabelas Gold e 5 Silver, cerca de 3 MB). Esses diretórios não vão

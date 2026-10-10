@@ -77,7 +77,7 @@ def save_checkpoint(
     duplicá-lo a cada checkpoint só desperdiçaria disco.
 
     `parent_run_id`, se informado, é o `run_id` da execução (extração ou
-    invocação de `pipeline.py`) que disparou esta modelagem -- puramente
+    invocação de `coleta.py coletar`) que disparou esta modelagem -- puramente
     informativo, gravado só em `metadata.json`. Não substitui nem se mistura
     com o `run_id` da própria modelagem (ADR 0001: cada estágio mantém seu
     `run_id` imutável); serve só pra reconstruir depois qual pipeline

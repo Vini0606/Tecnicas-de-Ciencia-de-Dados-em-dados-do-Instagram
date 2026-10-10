@@ -4,6 +4,12 @@ status: accepted (parcialmente superada pela ADR 0039)
 
 # Preparar a arquitetura Medallion para um monitor contínuo de redes sociais: landing zone de dado bruto, extração consolidada e histórico em Gold
 
+> **Nota: parcialmente superada pela [ADR 0039](0039-coleta-versionada-no-hf-bronze-fiel-e-aws-so-reconstroi.md).**
+> Superado: a landing zone deixou de existir (a Bronze guarda o item completo da Apify na coluna `_raw`, em overwrite por Coleta),
+> a extração consolidada passou a ser o módulo `src/coleta/` (CLI `coleta.py`, no lugar dos modos do `pipeline.py` e dos scripts de
+> backfill/calibração/piloto) e o histórico entre execuções foi removido (`governor_nsm_history` e o "vs. execução anterior").
+> A `governor_engagement_history` continua existindo. O texto abaixo é o registro histórico da decisão original.
+
 ## Contexto
 
 O roadmap do projeto (registrado no `/handoff` de 2026-08-29 e numa sessão de `/grilling` em 2026-08-30) inclui transformar o projeto num monitor contínuo de redes sociais — ingestão diária incremental, mais atualizações periódicas que podem exigir re-raspar um período específico ou o histórico inteiro. Ao explorar se a arquitetura Medallion atual (Bronze append-only em Delta Lake via `BronzeWriter`, Silver deduplicada por `id` via `deduplicate_latest`, Gold agregada) já sustenta isso, três lacunas concretas apareceram no código, não hipotéticas:

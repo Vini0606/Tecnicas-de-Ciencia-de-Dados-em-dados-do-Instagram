@@ -1,8 +1,7 @@
 """
 Ponto único compartilhado de "raspar perfis+posts+reels+UGC e escrever na
-Bronze" — usado por `src/coleta/coletar.py` e
-`lambdas/extract/handler.py`, que antes duplicavam essa sequência sem
-nenhum compartilhamento (ver ADR 0011, decisão 2).
+Bronze" — usado por `src/coleta/coletar.py` (a Lambda `extract`, que também o usava, foi
+removida: a nuvem não extrai mais, ADR 0039).
 
 A Bronze é fiel ao item da Apify (coluna `_raw` com o item completo, ADR 0039):
 não existe mais landing zone separada, então uma falha na escrita da Bronze de

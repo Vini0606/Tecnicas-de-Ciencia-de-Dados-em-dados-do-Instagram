@@ -224,9 +224,8 @@ class ModelingConfig:
     # Clusterização de PERFIL de governador por engajamento (Fase 2, ADR
     # 0020) -- distinta de `cluster` acima, que clusteriza reel/post (outra
     # granularidade). Mesmas features/limite de `scripts/
-    # run_profile_clustering_engagement.py` e `lambdas/model/handler.py`
-    # (que já fazia isso no pipeline serverless; o local não fazia até
-    # aqui): só 27 governadores, então `max_n_clusters` pequeno evita um
+    # run_profile_clustering_engagement.py` e `run_deterministic_modeling`
+    # (a Lambda `model`, que também fazia isso, foi removida na ADR 0039): só 27 governadores, então `max_n_clusters` pequeno evita um
     # espaço de busca folgado demais pra esse tamanho de amostra.
     profile_cluster: ClusterConfig = field(
         default_factory=lambda: ClusterConfig(

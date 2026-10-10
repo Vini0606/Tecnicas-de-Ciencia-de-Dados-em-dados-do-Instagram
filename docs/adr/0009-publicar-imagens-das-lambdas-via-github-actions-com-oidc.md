@@ -4,6 +4,11 @@ status: accepted (parcialmente superada pela ADR 0039)
 
 # Publicar as imagens das Lambdas via GitHub Actions, autenticando por OIDC, mantendo `terraform apply` manual
 
+> **Nota: parcialmente superada pela [ADR 0039](0039-coleta-versionada-no-hf-bronze-fiel-e-aws-so-reconstroi.md).**
+> O que continua valendo: publicação da imagem via GitHub Actions com OIDC (sem access key armazenada) e `terraform apply` manual.
+> O que mudou: a esteira publica só a imagem `rebuild`; as imagens `extract`, `transform`, `load`, `model` e `orchestrator` não
+> existem mais. O texto abaixo é o registro histórico da decisão original.
+
 ## Contexto
 
 A ADR 0008 deixou o publicar as 4 imagens das Lambdas (`extract`, `transform`, `load`,
