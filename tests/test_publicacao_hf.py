@@ -16,6 +16,7 @@ from src.publicacao_hf import (
     PADROES_PUBLICACAO,
     ConfigHF,
     baixar,
+    ler_manifesto,
     configuracao_hf,
     dados_presentes,
     descrever_publicacao,
@@ -37,6 +38,7 @@ class ClienteFake:
     ):
         self.enviados: list[tuple[Path, list[str], str]] = []
         self.baixados: list[tuple[Path, list[str]]] = []
+        self.revisoes: list[str | None] = []
         self._cria = cria_gold_ao_baixar
         self._falha = falha
 
@@ -50,6 +52,7 @@ class ClienteFake:
         if self._falha:
             raise self._falha
         self.baixados.append((pasta, padroes))
+        self.revisoes.append(revisao)
         if self._cria:
             _tabela(Path(pasta), "gold", "governor_engagement")
 
@@ -138,7 +141,7 @@ def test_publicar_envia_so_silver_e_gold(tmp_path):
     assert enviadas == ["silver/posts_clean", "gold/governor_engagement"]
     pasta, padroes, _ = cliente.enviados[0]
     assert pasta == tmp_path
-    assert padroes == PADROES_PUBLICACAO == ["silver/**", "gold/**"]
+    assert padroes == PADROES_PUBLICACAO == ["silver/**", "gold/**", "manifesto.json"]
 
 
 def test_publicar_recusa_sem_gold(tmp_path):
@@ -155,7 +158,7 @@ def test_publicar_recusa_sem_gold(tmp_path):
 def test_baixar_pede_so_silver_e_gold(tmp_path):
     cliente = ClienteFake()
     baixar(tmp_path, CONFIG, cliente)
-    assert cliente.baixados == [(tmp_path, ["silver/**", "gold/**"])]
+    assert cliente.baixados == [(tmp_path, ["silver/**", "gold/**", "manifesto.json"])]
 
 
 # --------------------------------------------------------------- garantir_dados
@@ -230,3 +233,61 @@ def test_dashboard_nao_importa_a_pilha_de_nlp():
     )
     assert saida.returncode == 0, saida.stderr[-500:]
     assert saida.stdout.strip() == ""
+
+
+# -------------------------------------------------------------------- revisao
+
+
+def test_configuracao_le_a_revisao_opcional():
+    env = {"HF_TOKEN": "t", "HF_DATASET_REPO": "u/d", "HF_DATASET_REVISAO": " v1 "}
+    assert configuracao_hf(env) == ConfigHF(token="t", repo="u/d", revisao="v1")
+
+
+def test_configuracao_sem_revisao_usa_a_main():
+    cfg = configuracao_hf({"HF_TOKEN": "t", "HF_DATASET_REPO": "u/d"})
+    assert cfg is not None and cfg.revisao is None
+    cfg = configuracao_hf({"HF_TOKEN": "t", "HF_DATASET_REPO": "u/d", "HF_DATASET_REVISAO": "  "})
+    assert cfg is not None and cfg.revisao is None
+
+
+def test_baixar_sem_revisao_pede_a_main(tmp_path):
+    cliente = ClienteFake()
+    baixar(tmp_path, CONFIG, cliente)
+    assert cliente.revisoes == [None]
+
+
+def test_baixar_com_revisao_repassa_a_tag_ou_commit(tmp_path):
+    cliente = ClienteFake()
+    baixar(tmp_path, ConfigHF(token="t", repo="u/d", revisao="coleta_x"), cliente)
+    assert cliente.revisoes == ["coleta_x"]
+    assert not any("bronze" in p or "landing" in p for p in cliente.baixados[0][1])
+
+
+# ------------------------------------------------------------------ manifesto
+
+
+def test_ler_manifesto_devolve_none_se_ausente_ou_invalido(tmp_path):
+    assert ler_manifesto(tmp_path) is None
+    (tmp_path / "manifesto.json").write_text("{nao e json", encoding="utf-8")
+    assert ler_manifesto(tmp_path) is None
+    (tmp_path / "manifesto.json").write_text('{"x": 1}', encoding="utf-8")
+    assert ler_manifesto(tmp_path) is None  # fora do esquema
+
+
+def test_ler_manifesto_valido(tmp_path):
+    from datetime import date, datetime
+
+    from src.coleta.manifesto import escrever_manifesto, gerar_manifesto
+    from src.coleta.recorte import Recorte, gerar_tag
+
+    recorte = Recorte(dias=30, teto=50)
+    tag = gerar_tag(recorte, date(2026, 10, 1))
+    m = gerar_manifesto(
+        tmp_path,
+        tag=tag,
+        recorte=recorte,
+        extraido_em=datetime(2026, 10, 1, 12, 0),
+        versao_codigo="abc123",
+    )
+    escrever_manifesto(tmp_path, m)
+    assert ler_manifesto(tmp_path)["identidade"]["tag"] == tag

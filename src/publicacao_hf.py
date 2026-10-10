@@ -20,7 +20,7 @@ from pathlib import Path
 
 from src.dados_hf import ClienteHF, ClienteHFReal, ErroHF
 
-PADROES_PUBLICACAO = ["silver/**", "gold/**"]
+PADROES_PUBLICACAO = ["silver/**", "gold/**", "manifesto.json"]  # manifesto: ADR 0039
 
 # Tabela cuja presença indica que os dados do dashboard já estão no disco.
 _TABELA_SENTINELA = Path("gold") / "governor_engagement" / "_delta_log"
@@ -30,12 +30,15 @@ VAR_REPO = "HF_DATASET_REPO_PUBLICACAO"
 # Sem dataset de publicação próprio, usa o mesmo da landing/Bronze (ADR 0036):
 # o layout espelho não colide (`silver/`, `gold/` x `landing/`, `bronze/`).
 VAR_REPO_PADRAO = "HF_DATASET_REPO"
+# Tag ou commit do dataset a baixar; sem ela, a `main` (Coleta vigente, ADR 0039).
+VAR_REVISAO = "HF_DATASET_REVISAO"
 
 
 @dataclass(frozen=True)
 class ConfigHF:
     token: str
     repo: str
+    revisao: str | None = None
 
 
 def configuracao_hf(*fontes: Mapping[str, object] | None) -> ConfigHF | None:
@@ -47,7 +50,8 @@ def configuracao_hf(*fontes: Mapping[str, object] | None) -> ConfigHF | None:
         token = str(fonte.get(VAR_TOKEN) or "").strip()
         repo = str(fonte.get(VAR_REPO) or fonte.get(VAR_REPO_PADRAO) or "").strip()
         if token and repo:
-            return ConfigHF(token=token, repo=repo)
+            revisao = str(fonte.get(VAR_REVISAO) or "").strip() or None
+            return ConfigHF(token=token, repo=repo, revisao=revisao)
     return None
 
 
@@ -103,7 +107,22 @@ def baixar(
 ) -> None:
     """Baixa Silver e Gold para `data_dir`, mantendo o layout espelho."""
     cliente = cliente or ClienteHFReal(config.repo, config.token)
-    cliente.baixar(Path(data_dir), PADROES_PUBLICACAO)
+    cliente.baixar(Path(data_dir), PADROES_PUBLICACAO, config.revisao)
+
+
+def ler_manifesto(data_dir: Path | str) -> dict | None:
+    """Manifesto do Snapshot baixado, ou `None` se ausente, ilegivel ou invalido.
+    Nunca levanta: o app segue sem a indicacao da Coleta."""
+    import json
+
+    from src.coleta.manifesto import NOME_ARQUIVO, validar_manifesto
+
+    try:
+        m = json.loads((Path(data_dir) / NOME_ARQUIVO).read_text(encoding="utf-8"))
+        validar_manifesto(m)
+    except (OSError, ValueError):
+        return None
+    return m
 
 
 def garantir_dados(
