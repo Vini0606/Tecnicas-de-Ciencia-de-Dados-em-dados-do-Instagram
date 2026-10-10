@@ -4,6 +4,12 @@ status: accepted (parcialmente superada pela ADR 0039)
 
 # Generalizar DeltaRepository para suportar S3, aposentando S3DataRepository e IS_CLOUD
 
+> **Nota: parcialmente superada pela [ADR 0039](0039-coleta-versionada-no-hf-bronze-fiel-e-aws-so-reconstroi.md).**
+> O que continua valendo: o `DeltaRepository` lê tabelas Delta locais ou em S3 e `S3DataRepository`/`IS_CLOUD` foram aposentados.
+> O que mudou: as Lambdas `extract`, `transform`, `load` e `model` foram removidas; a única Lambda hoje é `lambdas/rebuild`, que baixa
+> uma tag de Coleta do Hugging Face e reconstrói Bronze, Silver e Gold no S3. A nuvem não extrai da Apify. O texto abaixo é o registro
+> histórico da decisão original.
+
 ## Contexto
 
 O projeto tem um plano real de construir infraestrutura de engenharia de dados + MLOps na AWS,

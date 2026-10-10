@@ -3,8 +3,9 @@
 Convenções para extrair dados do Instagram e versioná-los no Hugging Face. Termos (**Coleta**, **Recorte**, **Snapshot**)
 estão definidos em `CONTEXT.md`.
 
-> Status: convenção decidida no grilling de arquitetura (2026-10-09). O módulo que gera a tag ainda não existe; até lá,
-> siga esta página à mão.
+> Status: convenção implementada pelo módulo `src/coleta/` e pela CLI `coleta.py` (ADR 0039). Comandos: `coletar`,
+> `publicar`, `restaurar`, `listar`, `baixar` (`uv run python coleta.py <comando> --help`). Sem `--yes`, `coletar`, `publicar`
+> e `restaurar` só mostram a estimativa de custo ou o plano.
 
 ## Antes de extrair
 

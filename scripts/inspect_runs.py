@@ -54,9 +54,9 @@ GOLD_TABLES = {
     "governor_clusters_posts": settings.GOLD_CLUSTERS_POSTS,
     "governor_profile_clusters_engagement": settings.GOLD_PROFILE_CLUSTERS_ENGAGEMENT,
 }
-# governor_engagement e escrito por toda invocacao de a Coleta,
+# governor_engagement e escrito por toda Coleta (`coleta.py coletar`),
 # com ou sem --run-modeling -- nao e sinal de modelagem, ao contrario dos
-# outros tres (saida de run_deterministic_modeling/lambdas/model).
+# outros tres (saida de run_deterministic_modeling).
 GOLD_MODELING_TABLES = {
     "governor_sentiment",
     "governor_clusters_reels",
