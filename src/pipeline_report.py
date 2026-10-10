@@ -1,5 +1,5 @@
 """
-Relatório de tabelas esperadas ao final do `pipeline.py` (issue #214).
+Relatório de tabelas esperadas ao final de uma Coleta com modelagem (issue #214).
 
 O critério de validação de uma execução: cada tabela que o dashboard lê (e
 as que o pipeline grava) existe, tem linhas e foi reescrita NESTA execução.
@@ -16,6 +16,7 @@ Delta é a única evidência uniforme de "reescrita nesta execução".
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -25,6 +26,8 @@ from pathlib import Path
 from deltalake import DeltaTable
 
 from config import settings
+
+logger = logging.getLogger(__name__)
 
 
 class Status(Enum):
@@ -181,3 +184,31 @@ def formatar_relatorio(resultado: list[StatusTabela], caminho_log: Path) -> str:
         f"estagios pulados): {caminho_log}"
     )
     return "\n".join(partes)
+
+
+def relatorio_final(
+    started_at: datetime,
+    run_modeling: bool,
+    run_id: str,
+    caminho_log: Path,
+    tabelas: Iterable[TabelaEsperada] = TABELAS_ESPERADAS,
+) -> int:
+    """Relatório de tabelas esperadas (issue #214) e código de saída do
+    processo: 1 se alguma tabela lida pelo dashboard, de um estágio que rodou
+    nesta execução, está AUSENTE, VAZIA ou DESATUALIZADA."""
+    estagios = {"silver", "gold", "ugc"} | ({"modelagem"} if run_modeling else set())
+    resultado = avaliar_tabelas(tabelas, started_at, estagios)
+    logger.info(formatar_relatorio(resultado, caminho_log))
+    codigo = codigo_de_saida(resultado)
+    if codigo:
+        n = sum(r.falhou and r.tabela.usada_pelo_dashboard for r in resultado)
+        logger.error(
+            f"[FALHA] Coleta finalizada com run_id: {run_id} -- "
+            f"{n} tabela(s) do dashboard com problema (ver relatorio acima)."
+        )
+    else:
+        logger.info(
+            f"[OK] Coleta finalizada com run_id: {run_id} -- "
+            "todas as tabelas do dashboard OK."
+        )
+    return codigo

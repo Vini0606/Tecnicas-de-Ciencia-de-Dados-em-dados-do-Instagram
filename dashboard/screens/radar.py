@@ -493,7 +493,7 @@ def render() -> None:
         stage_label("Convert (Contribuir)")
         st.info(
             "Nenhum governador disponível ainda -- rode a pipeline "
-            "(`uv run python pipeline.py`) para popular o dashboard."
+            "(`uv run python coleta.py baixar <tag>`) para popular o dashboard."
         )
         footnote()
         return

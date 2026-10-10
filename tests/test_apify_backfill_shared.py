@@ -66,7 +66,7 @@ def test_estimate_cost_usd_for_results_limit_considera_posts_e_reels():
 
 
 def test_estimate_cost_usd_for_results_limit_aceita_media_types_customizado():
-    """ADR 0020 (Ficha 8) / issue #93: `scripts/run_apify_mentions_pilot.py`
+    """ADR 0020 (Ficha 8) / issue #93: o custo de UGC em `src/coleta/custo.py`
     chama com `media_types=1` (um actor só) -- o default 2 (posts+reels)
     não se aplica a UGC de menções."""
     resultado = estimate_cost_usd_for_results_limit(results_limit=100, n_governors=1, media_types=1)
