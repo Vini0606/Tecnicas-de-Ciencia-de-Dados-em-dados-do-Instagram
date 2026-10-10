@@ -80,9 +80,9 @@ def _cobertura(df: pd.DataFrame | None, col_perfil: str | None, col_data: str | 
         for username, grupo in sorted(validos.groupby(col_perfil), key=lambda kv: str(kv[0])):
             antiga, recente = _datas(grupo[col_data]) if col_data else (None, None)
             por_perfil.append(
-                {"username": str(username), "itens": int(len(grupo)), "mais_antiga": antiga, "mais_recente": recente}
+                {"username": str(username), "itens": len(grupo), "mais_antiga": antiga, "mais_recente": recente}
             )
-    return {"itens": int(len(df)), "mais_antiga": mais_antiga, "mais_recente": mais_recente, "por_perfil": por_perfil}
+    return {"itens": len(df), "mais_antiga": mais_antiga, "mais_recente": mais_recente, "por_perfil": por_perfil}
 
 
 def _tabelas(data_dir: Path) -> list[dict[str, Any]]:
