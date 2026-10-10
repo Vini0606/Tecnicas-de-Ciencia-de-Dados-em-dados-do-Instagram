@@ -165,7 +165,6 @@ def test_run_deterministic_modeling_grava_clusters_e_sentimento_com_mesmo_run_id
         gold_topic_priority_score_path=tmp_path / "topic_priority_score",
         gold_content_topic_priority_score_path=tmp_path / "content_topic_priority_score",
         gold_nsm_path=tmp_path / "governor_nsm",
-        gold_nsm_history_path=tmp_path / "governor_nsm_history",
         gold_governor_scorecard_path=tmp_path / "governor_scorecard",
         gold_post_performance_coefficients_path=tmp_path / "post_performance_coefficients",
         gold_post_performance_predictions_path=tmp_path / "post_performance_predictions",
@@ -234,7 +233,6 @@ def test_run_deterministic_modeling_grava_score_ice_por_topico_de_comentario(
         gold_topic_priority_score_path=tmp_path / "topic_priority_score",
         gold_content_topic_priority_score_path=tmp_path / "content_topic_priority_score",
         gold_nsm_path=tmp_path / "governor_nsm",
-        gold_nsm_history_path=tmp_path / "governor_nsm_history",
         gold_governor_scorecard_path=tmp_path / "governor_scorecard",
         gold_post_performance_coefficients_path=tmp_path / "post_performance_coefficients",
         gold_post_performance_predictions_path=tmp_path / "post_performance_predictions",
@@ -286,7 +284,6 @@ def test_run_deterministic_modeling_grava_nsm_por_perfil(monkeypatch, tmp_path):
         gold_topic_priority_score_path=tmp_path / "topic_priority_score",
         gold_content_topic_priority_score_path=tmp_path / "content_topic_priority_score",
         gold_nsm_path=tmp_path / "governor_nsm",
-        gold_nsm_history_path=tmp_path / "governor_nsm_history",
         gold_governor_scorecard_path=tmp_path / "governor_scorecard",
         gold_post_performance_coefficients_path=tmp_path / "post_performance_coefficients",
         gold_post_performance_predictions_path=tmp_path / "post_performance_predictions",
@@ -312,115 +309,6 @@ def test_run_deterministic_modeling_grava_nsm_por_perfil(monkeypatch, tmp_path):
     assert linha["alcance_medio"] == 10.0
     assert linha["nsm"] == 10.0
     assert (nsm_out["_run_id"] == result.run_id).all()
-
-
-def test_run_deterministic_modeling_grava_nsm_tambem_no_historico_em_append(
-    monkeypatch, tmp_path
-):
-    """ADR 0027 / issue #160: além de `governor_nsm` (overwrite, como
-    sempre), a modelagem determinística agora também grava
-    `governor_nsm_history` em modo append -- fecha a lacuna que a ADR 0025
-    previu e adiou (`dashboard/core/data.py::load_nsm_history()` já lia este
-    caminho sem nunca receber dado real). Mesmo raciocínio/padrão já usado
-    para `governor_sentiment_history` (issue #52) e `governor_engagement_
-    history` (ADR 0016)."""
-    monkeypatch.setattr(
-        "src.modeling.orchestration.analyze_sentiment", _fake_analyze_sentiment
-    )
-    monkeypatch.setattr(
-        "src.modeling.orchestration.model_topics",
-        _make_fake_model_topics("0_provisorio", "0_refinado"),
-    )
-    _patch_post_performance_fakes(monkeypatch)
-
-    config = ModelingConfig(
-        cluster=ClusterConfig(max_evals_per_algo=10, random_state=42, max_n_clusters=5),
-        gold_clusters_reels_path=tmp_path / "governor_clusters_reels",
-        gold_clusters_posts_path=tmp_path / "governor_clusters_posts",
-        gold_sentiment_path=tmp_path / "governor_sentiment",
-        gold_sentiment_history_path=tmp_path / "governor_sentiment_history",
-        gold_discourse_topics_path=tmp_path / "governor_discourse_topics",
-        gold_topic_priority_score_path=tmp_path / "topic_priority_score",
-        gold_content_topic_priority_score_path=tmp_path / "content_topic_priority_score",
-        gold_nsm_path=tmp_path / "governor_nsm",
-        gold_nsm_history_path=tmp_path / "governor_nsm_history",
-        gold_governor_scorecard_path=tmp_path / "governor_scorecard",
-        gold_post_performance_coefficients_path=tmp_path / "post_performance_coefficients",
-        gold_post_performance_predictions_path=tmp_path / "post_performance_predictions",
-        gold_profile_clusters_engagement_path=tmp_path / "governor_profile_clusters_engagement",
-        checkpoints_dir=tmp_path / "checkpoints",
-        logs_dir=tmp_path / "logs",
-    )
-
-    result = run_deterministic_modeling(
-        _df_reels(), _df_comments(), _df_posts_placeholder(), _df_engagement_placeholder(), config
-    )
-
-    nsm_out = DeltaTable(str(config.gold_nsm_path)).to_pandas()
-    history_out = DeltaTable(str(config.gold_nsm_history_path)).to_pandas()
-
-    assert (nsm_out["_run_id"] == result.run_id).all()
-    assert (history_out["_run_id"] == result.run_id).all()
-    assert len(history_out) == len(nsm_out)
-    # Mesma execução -- as duas tabelas precisam do mesmo `_generated_at`,
-    # não dois `datetime.now()` levemente diferentes (mesma asserção já
-    # usada para governor_sentiment/governor_sentiment_history acima).
-    assert (nsm_out["_generated_at"] == history_out["_generated_at"].iloc[0]).all()
-
-
-def test_run_deterministic_modeling_historico_de_nsm_acumula_entre_execucoes(
-    monkeypatch, tmp_path
-):
-    """ADR 0027 / issue #160: `governor_nsm` (overwrite) só guarda a
-    execução mais recente, mas `governor_nsm_history` (append) acumula uma
-    linha por perfil por execução -- 2 execuções sucessivas devem resultar
-    em 2 linhas no histórico, nunca 1 (mesmo critério de
-    `compare_vs_historical_average`, que exige >= 2 execuções acumuladas
-    para calcular o primeiro delta)."""
-    monkeypatch.setattr(
-        "src.modeling.orchestration.analyze_sentiment", _fake_analyze_sentiment
-    )
-    monkeypatch.setattr(
-        "src.modeling.orchestration.model_topics",
-        _make_fake_model_topics("0_provisorio", "0_refinado"),
-    )
-    _patch_post_performance_fakes(monkeypatch)
-
-    config = ModelingConfig(
-        cluster=ClusterConfig(max_evals_per_algo=10, random_state=42, max_n_clusters=5),
-        gold_clusters_reels_path=tmp_path / "governor_clusters_reels",
-        gold_clusters_posts_path=tmp_path / "governor_clusters_posts",
-        gold_sentiment_path=tmp_path / "governor_sentiment",
-        gold_sentiment_history_path=tmp_path / "governor_sentiment_history",
-        gold_discourse_topics_path=tmp_path / "governor_discourse_topics",
-        gold_topic_priority_score_path=tmp_path / "topic_priority_score",
-        gold_content_topic_priority_score_path=tmp_path / "content_topic_priority_score",
-        gold_nsm_path=tmp_path / "governor_nsm",
-        gold_nsm_history_path=tmp_path / "governor_nsm_history",
-        gold_governor_scorecard_path=tmp_path / "governor_scorecard",
-        gold_post_performance_coefficients_path=tmp_path / "post_performance_coefficients",
-        gold_post_performance_predictions_path=tmp_path / "post_performance_predictions",
-        gold_profile_clusters_engagement_path=tmp_path / "governor_profile_clusters_engagement",
-        checkpoints_dir=tmp_path / "checkpoints",
-        logs_dir=tmp_path / "logs",
-    )
-
-    resultado_1 = run_deterministic_modeling(
-        _df_reels(), _df_comments(), _df_posts_placeholder(), _df_engagement_placeholder(), config
-    )
-    resultado_2 = run_deterministic_modeling(
-        _df_reels(), _df_comments(), _df_posts_placeholder(), _df_engagement_placeholder(), config
-    )
-
-    nsm_out = DeltaTable(str(config.gold_nsm_path)).to_pandas()
-    history_out = DeltaTable(str(config.gold_nsm_history_path)).to_pandas()
-
-    # `governor_nsm` (overwrite): só a 2ª execução sobrevive.
-    assert len(nsm_out) == 1
-    assert (nsm_out["_run_id"] == resultado_2.run_id).all()
-    # `governor_nsm_history` (append): as 2 execuções acumulam.
-    assert len(history_out) == 2
-    assert set(history_out["_run_id"]) == {resultado_1.run_id, resultado_2.run_id}
 
 
 def _df_reels_com_transcript():
@@ -463,7 +351,6 @@ def test_run_deterministic_modeling_grava_sentimento_de_legenda_e_transcricao(
         gold_topic_priority_score_path=tmp_path / "topic_priority_score",
         gold_content_topic_priority_score_path=tmp_path / "content_topic_priority_score",
         gold_nsm_path=tmp_path / "governor_nsm",
-        gold_nsm_history_path=tmp_path / "governor_nsm_history",
         gold_governor_scorecard_path=tmp_path / "governor_scorecard",
         gold_post_performance_coefficients_path=tmp_path / "post_performance_coefficients",
         gold_post_performance_predictions_path=tmp_path / "post_performance_predictions",
@@ -527,7 +414,6 @@ def test_run_deterministic_modeling_grava_topicos_de_discurso_separados_de_comen
         gold_topic_priority_score_path=tmp_path / "topic_priority_score",
         gold_content_topic_priority_score_path=tmp_path / "content_topic_priority_score",
         gold_nsm_path=tmp_path / "governor_nsm",
-        gold_nsm_history_path=tmp_path / "governor_nsm_history",
         gold_governor_scorecard_path=tmp_path / "governor_scorecard",
         gold_post_performance_coefficients_path=tmp_path / "post_performance_coefficients",
         gold_post_performance_predictions_path=tmp_path / "post_performance_predictions",
@@ -588,7 +474,6 @@ def test_run_deterministic_modeling_grava_sentimento_tambem_no_historico_em_appe
         gold_topic_priority_score_path=tmp_path / "topic_priority_score",
         gold_content_topic_priority_score_path=tmp_path / "content_topic_priority_score",
         gold_nsm_path=tmp_path / "governor_nsm",
-        gold_nsm_history_path=tmp_path / "governor_nsm_history",
         gold_governor_scorecard_path=tmp_path / "governor_scorecard",
         gold_post_performance_coefficients_path=tmp_path / "post_performance_coefficients",
         gold_post_performance_predictions_path=tmp_path / "post_performance_predictions",
@@ -639,7 +524,6 @@ def test_refine_topics_with_gemini_nao_grava_no_historico_de_sentimento(monkeypa
         gold_topic_priority_score_path=tmp_path / "topic_priority_score",
         gold_content_topic_priority_score_path=tmp_path / "content_topic_priority_score",
         gold_nsm_path=tmp_path / "governor_nsm",
-        gold_nsm_history_path=tmp_path / "governor_nsm_history",
         gold_governor_scorecard_path=tmp_path / "governor_scorecard",
         gold_post_performance_coefficients_path=tmp_path / "post_performance_coefficients",
         gold_post_performance_predictions_path=tmp_path / "post_performance_predictions",
@@ -701,7 +585,6 @@ def test_run_deterministic_modeling_grava_parent_run_id_como_primeira_linha_do_l
         gold_topic_priority_score_path=tmp_path / "topic_priority_score",
         gold_content_topic_priority_score_path=tmp_path / "content_topic_priority_score",
         gold_nsm_path=tmp_path / "governor_nsm",
-        gold_nsm_history_path=tmp_path / "governor_nsm_history",
         gold_governor_scorecard_path=tmp_path / "governor_scorecard",
         gold_post_performance_coefficients_path=tmp_path / "post_performance_coefficients",
         gold_post_performance_predictions_path=tmp_path / "post_performance_predictions",
@@ -756,7 +639,6 @@ def test_refine_topics_with_gemini_so_reescreve_sentimento_com_run_id_novo(
         gold_topic_priority_score_path=tmp_path / "topic_priority_score",
         gold_content_topic_priority_score_path=tmp_path / "content_topic_priority_score",
         gold_nsm_path=tmp_path / "governor_nsm",
-        gold_nsm_history_path=tmp_path / "governor_nsm_history",
         gold_governor_scorecard_path=tmp_path / "governor_scorecard",
         gold_post_performance_coefficients_path=tmp_path / "post_performance_coefficients",
         gold_post_performance_predictions_path=tmp_path / "post_performance_predictions",
@@ -825,7 +707,6 @@ def test_refine_topics_with_gemini_recalcula_score_ice_com_topico_refinado(
         gold_topic_priority_score_path=tmp_path / "topic_priority_score",
         gold_content_topic_priority_score_path=tmp_path / "content_topic_priority_score",
         gold_nsm_path=tmp_path / "governor_nsm",
-        gold_nsm_history_path=tmp_path / "governor_nsm_history",
         gold_governor_scorecard_path=tmp_path / "governor_scorecard",
         gold_post_performance_coefficients_path=tmp_path / "post_performance_coefficients",
         gold_post_performance_predictions_path=tmp_path / "post_performance_predictions",
@@ -949,7 +830,6 @@ def _config_performance(tmp_path):
         gold_topic_priority_score_path=tmp_path / "topic_priority_score",
         gold_content_topic_priority_score_path=tmp_path / "content_topic_priority_score",
         gold_nsm_path=tmp_path / "governor_nsm",
-        gold_nsm_history_path=tmp_path / "governor_nsm_history",
         gold_governor_scorecard_path=tmp_path / "governor_scorecard",
         gold_post_performance_coefficients_path=tmp_path / "post_performance_coefficients",
         gold_post_performance_predictions_path=tmp_path / "post_performance_predictions",
@@ -1032,7 +912,6 @@ def test_run_deterministic_modeling_degrada_sem_derrubar_pipeline_se_performance
         gold_topic_priority_score_path=tmp_path / "topic_priority_score",
         gold_content_topic_priority_score_path=tmp_path / "content_topic_priority_score",
         gold_nsm_path=tmp_path / "governor_nsm",
-        gold_nsm_history_path=tmp_path / "governor_nsm_history",
         gold_governor_scorecard_path=tmp_path / "governor_scorecard",
         gold_post_performance_coefficients_path=tmp_path / "post_performance_coefficients",
         gold_post_performance_predictions_path=tmp_path / "post_performance_predictions",
@@ -1125,7 +1004,6 @@ def test_run_deterministic_modeling_grava_clusters_de_perfil_por_engajamento(
         gold_topic_priority_score_path=tmp_path / "topic_priority_score",
         gold_content_topic_priority_score_path=tmp_path / "content_topic_priority_score",
         gold_nsm_path=tmp_path / "governor_nsm",
-        gold_nsm_history_path=tmp_path / "governor_nsm_history",
         gold_governor_scorecard_path=tmp_path / "governor_scorecard",
         gold_post_performance_coefficients_path=tmp_path / "post_performance_coefficients",
         gold_post_performance_predictions_path=tmp_path / "post_performance_predictions",
@@ -1175,7 +1053,6 @@ def test_run_deterministic_modeling_degrada_sem_derrubar_pipeline_se_cluster_per
         gold_topic_priority_score_path=tmp_path / "topic_priority_score",
         gold_content_topic_priority_score_path=tmp_path / "content_topic_priority_score",
         gold_nsm_path=tmp_path / "governor_nsm",
-        gold_nsm_history_path=tmp_path / "governor_nsm_history",
         gold_governor_scorecard_path=tmp_path / "governor_scorecard",
         gold_post_performance_coefficients_path=tmp_path / "post_performance_coefficients",
         gold_post_performance_predictions_path=tmp_path / "post_performance_predictions",
@@ -1206,7 +1083,6 @@ def _config_completa(tmp_path):
         gold_topic_priority_score_path=tmp_path / "topic_priority_score",
         gold_content_topic_priority_score_path=tmp_path / "content_topic_priority_score",
         gold_nsm_path=tmp_path / "governor_nsm",
-        gold_nsm_history_path=tmp_path / "governor_nsm_history",
         gold_governor_scorecard_path=tmp_path / "governor_scorecard",
         gold_post_performance_coefficients_path=tmp_path / "post_performance_coefficients",
         gold_post_performance_predictions_path=tmp_path / "post_performance_predictions",
