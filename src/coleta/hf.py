@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import json
 import os
+import tempfile
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date, datetime
@@ -232,6 +233,29 @@ def baixar(tag: str, destino: Path | str, *, cliente: ClienteColetaHF) -> Path:
     cliente.baixar(pasta, tag)
     _ler_manifesto_local(pasta)
     return pasta
+
+
+ROTULO_RESTAURADA = "restaurada"
+
+
+def restaurar(
+    tag: str,
+    *,
+    cliente: ClienteColetaHF,
+    confirmar: Callable[[Plano], bool],
+    rotulo: str = ROTULO_RESTAURADA,
+    limite_bytes: int | None = None,
+) -> Resultado:
+    """Traz a Coleta de `tag` de volta para a `main` como um NOVO commit, com tag
+    nova (`<janela>_<teto>_<rotulo>`, pela gramatica do Recorte).
+
+    Reaproveita `baixar` e `publicar`: o historico nao e reescrito, a tag original
+    continua intacta e nada usa force-push. `confirmar` recebe o `Plano` com o alvo
+    exato. Restaurar a mesma tag duas vezes com o mesmo rotulo e recusado
+    (`ErroTagExistente`); use outro rotulo."""
+    with tempfile.TemporaryDirectory(prefix="coleta_restaurar_") as tmp:
+        pasta = baixar(tag, Path(tmp) / "snapshot", cliente=cliente)
+        return publicar(pasta, rotulo, cliente=cliente, confirmar=confirmar, limite_bytes=limite_bytes)
 
 
 def listar(*, cliente: ClienteColetaHF) -> list[ColetaListada]:
