@@ -87,7 +87,6 @@ TABELAS_ESPERADAS: tuple[TabelaEsperada, ...] = (
     _t(settings.GOLD_CONTENT_TOPIC_PRIORITY_SCORE, "modelagem", True),
     _t(settings.GOLD_NSM, "modelagem", True),
     _t(settings.GOLD_GOVERNOR_SCORECARD, "modelagem", True),
-    _t(settings.GOLD_NSM_HISTORY, "modelagem", False),
     _t(settings.GOLD_CLUSTERS_POSTS, "modelagem", False),
     _t(settings.GOLD_POST_PERFORMANCE_COEFFICIENTS, "modelagem", False),
     _t(settings.GOLD_POST_PERFORMANCE_PREDICTIONS, "modelagem", False),
