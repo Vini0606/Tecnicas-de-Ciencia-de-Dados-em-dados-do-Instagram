@@ -249,7 +249,7 @@ Ao final, o pipeline imprime um **relatório de tabelas** (`src/pipeline_report.
 1 se alguma tabela lida pelo dashboard estiver AUSENTE, VAZIA ou DESATUALIZADA (não reescrita nesta
 execução). Ver "Como executar".
 
-`uv run python pipeline.py --run-modeling` (ou `run_medallion_pipeline(..., run_modeling=True)` chamado diretamente) roda também o estágio determinístico de modelagem (`src.modeling.orchestration.run_deterministic_modeling`) ao final do Gold — desligado por padrão porque é pesado (o embedding do BERTopic sozinho leva ~14 min). Isso inclui a clusterização de PERFIL de governador por engajamento (Fase 2, ADR 0020, `governor_profile_clusters_engagement`), que fecha a paridade com `lambdas/model/handler.py` (o pipeline serverless já fazia isso sozinho; localmente exigia rodar `scripts/run_profile_clustering_engagement.py` à parte, e sem isso a Tela 4 "Comparar perfis" do dashboard ficava vazia). O refinamento de tópicos via Gemini nunca é chamado daqui: continua manual, só via `scripts/refine_topics.py` (ver [ADR 0001](docs/adr/0001-separar-modelagem-em-etapas-deterministicas-e-refinamento-manual.md)).
+`uv run python pipeline.py --run-modeling` (ou `run_medallion_pipeline(..., run_modeling=True)` chamado diretamente) roda também o estágio determinístico de modelagem (`src.modeling.orchestration.run_deterministic_modeling`) ao final do Gold — desligado por padrão porque é pesado (o embedding do BERTopic sozinho leva ~14 min). Isso inclui a clusterização de PERFIL de governador por engajamento (Fase 2, ADR 0020, `governor_profile_clusters_engagement`) (antes era preciso rodar `scripts/run_profile_clustering_engagement.py` à parte, e sem isso a Tela 4 "Comparar perfis" do dashboard ficava vazia). O refinamento de tópicos via Gemini nunca é chamado daqui: continua manual, só via `scripts/refine_topics.py` (ver [ADR 0001](docs/adr/0001-separar-modelagem-em-etapas-deterministicas-e-refinamento-manual.md)).
 
 ### Scripts de modelagem
 
@@ -264,133 +264,52 @@ uv run python scripts/refine_topics.py --run-id <ID>                       # ref
 
 `run_modeling.py` imprime o `run_id` usado — é esse valor que vai em `--run-id` do `refine_topics.py` (e em `RUN_ID` no notebook 03). Cada chamada de `run_deterministic_modeling` (daqui, do `pipeline.py --run-modeling`, ou do notebook, se alguém ainda chamar diretamente) grava incondicionalmente um checkpoint local em `data/model_checkpoints/<run_id>/` — o `topic_model` do BERTopic, o `df_comments`/`df_reels` provisórios e os modelos de PCA/clustering — porque sem isso o refinamento via Gemini só poderia rodar no mesmo processo que acabou de ajustar o `topic_model`. `refine_topics.py` atualiza esse checkpoint com os rótulos finais depois de refinar.
 
-### Pipeline serverless (AWS Lambda)
+### Reconstrução na nuvem (AWS Lambda)
 
-As quatro Lambdas em `lambdas/` reproduzem **a mesma arquitetura Medallion do pipeline local**,
-trocando apenas o backend de armazenamento: disco local vira `s3://<bucket>/{bronze,silver,gold}/`,
-mas continuam sendo tabelas **Delta Lake** — nunca Parquet solto nem Excel. Nada muda na lógica de
-limpeza, agregação ou contrato de schema; só quem lê/escreve os arquivos.
+A nuvem **não extrai nem agenda** (ADR 0039, decisão 8): a única Lambda, `lambdas/rebuild/`, baixa
+uma **tag de Coleta** do dataset privado no Hugging Face e reconstrói Bronze, Silver e Gold como
+tabelas **Delta Lake** em `s3://<bucket>/{bronze,silver,gold}/`, só com etapas determinísticas
+(`src/coleta/derivacao.py`). Extração (Apify) e modelagem pesada (BERTopic) continuam locais.
 
-```mermaid
-flowchart TB
-    CLI["aws lambda invoke<br/>(payload: links, run_id?)"] --> ORCH
-
-    subgraph AWS["Conta AWS"]
-        ORCH["🧭 orchestrator<br/>256 MB · timeout 900s"]
-        EXT["📥 extract<br/>512 MB · timeout 300s"]
-        TRN["🔄 transform<br/>1024 MB · timeout 120s"]
-        LOD["📊 load<br/>1024 MB · timeout 120s"]
-        MDL["🧪 model<br/>1024 MB · timeout 120s"]
-
-        ORCH -- "1. invoke(links, run_id)" --> EXT
-        EXT -- "run_id gerado" --> ORCH
-        ORCH -- "2. invoke(run_id)" --> TRN
-        TRN --> ORCH
-        ORCH -- "3. invoke(run_id)" --> LOD
-        LOD --> ORCH
-        ORCH -- "4. invoke(run_id)" --> MDL
-        MDL --> ORCH
-
-        EXT -.write.-> S3B[("🥉 S3 Bronze")]
-        TRN -.read.-> S3B
-        TRN -.write.-> S3S[("🥈 S3 Silver")]
-        LOD -.read.-> S3S
-        LOD -.write.-> S3G[("🥇 S3 Gold")]
-        MDL -.read/write.-> S3G
-    end
-```
-
-| Lambda | Lê | Escreve | Memória | Timeout | Variáveis próprias |
+| Lambda | Lê | Escreve | Memória | Timeout | Variáveis |
 |---|---|---|---|---|---|
-| `extract/handler.py` | API Apify | Bronze Delta | 512 MB | 300s | `APIFY_API_TOKEN` |
-| `transform/handler.py` | Bronze Delta | Silver Delta | 1024 MB | 120s | — |
-| `load/handler.py` | Silver Delta | Gold Delta | 1024 MB | 120s | — |
-| `model/handler.py` | Gold Delta (`governor_engagement`) | Gold Delta (`governor_profile_clusters_engagement`) | 1024 MB | 120s | — |
-| `orchestrator/handler.py` | — (só invoca as 4 acima) | — | 256 MB | 900s (teto AWS) | `EXTRACT_FUNCTION_NAME`, `TRANSFORM_FUNCTION_NAME`, `LOAD_FUNCTION_NAME`, `MODEL_FUNCTION_NAME` |
+| `rebuild/handler.py` | Snapshot da tag no Hugging Face | Bronze, Silver e Gold Delta no S3 | 3008 MB (+5 GB em `/tmp`) | 900s (teto AWS) | `S3_BUCKET`, `HF_TOKEN`, `HF_DATASET_REPO` |
 
-As três primeiras compartilham `S3_BUCKET`, `S3_BRONZE_PREFIX`, `S3_SILVER_PREFIX`,
-`S3_GOLD_PREFIX` (lidas direto pelos handlers, não por `config/settings.py` — ver
-[ADR 0007](docs/adr/0007-generalizar-deltarepository-para-s3-e-aposentar-is-cloud.md)); `model`
-só precisa de `S3_BUCKET`/`S3_GOLD_PREFIX`, já que lê e escreve exclusivamente na camada Gold.
-
-**Encadeamento.** `orchestrator/handler.py` chama `extract` de forma síncrona
-(`InvocationType="RequestResponse"`), lê o `run_id` do corpo da resposta e o repassa para
-`transform`, depois `load` e por fim `model` — a clusterização de perfil de governador por
-engajamento (Fase 2, issue #86 / ADR 0020), que roda pós-Gold-de-engajamento porque lê
-`governor_engagement` (saída de `load`) e escreve `governor_profile_clusters_engagement`. Se
-qualquer etapa devolver `statusCode != 200` — ou lançar uma exceção não tratada, que a AWS entrega
-como `{"errorMessage", "errorType", "stackTrace"}` em vez do contrato `{"statusCode", "body"}` — a
-cadeia para imediatamente e o erro da etapa é propagado com `statusCode 500` (`_stage_error`,
-[`lambdas/orchestrator/handler.py:20-28`](lambdas/orchestrator/handler.py)).
-Não há retry automático por etapa nem persistência de progresso parcial: uma falha no `load`
-não desfaz o que `extract`/`transform` já gravaram, mas também não reexecuta essas etapas —
-reinvocar a orquestradora com o mesmo `run_id` (via payload) faz `transform`/`load`/`model`
-reprocessarem os mesmos dados de Bronze/Silver/Gold.
-
-**Empacotamento.** As 4 Lambdas rodam como **imagens de container** (`package_type = "Image"`,
-publicadas no ECR), não como zip + Lambda Layer — `pyarrow`/`deltalake` têm binários nativos que
-tipicamente quebram em Layers construídas fora do Amazon Linux. Cada uma tem seu próprio
-`Dockerfile`/`requirements.txt`; o contexto de build das três Lambdas de dados é a raiz do
-repositório (para poder copiar `src/`), e `orchestrator` só depende de `boto3`. Ver
-[ADR 0008](docs/adr/0008-orquestrar-lambdas-via-orquestradora-unica-e-terraform.md) para o porquê
-dessas escolhas em vez de Step Functions/EventBridge, e suas limitações conhecidas.
+Evento: `{"tag": "coleta_...", "run_id": "opcional"}`. Invocação sempre manual (`aws lambda invoke`).
+Roda como **imagem de container** (`pyarrow`/`deltalake` têm binários nativos), publicada no ECR.
 
 ### Infraestrutura provisionada (Terraform)
 
-`infra/main.tf` (Terraform ≥ 1.6) declara toda a infraestrutura como código:
+`infra/main.tf` (Terraform ≥ 1.6) declara:
 
 - **1 bucket S3** — o data lake, mesmo layout de prefixos que `data/` localmente
-- **4 repositórios ECR** (um por Lambda) com política de lifecycle que mantém só as **10 imagens
-  mais recentes** por repositório — necessário porque cada merge relevante em `main` publica 4
-  imagens novas e imutáveis, sem sobrescrever uma tag `latest`
-- **IAM com privilégio mínimo por função**: `extract`/`transform`/`load` recebem um papel cada,
-  com política customizada restrita a `s3:ListBucket`/`GetObject`/`PutObject` só no bucket do data
-  lake; `model` recebe papel próprio restrito à camada Gold; `orchestrator` recebe um papel à
-  parte cuja única permissão além do básico de execução é `lambda:InvokeFunction`, e só nos ARNs
-  das 4 Lambdas que ela encadeia (3 de dados + `model`) — não pode invocar mais nada
-- **IAM/OIDC do GitHub Actions** — uma role federada (`sts:AssumeRoleWithWebIdentity`) que a esteira
-  de CI assume sem credenciais estáticas da AWS, com a trust policy restrita a
-  `repo:<este repositório>:ref:refs/heads/main` (publicar a partir de outro branch exige revisar
-  `infra/main.tf`)
+- **1 repositório ECR** (`rebuild`) com lifecycle que mantém só as **10 imagens mais recentes**
+- **IAM mínimo** para a `rebuild`: execução básica + `s3:ListBucket`/`GetObject`/`PutObject`/`DeleteObject`
+  só no bucket do data lake; `HF_TOKEN`/`HF_DATASET_REPO` entram como variáveis sensíveis
+- **IAM/OIDC do GitHub Actions** — role federada que a CI assume sem credenciais estáticas, com a
+  trust policy restrita a `repo:<este repositório>:ref:refs/heads/main`
 
-Provisionamento, ordem de bootstrap (ECR/OIDC antes das Lambdas, já que a imagem precisa existir
-no ECR primeiro) e como destruir tudo: passo a passo completo em [`infra/README.md`](infra/README.md).
+O `terraform apply` é sempre manual e nunca foi aplicado. Passo a passo em
+[`infra/README.md`](infra/README.md).
 
-### CI/CD: publicação de imagens via GitHub Actions (OIDC)
+### CI/CD: publicação da imagem via GitHub Actions (OIDC)
 
-`.github/workflows/build-lambdas.yml` builda e publica as 4 imagens no ECR automaticamente a cada
-push em `main` que passe no CI e mexa em `lambdas/**` ou `src/**`, tagueadas com o SHA do commit.
-A autenticação com a AWS usa o papel OIDC acima — **nenhuma AWS access key fica armazenada como
-secret do GitHub**. As 4 imagens são sempre buildadas juntas, sem detecção seletiva por Lambda
-(decisão deliberada, ver [ADR 0009](docs/adr/0009-publicar-imagens-das-lambdas-via-github-actions-com-oidc.md)).
-
-Publicar uma imagem nova no ECR **não** atualiza as Lambdas em execução — promover uma versão
-continua sendo um passo manual e deliberado:
+`.github/workflows/build-lambdas.yml` builda e publica a imagem `rebuild` no ECR a cada push em
+`main` que passe no CI e mexa em `lambdas/**` ou `src/**`, tagueada com o SHA do commit, sem AWS
+access key armazenada (ver [ADR 0009](docs/adr/0009-publicar-imagens-das-lambdas-via-github-actions-com-oidc.md)).
+Publicar a imagem **não** atualiza a Lambda em execução — promover é manual:
 
 ```bash
 TF_VAR_image_tag=$(git rev-parse origin/main) terraform apply
 ```
 
-> No PowerShell (Windows), a sintaxe `VAR=valor comando` não existe; use:
-> `$env:TF_VAR_image_tag = git rev-parse origin/main; terraform apply`
+> No PowerShell (Windows): `$env:TF_VAR_image_tag = git rev-parse origin/main; terraform apply`
 
-### Limitações conhecidas do pipeline serverless
+### Limitações conhecidas
 
-- **Sem retry nativo por etapa** — uma falha transitória em `transform` (ex.: throttling do S3)
-  não é reexecutada automaticamente; é preciso reinvocar a orquestradora.
-- **Teto de 15 minutos** — a soma de `extract` + `transform` + `load` + `model` precisa caber no
-  timeout máximo de Lambda (900s, hard limit da AWS). Um `RESULTS_LIMIT` muito alto pode estourar
-  esse teto; a migração para Step Functions é o caminho natural se isso virar um problema real (a
-  lógica de cada etapa não muda, só quem as invoca).
-- **`extract` também coleta UGC** (issue #211): mais uma chamada síncrona de actor dentro do mesmo
-  timeout de 300 s da Lambda `extract`, sem ajuste no Terraform. Se estourar, é preciso subir o
-  timeout dela. As Lambdas `transform`/`load` ainda não gravam Silver/Gold de UGC nem comentários de
-  posts; o caminho serverless segue sem paridade com o `pipeline.py` local (ADR 0034).
-- **Sem gatilho agendado** — não há regra EventBridge/cron configurada; o pipeline roda só quando
-  invocado manualmente (`aws lambda invoke` na Lambda orquestradora, payload `{"links": [...]}`).
-  Adicionar um agendamento é uma mudança pequena e aditiva em `infra/main.tf`.
-- **Custo não é zero indefinidamente** — Lambda, S3 e ECR têm free tier, mas nada aqui é aplicado
-  automaticamente; `terraform apply` é sempre uma decisão manual do autor.
+- **Teto de 15 minutos** — a reconstrução precisa caber no timeout máximo de Lambda (900s).
+- **Sem retry/DLQ** — uma falha na invocação manual não deixa rastro além da resposta e dos logs do CloudWatch.
+- **Custo não é zero indefinidamente** — `terraform apply` é sempre uma decisão manual do autor.
 
 ---
 
@@ -417,7 +336,7 @@ TF_VAR_image_tag=$(git rev-parse origin/main) terraform apply
 │   ├── run_id.py           # Geração do identificador de execução, compartilhado por pipeline.py e src/modeling/
 │   └── visualization/      # Gráficos Plotly reutilizáveis
 ├── pages/                  # Resíduo do dashboard antigo (ADR 0020/0017), órfão -- 01 explorar, 04 recommendations e 05 funil já foram apagados (substituídos por dashboard/screens/); 02 insights e 03 performance ainda existem no disco mas não são mais servidos por nenhum entrypoint (o `app.py` da raiz que os expunha via multipágina do Streamlit foi removido)
-├── lambdas/                # Pipeline serverless AWS -- mesma arquitetura Medallion, backend S3 (ver seção 3)
+├── lambdas/                # Lambda de reconstrução (rebuild) a partir de uma tag do HF (ver seção 3)
 │   ├── extract/            # Apify -> Bronze (S3)
 │   ├── transform/          # Bronze -> Silver (S3)
 │   ├── load/               # Silver -> Gold (governor_engagement) (S3)
@@ -666,12 +585,12 @@ uv run python scripts/inspect_runs.py --pipeline <ID>     # extração <ID> + to
 | `DATA_DIR` | Não | `data` | Raiz dos dados |
 | `RESULTS_LIMIT` | Não | `30` | Posts/reels por perfil |
 | `RANDOM_STATE` | Não | `42` | Semente de reprodutibilidade |
-| `S3_BUCKET` | Só em cloud | `""` | Bucket para as Lambdas |
+| `S3_BUCKET` | Só em cloud | `""` | Bucket para a Lambda rebuild |
 | `S3_BRONZE_PREFIX` / `S3_SILVER_PREFIX` / `S3_GOLD_PREFIX` | Não | `bronze/` `silver/` `gold/` | Prefixos S3 por camada |
 | `HF_TOKEN` | Só para trocar dados entre máquinas | — | Token fine-grained do Hugging Face, com acesso só ao dataset (ADR 0035) |
 | `HF_DATASET_REPO` | Só para trocar dados entre máquinas | — | Dataset privado `<usuario>/<nome>` com landing + Bronze (ADR 0035) |
 
-As variáveis acima de S3 são lidas diretamente pelos handlers em `lambdas/`, não por
+As variáveis acima de S3 são lidas diretamente pelo handler em `lambdas/rebuild/`, não por
 `config/settings.py` (ver ADR 0007). Lista completa das demais em `config/settings.py`.
 
 ---
@@ -694,9 +613,8 @@ As telas 1 (Resumo) e 3 (Radar) migraram parte das comparações de "execução 
 
 **Redesenho da spec #182 (ADR 0030/0031).** O Resumo virou um contêiner com seletor de governador único e três sub-abas — NSM (padrão; cartões e contraste de rankings bruto × qualificado), Funil de engajamento (antiga Tela 6, que saiu da navegação lateral) e Scorecard (ranking pelo escore composto de `governor_scorecard`). "Comparar perfis" trocou "Governadores do grupo" por uma análise de clusters de reels (com sentimento) e as barras "seu perfil vs. pares" por linhas mensais; "O que produzir" trocou a fila de temas de comentário por uma fila de **pautas** (assunto da legenda, ICE em `content_topic_priority_score`) e ganhou "Maiores grupos de comentários". No dado de 2026-10-04 (26 governadores): a dimensão Consistência do Scorecard está **pendente em todos** (a Silver só tem ~226 posts de ago/set-2026 e nenhum perfil chega a 4 meses com pelo menos 3 posts), então o escore é a média de 4 dimensões (peso 0,25 cada) e passa a incluir a quinta (0,20 cada) sozinho quando houver histórico; e os rótulos de pauta ainda são os provisórios do BERTopic porque o refino real via Gemini não foi rodado (ver "Refinar rótulos de tópico via Gemini").
 
-**Ponto em aberto: paridade da Lambda `model`.** `lambdas/model/handler.py` só roda a clusterização de perfil (`governor_profile_clusters_engagement`); não foi verificada nem alterada quanto à paridade com os estágios novos de `run_deterministic_modeling` (Escore composto `governor_scorecard`, ICE de pautas `content_topic_priority_score`, entre outros). No pipeline serverless essas tabelas não são geradas; rodar localmente (`pipeline.py --run-modeling` ou `scripts/run_governor_scorecard.py`) até a paridade ser decidida.
 
-**A Tela 4 ("Comparar perfis") dependia de um passo manual esquecível — corrigido.** Ela lê `governor_profile_clusters_engagement` (`dashboard/core/data.py::load_clusters_profile()`); até essa correção, essa tabela só era gerada por `scripts/run_profile_clustering_engagement.py`, rodado à parte, nunca por `pipeline.py`. Quem seguisse só o fluxo principal desta seção via a tela abrir vazia, sem nenhum erro (o loader devolve `DataFrame` vazio de propósito). Agora `run_deterministic_modeling` gera essa tabela automaticamente dentro de `pipeline.py --run-modeling`/`scripts/run_modeling.py`, fechando a paridade que já existia com o pipeline serverless (`lambdas/model/handler.py` sempre fez isso sozinho).
+**A Tela 4 ("Comparar perfis") dependia de um passo manual esquecível — corrigido.** Ela lê `governor_profile_clusters_engagement` (`dashboard/core/data.py::load_clusters_profile()`); até essa correção, essa tabela só era gerada por `scripts/run_profile_clustering_engagement.py`, rodado à parte, nunca por `pipeline.py`. Quem seguisse só o fluxo principal desta seção via a tela abrir vazia, sem nenhum erro (o loader devolve `DataFrame` vazio de propósito). Agora `run_deterministic_modeling` gera essa tabela automaticamente dentro de `pipeline.py --run-modeling`/`scripts/run_modeling.py`.
 
 **NSM validado contra dado real (ADR 0020, Ficha 5).** O critério de aceite da issue #90 (ranking por NSM diferir do ranking por engajamento bruto em pelo menos 1 caso real, entre os 27 perfis) foi confirmado em 2026-09-19: 25 dos 27 perfis mudam de posição entre os dois rankings, inclusive o 1º lugar. O KPI "Engajamento qualificado" do Resumo deixou de levar o selo "em validação". Desde a ADR 0027, `src/modeling/orchestration.py` já grava `governor_nsm_history` em modo `append` a cada execução (fora do próprio `NsmScorer.write`, que continua só sobrescrevendo `governor_nsm`) — mas a tabela segue vazia em disco porque a pipeline não rodou de novo desde essa mudança (26/09); o comparativo "vs. média histórica" desse KPI específico degrada para vazio até acumular pelo menos uma execução nova.
 
@@ -704,13 +622,11 @@ As telas 1 (Resumo) e 3 (Radar) migraram parte das comparações de "execução 
 
 **Pendências de documentação.** Os capítulos 6 (Resultados) e 7 (Conclusões) do TCC ainda estão no texto-modelo, embora os resultados já existam e estejam redigidos no capítulo 5.
 
-**Agendamento automático das Lambdas ainda pendente.** EventBridge/cron para disparar o regime incremental/diário segue não implementado, com um gate de custo alternável planejado (`AUTO_CONFIRM_DAILY_EXTRACTION`) mas não escrito. Ver [ADR 0016](docs/adr/0016-dashboard-auto-refresh-historico-gold-e-agendamento-alternavel-antes-da-aws.md) para o desenho completo — a parte de auto-refresh do dashboard foi implementada no antigo `pages/03_performance.py`, removido na limpeza de código órfão de 2026-10 (ver nota na seção "Dashboard reformulado por decisão" acima); o padrão de auto-refresh não foi reportado para as 6 telas atuais.
 
 ### Próximos passos
 
 1. Completar os capítulos 6 (Resultados) e 7 (Conclusões) do TCC
 2. Auto-refresh no dashboard consumindo `governor_engagement_history` (ADR 0016)
-3. Toggle de confirmação automática + regra EventBridge para o regime incremental/diário (ADR 0016)
 
 ---
 
@@ -727,10 +643,8 @@ As telas 1 (Resumo) e 3 (Radar) migraram parte das comparações de "execução 
 | `test_model_enricher.py` | `write_sentiment`/`write_clusters` na granularidade de reel, falha clara quando falta coluna esperada |
 | `test_engagement.py` | `EngagementFeatureBuilder` cria `TOTAL ENGAJAMENTO`, `% ENGAJAMENTO`, `RECENCIA`, `FREQUENCIA` e não gera percentuais negativos |
 | `test_comments.py` | `CommentsTransformer` filtra comentários com 512 caracteres ou mais |
-| `test_transform_lambda.py` | Handler Silver retorna `200` / `silver_complete`; retorna `400` sem `S3_BUCKET` |
-| `test_load_lambda.py` | Handler Gold retorna `200` / `gold_complete`; retorna `400` sem `S3_BUCKET` |
 
-**Resultado atual: 842 testes passando e 3 pulados (61 arquivos).** A tabela acima cobre só os arquivos mais ilustrativos do pipeline Bronze/Silver/Gold e das Lambdas; a suíte completa também cobre o dashboard por decisão (`test_dashboard_loaders.py`, `test_dashboard_core_data.py`, `test_dashboard_core_deltas.py`, `test_comparisons.py`, `test_dashboard_screens_{resumo,resumo_nsm,resumo_funil,resumo_scorecard,produzir,radar,comparar,comparar_clusters,discurso_reacao}.py`, ver ADR 0021/0023/0025/0026/0031), o escore composto e o ICE de pautas (`test_governor_scorecard.py`, `test_content_topic_priority_scorer.py`, `test_discourse_refinement.py`), as métricas de growth da ADR 0020 (`test_growth_history.py`, `test_nsm_scorer.py`, `test_topic_priority_scorer.py`, `test_post_performance.py`), a clusterização de perfil (`test_profile_clustering.py`) o pipeline de UGC/menções, hoje dentro do `pipeline.py` (`test_ingestion.py`, `test_ugc_mention_cleaner.py`, `test_ugc_mentions_aggregator.py`), os comentários de posts (`test_post_comments.py`), as flags de extração (`test_pipeline_extracao.py`) e o relatório de tabelas (`test_pipeline_report.py`).
+**Resultado atual: 842 testes passando e 3 pulados (61 arquivos).** A tabela acima cobre só os arquivos mais ilustrativos do pipeline Bronze/Silver/Gold e da Lambda de reconstrução; a suíte completa também cobre o dashboard por decisão (`test_dashboard_loaders.py`, `test_dashboard_core_data.py`, `test_dashboard_core_deltas.py`, `test_comparisons.py`, `test_dashboard_screens_{resumo,resumo_nsm,resumo_funil,resumo_scorecard,produzir,radar,comparar,comparar_clusters,discurso_reacao}.py`, ver ADR 0021/0023/0025/0026/0031), o escore composto e o ICE de pautas (`test_governor_scorecard.py`, `test_content_topic_priority_scorer.py`, `test_discourse_refinement.py`), as métricas de growth da ADR 0020 (`test_growth_history.py`, `test_nsm_scorer.py`, `test_topic_priority_scorer.py`, `test_post_performance.py`), a clusterização de perfil (`test_profile_clustering.py`) o pipeline de UGC/menções, hoje dentro do `pipeline.py` (`test_ingestion.py`, `test_ugc_mention_cleaner.py`, `test_ugc_mentions_aggregator.py`), os comentários de posts (`test_post_comments.py`), as flags de extração (`test_pipeline_extracao.py`) e o relatório de tabelas (`test_pipeline_report.py`).
 
 `.github/workflows/python-app.yml` roda a cada push e pull request na `main`: checkout, Python 3.11, `pip install -e .[dev]`, pytest com cobertura e `ruff check src/`.
 
