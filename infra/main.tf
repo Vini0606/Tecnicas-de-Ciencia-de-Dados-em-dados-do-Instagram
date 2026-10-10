@@ -1,23 +1,13 @@
 locals {
-  # As 3 Lambdas que fazem I/O real no data lake (Bronze/Silver/Gold),
-  # encadeadas automaticamente pela orquestradora.
-  data_lambdas = toset(["extract", "transform", "load"])
-
-  # Timeout/memória por Lambda -- extract pode demorar dependendo do
-  # RESULTS_LIMIT (scraping via Apify); orchestrator precisa cobrir a soma
-  # das 4 etapas (extract/transform/load/model), até o teto de 15 min (900s)
-  # do Lambda. `model` (Fase 2 -- clustering de perfil de governador) roda
-  # por último, pós-Gold-de-engajamento (issue #86 / ADR 0020, Ficha 1 --
-  # decisão que reverte a exclusão original de `model` da cadeia). Continua
-  # fora de `data_lambdas` porque essa lista é sobre I/O de Bronze/Silver/
-  # Gold; `model` só lê/escreve Gold e tem role/policy própria (ver seção
-  # abaixo), mas agora é invocada automaticamente pela orquestradora.
-  lambda_settings = {
-    extract      = { timeout = 300, memory = 512 }
-    transform    = { timeout = 120, memory = 1024 }
-    load         = { timeout = 120, memory = 1024 }
-    orchestrator = { timeout = 900, memory = 256 }
-    model        = { timeout = 120, memory = 1024 }
+  # Unica Lambda do projeto (ADR 0039, decisao 8): baixa uma tag do Hugging
+  # Face e reconstroi Bronze, Silver e Gold no S3. Sem agendamento e sem
+  # extracao (Apify) na nuvem; modelagem pesada continua local.
+  # O Snapshot e baixado em /tmp, entao o armazenamento efemero e ampliado.
+  # Timeout no teto do Lambda (900s).
+  rebuild_settings = {
+    timeout   = 900
+    memory    = 3008
+    ephemeral = 5120 # MB em /tmp
   }
 }
 
@@ -27,16 +17,16 @@ resource "aws_s3_bucket" "data_lake" {
   bucket = var.bucket_name
 }
 
-# ── Repositórios ECR (um por Lambda, incluindo a orquestradora) ──────────
+# ── Repositorio ECR da Lambda de reconstrucao ────────────────────────────
 
 resource "aws_ecr_repository" "lambdas" {
-  for_each = toset(["extract", "transform", "load", "orchestrator", "model"])
+  for_each = toset(["rebuild"])
 
   name         = "${var.project_name}-${each.key}"
   force_delete = true
 }
 
-# ── IAM: papel de execução comum ──────────────────────────────────────────
+# ── IAM: papel de execucao minimo da Lambda rebuild ──────────────────────
 
 data "aws_iam_policy_document" "lambda_assume_role" {
   statement {
@@ -48,155 +38,55 @@ data "aws_iam_policy_document" "lambda_assume_role" {
   }
 }
 
-# ── IAM: extract/transform/load leem e escrevem no bucket do data lake ───
-
-resource "aws_iam_role" "data_lambda" {
-  for_each = local.data_lambdas
-
-  name               = "${var.project_name}-${each.key}-role"
+resource "aws_iam_role" "rebuild" {
+  name               = "${var.project_name}-rebuild-role"
   assume_role_policy = data.aws_iam_policy_document.lambda_assume_role.json
 }
 
-resource "aws_iam_role_policy_attachment" "data_lambda_basic_execution" {
-  for_each = local.data_lambdas
-
-  role       = aws_iam_role.data_lambda[each.key].name
+resource "aws_iam_role_policy_attachment" "rebuild_basic_execution" {
+  role       = aws_iam_role.rebuild.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
 
+# Leitura e escrita so no bucket do data lake (Bronze/Silver/Gold).
 data "aws_iam_policy_document" "data_lake_access" {
   statement {
     actions   = ["s3:ListBucket"]
     resources = [aws_s3_bucket.data_lake.arn]
   }
   statement {
-    actions   = ["s3:GetObject", "s3:PutObject"]
+    actions   = ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"]
     resources = ["${aws_s3_bucket.data_lake.arn}/*"]
   }
 }
 
-resource "aws_iam_role_policy" "data_lambda_s3_access" {
-  for_each = local.data_lambdas
-
-  name   = "${var.project_name}-${each.key}-s3-access"
-  role   = aws_iam_role.data_lambda[each.key].id
+resource "aws_iam_role_policy" "rebuild_s3_access" {
+  name   = "${var.project_name}-rebuild-s3-access"
+  role   = aws_iam_role.rebuild.id
   policy = data.aws_iam_policy_document.data_lake_access.json
 }
 
-# ── IAM: orquestradora só pode invocar as 4 Lambdas da cadeia (3 de dados +
-# `model`, issue #86 / ADR 0020) ──────────────────────────────────────────
+# ── Lambda rebuild ────────────────────────────────────────────────────────
+# Evento: {"tag": "coleta_...", "run_id": "opcional"}. Invocacao manual
+# (aws lambda invoke); nao ha gatilho agendado.
 
-resource "aws_iam_role" "orchestrator" {
-  name               = "${var.project_name}-orchestrator-role"
-  assume_role_policy = data.aws_iam_policy_document.lambda_assume_role.json
-}
-
-resource "aws_iam_role_policy_attachment" "orchestrator_basic_execution" {
-  role       = aws_iam_role.orchestrator.name
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
-}
-
-data "aws_iam_policy_document" "invoke_orchestrated_lambdas" {
-  statement {
-    actions = ["lambda:InvokeFunction"]
-    resources = concat(
-      [for name in local.data_lambdas : aws_lambda_function.data_lambda[name].arn],
-      [aws_lambda_function.model.arn],
-    )
-  }
-}
-
-resource "aws_iam_role_policy" "orchestrator_invoke_access" {
-  name   = "${var.project_name}-orchestrator-invoke-access"
-  role   = aws_iam_role.orchestrator.id
-  policy = data.aws_iam_policy_document.invoke_orchestrated_lambdas.json
-}
-
-# ── Lambdas: extract, transform, load ─────────────────────────────────────
-
-resource "aws_lambda_function" "data_lambda" {
-  for_each = local.data_lambdas
-
-  function_name = "${var.project_name}-${each.key}"
-  role          = aws_iam_role.data_lambda[each.key].arn
+resource "aws_lambda_function" "rebuild" {
+  function_name = "${var.project_name}-rebuild"
+  role          = aws_iam_role.rebuild.arn
   package_type  = "Image"
-  image_uri     = "${aws_ecr_repository.lambdas[each.key].repository_url}:${var.image_tag}"
-  timeout       = local.lambda_settings[each.key].timeout
-  memory_size   = local.lambda_settings[each.key].memory
+  image_uri     = "${aws_ecr_repository.lambdas["rebuild"].repository_url}:${var.image_tag}"
+  timeout       = local.rebuild_settings.timeout
+  memory_size   = local.rebuild_settings.memory
 
-  environment {
-    variables = merge(
-      {
-        S3_BUCKET        = aws_s3_bucket.data_lake.bucket
-        S3_BRONZE_PREFIX = "bronze/"
-        S3_SILVER_PREFIX = "silver/"
-        S3_GOLD_PREFIX   = "gold/"
-      },
-      each.key == "extract" ? { APIFY_API_TOKEN = var.apify_api_token } : {}
-    )
+  ephemeral_storage {
+    size = local.rebuild_settings.ephemeral
   }
-}
-
-# ── IAM: model lê/escreve só na camada Gold do data lake ──────────────────
-# Fora de `data_lambdas` de propósito (ver comentário em `lambda_settings`
-# acima) -- role e Lambda próprios, IAM restrita só à camada Gold (não
-# precisa de acesso a Bronze/Silver, diferente de extract/transform/load).
-
-resource "aws_iam_role" "model_lambda" {
-  name               = "${var.project_name}-model-role"
-  assume_role_policy = data.aws_iam_policy_document.lambda_assume_role.json
-}
-
-resource "aws_iam_role_policy_attachment" "model_lambda_basic_execution" {
-  role       = aws_iam_role.model_lambda.name
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
-}
-
-resource "aws_iam_role_policy" "model_lambda_s3_access" {
-  name   = "${var.project_name}-model-s3-access"
-  role   = aws_iam_role.model_lambda.id
-  policy = data.aws_iam_policy_document.data_lake_access.json
-}
-
-# ── Lambda: model (clustering de perfil de governador por Engajamento,
-# Fase 2) ──────────────────────────────────────────────────────────────────
-# Invocada automaticamente pela orquestradora, como última etapa da cadeia
-# (issue #86 / ADR 0020, Ficha 1). Pode também ser invocada manualmente
-# (aws lambda invoke --function-name ...) para reprocessar sem repetir
-# extract/transform/load.
-
-resource "aws_lambda_function" "model" {
-  function_name = "${var.project_name}-model"
-  role          = aws_iam_role.model_lambda.arn
-  package_type  = "Image"
-  image_uri     = "${aws_ecr_repository.lambdas["model"].repository_url}:${var.image_tag}"
-  timeout       = local.lambda_settings.model.timeout
-  memory_size   = local.lambda_settings.model.memory
 
   environment {
     variables = {
-      S3_BUCKET      = aws_s3_bucket.data_lake.bucket
-      S3_GOLD_PREFIX = "gold/"
-    }
-  }
-}
-
-# ── Lambda orquestradora ───────────────────────────────────────────────────
-
-resource "aws_lambda_function" "orchestrator" {
-  function_name = "${var.project_name}-orchestrator"
-  role          = aws_iam_role.orchestrator.arn
-  package_type  = "Image"
-  image_uri     = "${aws_ecr_repository.lambdas["orchestrator"].repository_url}:${var.image_tag}"
-  timeout       = local.lambda_settings.orchestrator.timeout
-  memory_size   = local.lambda_settings.orchestrator.memory
-
-  environment {
-    variables = {
-      EXTRACT_FUNCTION_NAME   = aws_lambda_function.data_lambda["extract"].function_name
-      TRANSFORM_FUNCTION_NAME = aws_lambda_function.data_lambda["transform"].function_name
-      LOAD_FUNCTION_NAME      = aws_lambda_function.data_lambda["load"].function_name
-      MODEL_FUNCTION_NAME     = aws_lambda_function.model.function_name
+      S3_BUCKET       = aws_s3_bucket.data_lake.bucket
+      HF_TOKEN        = var.hf_token
+      HF_DATASET_REPO = var.hf_dataset_repo
     }
   }
 }
@@ -292,7 +182,7 @@ resource "aws_iam_role_policy" "github_actions_ecr_push" {
 
 # ── ECR: mantém só as 10 imagens mais recentes por repositório ───────────
 # Necessário porque, sem tag "latest" sobrescrita, cada merge relevante em
-# main gera 4 imagens novas e imutáveis (ADR 0009).
+# main gera 1 imagem nova e imutáveis (ADR 0009).
 
 resource "aws_ecr_lifecycle_policy" "lambdas" {
   for_each = aws_ecr_repository.lambdas

@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# Builda e publica as 5 imagens das Lambdas (extract, transform, load,
-# orchestrator, model) nos repositórios ECR criados pelo Terraform em infra/.
+# Builda e publica a imagem da Lambda rebuild no repositório ECR criado pelo Terraform em infra/.
 #
 # Pré-requisito: já ter rodado, em infra/, pelo menos
 #   terraform apply -target=aws_ecr_repository.lambdas
@@ -18,7 +17,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."  # raiz do repositório
 
 TAG="${1:-latest}"
-LAMBDAS=(extract transform load orchestrator model)
+LAMBDAS=(rebuild)
 
 REPO_URLS_JSON="$(cd infra && terraform output -json ecr_repository_urls)"
 
