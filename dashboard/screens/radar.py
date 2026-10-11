@@ -336,8 +336,8 @@ def _frase_decisao(nivel: str, tema: dict | None) -> str:
     para inteiro (issue #113, user story 8)."""
     if tema is None:
         return (
-            "Sem alertas hoje -- nenhum tema com alta de negatividade nas "
-            "execuções disponíveis (ou dado insuficiente para comparar)."
+            "Sem alertas hoje -- nenhum tema com alta de negatividade na "
+            "Coleta em uso (ou dado insuficiente para comparar)."
         )
 
     nome = tema["name"] if pd.notna(tema.get("name")) else f"tópico {tema['topic']}"

@@ -28,7 +28,7 @@ def rotulo_revisao(revisao: str | None) -> str:
 
 def _recorte(r: dict[str, Any]) -> str:
     if r.get("dias") is not None:
-        partes = [f"ultimos {r['dias']} dias"]
+        partes = [f"últimos {r['dias']} dias"]
     elif r.get("inicio") and r.get("fim"):
         partes = [f"{_br(r['inicio'])} a {_br(r['fim'])}"]
     else:

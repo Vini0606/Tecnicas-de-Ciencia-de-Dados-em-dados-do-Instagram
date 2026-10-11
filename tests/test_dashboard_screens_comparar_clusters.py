@@ -268,3 +268,17 @@ def test_regressao_agrupamento_de_perfil_e_frase_de_decisao():
         },
     )
     assert "acima da média dos pares" in comparar._frase_decisao("G", barras)
+
+
+def test_nomes_unicos_desempata_clusters_com_o_mesmo_nome():
+    nomes = {1: "Perfil típico (próximo da mediana)", 2: "Duração muito acima da mediana", 3: "Duração muito acima da mediana"}
+    n_reels = {1: 401, 2: 12, 3: 5}
+    unicos = cc.nomes_unicos(nomes, n_reels)
+    assert unicos[1] == nomes[1]
+    assert len(set(unicos.values())) == 3
+    assert "12 reels" in unicos[2] and "5 reels" in unicos[3]
+
+
+def test_nomes_unicos_nao_mexe_quando_ja_sao_distintos():
+    nomes = {1: "A", 2: "B"}
+    assert cc.nomes_unicos(nomes, {1: 1, 2: 2}) == nomes
