@@ -142,6 +142,7 @@ def test_publicar_gera_um_unico_commit_de_substituicao_e_a_tag_esperada(tmp_path
 
     assert len(cliente.commits) == 2  # inicial vazio + exatamente um commit
     assert len(cliente.mensagens) == 1
+    assert cliente.mensagens[0] == f"push: {TAG}"
     assert cliente.tags == {TAG: 1}
     assert resultado.tag == TAG
     assert resultado.publicado is True
