@@ -599,7 +599,7 @@ def _frase_decisao(gargalo: str | None, convert_caindo: bool) -> str:
     if convert_caindo:
         frases.append(
             "o volume de comentários positivos está associado a uma queda "
-            "vs. a execução anterior"
+            "vs. a Coleta anterior"
         )
 
     texto = "; ".join(frases)
@@ -724,7 +724,7 @@ def _acao_recomendada(gargalo: str | None, negatividade_em_alta: bool) -> dict |
         return {
             "texto": (
                 "A negatividade recente dos comentários está associada a "
-                "uma alta vs. a execução anterior (ou já cruzou o limite de "
+                "uma alta vs. a Coleta anterior (ou já cruzou o limite de "
                 "alerta) -- vale investigar antes de agir sobre o funil."
             ),
             "alvo": _ACAO_RADAR,

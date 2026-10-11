@@ -31,7 +31,7 @@ def test_descreve_tag_recorte_e_cobertura(tmp_path):
     )
     texto = descrever_coleta(m)
     assert m["identidade"]["tag"] in texto
-    assert "ultimos 30 dias" in texto
+    assert "últimos 30 dias" in texto
     assert "teto 50" in texto
     assert "02/09/2026" in texto and "01/10/2026" in texto
 

@@ -381,6 +381,7 @@ def test_maior_alta_negatividade_retorna_none_para_dataframe_vazio():
 def test_frase_decisao_sem_tema_em_alta():
     texto = radar._frase_decisao("good", None)
     assert "Sem alertas hoje" in texto
+    assert "Coleta" in texto and "execuções" not in texto
 
 
 def test_frase_decisao_vermelho_menciona_nome_do_tema_e_percentuais_arredondados():

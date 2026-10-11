@@ -147,6 +147,18 @@ def ordenar_clusters(base: pd.DataFrame) -> list[int]:
     return [int(c) for c, _ in ordenado]
 
 
+def nomes_unicos(nomes: dict[int, str], n_reels: dict[int, int]) -> dict[int, str]:
+    """Nomes por regra podem coincidir entre clusters (faixas saturadas em
+    "muito acima"). Os repetidos ganham o tamanho do cluster para distinguir."""
+    contagem: dict[str, int] = {}
+    for nome in nomes.values():
+        contagem[nome] = contagem.get(nome, 0) + 1
+    return {
+        c: f"{nome} ({n_reels[c]} reels)" if contagem[nome] > 1 else nome
+        for c, nome in nomes.items()
+    }
+
+
 def rotulo_botao(cluster_id: int, ordem: list[int], nome: str) -> str:
     """"Cluster N -- <nome>" (N = posicao por tamanho entre os clusters nao
     ruido); o ruido vira so "Casos atipicos / virais", nunca "-1"."""
@@ -504,7 +516,10 @@ def render_clusters(governor_url: str) -> None:
 
     globais = medianas_globais(base)
     por_cluster = {c: metricas_cluster(base, c) for c in ordem}
-    nomes = {c: nome_cluster(c, por_cluster[c], globais) for c in ordem}
+    nomes = nomes_unicos(
+        {c: nome_cluster(c, por_cluster[c], globais) for c in ordem},
+        {c: por_cluster[c]["n_reels"] for c in ordem},
+    )
     escolhido = st.radio(
         "Cluster",
         options=ordem,
