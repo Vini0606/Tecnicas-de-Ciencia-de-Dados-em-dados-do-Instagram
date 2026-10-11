@@ -14,4 +14,4 @@ Contexto único — `CONTEXT.md` na raiz + `docs/adr/`. See `docs/agents/domain.
 
 ### Coletas
 
-Extrações do Instagram são versionadas no Hugging Face com tags `coleta_<extração>[_<janela>][_<teto>][_<rótulo>]`; nunca extrair sem `--yes` e aval explícito, nunca apagar uma Coleta anterior. See `docs/agents/coletas.md`.
+Extrações do Instagram são versionadas no Hugging Face: cada Coleta é um commit `push: coleta_<extração>[_<janela>][_<teto>][_<rótulo>]` (tags só de uso, como `reboot-iesb`); nunca extrair sem `--yes` e aval explícito, nunca apagar uma Coleta anterior. See `docs/agents/coletas.md`.

@@ -72,20 +72,20 @@ def build_parser() -> argparse.ArgumentParser:
 
     p = sub.add_parser("publicar", help="publica um Snapshot local no HF como a Coleta vigente")
     p.add_argument("snapshot", type=Path, help="pasta do Snapshot (com manifesto.json)")
-    p.add_argument("--rotulo", help="rotulo novo para a tag (padrao: a tag do manifesto)")
+    p.add_argument("--rotulo", help="rotulo novo para o identificador (padrao: o do manifesto)")
     p.add_argument("--limite-bytes", type=int, default=None, help="limite de armazenamento do dataset")
     p.add_argument("--yes", action="store_true", help="confirma o envio; sem isso so mostra o plano")
 
-    r = sub.add_parser("restaurar", help="traz uma Coleta antiga de volta para a main (novo commit, tag nova)")
-    r.add_argument("tag")
+    r = sub.add_parser("restaurar", help="traz uma Coleta antiga de volta para a main (novo commit)")
+    r.add_argument("tag", metavar="coleta", help="identificador coleta_*, tag de uso ou hash de commit")
     r.add_argument("--rotulo", default=hf.ROTULO_RESTAURADA)
     r.add_argument("--limite-bytes", type=int, default=None)
     r.add_argument("--yes", action="store_true", help="confirma; sem isso so mostra o plano")
 
     sub.add_parser("listar", help="lista as Coletas disponiveis no HF")
 
-    b = sub.add_parser("baixar", help="baixa o Snapshot de uma tag")
-    b.add_argument("tag")
+    b = sub.add_parser("baixar", help="baixa o Snapshot de uma Coleta")
+    b.add_argument("tag", metavar="coleta", help="identificador coleta_*, tag de uso ou hash de commit")
     b.add_argument("--destino", required=True, type=Path)
     return parser
 
@@ -222,7 +222,7 @@ def main(
                 limite_bytes=args.limite_bytes,
             )
             if resultado.publicado:
-                print(f"[OK] Publicada a Coleta {resultado.tag} (commit {resultado.commit}).")
+                print(f"[OK] Publicada a Coleta {resultado.coleta} (commit {resultado.commit}).")
         elif args.comando == "restaurar":
             resultado = hf.restaurar(
                 args.tag,
@@ -232,10 +232,11 @@ def main(
                 limite_bytes=args.limite_bytes,
             )
             if resultado.publicado:
-                print(f"[OK] Coleta {args.tag} restaurada na main como {resultado.tag} (commit {resultado.commit}).")
+                print(f"[OK] Coleta {args.tag} restaurada na main como {resultado.coleta} (commit {resultado.commit}).")
         elif args.comando == "listar":
             for c in hf.listar(cliente=cliente):
-                print(f"{c.tag}\t{c.extraido_em.isoformat()}\t{c.recorte}")
+                usos = ",".join(c.tags_de_uso)
+                print(f"{c.coleta}\t{c.commit[:8]}\t{c.extraido_em.isoformat()}\t{c.recorte}\t{usos}")
         elif args.comando == "baixar":
             pasta = hf.baixar(args.tag, args.destino, cliente=cliente)
             print(f"[OK] Coleta {args.tag} baixada em {pasta}.")
