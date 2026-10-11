@@ -68,3 +68,18 @@ Exemplos:
   identificador novo é o original com o rótulo `restaurada`, e a data é a da extração original.
 - O dashboard publicado baixa a `main` (a Coleta vigente). A variável opcional `HF_DATASET_REVISAO` (tag ou commit) faz o
   app mostrar uma Coleta antiga, sem mexer na `main`. Trocar de Coleta = publicar a nova e reiniciar o app.
+
+## README do dataset (card do HF)
+
+- O `README.md` na raiz do dataset é o card que o HF mostra. Ele **não faz parte do Snapshot**: `publicar` não o envia nem o
+  apaga (só mexe em `bronze/`, `silver/`, `gold/` e `manifesto.json`). A cópia versionada no repositório é
+  `docs/dataset/README.md`; a do HF é enviada à mão.
+- **Todo push ou restore de Coleta deixa o card desatualizado.** Depois de publicar, atualize em `docs/dataset/README.md` o que
+  descreve a Coleta vigente: a tabela "Coleta vigente" (identificador, commit, extração, Recorte, perfis, tags de uso), a
+  cobertura e a linha do tempo (copie do `manifesto.json`), a nota de como o Recorte foi determinado (só vale para Coletas sem
+  manifesto) e as observações da estrutura (`landing/`, coluna `_raw`, tabelas legadas). A convenção de commits e tags só muda
+  quando a regra mudar.
+- **O card segue junto com a Coleta**, no mesmo PR do HF (#275) que vai substituir a `main`, e nunca num commit só de docs.
+  Enquanto o `publicar` não incluir o `README.md`, inclua-o no PR do HF à mão. Assim o card e a Coleta entram na `main` no mesmo
+  commit, e o card pode citar o hash do commit da Coleta depois de mesclado.
+- Se o card passar a ser gerado a partir do manifesto, registre aqui e remova a edição manual.
