@@ -198,6 +198,7 @@ def publicar(
     cliente: ClienteColetaHF,
     confirmar: Callable[[Plano], bool],
     limite_bytes: int | None = None,
+    tipo_commit: str = "push",
 ) -> Resultado:
     """Substitui a Coleta vigente da `main` por um unico commit e cria a tag.
 
@@ -214,7 +215,7 @@ def publicar(
         manifesto["identidade"]["tag"] = plano.tag
         escrever_manifesto(pasta, manifesto)
 
-    commit = cliente.commit_substituicao(pasta, list(plano.apagar), f"Coleta {plano.tag}")
+    commit = cliente.commit_substituicao(pasta, list(plano.apagar), f"{tipo_commit}: {plano.tag}")
     cliente.criar_tag(plano.tag, commit)
     return Resultado(plano, publicado=True, commit=commit)
 
@@ -255,7 +256,9 @@ def restaurar(
     (`ErroTagExistente`); use outro rotulo."""
     with tempfile.TemporaryDirectory(prefix="coleta_restaurar_") as tmp:
         pasta = baixar(tag, Path(tmp) / "snapshot", cliente=cliente)
-        return publicar(pasta, rotulo, cliente=cliente, confirmar=confirmar, limite_bytes=limite_bytes)
+        return publicar(
+            pasta, rotulo, cliente=cliente, confirmar=confirmar, limite_bytes=limite_bytes, tipo_commit="restore"
+        )
 
 
 def listar(*, cliente: ClienteColetaHF) -> list[ColetaListada]:

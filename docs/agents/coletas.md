@@ -55,7 +55,7 @@ Exemplos:
   substituí-la. A única exceção é um pedido explícito do dono do dataset de recomeçar o histórico; nesse caso, guarde
   antes uma cópia local (`coleta.py baixar`) e registre o motivo.
 - **Uma tag `coleta_*` por Coleta**, apontando para o commit que contém o estado completo (Bronze, Silver, Gold e
-  manifesto). O commit de uma Coleta tem a mensagem `Coleta <tag>`. Uma tag nunca é movida nem apagada.
+  manifesto). Os commits seguem o estilo do Git (`<tipo>: <descrição>`), com a tag da Coleta na descrição: `push: <tag>` ao publicar e `restore: <tag>` ao restaurar. Uma tag nunca é movida nem apagada.
 - **Tags de evento** são nomes extras, opcionais, para o mesmo commit (ex.: `reboot-iesb`, a apresentação dos dados no
   evento da IESB). Não seguem a gramática `coleta_*`, apontam para uma Coleta que já tem a sua tag `coleta_*`, e
   `coleta.py listar` as ignora. Podem ser usadas em `HF_DATASET_REVISAO` como qualquer tag.

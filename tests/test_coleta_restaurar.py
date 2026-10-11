@@ -35,6 +35,7 @@ def test_restaurar_gera_novo_commit_e_tag_nova_mantendo_a_original(tmp_path):
     assert cliente.tags[TAG_RESTAURADA] == len(cliente.commits) - 1
     assert {k: v for k, v in cliente.tags.items() if k != TAG_RESTAURADA} == tags_antes
     assert cliente.commits[cliente.tags[TAG]] == original  # historico intacto
+    assert cliente.mensagens[-1] == f"restore: {TAG_RESTAURADA}"
 
 
 def test_restaurar_poe_o_conteudo_da_tag_na_main(tmp_path):
