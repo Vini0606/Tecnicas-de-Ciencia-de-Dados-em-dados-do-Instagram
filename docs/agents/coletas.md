@@ -40,7 +40,7 @@ Exemplos:
 - `coleta_2026-10-09_ultimos-90d_teto-250`
 - `coleta_2026-10-09_teto-10`
 - `coleta_2026-10-09_de-2026-03-01_ate-2026-06-30_teto-50`
-- `coleta_2026-10-06_ultimos-5d_piloto`
+- `coleta_2026-10-06_ultimos-5d_teto-30`
 
 ## Versionamento no Hugging Face
 
