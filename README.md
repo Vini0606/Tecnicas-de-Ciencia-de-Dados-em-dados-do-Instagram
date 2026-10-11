@@ -522,6 +522,10 @@ Secrets, para o app nunca alcançar a Bronze.
 
 O deploy instala só `dashboard/requirements.txt` (sem bertopic nem PyTorch).
 
+**Reinicie o app (*Manage app > Reboot app*) depois de mesclar PRs que mexem em `src/` ou `dashboard/`, principalmente vários em sequência.**
+O Streamlit Cloud atualiza os arquivos sem reiniciar o processo, e um módulo antigo que ficou em memória quebra o import de um arquivo novo
+(já aconteceu: `ImportError: cannot import name 'ler_manifesto' from 'src.publicacao_hf'`, resolvido com o reboot).
+
 #### Levar os dados coletados para outra máquina (dataset privado no Hugging Face)
 
 A coleta é paga, e o repositório é público, com dado pessoal de terceiros na Bronze. Por isso, os dados **não** vão para o git: ficam no
