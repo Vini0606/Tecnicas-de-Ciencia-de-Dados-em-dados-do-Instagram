@@ -84,11 +84,12 @@ def test_publicar_sem_yes_so_mostra_o_plano(tmp_path, capsys):
     assert cliente.tags == {}
 
 
-def test_publicar_com_yes_cria_commit_e_tag(tmp_path):
+def test_publicar_com_yes_cria_commit_sem_tag(tmp_path):
     cliente = ClienteFake()
     snap = _snapshot(tmp_path / "snap")
     assert cli.main(["publicar", str(snap), "--yes"], cliente_factory=lambda: cliente) == 0
-    assert TAG in cliente.tags
+    assert cliente.mensagens == [f"push: {TAG}"]
+    assert cliente.tags == {}
 
 
 def test_listar_baixar_e_restaurar(tmp_path, capsys):
@@ -96,17 +97,19 @@ def test_listar_baixar_e_restaurar(tmp_path, capsys):
     cli.main(["publicar", str(_snapshot(tmp_path / "snap")), "--yes"], cliente_factory=lambda: cliente)
     capsys.readouterr()
 
+    cliente.tags["reboot-iesb"] = 1
     assert cli.main(["listar"], cliente_factory=lambda: cliente) == 0
-    assert TAG in capsys.readouterr().out
+    saida = capsys.readouterr().out
+    assert TAG in saida and "reboot-iesb" in saida
 
     pasta = tmp_path / "baixada"
     assert cli.main(["baixar", TAG, "--destino", str(pasta)], cliente_factory=lambda: cliente) == 0
     assert (pasta / "manifesto.json").is_file()
 
     assert cli.main(["restaurar", TAG], cliente_factory=lambda: cliente) == 0
-    assert f"{TAG}_restaurada" not in cliente.tags
+    assert f"push: {TAG}_restaurada" not in cliente.mensagens and len(cliente.mensagens) == 1
     assert cli.main(["restaurar", TAG, "--yes"], cliente_factory=lambda: cliente) == 0
-    assert f"{TAG}_restaurada" in cliente.tags
+    assert cliente.mensagens[-1] == f"restore: {TAG}_restaurada"
 
 
 def test_baixar_tag_inexistente_e_erro_sem_traceback(tmp_path, capsys):

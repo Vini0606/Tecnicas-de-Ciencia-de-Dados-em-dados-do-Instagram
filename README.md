@@ -72,7 +72,7 @@ Esta é uma decisão de projeto deliberada, não excesso de escopo. Um resultado
 
 A arquitetura Medallion sobre Delta Lake resolve o problema com três garantias:
 
-- **Coletas versionadas** — cada Coleta fica salva e marcada por uma tag no dataset privado do Hugging Face ([ADR 0039](docs/adr/0039-coleta-versionada-no-hf-bronze-fiel-e-aws-so-reconstroi.md)); a mais recente é sempre a vigente e qualquer número do TCC pode ser refeito a partir da tag
+- **Coletas versionadas** — cada Coleta fica salva como um commit no dataset privado do Hugging Face, identificada pela mensagem `push: coleta_...` e pelo manifesto ([ADR 0039](docs/adr/0039-coleta-versionada-no-hf-bronze-fiel-e-aws-so-reconstroi.md)); a mais recente é sempre a vigente e qualquer número do TCC pode ser refeito a partir do commit (as tags são só de uso, como `reboot-iesb`)
 - **Time travel** — `DeltaRepository(as_of_version=…)` recupera uma versão anterior de uma tabela Delta local
 - **Linhagem** — a Bronze guarda o item completo da Apify na coluna `_raw` e os metadados `_run_id`, `_ingested_at` e `_source`; o `manifesto.json` de cada Coleta registra Recorte pedido, cobertura real, custo e contagem de linhas
 - **Contratos de schema** — `src/schemas_delta.py` declara os tipos de cada camada, com `nullable=False` nas camadas Silver e Gold como validação *fail-fast*
@@ -191,9 +191,9 @@ flowchart LR
     G[governadores.xlsx] --> C["coleta.py coletar"]
     A[Apify API] --> C
     C --> S[("Snapshot local<br/>Bronze fiel + Silver + Gold<br/>+ manifesto.json")]
-    S -->|"coleta.py publicar"| H[("Hugging Face (dataset privado)<br/>main = Coleta vigente<br/>tags = Coletas anteriores")]
+    S -->|"coleta.py publicar"| H[("Hugging Face (dataset privado)<br/>main = Coleta vigente<br/>commits anteriores = Coletas antigas")]
     H -->|"Silver + Gold + manifesto"| D[Dashboard Streamlit]
-    H -->|"tag"| R["AWS Lambda rebuild"]
+    H -->|"Coleta"| R["AWS Lambda rebuild"]
     R --> B[("S3: Bronze, Silver, Gold (Delta)")]
     S --> N[Notebooks]
     N --> T[TCC LaTeX]
@@ -243,13 +243,13 @@ repo_v3 = DeltaRepository(settings.GOLD_DIR, as_of_version=3)
 | Comando | O que faz |
 |---|---|
 | `coletar` | Extrai um **Recorte** da Apify (`--dias N`, ou `--inicio`/`--fim`, e `--teto N` itens por perfil) para uma pasta de dados **limpa** (`--destino`), grava a Bronze fiel, deriva Silver e Gold e escreve o `manifesto.json`. Sem `--yes`, só mostra a estimativa de custo (pior caso). `--modelar` roda também a modelagem determinística (exige `DATA_DIR=<destino>`) |
-| `publicar <pasta>` | Publica o Snapshot no Hugging Face como a Coleta vigente: **um único commit** de substituição na `main` + a tag da Coleta. Sem `--yes`, só mostra o plano. `--rotulo` troca o rótulo da tag |
-| `restaurar <tag>` | Traz uma Coleta antiga de volta para a `main` (novo commit, tag nova com rótulo `restaurada`) |
-| `listar` | Lista as Coletas (tags) do dataset |
-| `baixar <tag> --destino <pasta>` | Baixa o Snapshot de uma tag |
+| `publicar <pasta>` | Publica o Snapshot no Hugging Face como a Coleta vigente: **um único commit** de substituição na `main` (`push: <identificador>`), sem tag. Sem `--yes`, só mostra o plano. `--rotulo` troca o rótulo do identificador |
+| `restaurar <coleta>` | Traz uma Coleta antiga (identificador `coleta_*`, tag de uso ou hash de commit) de volta para a `main`, como novo commit `restore: <identificador>_restaurada` |
+| `listar` | Lista as Coletas da história da `main` (identificador, commit, Recorte, data e tags de uso) |
+| `baixar <coleta> --destino <pasta>` | Baixa o Snapshot de uma Coleta (identificador, tag de uso ou hash de commit) |
 
-A tag segue a gramática `coleta_<extração>[_<janela>][_<teto>][_<rótulo>]` (ex.: `coleta_2026-10-09_ultimos-90d_teto-250`), em
-`docs/agents/coletas.md`. A `main` guarda só a Coleta vigente; as anteriores ficam em tags e nunca são apagadas nem reescritas
+O identificador da Coleta segue a gramática `coleta_<extração>[_<janela>][_<teto>][_<rótulo>]` (ex.: `coleta_2026-10-09_ultimos-90d_teto-250`), em
+`docs/agents/coletas.md`. A `main` guarda só a Coleta vigente; as anteriores ficam na história de commits e nunca são apagadas nem reescritas
 (sem force-push). O manifesto traz identidade, Recorte pedido, cobertura real por fonte e perfil, custo e tabelas derivadas com
 linhas — sem conteúdo (nomes, textos) nem segredos.
 
@@ -269,7 +269,7 @@ uv run python scripts/refine_topics.py --run-id <ID>                       # ref
 ### Reconstrução na nuvem (AWS Lambda)
 
 A nuvem **não extrai nem agenda** (ADR 0039, decisão 8): a única Lambda, `lambdas/rebuild/`, baixa
-uma **tag de Coleta** do dataset privado no Hugging Face e reconstrói Bronze, Silver e Gold como
+uma **Coleta** (identificador, tag de uso ou hash de commit) do dataset privado no Hugging Face e reconstrói Bronze, Silver e Gold como
 tabelas **Delta Lake** em `s3://<bucket>/{bronze,silver,gold}/`: copia a Bronze do Snapshot, deriva de novo Silver e Gold de
 engajamento/UGC (`src/coleta/derivacao.py`, só etapas determinísticas) e copia as demais tabelas Gold (modelagem) como estão.
 Extração (Apify) e modelagem pesada (BERTopic) continuam locais.
@@ -394,7 +394,7 @@ cp .env.example .env      # editar: APIFY_API_TOKEN (extrair) e HF_TOKEN + HF_DA
 **Caminho A. Levar uma Coleta já publicada para esta máquina (sem custo):**
 
 ```bash
-uv run python coleta.py listar                                      # tags disponíveis
+uv run python coleta.py listar                                      # Coletas disponíveis
 uv run python coleta.py baixar coleta_2026-10-09_ultimos-90d_teto-250 --destino data
 uv run streamlit run dashboard/app.py                               # http://localhost:8501
 ```
@@ -413,7 +413,7 @@ uv run python coleta.py coletar --dias 90 --teto 250 --destino C:\dados\coleta_n
 #    PowerShell: $env:DATA_DIR = "C:\dados\coleta_nova"
 uv run python coleta.py coletar --dias 90 --teto 250 --destino C:\dados\coleta_nova --yes --modelar
 
-# 7. Publicar como a Coleta vigente: sem --yes mostra o plano; com --yes envia um único commit e cria a tag
+# 7. Publicar como a Coleta vigente: sem --yes mostra o plano; com --yes envia um único commit (sem tag)
 uv run python coleta.py publicar C:\dados\coleta_nova
 uv run python coleta.py publicar C:\dados\coleta_nova --yes
 
@@ -432,7 +432,7 @@ uv run ruff check src/
 | `--dias N` | Janela relativa: só publicações dos últimos N dias (`onlyPostsNewerThan`). |
 | `--inicio AAAA-MM-DD` / `--fim AAAA-MM-DD` | Intervalo absoluto do Recorte. |
 | `--teto N` | Teto de itens por perfil em cada coleção (posts, reels e UGC). Sem ele, o padrão do projeto é `RESULTS_LIMIT` (30) ou, com janela, um padrão proporcional à janela. |
-| `--rotulo texto` | Rótulo opcional no fim da tag (minúsculas, dígitos e `-`). Duas Coletas com o mesmo nome (mesmo dia e Recorte) exigem um rótulo. |
+| `--rotulo texto` | Rótulo opcional no fim do identificador (minúsculas, dígitos e `-`). Duas Coletas com o mesmo nome (mesmo dia e Recorte) exigem um rótulo. |
 | `--destino pasta` | Obrigatória. Pasta de dados limpa; o comando recusa uma pasta não vazia. |
 | `--yes` | Confirma o gasto real na Apify. Sem ele, o comando só imprime o custo estimado e termina. |
 | `--modelar` | Roda também a modelagem determinística (~15–30 min; na primeira vez, baixa ~2,5 GB de modelos do Hugging Face) e imprime o relatório de tabelas. |

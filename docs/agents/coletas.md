@@ -14,7 +14,7 @@ estão definidos em `CONTEXT.md`.
 - Extraia sempre em pasta de dados limpa (`DATA_DIR`), nunca por cima da pasta `data/` em uso.
 - O **Recorte** pode combinar janela relativa, intervalo absoluto e teto por perfil. Confirme o Recorte com o usuário.
 
-## Nome da tag de uma Coleta
+## Identificador de uma Coleta
 
 ```
 coleta_<extração>[_<janela>][_<teto>][_<rótulo>]
@@ -32,8 +32,8 @@ Regras:
 
 - Ordem fixa, a da tabela. Janela relativa e intervalo absoluto não aparecem juntos.
 - Só minúsculas, dígitos, `-` e `_`; sem acento nem espaço.
-- Dois nomes iguais (mesmo dia e mesmo Recorte) exigem um rótulo; nunca sobrescreva uma tag.
-- A tag é um atalho legível. A verdade (Recorte pedido, cobertura real por perfil, contagens) fica no manifesto da Coleta.
+- Dois identificadores iguais (mesmo dia e mesmo Recorte) exigem um rótulo; `publicar` recusa um identificador já publicado.
+- O identificador vai na mensagem do commit (`push: <identificador>`) e no manifesto; **não é uma tag**. A verdade (Recorte pedido, cobertura real por perfil, contagens) fica no manifesto da Coleta.
 
 Exemplos:
 
@@ -50,16 +50,21 @@ Exemplos:
   (contagens e datas mais antiga e mais recente), custo na Apify e a lista de tabelas derivadas com número de linhas.
   Não carrega conteúdo (nomes, textos) nem segredos.
 - A `main` do dataset guarda **só a Coleta vigente**. Uma Coleta nova entra como um commit que substitui os arquivos da
-  anterior; as anteriores continuam acessíveis por tag.
-- **Nunca apague o commit de uma Coleta anterior** nem reescreva a `main` com force-push. Marque a Coleta antes de
-  substituí-la. A única exceção é um pedido explícito do dono do dataset de recomeçar o histórico; nesse caso, guarde
+  anterior; as anteriores continuam na história da `main`, acessíveis pelo identificador, pelo hash do commit ou por uma tag de uso.
+- **Nunca apague o commit de uma Coleta anterior** nem reescreva a `main` com force-push (um `super_squash_history` descarta
+  as Coletas que não tiverem tag). A única exceção é um pedido explícito do dono do dataset de recomeçar o histórico; nesse caso, guarde
   antes uma cópia local (`coleta.py baixar`) e registre o motivo.
-- **Uma tag `coleta_*` por Coleta**, apontando para o commit que contém o estado completo (Bronze, Silver, Gold e
-  manifesto). Os commits seguem o estilo do Git (`<tipo>: <descrição>`), com a tag da Coleta na descrição: `push: <tag>` ao publicar e `restore: <tag>` ao restaurar. Uma tag nunca é movida nem apagada.
-- **Tags de evento** são nomes extras, opcionais, para o mesmo commit (ex.: `reboot-iesb`, a apresentação dos dados no
-  evento da IESB). Não seguem a gramática `coleta_*`, apontam para uma Coleta que já tem a sua tag `coleta_*`, e
-  `coleta.py listar` as ignora. Podem ser usadas em `HF_DATASET_REVISAO` como qualquer tag.
-- Restaurar uma Coleta antiga na `main` = baixar a tag e publicá-la como um novo commit (com tag nova).
-  Em código: `restaurar(tag, cliente=..., confirmar=..., rotulo="restaurada")` em `src/coleta/hf.py` (tag nova = `<tag>` com rótulo `restaurada`, data = extração original).
+- **Cada Coleta é um commit.** Os commits seguem o estilo do Git (`<tipo>: <descrição>`), com o identificador da Coleta na
+  descrição: `push: <identificador>` ao publicar e `restore: <identificador>_restaurada` ao restaurar. `publicar` não cria tag.
+- **Tags são só de uso**, escolhidas pelo usuário e criadas à mão no HF: `reboot-iesb` (apresentação no evento da IESB),
+  `tcc`, `article-governor-segmentation`. Apontam para o commit de uma Coleta, não seguem a gramática `coleta_*` e nunca são
+  movidas nem apagadas pelo projeto. `coleta.py listar` mostra, em cada Coleta, as tags de uso que apontam para ela.
+- **O que acontece num push novo:** a `main` avança para o commit novo. Tags existentes continuam apontando para o commit onde
+  foram criadas (não se sobrescrevem nem se movem) e tags novas se acumulam. Um commit só some da história se a `main` for
+  reescrita; uma tag o mantém vivo.
+- Restaurar uma Coleta antiga na `main` = baixá-la e publicá-la como um novo commit.
+  Em código: `restaurar(referencia, cliente=..., confirmar=..., rotulo="restaurada")` em `src/coleta/hf.py`. A referência é um
+  identificador `coleta_*` (resolvido para o commit mais recente que o publicou), uma tag de uso ou um hash de commit; o
+  identificador novo é o original com o rótulo `restaurada`, e a data é a da extração original.
 - O dashboard publicado baixa a `main` (a Coleta vigente). A variável opcional `HF_DATASET_REVISAO` (tag ou commit) faz o
   app mostrar uma Coleta antiga, sem mexer na `main`. Trocar de Coleta = publicar a nova e reiniciar o app.

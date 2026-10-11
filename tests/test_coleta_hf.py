@@ -12,9 +12,10 @@ from pathlib import Path
 import pytest
 
 from src.coleta.hf import (
+    CommitHF,
     ErroColetaHF,
+    ErroColetaExistente,
     ErroLimiteArmazenamento,
-    ErroTagExistente,
     Plano,
     baixar,
     listar,
@@ -75,8 +76,14 @@ class ClienteFake:
         self.mensagens: list[str] = []
 
     # --- leitura
-    def listar_tags(self) -> list[str]:
-        return list(self.tags)
+    def listar_tags(self) -> dict[str, str]:
+        return {nome: str(i) for nome, i in self.tags.items()}
+
+    def listar_commits(self) -> list[CommitHF]:
+        n = len(self.commits)
+        return [
+            CommitHF(str(i), "initial commit" if i == 0 else self.mensagens[i - 1]) for i in reversed(range(n))
+        ]
 
     def listar_arquivos(self, revisao: str | None = None) -> list[str]:
         return sorted(self._arvore(revisao))
@@ -108,14 +115,13 @@ class ClienteFake:
         self.mensagens.append(mensagem)
         return str(len(self.commits) - 1)
 
-    def criar_tag(self, tag: str, revisao: str) -> None:
-        self.tags[tag] = int(revisao)
-
     def _arvore(self, revisao: str | None) -> dict[str, bytes]:
         if revisao is None or revisao == "main":
             return self.commits[-1]
         if revisao in self.tags:
             return self.commits[self.tags[revisao]]
+        if revisao.isdigit() and int(revisao) < len(self.commits):
+            return self.commits[int(revisao)]
         raise FileNotFoundError(revisao)
 
 
@@ -134,7 +140,7 @@ def _segundo_snapshot(base: Path) -> Path:
 # ------------------------------------------------------------------ publicar
 
 
-def test_publicar_gera_um_unico_commit_de_substituicao_e_a_tag_esperada(tmp_path):
+def test_publicar_gera_um_unico_commit_de_substituicao_sem_criar_tag(tmp_path):
     snap = _snapshot(tmp_path / "snap")
     cliente = ClienteFake()
 
@@ -143,8 +149,8 @@ def test_publicar_gera_um_unico_commit_de_substituicao_e_a_tag_esperada(tmp_path
     assert len(cliente.commits) == 2  # inicial vazio + exatamente um commit
     assert len(cliente.mensagens) == 1
     assert cliente.mensagens[0] == f"push: {TAG}"
-    assert cliente.tags == {TAG: 1}
-    assert resultado.tag == TAG
+    assert cliente.tags == {}  # a Coleta e identificada pelo commit, nao por tag
+    assert resultado.coleta == TAG
     assert resultado.publicado is True
     main = cliente.listar_arquivos()
     assert "manifesto.json" in main
@@ -165,8 +171,8 @@ def test_publicar_apaga_arquivos_antigos_que_nao_existem_mais_no_snapshot(tmp_pa
         "silver/posts/part-1.parquet",
     ]
     assert cliente.ler_arquivo("silver/posts/part-1.parquet") == b"nova"
-    # a Coleta anterior continua acessivel pela tag
-    assert "gold/governor_engagement/part-1.parquet" in cliente.listar_arquivos(TAG)
+    # a Coleta anterior continua acessivel pelo commit
+    assert "gold/governor_engagement/part-1.parquet" in cliente.listar_arquivos("1")
 
 
 def test_publicar_preserva_arquivos_fora_das_camadas_da_coleta(tmp_path):
@@ -176,13 +182,13 @@ def test_publicar_preserva_arquivos_fora_das_camadas_da_coleta(tmp_path):
     assert "README.md" in cliente.listar_arquivos()
 
 
-def test_rotulo_entra_na_tag_e_no_manifesto_publicado(tmp_path):
+def test_rotulo_entra_no_identificador_e_no_manifesto_publicado(tmp_path):
     cliente = ClienteFake()
     resultado = publicar(_snapshot(tmp_path / "snap"), "piloto", cliente=cliente, confirmar=_sim)
 
     esperada = TAG + "_piloto"
-    assert resultado.tag == esperada
-    assert esperada in cliente.tags
+    assert resultado.coleta == esperada
+    assert cliente.mensagens == [f"push: {esperada}"]
     publicado = json.loads(cliente.ler_arquivo("manifesto.json"))
     assert publicado["identidade"]["tag"] == esperada
 
@@ -194,13 +200,13 @@ def test_rotulo_invalido_e_recusado_sem_alterar_nada(tmp_path):
     assert len(cliente.commits) == 1 and not cliente.tags
 
 
-def test_tag_existente_e_recusada_sem_alterar_nada(tmp_path):
+def test_coleta_ja_publicada_e_recusada_sem_alterar_nada(tmp_path):
     cliente = ClienteFake()
     publicar(_snapshot(tmp_path / "a"), cliente=cliente, confirmar=_sim)
     antes = (list(cliente.commits), dict(cliente.tags), list(cliente.mensagens))
     chamadas: list[Plano] = []
 
-    with pytest.raises(ErroTagExistente):
+    with pytest.raises(ErroColetaExistente):
         publicar(_snapshot(tmp_path / "b"), cliente=cliente, confirmar=lambda p: chamadas.append(p) or True)
 
     assert (cliente.commits, cliente.tags, cliente.mensagens) == antes
@@ -220,18 +226,18 @@ def test_snapshot_sem_manifesto_ou_invalido_e_recusado(tmp_path):
     assert len(cliente.commits) == 1
 
 
-def test_interface_do_cliente_nao_oferece_apagar_tag_nem_force_push():
+def test_interface_do_cliente_nao_oferece_criar_apagar_tag_nem_force_push():
     from src.coleta.hf import ClienteColetaHF
 
     nomes = {n for n in vars(ClienteColetaHF) if not n.startswith("_")}
     assert nomes == {
         "listar_tags",
+        "listar_commits",
         "listar_arquivos",
         "ler_arquivo",
         "tamanho_dataset",
         "baixar",
         "commit_substituicao",
-        "criar_tag",
     }
 
 
@@ -246,7 +252,7 @@ def test_confirmacao_recebe_o_alvo_exato(tmp_path):
     publicar(_segundo_snapshot(tmp_path / "b"), cliente=cliente, confirmar=lambda p: vistos.append(p) or True)
 
     (plano,) = vistos
-    assert plano.tag == TAG2
+    assert plano.coleta == TAG2
     assert plano.apagar == (
         "bronze/instagram_posts/_delta_log/00000000000000000000.json",
         "bronze/instagram_posts/part-1.parquet",
@@ -265,14 +271,14 @@ def test_sem_confirmacao_nada_e_alterado(tmp_path):
     resultado = publicar(_snapshot(tmp_path / "snap"), cliente=cliente, confirmar=lambda p: False)
 
     assert resultado.publicado is False
-    assert resultado.plano.tag == TAG
+    assert resultado.plano.coleta == TAG
     assert len(cliente.commits) == 1 and not cliente.tags
 
 
 def test_planejar_nao_altera_nada_e_nao_exige_confirmacao(tmp_path):
     cliente = ClienteFake()
     plano = planejar(_snapshot(tmp_path / "snap"), cliente=cliente)
-    assert plano.tag == TAG
+    assert plano.coleta == TAG
     assert len(cliente.commits) == 1
 
 
@@ -299,16 +305,17 @@ def test_limite_de_armazenamento_folgado_permite_publicar(tmp_path):
 # ------------------------------------------------------------------- listar
 
 
-def test_listar_devolve_tag_recorte_e_cobertura_dos_manifestos(tmp_path):
+def test_listar_percorre_os_commits_e_mostra_tags_de_uso(tmp_path):
     cliente = ClienteFake()
     publicar(_snapshot(tmp_path / "a"), cliente=cliente, confirmar=_sim)
     publicar(_segundo_snapshot(tmp_path / "b"), cliente=cliente, confirmar=_sim)
-    cliente.tags["rascunho-qualquer"] = 1  # tag fora da gramatica e ignorada
-    cliente.tags["coleta_2026-10-06_piloto"] = 0  # sem manifesto: ignorada
+    cliente.tags["reboot-iesb"] = 1  # tag de uso: aparece na Coleta para onde aponta
 
     coletas = listar(cliente=cliente)
 
-    assert [c.tag for c in coletas] == [TAG2, TAG]  # mais recente primeiro
+    assert [c.coleta for c in coletas] == [TAG2, TAG]  # mais recente primeiro
+    assert [c.commit for c in coletas] == ["2", "1"]
+    assert [c.tags_de_uso for c in coletas] == [(), ("reboot-iesb",)]
     antiga = coletas[1]
     assert antiga.recorte == Recorte(dias=90, teto=250)
     assert antiga.cobertura["posts"]["itens"] == 10
@@ -331,6 +338,17 @@ def test_listar_recorte_com_intervalo_absoluto(tmp_path):
 # ------------------------------------------------------------------- baixar
 
 
+def test_listar_ignora_commits_fora_do_padrao_ou_sem_manifesto(tmp_path):
+    cliente = ClienteFake()
+    publicar(_snapshot(tmp_path / "a"), cliente=cliente, confirmar=_sim)
+    cliente.commits.append({"README.md": b"x"})  # commit manual, sem manifesto
+    cliente.mensagens.append("update README")
+    cliente.commits.append({"README.md": b"x"})  # mensagem no padrao, mas sem manifesto valido
+    cliente.mensagens.append("push: coleta_2026-10-08_teto-5")
+
+    assert [c.coleta for c in listar(cliente=cliente)] == [TAG]
+
+
 def test_baixar_traz_o_snapshot_completo_da_revisao(tmp_path):
     cliente = ClienteFake()
     publicar(_snapshot(tmp_path / "a"), cliente=cliente, confirmar=_sim)
@@ -348,11 +366,34 @@ def test_baixar_traz_o_snapshot_completo_da_revisao(tmp_path):
     assert manifesto["identidade"]["tag"] == TAG
 
 
-def test_baixar_tag_inexistente_levanta_erro_claro(tmp_path):
-    with pytest.raises(ErroColetaHF):
+def test_baixar_por_hash_de_commit_e_por_tag_de_uso(tmp_path):
+    cliente = ClienteFake()
+    publicar(_snapshot(tmp_path / "a"), cliente=cliente, confirmar=_sim)
+    publicar(_segundo_snapshot(tmp_path / "b"), cliente=cliente, confirmar=_sim)
+    cliente.tags["reboot-iesb"] = 1
+
+    por_hash = baixar("1", tmp_path / "h", cliente=cliente)
+    por_tag = baixar("reboot-iesb", tmp_path / "t", cliente=cliente)
+
+    for pasta in (por_hash, por_tag):
+        assert json.loads((pasta / "manifesto.json").read_text(encoding="utf-8"))["identidade"]["tag"] == TAG
+
+
+def test_identificador_repetido_na_historia_resolve_para_o_commit_mais_recente(tmp_path):
+    cliente = ClienteFake()
+    publicar(_snapshot(tmp_path / "a"), cliente=cliente, confirmar=_sim)
+    # o mesmo identificador reaparece depois (ex.: um commit manual com a mesma mensagem)
+    cliente.commits.append(dict(cliente.commits[-1], **{"silver/posts/part-1.parquet": b"depois"}))
+    cliente.mensagens.append(f"push: {TAG}")
+
+    pasta = baixar(TAG, tmp_path / "x", cliente=cliente)
+
+    assert (pasta / "silver/posts/part-1.parquet").read_bytes() == b"depois"
+
+
+def test_baixar_referencia_inexistente_levanta_erro_claro(tmp_path):
+    with pytest.raises(ErroColetaHF) as exc:
         baixar("coleta_2026-01-01_teto-1", tmp_path / "x", cliente=ClienteFake())
-
-
-def test_baixar_recusa_tag_fora_da_gramatica(tmp_path):
-    with pytest.raises(ValueError):
-        baixar("main", tmp_path / "x", cliente=ClienteFake())
+    assert "coleta_2026-01-01_teto-1" in str(exc.value)
+    with pytest.raises(ErroColetaHF):
+        baixar("nao-existe", tmp_path / "y", cliente=ClienteFake())

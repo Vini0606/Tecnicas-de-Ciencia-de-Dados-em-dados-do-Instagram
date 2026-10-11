@@ -3,13 +3,16 @@ Publicacao, download e listagem de Snapshots no Hugging Face (ADR 0039, issue #2
 
 A `main` do dataset guarda so a Coleta vigente: `publicar` cria UM commit que
 substitui Bronze, Silver, Gold e manifesto (apagando o que a Coleta anterior
-tinha e o novo Snapshot nao tem) e marca esse commit com a tag gerada pelo
-Recorte. As Coletas anteriores continuam acessiveis pelas tags.
+tinha e o novo Snapshot nao tem). A Coleta e identificada pelo commit e pelo
+identificador gerado pelo Recorte (`coleta_<...>`), gravado na mensagem
+(`push: <identificador>`) e no manifesto; nenhuma tag e criada. As Coletas
+anteriores continuam na historia da `main` e acessiveis pelo identificador, pelo
+hash do commit ou por uma tag de uso (criada a mao, ex.: `reboot-iesb`).
 
 Garantias, por construcao:
-- nunca force-push e nunca apaga tag: o `ClienteColetaHF` nem oferece essas
-  operacoes;
-- tag existente e recusada antes de qualquer escrita;
+- nunca force-push e nunca cria, move ou apaga tag: o `ClienteColetaHF` nem
+  oferece essas operacoes;
+- identificador ja publicado e recusado antes de qualquer escrita;
 - nada e enviado sem `confirmar(plano)` verdadeiro, e o plano traz o alvo exato;
 - o limite de armazenamento (valor injetado) e conferido antes de enviar.
 
@@ -41,16 +44,28 @@ class ErroColetaHF(RuntimeError):
     """Falha na camada de Coletas no HF. A mensagem nunca carrega o token."""
 
 
-class ErroTagExistente(ErroColetaHF):
-    """A tag gerada ja existe no dataset: uma Coleta nunca e sobrescrita."""
+class ErroColetaExistente(ErroColetaHF):
+    """O identificador gerado ja foi publicado na main: uma Coleta nunca e repetida."""
 
 
 class ErroLimiteArmazenamento(ErroColetaHF):
     """O envio estouraria o limite de armazenamento do dataset."""
 
 
+@dataclass(frozen=True)
+class CommitHF:
+    id: str
+    mensagem: str
+
+
 class ClienteColetaHF(Protocol):
-    def listar_tags(self) -> list[str]: ...
+    def listar_tags(self) -> dict[str, str]:
+        """Tag -> id do commit para onde aponta."""
+        ...
+
+    def listar_commits(self) -> list[CommitHF]:
+        """Commits da `main`, do mais recente para o mais antigo."""
+        ...
 
     def listar_arquivos(self, revisao: str | None = None) -> list[str]: ...
 
@@ -62,14 +77,12 @@ class ClienteColetaHF(Protocol):
 
     def commit_substituicao(self, pasta: Path, apagar: list[str], mensagem: str) -> str: ...
 
-    def criar_tag(self, tag: str, revisao: str) -> None: ...
-
 
 @dataclass(frozen=True)
 class Plano:
     """O alvo exato de uma publicacao, mostrado antes de qualquer escrita."""
 
-    tag: str
+    coleta: str
     adicionar: tuple[str, ...]
     substituir: tuple[str, ...]
     apagar: tuple[str, ...]
@@ -79,7 +92,7 @@ class Plano:
 
     def descrever(self) -> str:
         linhas = [
-            f"Tag da Coleta: {self.tag}",
+            f"Coleta: {self.coleta} (nenhuma tag sera criada)",
             (f"Commit unico na main: {len(self.adicionar)} novo(s), {len(self.substituir)} substituido(s), "
             f"{len(self.apagar)} apagado(s); envio de {self.bytes_envio} bytes."),
         ]
@@ -100,16 +113,18 @@ class Resultado:
     commit: str | None = None
 
     @property
-    def tag(self) -> str:
-        return self.plano.tag
+    def coleta(self) -> str:
+        return self.plano.coleta
 
 
 @dataclass(frozen=True)
 class ColetaListada:
-    tag: str
+    coleta: str
+    commit: str
     recorte: Recorte
     cobertura: dict[str, Any]
     extraido_em: datetime
+    tags_de_uso: tuple[str, ...] = ()
 
 
 # --- helpers -----------------------------------------------------------------
@@ -146,8 +161,39 @@ def _recorte_do(manifesto: dict[str, Any]) -> Recorte:
     )
 
 
+PREFIXOS_COMMIT = ("push: ", "restore: ")
+
+
+def _identificador_do_commit(mensagem: str) -> str | None:
+    """`push: <identificador>` / `restore: <identificador>` -> identificador valido, senao `None`."""
+    for prefixo in PREFIXOS_COMMIT:
+        if mensagem.startswith(prefixo):
+            ident = mensagem[len(prefixo) :].strip()
+            return ident if tag_valida(ident) else None
+    return None
+
+
+def _resolver(referencia: str, cliente: ClienteColetaHF) -> str:
+    """Identificador de Coleta (commit mais recente que o publicou), tag de uso ou
+    hash de commit -> id do commit. Levanta `ErroColetaHF` se nada bate."""
+    commits = cliente.listar_commits()
+    if tag_valida(referencia):
+        for c in commits:
+            if _identificador_do_commit(c.mensagem) == referencia:
+                return c.id
+    tags = cliente.listar_tags()
+    if referencia in tags:
+        return tags[referencia]
+    for c in commits:
+        if c.id == referencia or (len(referencia) >= 7 and c.id.startswith(referencia)):
+            return c.id
+    raise ErroColetaHF(
+        f"Não encontrei a Coleta {referencia!r}: use um identificador coleta_*, uma tag de uso ou um hash de commit"
+    )
+
+
 def _tag_da_publicacao(manifesto: dict[str, Any], rotulo: str | None) -> str:
-    """A tag vem do manifesto; um rotulo novo e aplicado pela gramatica do Recorte."""
+    """O identificador vem do manifesto; um rotulo novo e aplicado pela gramatica do Recorte."""
     if rotulo is None:
         return manifesto["identidade"]["tag"]
     extracao = datetime.fromisoformat(manifesto["identidade"]["extraido_em"]).date()
@@ -166,17 +212,19 @@ def planejar(
 ) -> Plano:
     """Valida e calcula o alvo da publicacao sem escrever nada no HF.
 
-    Levanta `ErroTagExistente` (tag ja usada) ou `ErroLimiteArmazenamento`."""
+    Levanta `ErroColetaExistente` (identificador ja publicado) ou `ErroLimiteArmazenamento`."""
     pasta = Path(snapshot_dir)
     manifesto = _ler_manifesto_local(pasta)
-    tag = _tag_da_publicacao(manifesto, rotulo)
-    if tag in set(cliente.listar_tags()):
-        raise ErroTagExistente(f"A tag {tag} já existe no dataset; use um rótulo diferente (nunca sobrescrevemos uma Coleta)")
+    coleta = _tag_da_publicacao(manifesto, rotulo)
+    if any(_identificador_do_commit(c.mensagem) == coleta for c in cliente.listar_commits()):
+        raise ErroColetaExistente(
+            f"A Coleta {coleta} já foi publicada na main; use um rótulo diferente (nunca repetimos uma Coleta)"
+        )
 
     local = _arquivos_do_snapshot(pasta)
     remoto = {c for c in cliente.listar_arquivos() if _da_coleta(c)}
     plano = Plano(
-        tag=tag,
+        coleta=coleta,
         adicionar=tuple(sorted(set(local) - remoto)),
         substituir=tuple(sorted(set(local) & remoto)),
         apagar=tuple(sorted(remoto - set(local))),
@@ -200,10 +248,10 @@ def publicar(
     limite_bytes: int | None = None,
     tipo_commit: str = "push",
 ) -> Resultado:
-    """Substitui a Coleta vigente da `main` por um unico commit e cria a tag.
+    """Substitui a Coleta vigente da `main` por um unico commit (sem tag).
 
     `confirmar` recebe o `Plano` (alvo exato) e so se retornar verdadeiro algo
-    e enviado. Recusas (tag existente, limite, manifesto invalido) acontecem
+    e enviado. Recusas (Coleta ja publicada, limite, manifesto invalido) acontecem
     antes de qualquer escrita."""
     pasta = Path(snapshot_dir)
     plano = planejar(pasta, rotulo, cliente=cliente, limite_bytes=limite_bytes)
@@ -211,27 +259,24 @@ def publicar(
         return Resultado(plano, publicado=False)
 
     manifesto = _ler_manifesto_local(pasta)
-    if manifesto["identidade"]["tag"] != plano.tag:
-        manifesto["identidade"]["tag"] = plano.tag
+    if manifesto["identidade"]["tag"] != plano.coleta:
+        manifesto["identidade"]["tag"] = plano.coleta
         escrever_manifesto(pasta, manifesto)
 
-    commit = cliente.commit_substituicao(pasta, list(plano.apagar), f"{tipo_commit}: {plano.tag}")
-    cliente.criar_tag(plano.tag, commit)
+    commit = cliente.commit_substituicao(pasta, list(plano.apagar), f"{tipo_commit}: {plano.coleta}")
     return Resultado(plano, publicado=True, commit=commit)
 
 
 # --- baixar / listar ---------------------------------------------------------
 
 
-def baixar(tag: str, destino: Path | str, *, cliente: ClienteColetaHF) -> Path:
-    """Traz o Snapshot completo (Bronze, Silver, Gold e manifesto) daquela tag."""
-    if not tag_valida(tag):
-        raise ValueError(f"Tag fora da gramática de Coletas: {tag!r}")
-    if tag not in set(cliente.listar_tags()):
-        raise ErroColetaHF(f"A tag {tag} não existe no dataset")
+def baixar(referencia: str, destino: Path | str, *, cliente: ClienteColetaHF) -> Path:
+    """Traz o Snapshot completo (Bronze, Silver, Gold e manifesto) de uma Coleta,
+    dada por identificador `coleta_*`, tag de uso ou hash de commit."""
+    revisao = _resolver(referencia, cliente)
     pasta = Path(destino)
     pasta.mkdir(parents=True, exist_ok=True)
-    cliente.baixar(pasta, tag)
+    cliente.baixar(pasta, revisao)
     _ler_manifesto_local(pasta)
     return pasta
 
@@ -240,49 +285,54 @@ ROTULO_RESTAURADA = "restaurada"
 
 
 def restaurar(
-    tag: str,
+    referencia: str,
     *,
     cliente: ClienteColetaHF,
     confirmar: Callable[[Plano], bool],
     rotulo: str = ROTULO_RESTAURADA,
     limite_bytes: int | None = None,
 ) -> Resultado:
-    """Traz a Coleta de `tag` de volta para a `main` como um NOVO commit, com tag
-    nova (`<janela>_<teto>_<rotulo>`, pela gramatica do Recorte).
+    """Traz uma Coleta antiga de volta para a `main` como um NOVO commit, com
+    identificador novo (`<janela>_<teto>_<rotulo>`, pela gramatica do Recorte).
 
-    Reaproveita `baixar` e `publicar`: o historico nao e reescrito, a tag original
-    continua intacta e nada usa force-push. `confirmar` recebe o `Plano` com o alvo
-    exato. Restaurar a mesma tag duas vezes com o mesmo rotulo e recusado
-    (`ErroTagExistente`); use outro rotulo."""
+    `referencia`: identificador `coleta_*`, tag de uso ou hash de commit. Reaproveita
+    `baixar` e `publicar`: o historico nao e reescrito, o commit original continua
+    intacto e nada usa force-push. `confirmar` recebe o `Plano` com o alvo exato.
+    Restaurar a mesma Coleta duas vezes com o mesmo rotulo e recusado
+    (`ErroColetaExistente`); use outro rotulo."""
     with tempfile.TemporaryDirectory(prefix="coleta_restaurar_") as tmp:
-        pasta = baixar(tag, Path(tmp) / "snapshot", cliente=cliente)
+        pasta = baixar(referencia, Path(tmp) / "snapshot", cliente=cliente)
         return publicar(
             pasta, rotulo, cliente=cliente, confirmar=confirmar, limite_bytes=limite_bytes, tipo_commit="restore"
         )
 
 
 def listar(*, cliente: ClienteColetaHF) -> list[ColetaListada]:
-    """Coletas disponiveis (tag, Recorte e cobertura lidos do manifesto de cada
-    tag), da mais recente para a mais antiga. Tags fora da gramatica ou sem
-    manifesto valido (ex.: o piloto de 2026-10-06) sao ignoradas."""
+    """Coletas da historia da `main` (identificador, commit, Recorte, cobertura e
+    tags de uso lidos do manifesto de cada commit), da mais recente para a mais
+    antiga. Commits fora de `push:`/`restore:` ou sem manifesto valido sao ignorados."""
+    tags = cliente.listar_tags()
     coletas: list[ColetaListada] = []
-    for tag in cliente.listar_tags():
-        if not tag_valida(tag):
+    for commit in cliente.listar_commits():
+        ident = _identificador_do_commit(commit.mensagem)
+        if ident is None:
             continue
         try:
-            manifesto = json.loads(cliente.ler_arquivo(NOME_ARQUIVO, tag).decode("utf-8"))
+            manifesto = json.loads(cliente.ler_arquivo(NOME_ARQUIVO, commit.id).decode("utf-8"))
             validar_manifesto(manifesto)
         except (OSError, ValueError, KeyError):
             continue
         coletas.append(
             ColetaListada(
-                tag=tag,
+                coleta=ident,
+                commit=commit.id,
                 recorte=_recorte_do(manifesto),
                 cobertura=manifesto["cobertura"],
                 extraido_em=datetime.fromisoformat(manifesto["identidade"]["extraido_em"]),
+                tags_de_uso=tuple(sorted(t for t, alvo in tags.items() if alvo == commit.id)),
             )
         )
-    return sorted(coletas, key=lambda c: (c.extraido_em, c.tag), reverse=True)
+    return coletas
 
 
 # --- cliente real (fino, sem teste de rede) -----------------------------------
@@ -305,12 +355,19 @@ class ClienteColetaHFReal:
         detalhe = str(exc).replace(self._token, "***")
         return ErroColetaHF(f"{operacao} falhou ({type(exc).__name__}): {detalhe}")
 
-    def listar_tags(self) -> list[str]:
+    def listar_tags(self) -> dict[str, str]:
         try:
             refs = self._api.list_repo_refs(self._repo, repo_type="dataset")
-            return [t.name for t in refs.tags]
+            return {t.name: t.target_commit for t in refs.tags}
         except Exception as exc:  # noqa: BLE001 - qualquer falha vira ErroColetaHF sem o token
             raise self._falha("listagem de tags", exc) from None
+
+    def listar_commits(self) -> list[CommitHF]:
+        try:
+            commits = self._api.list_repo_commits(self._repo, repo_type="dataset")
+            return [CommitHF(id=c.commit_id, mensagem=c.title) for c in commits]
+        except Exception as exc:  # noqa: BLE001
+            raise self._falha("listagem de commits", exc) from None
 
     def listar_arquivos(self, revisao: str | None = None) -> list[str]:
         try:
@@ -368,9 +425,3 @@ class ClienteColetaHFReal:
             return str(info.oid)
         except Exception as exc:  # noqa: BLE001
             raise self._falha("commit de substituição", exc) from None
-
-    def criar_tag(self, tag: str, revisao: str) -> None:
-        try:
-            self._api.create_tag(self._repo, tag=tag, revision=revisao, repo_type="dataset", exist_ok=False)
-        except Exception as exc:  # noqa: BLE001
-            raise self._falha("criação da tag", exc) from None

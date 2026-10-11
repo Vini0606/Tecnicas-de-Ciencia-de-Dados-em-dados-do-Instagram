@@ -53,7 +53,7 @@ def cliente_hf(tmp_path):
     write_deltalake(str(snap / "gold" / "governor_clusters_reels"), pd.DataFrame({"id": ["r1"], "cluster": [0]}))
     cliente = ClienteFake()
     resultado = publicar(snap, cliente=cliente, confirmar=lambda plano: True)
-    assert resultado.tag == TAG
+    assert resultado.coleta == TAG
     return cliente
 
 
