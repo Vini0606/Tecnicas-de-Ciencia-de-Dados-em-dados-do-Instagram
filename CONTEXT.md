@@ -21,7 +21,17 @@ _Avoid_: Tela (para algo interno a outra Tela), aba solta (ambíguo).
 Seta ▲/▼ que compara o valor do governador selecionado com a mediana dos demais governadores (no Funil,
 em percentual; no NSM, em pontos do índice). Em "Todos" no NSM, compara a média do grupo com a mediana do
 grupo e indica assimetria, não desempenho. Distinta de SUBIU/CAIU, que compara posições de ranking.
-_Avoid_: Projeção, tendência (não há comparação no tempo).
+Em substituição pela **Tendência** (decisão em discussão, sem ADR ainda); até lá, continua valendo na interface.
+_Avoid_: Projeção, tendência (a tendência é outro conceito, calculado no tempo).
+
+**Tendência**:
+Direção e tamanho da variação de um indicador do próprio governador ao longo do tempo, calculada sobre a série
+bruta por data de publicação (nunca sobre o índice normalizado entre perfis, que misturaria o governador com os
+demais). Aparece em quatro estados: Subindo, Caindo, Estável e Dados insuficientes. Só é Subindo ou Caindo quando
+a incerteza da estimativa exclui "sem variação" e o efeito é grande o bastante para importar; sem dado suficiente,
+nenhuma seta é mostrada. Não compara o governador com os demais.
+_Avoid_: Projeção (prever o futuro é outra coisa), SUBIU/CAIU (posição no ranking), CMGR sozinho (taxa específica
+de tendência do engajamento, ver CMGR de engajamento).
 
 **Pauta**:
 Assunto de um conteúdo publicado (legenda de reel/post) agrupado pelo modelo de tópicos de discurso e
