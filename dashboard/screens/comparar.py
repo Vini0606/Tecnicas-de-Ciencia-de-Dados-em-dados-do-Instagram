@@ -85,6 +85,8 @@ import streamlit as st
 
 from dashboard.core import data
 from dashboard.core.components import decision_band, footnote, stage_label
+from dashboard.core.periodo import filtrar_publicacoes, limites_de_datas
+from dashboard.core.seletor_periodo import MENSAGEM_SEM_PUBLICACOES, seletor_periodo
 from dashboard.screens.comparar_clusters import render_clusters
 
 _PLACEHOLDER_SEM_GOVERNADOR = "—"
@@ -625,6 +627,19 @@ def _render_linhas_mensais(governor_url: str) -> None:
     st.caption("Valor médio por post em cada mês de publicação; o mês corrente fica de fora.")
     df_reels = data.load_reels_content()
     df_posts = data.load_posts_content()
+    # ADR 0041 / issue #281: período único (seletor compartilhado) e sem posts
+    # fixados -- o mesmo componente do Radar.
+    conteudo_total = _conteudo_por_tipo(df_reels, df_posts, TIPO_AMBOS)
+    limites = limites_de_datas(conteudo_total, "data_hora")
+    if limites is None:
+        st.caption(MENSAGEM_SEM_PUBLICACOES)
+        return
+    data_inicio, data_fim = seletor_periodo(limites)
+    df_reels = filtrar_publicacoes(df_reels, "data_hora", data_inicio, data_fim)
+    df_posts = filtrar_publicacoes(df_posts, "data_hora", data_inicio, data_fim)
+    if df_reels.empty and df_posts.empty:
+        st.caption(MENSAGEM_SEM_PUBLICACOES)
+        return
     metrica = st.selectbox("Métrica", options=list(_METRICA_COLUNA), key="comparar_metrica_linhas")
     _render_grafico_linhas(df_reels, df_posts, governor_url, TIPO_AMBOS, metrica)
     col_posts, col_reels = st.columns(2)

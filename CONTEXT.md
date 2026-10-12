@@ -33,6 +33,12 @@ nenhuma seta é mostrada. Não compara o governador com os demais.
 _Avoid_: Projeção (prever o futuro é outra coisa), SUBIU/CAIU (posição no ranking), CMGR sozinho (taxa específica
 de tendência do engajamento, ver CMGR de engajamento).
 
+**Publicação fixada**:
+Post ou reel que o perfil mantém preso no topo (campo `isPinned` do Apify). Pode ter data bem anterior à janela da
+extração, por isso fica fora das métricas de publicações e do filtro de período. Valor nulo (campo não informado)
+conta como não fixado.
+_Avoid_: Destaque (é o recurso de stories, outra coisa).
+
 **Pauta**:
 Assunto de um conteúdo publicado (legenda de reel/post) agrupado pelo modelo de tópicos de discurso e
 rotulado após refino. É a unidade da fila de "O que produzir": mede quanto comentário positivo os

@@ -83,11 +83,11 @@ from dashboard.core.deltas import (
     compare_publication_window,
     deduplicate_by_first_seen,
     filter_by_date_range,
-    normalize_date_input_range,
     parse_publication_dates,
     quebrar_em_segmentos,
 )
 from dashboard.core.rotulos import rotular_topico
+from dashboard.core.seletor_periodo import seletor_periodo
 from dashboard.core.theme import COLORS
 
 _PLACEHOLDER_SEM_GOVERNADOR = "—"
@@ -543,13 +543,9 @@ def render() -> None:
     else:
         data_min = df_timeline_completo["data"].min()
         data_max = df_timeline_completo["data"].max()
-        intervalo = st.date_input(
-            "Período (data de publicação)",
-            value=(data_min, data_max),
-            min_value=data_min,
-            max_value=data_max,
-        )
-        data_inicio, data_fim = normalize_date_input_range(intervalo)
+        # ADR 0041 / issue #281: seletor único compartilhado com as demais
+        # telas de métricas de publicações (não há mais calendário próprio).
+        data_inicio, data_fim = seletor_periodo((data_min, data_max))
         df_timeline = _filtrar_por_intervalo(
             df_timeline_completo, data_inicio, data_fim
         )

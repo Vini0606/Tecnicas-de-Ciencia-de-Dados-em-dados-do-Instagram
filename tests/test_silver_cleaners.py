@@ -539,3 +539,47 @@ def test_profile_cleaner_resultado_nao_muda_com_a_coluna_raw_da_bronze_fiel():
     com = ProfileCleaner().clean(com_raw)
 
     pd.testing.assert_frame_equal(sem, com.drop(columns=["_raw"], errors="ignore"))
+
+
+def _linhas_fixado(valores):
+    n = len(valores)
+    return pd.DataFrame(
+        {
+            "id": [f"x{i}" for i in range(n)],
+            "ownerId": ["1"] * n,
+            "ownerUsername": ["g"] * n,
+            "commentsCount": [1] * n,
+            "likesCount": [2] * n,
+            "timestamp": ["2026-05-01T00:00:00+00:00"] * n,
+            "latestComments": ["[]"] * n,
+            "isPinned": valores,
+            "_ingested_at": pd.to_datetime(["2026-05-01"] * n, utc=True),
+            "_run_id": ["r1"] * n,
+        }
+    )
+
+
+def test_is_pinned_preservado_em_posts_e_reels_com_nulo_intacto():
+    # ADR 0041 / issue #281: nulo permanece nulo na Silver ("nao fixado" e
+    # regra do filtro de periodo, nao do cleaner).
+    for limpar in (PostCleaner().clean_posts, PostCleaner().clean_reels):
+        out = limpar(_linhas_fixado([True, False, None]))
+        assert out["isPinned"].tolist()[:2] == [True, False]
+        assert pd.isna(out["isPinned"].iloc[2])
+
+
+def test_is_pinned_ausente_nao_quebra_a_limpeza():
+    df = _linhas_fixado([True]).drop(columns=["isPinned"])
+    assert "isPinned" not in PostCleaner().clean_posts(df).columns
+
+
+def test_is_pinned_chega_a_silver_escrita(tmp_path):
+    from deltalake import DeltaTable
+
+    pc = PostCleaner()
+    pc.write_reels(pc.clean_reels(_linhas_fixado([True, None])), tmp_path / "reels")
+    pc.write_posts(pc.clean_posts(_linhas_fixado([False, None])), tmp_path / "posts")
+    for nome, esperado in (("reels", True), ("posts", False)):
+        lido = DeltaTable(str(tmp_path / nome)).to_pandas()
+        assert lido["isPinned"].iloc[0] == esperado
+        assert pd.isna(lido["isPinned"].iloc[1])

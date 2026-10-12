@@ -45,6 +45,10 @@ BRONZE_POSTS_SCHEMA = pa.schema(
         pa.field("videoPlayCount", pa.int64(), nullable=True),
         pa.field("videoDuration", pa.float64(), nullable=True),
         pa.field("locationName", pa.string(), nullable=True),
+        # Issue #281 (ADR 0041): marcação de fixado, também em posts de feed.
+        # Nullable -- Bronzes antigas e itens sem o campo ficam nulos, e nulo
+        # significa "não fixado" no filtro de período do dashboard.
+        pa.field("isPinned", pa.bool_(), nullable=True),
         # Issue #212: comentários de posts de feed (o `apify/instagram-post-
         # scraper` já os retornava, mas eram descartados aqui). Mesmo formato
         # de `BRONZE_REELS_SCHEMA.latestComments` (lista serializada como JSON
@@ -195,6 +199,8 @@ SILVER_POSTS_SCHEMA = pa.schema(
         pa.field("hashtags", pa.string(), nullable=True),
         pa.field("videoPlayCount", pa.int64(), nullable=True),
         pa.field("videoDuration", pa.float64(), nullable=True),
+        # Issue #281 (ADR 0041): fixado no perfil; nulo = não fixado.
+        pa.field("isPinned", pa.bool_(), nullable=True),
         pa.field("_ingested_at", pa.timestamp("us", tz="UTC"), nullable=False),
         pa.field("_run_id", pa.string(), nullable=False),
         pa.field("_source_layer", pa.string(), nullable=False),
@@ -220,6 +226,8 @@ SILVER_REELS_SCHEMA = pa.schema(
         pa.field("shortCode", pa.string(), nullable=True),
         pa.field("isSponsored", pa.bool_(), nullable=True),
         pa.field("isCommentsDisabled", pa.bool_(), nullable=True),
+        # Issue #281 (ADR 0041): fixado no perfil; nulo = não fixado.
+        pa.field("isPinned", pa.bool_(), nullable=True),
         pa.field("Total de Engajamento", pa.int64(), nullable=False),
         # ADR 0020 (Ficha 3) / issue #88: mesmo campo bruto de
         # BRONZE_REELS_SCHEMA, propagado sem transformação (`PostCleaner`
