@@ -20,7 +20,7 @@ decisão; o notebook é a prova; o TCC conta a história.
 | Clusterização de perfis e de comentários | [clusterizacao.md](clusterizacao.md) | a documentar |
 | Tópicos de discurso e de comentário (BERTopic) | [topicos.md](topicos.md) | a documentar |
 | Sentimento dos comentários | [sentimento.md](sentimento.md) | a documentar |
-| Engajamento qualificado (NSM) | [nsm.md](nsm.md) | a documentar |
+| Engajamento qualificado (NSM) | [nsm.md](nsm.md) | validada |
 | Regressão de performance por post (Lasso) | [regressao-performance-post.md](regressao-performance-post.md) | a documentar |
 | Escore composto e CMGR de engajamento | [escore-composto-cmgr.md](escore-composto-cmgr.md) | a documentar |
 
