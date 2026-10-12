@@ -10,7 +10,7 @@ decisão; o notebook é a prova; o TCC conta a história.
 | `em avaliação` | Há uma pergunta aberta e notebooks comparando métodos. Não está em produção. |
 | `validada` | Método escolhido com evidência registrada e em uso. |
 | `descartada` | Avaliada e abandonada; a ficha guarda o motivo. |
-| `a documentar` | Existe no código, mas a ficha ainda não foi preenchida. |
+| `a documentar` | Existe no código e a ficha descreve o que há registrado, mas ainda não há validação registrada (a ficha diz o que falta). |
 
 ## Inventário
 
