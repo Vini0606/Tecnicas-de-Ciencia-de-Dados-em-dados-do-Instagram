@@ -51,6 +51,19 @@ ainda não foi feita.
   alarme 4,3%, cobertura do IC 95,3%). Controlar a mudança de mix de formato pesou mais que usar estimador robusto. O poder é
   baixo (~19% com 100 publicações), então a maioria das setas será "Estável", e a interface deve dizer "sem evidência
   suficiente". Isso não fixa o método: falta o *backtest* com dado real.
+- **Resultado preliminar da fase 2a** (`notebooks/modelagens/tendencia_02_proporcoes_e_agregacao.ipynb`, também por simulação):
+  - *Proporções* (engajamento qualificado, % positivo/negativo): o OLS do log da proporção com correção de continuidade e formato
+    como controle foi o único candidato calibrado em todos os cenários (falso alarme 4,9%, cobertura do IC 94,7%). A regressão
+    logística ponderada por comentários, que era a primeira ideia, ficou descalibrada (25,8% de falso alarme, cobertura 74,2%),
+    assim como a proporção por janela com Wilson (55,1%).
+  - *Agregação em "Todos"*: a soma bruta é inaceitável com dominância forte (acerto 33 a 34%, direção errada em até 29% das
+    repetições). Regra provisória: cada perfil pesa igual, implementada como mediana das tendências individuais.
+  - *Poder por efeito*: com 250 publicações, queda de 30% é detectada em 84 a 89% e alta de 30% em 59 a 82%; efeitos de ±10% ficam
+    em 12 a 24%. O resultado reforça que a maioria das setas será "Estável". `MIN_EFEITO` entre 0 e 15% não altera o resultado;
+    faixa a testar no *backtest*: `MIN_EFEITO` 2 a 10%, mínimo de publicações 10 a 20, de dias distintos 8 a 15.
+  - *Não linearidade*: campanha ou sazonalidade fazem o método linear emitir seta enganosa (por exemplo, "Caindo" em 81,5% das
+    séries quando a campanha foi no início e a variação ponta a ponta é zero). A interface deve mostrar a série junto da seta.
+  - Nada disso fixa método nem limiar: continua dependendo do *backtest* com dado real, e a decisão permanece **proposta**.
 - O filtro de período para publicações não fixadas é uma trilha separada, sem dependência desta decisão.
 - A simulação mede o comportamento dos métodos sob as premissas do gerador; não prova que o Instagram real se comporta assim.
   Por isso o *backtest* com dado real é obrigatório antes de produção.
