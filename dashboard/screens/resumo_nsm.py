@@ -21,15 +21,19 @@ import pandas as pd
 import streamlit as st
 
 from dashboard.core import data
-from dashboard.core.deltas import parse_publication_dates
 from dashboard.core.tendencia import (
     CAINDO,
     ESTAVEL,
     INSUFICIENTE,
+    LIMIAR_COBERTURA_BAIXA,
+    MIN_DIAS_DISTINTOS,
+    MIN_OBSERVACOES,
+    MIN_PERFIS_CONJUNTO,
     SUBINDO,
+    SeriePublicacao,
     Tendencia,
-    tendencia_conjunto,
-    tendencia_proporcao,
+    serie_positividade_por_publicacao,
+    tendencia_positividade_comentarios,
 )
 from dashboard.screens.resumo_comum import (
     _PLACEHOLDER_SEM_GOVERNADOR,
@@ -256,67 +260,18 @@ def valor_cartao_nsm(
     return float(linha.iloc[0]) if not linha.empty else None
 
 
-def series_sentimento_por_dia(df_comentarios: pd.DataFrame) -> pd.DataFrame:
-    """Série BRUTA de comentários por perfil, data e formato: colunas `chave`,
-    `data`, `formato` (`origem_comentario`: reel/post; "?" se ausente),
-    `positivos` e `total`. Nunca usa o índice 0-100 min-máx do NSM.
-
-    Limitação (rascunho): a data é a do COMENTÁRIO (`timestamp` de
-    `governor_sentiment`), não a da publicação comentada -- a Gold de
-    sentimento não traz a data do post/reel. Decisão do autor pendente."""
-    colunas = ["chave", "data", "formato", "positivos", "total"]
-    if df_comentarios.empty or not {
-        "inputUrl",
-        "timestamp",
-        "sentiment_label",
-    }.issubset(df_comentarios.columns):
-        return pd.DataFrame(columns=colunas)
-    df = df_comentarios
-    if "id_comment" in df.columns:
-        df = df.drop_duplicates(subset=["id_comment"], keep="first")
-    formato = (
-        df["origem_comentario"].fillna("?")
-        if "origem_comentario" in df.columns
-        else pd.Series("?", index=df.index)
-    )
-    base = pd.DataFrame(
-        {
-            "chave": _normalize_url(df["inputUrl"]),
-            "data": parse_publication_dates(df),
-            "formato": formato.astype(str),
-            "positivo": (df["sentiment_label"] == "positive").astype(int),
-        }
-    ).dropna(subset=["data"])
-    if base.empty:
-        return pd.DataFrame(columns=colunas)
-    agregado = (
-        base.groupby(["chave", "data", "formato"])["positivo"]
-        .agg(positivos="sum", total="size")
-        .reset_index()
-    )
-    return agregado[colunas]
-
-
-def tendencia_nsm(
-    df_comentarios: pd.DataFrame, chave_selecionada: str | None
-) -> Tendencia:
-    """Tendência da proporção de comentários positivos (ADR 0040, PROVISÓRIO).
-    Governador selecionado: só a série dele (os outros perfis não entram, logo
-    não a alteram). `None` ("Todos"): mediana das tendências de cada perfil,
-    peso igual por perfil."""
-    series = series_sentimento_por_dia(df_comentarios)
-
-    def _de(perfil: pd.DataFrame) -> Tendencia:
-        return tendencia_proporcao(
-            perfil,
-            coluna_positivos="positivos",
-            coluna_total="total",
-            coluna_formato="formato",
+def serie_nsm(comentarios: pd.DataFrame) -> SeriePublicacao:
+    """Série de positividade dos comentários por data de PUBLICAÇÃO para a
+    Tendência do cartão: normaliza `inputUrl` em `chave` (a mesma dos rankings)
+    e delega o join `id_reel` -> `id` ao núcleo puro."""
+    if comentarios.empty or "inputUrl" not in comentarios.columns:
+        return serie_positividade_por_publicacao(
+            comentarios, pd.DataFrame(), pd.DataFrame()
         )
-
-    if chave_selecionada is None:
-        return tendencia_conjunto([_de(g) for _, g in series.groupby("chave")])
-    return _de(series[series["chave"] == chave_selecionada])
+    com_chave = comentarios.assign(chave=_normalize_url(comentarios["inputUrl"]))
+    return serie_positividade_por_publicacao(
+        com_chave, data.load_reels_content(), data.load_posts_content()
+    )
 
 
 def _pct_sinal(valor: float) -> str:
@@ -326,9 +281,24 @@ def _pct_sinal(valor: float) -> str:
 
 
 def _texto_magnitude(t: Tendencia) -> str:
+    """ "+12,3% (IC 95%: +3,1% a +22,0%)" -- variação por período de 90 dias."""
     return (
         f"{_pct_sinal(t.variacao)} (IC 95%: {_pct_sinal(t.ic_inferior)} a "
-        f"{_pct_sinal(t.ic_superior)})"
+        f"{_pct_sinal(t.ic_superior)}) por 90 dias"
+    )
+
+
+def _texto_insuficiente(t: Tendencia) -> str:
+    """ "Dados insuficientes" com o motivo: perfis a menos em "Todos" ou
+    publicações/dias a menos para um governador."""
+    if t.n_perfis is not None:
+        return (
+            f"{INSUFICIENTE} · só {t.n_perfis} perfis com série suficiente "
+            f"(a visão Todos exige {MIN_PERFIS_CONJUNTO})"
+        )
+    return (
+        f"{INSUFICIENTE} · {t.n_observacoes} publicações em {t.n_dias} dias "
+        f"(exige {MIN_OBSERVACOES} publicações em {MIN_DIAS_DISTINTOS} dias distintos)"
     )
 
 
@@ -349,27 +319,42 @@ def html_tendencia(t: Tendencia | None) -> str:
             f"(estimativa {_texto_magnitude(t)})"
         )
     else:
-        tom, texto = "neutro", INSUFICIENTE
-    return f'<div class="n-tend {tom}">{texto}</div>'
+        tom, texto = "neutro", _texto_insuficiente(t)
+    return f'<div class="n-tend {tom}">{html.escape(texto)}</div>'
 
 
-def legenda_tendencia(t: Tendencia | None) -> str:
-    """Legenda da Tendência, distinta da de SUBIU/CAIU (posição no ranking)."""
+def legenda_tendencia(
+    t: Tendencia | None, taxa_correspondencia: float | None = None
+) -> str:
+    """Legenda da Tendência, distinta da de SUBIU/CAIU (posição no ranking).
+    `taxa_correspondencia` = fração dos comentários ligados a uma data de
+    publicação; abaixo de `LIMIAR_COBERTURA_BAIXA` a legenda avisa."""
     if t is None:
         return ""
     base = (
         "Tendência no cartão de engajamento qualificado: variação estimada da "
-        "proporção de comentários positivos ao longo do período coletado, sobre "
-        "a série bruta por data (não o índice de 0–100), com o formato "
-        "(reel/post) como controle e intervalo de confiança de 95%. "
-        "Estável significa sem evidência suficiente de mudança, não que nada "
-        "mudou. Tendência provisória: método e limiares ainda sem validação "
-        "com dado real (ADR 0040, aguarda #284); a data usada é a do comentário. "
+        "proporção de comentários positivos por período de 90 dias, sobre a "
+        "série bruta por data de publicação da postagem comentada (não o "
+        "índice de 0–100), com o formato (reel/post) como controle e intervalo "
+        "de confiança de 95%. Estável significa sem evidência suficiente de "
+        "mudança, não que nada mudou. Tendência provisória: método e limiares "
+        "ainda sem validação com dado real (ADR 0040, aguarda #284). "
     )
+    if (
+        taxa_correspondencia is not None
+        and taxa_correspondencia < LIMIAR_COBERTURA_BAIXA
+    ):
+        base += (
+            f"Atenção: só {taxa_correspondencia * 100:.1f}% dos comentários "
+            "puderam ser ligados a uma data de publicação; os demais ficaram "
+            "fora da série. "
+        )
     if t.n_perfis is not None:
         base += (
-            "Em Todos: mediana das tendências dos perfis, cada um com o mesmo "
-            f"peso (n = {t.n_perfis})."
+            "Em Todos: o valor do cartão é a média simples dos índices dos "
+            "perfis, mas a Tendência é a mediana das tendências dos perfis (mais "
+            "robusta a um perfil atípico), cada um com o mesmo peso "
+            f"(n = {t.n_perfis})."
         )
     return base
 
@@ -384,6 +369,7 @@ _NEUTRO = ("#52525b", "#a1a1aa")
 
 
 def _vars_cor(i: int) -> str:
+    """Variáveis CSS de cor do tema `i` (0 = claro, 1 = escuro)."""
     return (
         f"--n-azul:{_AZUL[i]};--n-verde:{_VERDE[i]};--n-verm:{_VERMELHO[i]};"
         f"--n-neutro:{_NEUTRO[i]};"
@@ -435,6 +421,7 @@ _CSS_NSM = (
 def _html_cartao(
     titulo: str, valor: str, sub: str, tom: str | None, tendencia: str = ""
 ) -> str:
+    """Cartão de métrica; `tendencia` é HTML já escapado por `html_tendencia`."""
     return (
         f'<div class="n-card {tom or ""}"><div class="n-card-t">{html.escape(titulo)}'
         f'</div><div class="n-card-v">{html.escape(valor)}</div>{tendencia}'
@@ -443,6 +430,7 @@ def _html_cartao(
 
 
 def _html_ranking(linhas: list[dict], cor: str, fmt) -> str:
+    """Ranking em barras horizontais (container rolável); `fmt` formata o valor."""
     if not linhas:
         return "<div>Sem dados.</div>"
     maximo = max(item["valor"] for item in linhas) or 1.0
@@ -474,6 +462,7 @@ def _html_ranking(linhas: list[dict], cor: str, fmt) -> str:
 
 
 def _fmt_nsm_0_100(valor: float | None) -> str:
+    """Índice 0-100 com 1 casa decimal; placeholder sem valor."""
     if valor is None or pd.isna(valor):
         return _PLACEHOLDER_SEM_GOVERNADOR
     return f"{valor:.1f}"
@@ -498,7 +487,8 @@ def _render_contraste(governor_url: str, is_todos: bool) -> None:
     valor = valor_cartao_nsm(tabela, chave)
     melhor = extremo_com_amostra(tabela, "pct_pos")
     pior = extremo_com_amostra(tabela, "pct_neg")
-    tendencia = tendencia_nsm(comentarios, chave)
+    serie = serie_nsm(comentarios)
+    tendencia = tendencia_positividade_comentarios(serie.serie, chave)
     cartoes = [
         _html_cartao(
             "Engajamento qualificado" + (" (média dos perfis)" if is_todos else ""),
@@ -540,7 +530,7 @@ def _render_contraste(governor_url: str, is_todos: bool) -> None:
         "Engajamento bruto = total de curtidas e comentários por perfil. "
         "SUBIU/CAIU compara a posição no ranking qualificado com a do bruto. "
         f"Melhor aprovação e Maior rejeição só consideram perfis com pelo menos {MIN_COMENTARIOS_CARTAO} comentários. "
-        + legenda_tendencia(tendencia)
+        + legenda_tendencia(tendencia, serie.taxa_correspondencia)
     )
 
 

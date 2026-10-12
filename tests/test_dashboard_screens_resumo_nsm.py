@@ -14,7 +14,14 @@ import streamlit as st
 
 from config import settings
 from dashboard.core import data
-from dashboard.core.tendencia import Tendencia
+from dashboard.core.tendencia import (
+    LIMIAR_COBERTURA_BAIXA,
+    MIN_DIAS_DISTINTOS,
+    MIN_OBSERVACOES,
+    MIN_PERFIS_CONJUNTO,
+    Tendencia,
+    tendencia_positividade_comentarios,
+)
 from dashboard.screens import resumo_comum
 from dashboard.screens import resumo_nsm as resumo
 
@@ -295,87 +302,96 @@ def test_montar_tabela_contraste_descarta_url_repetida():
 # ---------------------------------------------------------------------------
 
 
-def _comentarios(chave, n_dias=40, efeito=0.0, seed=0):
-    """Comentarios brutos de um perfil: 1 'dia' a cada 2 dias, 20 comentarios/dia."""
+def _cenario(chaves, n_dias=40, efeito=0.0, seed=0):
+    """Comentarios + reels/posts de varios perfis: 1 publicacao de reel e 1 de
+    post a cada 2 dias (data de PUBLICACAO), 10 comentarios em cada. A data do
+    comentario e deliberadamente absurda (2030) para provar que nao e usada."""
     rng = np.random.default_rng(seed)
-    linhas = []
-    for i in range(n_dias):
-        p = min(0.95, 0.3 * (1 + efeito * i / max(n_dias - 1, 1)))
-        data = (pd.Timestamp("2026-01-01") + pd.Timedelta(days=2 * i)).strftime(
-            "%Y-%m-%dT12:00:00.000Z"
-        )
-        for j in range(20):
-            linhas.append(
-                {
-                    "inputUrl": f"https://www.instagram.com/{chave}/",
-                    "timestamp": data,
-                    "sentiment_label": "positive" if rng.random() < p else "negative",
-                    "id_comment": f"{chave}-{i}-{j}",
-                    "origem_comentario": "reel" if j % 2 else "post",
-                }
-            )
-    return pd.DataFrame(linhas)
+    com, reels, posts = [], [], []
+    for chave in [chaves] if isinstance(chaves, str) else chaves:
+        for i in range(n_dias):
+            p = min(0.95, 0.3 * (1 + efeito * i / max(n_dias - 1, 1)))
+            dia = pd.Timestamp("2026-01-01") + pd.Timedelta(days=2 * i)
+            for formato, destino in (("reel", reels), ("post", posts)):
+                pid = f"{chave}-{formato}-{i}"
+                destino.append({"id": pid, "data_hora": dia})
+                for j in range(10):
+                    com.append(
+                        {
+                            "inputUrl": f"https://www.instagram.com/{chave}/",
+                            "timestamp": "2030-01-01T12:00:00.000Z",
+                            "sentiment_label": (
+                                "positive" if rng.random() < p else "negative"
+                            ),
+                            "id_comment": f"{pid}-{j}",
+                            "id_reel": pid,
+                            "origem_comentario": formato,
+                        }
+                    )
+    return pd.DataFrame(com), pd.DataFrame(reels), pd.DataFrame(posts)
+
+
+def _serie(monkeypatch, chaves, **kw):
+    com, reels, posts = _cenario(chaves, **kw)
+    monkeypatch.setattr(data, "load_reels_content", lambda: reels)
+    monkeypatch.setattr(data, "load_posts_content", lambda: posts)
+    return com, resumo.serie_nsm(com)
 
 
 def _chave(c):
     return resumo._normalize_url(pd.Series([f"https://www.instagram.com/{c}/"])).iloc[0]
 
 
-def test_series_por_dia_conta_positivos_e_total_por_perfil_data_e_formato():
-    s = resumo.series_sentimento_por_dia(_comentarios("a", n_dias=3))
-    assert set(s.columns) == {"chave", "data", "formato", "positivos", "total"}
-    assert len(s) == 6  # 3 dias x 2 formatos
-    assert s["total"].sum() == 60
-    assert (s["positivos"] <= s["total"]).all()
-    assert "nsm" not in s.columns  # nunca o indice 0-100
+def test_serie_nsm_usa_data_de_publicacao_e_devolve_cobertura(monkeypatch):
+    _, s = _serie(monkeypatch, "a", n_dias=3)
+    assert s.taxa_correspondencia == 1.0 and s.n_comentarios == 60
+    assert len(s.serie) == 6  # 3 dias x 2 publicacoes (reel e post)
+    assert s.serie["data"].max() == pd.Timestamp("2026-01-05")  # nao 2030
+    assert s.serie["chave"].unique().tolist() == [_chave("a")]
 
 
-def test_series_por_dia_sem_colunas_ou_vazio_devolve_vazio_e_ignora_data_invalida():
-    assert resumo.series_sentimento_por_dia(pd.DataFrame()).empty
-    assert resumo.series_sentimento_por_dia(pd.DataFrame({"x": [1]})).empty
-    df = _comentarios("a", n_dias=2)
-    df.loc[df.index[0], "timestamp"] = "lixo"
-    assert resumo.series_sentimento_por_dia(df)["total"].sum() == 39
+def test_serie_nsm_sem_colunas_ou_vazio(monkeypatch):
+    monkeypatch.setattr(data, "load_reels_content", lambda: pd.DataFrame())
+    monkeypatch.setattr(data, "load_posts_content", lambda: pd.DataFrame())
+    assert resumo.serie_nsm(pd.DataFrame()).serie.empty
+    assert resumo.serie_nsm(pd.DataFrame({"x": [1]})).serie.empty
 
 
-def test_tendencia_nsm_selecionado_sobe_e_cai():
-    df = pd.concat(
-        [_comentarios("a", efeito=1.0), _comentarios("b", efeito=-0.6, seed=1)]
-    )
-    assert resumo.tendencia_nsm(df, _chave("a")).estado == "Subindo"
-    assert resumo.tendencia_nsm(df, _chave("b")).estado == "Caindo"
+def test_tendencia_selecionado_sobe_e_cai(monkeypatch):
+    _, s1 = _serie(monkeypatch, "a", efeito=1.0)
+    _, s2 = _serie(monkeypatch, "b", efeito=-0.6, seed=1)
+    tp = tendencia_positividade_comentarios
+    assert tp(s1.serie, _chave("a")).estado == "Subindo"
+    assert tp(s2.serie, _chave("b")).estado == "Caindo"
 
 
-def test_tendencia_nsm_perfil_inexistente_ou_sem_dado_e_insuficiente():
-    df = _comentarios("a", efeito=1.0)
-    assert resumo.tendencia_nsm(df, _chave("zzz")).estado == "Dados insuficientes"
-    assert (
-        resumo.tendencia_nsm(pd.DataFrame(), _chave("a")).estado
-        == "Dados insuficientes"
+def test_tendencia_perfil_inexistente_ou_sem_dado_e_insuficiente(monkeypatch):
+    _, s = _serie(monkeypatch, "a", efeito=1.0)
+    tp = tendencia_positividade_comentarios
+    assert tp(s.serie, _chave("zzz")).estado == "Dados insuficientes"
+    assert tp(resumo.serie_nsm(pd.DataFrame()).serie, _chave("a")).estado == (
+        "Dados insuficientes"
     )
 
 
-def test_tendencia_nsm_de_um_governador_nao_muda_quando_os_outros_mudam():
-    a = _comentarios("a", efeito=0.8)
-    antes = resumo.tendencia_nsm(
-        pd.concat([a, _comentarios("b", efeito=-0.7, seed=2)]), _chave("a")
-    )
-    depois = resumo.tendencia_nsm(
-        pd.concat([a, _comentarios("b", efeito=1.5, seed=3), _comentarios("c")]),
-        _chave("a"),
-    )
-    sozinho = resumo.tendencia_nsm(a, _chave("a"))
-    assert antes == depois == sozinho
+def test_tendencia_de_um_governador_nao_muda_quando_os_outros_mudam(monkeypatch):
+    _, a = _serie(monkeypatch, ["a"], efeito=0.8)
+    _, ab1 = _serie(monkeypatch, ["a", "b"], efeito=0.8)
+    _, ab2 = _serie(monkeypatch, ["a", "b", "c"], efeito=0.8)
+    tp = tendencia_positividade_comentarios
+    sozinho = tp(a.serie, _chave("a"))
+    assert tp(ab1.serie, _chave("a")) == tp(ab2.serie, _chave("a")) == sozinho
 
 
-def test_tendencia_nsm_todos_e_mediana_dos_perfis():
-    df = pd.concat(
-        [_comentarios(c, efeito=1.0, seed=i) for i, c in enumerate("abcdefg")]
-    )
-    conj = resumo.tendencia_nsm(df, None)
+def test_tendencia_todos_e_mediana_dos_perfis(monkeypatch):
+    chaves = list("abcdefg")
+    _, s = _serie(monkeypatch, chaves, efeito=1.0)
+    conj = tendencia_positividade_comentarios(s.serie, None)
     assert conj.estado == "Subindo" and conj.n_perfis == 7
-    pouco = pd.concat([_comentarios(c, efeito=1.0, seed=i) for i, c in enumerate("ab")])
-    assert resumo.tendencia_nsm(pouco, None).estado == "Dados insuficientes"
+    _, pouco = _serie(monkeypatch, chaves[: MIN_PERFIS_CONJUNTO - 1], efeito=1.0)
+    ins = tendencia_positividade_comentarios(pouco.serie, None)
+    assert ins.estado == "Dados insuficientes"
+    assert ins.n_perfis == MIN_PERFIS_CONJUNTO - 1
 
 
 def test_html_tendencia_subindo_verde_caindo_vermelho_com_magnitude_e_incerteza():
@@ -401,12 +417,49 @@ def test_html_tendencia_dados_insuficientes_sem_seta_e_none_vazio():
 def test_legenda_tendencia_e_provisoria_e_nao_cita_o_comparativo_antigo():
     sel = resumo.legenda_tendencia(Tendencia("Subindo", 0.1, 0.01, 0.2, 0.1, 40, 40))
     assert "provisória" in sel and "série bruta" in sel and "0–100" in sel
+    assert "data de publicação" in sel and "90 dias" in sel
     assert "mediana dos demais" not in sel
+    assert "Atenção" not in sel  # sem taxa, nada a avisar
+    assert resumo.legenda_tendencia(None) == ""
+
+
+def test_legenda_todos_explica_media_do_cartao_x_mediana_da_tendencia():
     todos = resumo.legenda_tendencia(
         Tendencia("Subindo", 0.1, 0.01, 0.2, 0.1, 0, 0, 12)
     )
     assert "mediana das tendências" in todos and "n = 12" in todos
-    assert resumo.legenda_tendencia(None) == ""
+    assert "média simples" in todos
+
+
+def test_legenda_avisa_cobertura_baixa_pela_constante():
+    t = Tendencia("Subindo", 0.1, 0.01, 0.2, 0.1, 40, 40)
+    abaixo = resumo.legenda_tendencia(t, LIMIAR_COBERTURA_BAIXA - 0.01)
+    assert "Atenção" in abaixo and "ficaram fora da série" in abaixo
+    assert "Atenção" not in resumo.legenda_tendencia(t, LIMIAR_COBERTURA_BAIXA)
+    assert "Atenção" not in resumo.legenda_tendencia(t, 1.0)
+
+
+def test_html_tendencia_escapa_texto_dinamico(monkeypatch):
+    monkeypatch.setattr(resumo, "_texto_magnitude", lambda t: "<i>x</i>")
+    out = resumo.html_tendencia(Tendencia("Subindo", 0.1, 0.01, 0.2, 0.1, 40, 40))
+    assert "<i>" not in out and "&lt;i&gt;" in out
+
+
+def test_html_tendencia_todos_com_poucos_perfis_explica_o_minimo():
+    ins = resumo.html_tendencia(
+        Tendencia("Dados insuficientes", n_perfis=MIN_PERFIS_CONJUNTO - 1)
+    )
+    assert f"só {MIN_PERFIS_CONJUNTO - 1} perfis" in ins
+    assert f"exige {MIN_PERFIS_CONJUNTO}" in ins
+
+
+def test_html_tendencia_um_perfil_insuficiente_explica_os_minimos():
+    ins = resumo.html_tendencia(
+        Tendencia("Dados insuficientes", n_observacoes=4, n_dias=3)
+    )
+    assert "4 publicações em 3 dias" in ins
+    assert f"{MIN_OBSERVACOES} publicações" in ins
+    assert f"{MIN_DIAS_DISTINTOS} dias distintos" in ins
 
 
 def test_nsm_nao_tem_mais_o_comparativo_vs_mediana():
