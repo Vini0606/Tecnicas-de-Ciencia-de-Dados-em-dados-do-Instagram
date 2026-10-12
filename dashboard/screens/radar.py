@@ -62,8 +62,8 @@ texto completo):
    issue #154).** `_maior_alta_negatividade` foi portada sem redesenho de
    `resumo.py` (que perdeu o destaque "Tema em alta de negatividade" na
    mesma issue) -- responde "qual tópico concentrou mais negatividade no
-   período escolhido pela analista", reaproveitando o MESMO `st.date_input`
-   já usado pela linha do tempo (decisão 3), nunca um segundo widget.
+   período escolhido pela analista", reaproveitando o seletor único de período
+   (`dashboard/core/seletor_periodo.py`, ADR 0041) já usado pela linha do tempo, nunca um segundo widget.
    Visual e funcionalmente distinta da frase de decisão no topo (que usa
    `_tema_maior_alta_negatividade`, decisão 6): uma é alerta automático de
    tendência recente, a outra é consulta livre de período.
@@ -83,11 +83,11 @@ from dashboard.core.deltas import (
     compare_publication_window,
     deduplicate_by_first_seen,
     filter_by_date_range,
-    normalize_date_input_range,
     parse_publication_dates,
     quebrar_em_segmentos,
 )
 from dashboard.core.rotulos import rotular_topico
+from dashboard.core.seletor_periodo import seletor_periodo
 from dashboard.core.theme import COLORS
 
 _PLACEHOLDER_SEM_GOVERNADOR = "—"
@@ -235,9 +235,9 @@ def _tema_maior_alta_negatividade(df_sentiment_history: pd.DataFrame) -> dict | 
 # concentrou mais negatividade no período que a analista escolheu" (consulta
 # exploratória, sem noção de "atual vs. anterior"); aquela responde "qual
 # tópico subiu mais na janela fixa de `deltas.JANELA_ALERTA_NEGATIVIDADE_DIAS`
-# dias" (alerta automático). `render()` chama esta reaproveitando o MESMO
-# `st.date_input` já usado pela linha do tempo -- nunca um segundo widget de
-# calendário.
+# dias" (alerta automático). `render()` chama esta reaproveitando o seletor único
+# (`dashboard/core/seletor_periodo.py`, ADR 0041) já usado pela linha do tempo
+# -- nunca um segundo widget de calendário.
 # ---------------------------------------------------------------------------
 
 
@@ -535,21 +535,17 @@ def render() -> None:
     )
     # ADR 0026 / issue #154: `data_inicio`/`data_fim` inicializados aqui
     # (fora do `if`/`else` abaixo) porque a 2ª leitura exploratória logo
-    # depois da linha do tempo reaproveita o MESMO `st.date_input` -- nunca
-    # um segundo widget de calendário.
+    # depois da linha do tempo reaproveita o seletor único
+    # (`dashboard/core/seletor_periodo.py`) -- nunca um segundo widget de calendário.
     data_inicio = data_fim = None
     if df_timeline_completo.empty:
         st.caption("Sem histórico suficiente para mostrar uma linha do tempo ainda.")
     else:
         data_min = df_timeline_completo["data"].min()
         data_max = df_timeline_completo["data"].max()
-        intervalo = st.date_input(
-            "Período (data de publicação)",
-            value=(data_min, data_max),
-            min_value=data_min,
-            max_value=data_max,
-        )
-        data_inicio, data_fim = normalize_date_input_range(intervalo)
+        # ADR 0041 / issue #281: seletor único compartilhado com as demais
+        # telas de métricas de publicações (não há mais calendário próprio).
+        data_inicio, data_fim = seletor_periodo((data_min, data_max))
         df_timeline = _filtrar_por_intervalo(
             df_timeline_completo, data_inicio, data_fim
         )

@@ -42,6 +42,7 @@ class PostCleaner:
         df = self._parse_timestamp(df, entity="post")
         df = self._preserve_type_raw(df)
         df["Tipo"] = "FEED"
+        df = self._normalize_pinned(df)
         df = self._cast_numerics(df)
         df = self._drop_noise_columns(df)
         df["_source_layer"] = "bronze"
@@ -62,12 +63,7 @@ class PostCleaner:
             + df.get("likesCount", pd.Series(dtype="int64")).fillna(0)
         ).astype("int64")
 
-        if "isPinned" in df.columns:
-            df["isPinned"] = df["isPinned"].map(
-                lambda v: (
-                    v if isinstance(v, bool) else str(v).lower() in ("true", "1", "yes")
-                )
-            )
+        df = self._normalize_pinned(df)
 
         df = self._cast_numerics(df)
         df = self._drop_noise_columns(df)
@@ -79,6 +75,27 @@ class PostCleaner:
 
     def write_reels(self, df_silver: pd.DataFrame, path: Path | str) -> None:
         write_delta(path, df_silver, SILVER_REELS_SCHEMA)
+
+    def _normalize_pinned(self, df: pd.DataFrame) -> pd.DataFrame:
+        # `isPinned` (publicação fixada no perfil) -- ADR 0041 / issue #281.
+        # Valores reconhecidos viram bool; AUSENTE/nulo permanece nulo (não vira
+        # False aqui): a regra "nulo = não fixado" é do filtro de período do
+        # dashboard (`dashboard/core/periodo.py`), e manter o nulo na Silver
+        # preserva a diferença entre "Apify disse que não é fixado" e "Apify não
+        # informou".
+        if "isPinned" not in df.columns:
+            return df
+
+        def _para_bool(v: object) -> bool | None:
+            if v is None or pd.isna(v):
+                return None
+            if isinstance(v, bool):
+                return v
+            return str(v).lower() in ("true", "1", "yes")
+
+        valores = [_para_bool(v) for v in df["isPinned"]]
+        df["isPinned"] = pd.Series(valores, index=df.index, dtype="object")
+        return df
 
     def _preserve_type_raw(self, df: pd.DataFrame) -> pd.DataFrame:
         # Preserva o campo bruto `type` do Apify (Image/Video/Sidecar) como

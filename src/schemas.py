@@ -28,7 +28,7 @@ REELS_DTYPE: dict = {
     "videoDuration": "float64",
     "isSponsored": "bool",
     "isCommentsDisabled": "bool",
-    "isPinned": "float64",
+    "isPinned": "boolean",
     "data_hora": "datetime64[ns]",
     "Tipo": "object",
 }
