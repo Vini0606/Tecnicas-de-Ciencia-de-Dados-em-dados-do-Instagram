@@ -36,17 +36,31 @@ def excluir_fixados(df: pd.DataFrame, coluna: str = COLUNA_FIXADO) -> pd.DataFra
     return df[~_eh_fixado(df[coluna])].reset_index(drop=True)
 
 
+MENSAGEM_FIXADOS_INDISPONIVEL = (
+    "Marcação de publicações fixadas indisponível nesta Coleta; filtro de fixados inativo."
+)
+
+
+def marcacao_fixados_indisponivel(*dfs: pd.DataFrame, coluna: str = COLUNA_FIXADO) -> bool:
+    """True se algum DataFrame não vazio não traz a coluna de fixado (Silver ainda
+    não reconstruída, ADR 0041) -- o filtro de fixados fica inerte e a tela avisa."""
+    return any(not df.empty and coluna not in df.columns for df in dfs)
+
+
 def _datas(df: pd.DataFrame, date_col: str) -> pd.Series:
+    """Converte `date_col` (datetime da Silver) em dia. Não reaproveita
+    `deltas.parse_publication_dates`: aquela lê string ISO 8601 e força UTC, o que
+    pode deslocar o dia de um datetime com fuso; aqui o dia é o da própria coluna."""
     return pd.to_datetime(df[date_col], errors="coerce").dt.date
 
 
 def limites_de_datas(
-    df: pd.DataFrame, date_col: str, excluir_fixados_: bool = True
+    df: pd.DataFrame, date_col: str, sem_fixados: bool = True
 ) -> tuple[datetime.date, datetime.date] | None:
     """Menor e maior dia com publicação (fixadas fora). None se não há dado."""
     if df.empty or date_col not in df.columns:
         return None
-    base = excluir_fixados(df) if excluir_fixados_ else df
+    base = excluir_fixados(df) if sem_fixados else df
     datas = _datas(base, date_col).dropna()
     if datas.empty:
         return None
@@ -58,7 +72,7 @@ def filtrar_publicacoes(
     date_col: str,
     data_inicio: object | None,
     data_fim: object | None,
-    excluir_fixados_: bool = True,
+    sem_fixados: bool = True,
 ) -> pd.DataFrame:
     """Período (inclusive nas duas pontas, por dia) + exclusão de fixados.
 
@@ -67,7 +81,7 @@ def filtrar_publicacoes(
     """
     if df.empty or date_col not in df.columns:
         return df
-    base = excluir_fixados(df) if excluir_fixados_ else df
+    base = excluir_fixados(df) if sem_fixados else df
     com_data = base.assign(**{_COL_DATA_TEMP: _datas(base, date_col)})
     if data_inicio is not None or data_fim is not None:
         com_data = com_data.dropna(subset=[_COL_DATA_TEMP])

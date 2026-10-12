@@ -101,7 +101,7 @@ def test_filtrar_sem_limites_devolve_tudo_menos_fixados():
 
 def test_filtrar_pode_manter_fixados():
     resultado = filtrar_publicacoes(
-        _df_publicacoes(), "data_hora", None, None, excluir_fixados_=False
+        _df_publicacoes(), "data_hora", None, None, sem_fixados=False
     )
     assert len(resultado) == 4
 
@@ -180,3 +180,13 @@ def test_parse_intervalo_invalido_devolve_none():
     assert parse_intervalo_digitado("") is None
     assert parse_intervalo_digitado("ontem até hoje") is None
     assert parse_intervalo_digitado("31/02/2026 até 01/03/2026") is None
+
+
+def test_marcacao_fixados_indisponivel_quando_coluna_ausente():
+    from dashboard.core.periodo import marcacao_fixados_indisponivel
+
+    com = _df_publicacoes()
+    sem = com.drop(columns=["isPinned"])
+    assert marcacao_fixados_indisponivel(com, com) is False
+    assert marcacao_fixados_indisponivel(com, sem) is True
+    assert marcacao_fixados_indisponivel(pd.DataFrame(), com) is False

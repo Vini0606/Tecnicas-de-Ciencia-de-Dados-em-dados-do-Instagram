@@ -85,7 +85,12 @@ import streamlit as st
 
 from dashboard.core import data
 from dashboard.core.components import decision_band, footnote, stage_label
-from dashboard.core.periodo import filtrar_publicacoes, limites_de_datas
+from dashboard.core.periodo import (
+    MENSAGEM_FIXADOS_INDISPONIVEL,
+    filtrar_publicacoes,
+    limites_de_datas,
+    marcacao_fixados_indisponivel,
+)
 from dashboard.core.seletor_periodo import MENSAGEM_SEM_PUBLICACOES, seletor_periodo
 from dashboard.screens.comparar_clusters import render_clusters
 
@@ -635,6 +640,8 @@ def _render_linhas_mensais(governor_url: str) -> None:
         st.caption(MENSAGEM_SEM_PUBLICACOES)
         return
     data_inicio, data_fim = seletor_periodo(limites)
+    if marcacao_fixados_indisponivel(df_reels, df_posts):
+        st.caption(MENSAGEM_FIXADOS_INDISPONIVEL)
     df_reels = filtrar_publicacoes(df_reels, "data_hora", data_inicio, data_fim)
     df_posts = filtrar_publicacoes(df_posts, "data_hora", data_inicio, data_fim)
     if df_reels.empty and df_posts.empty:

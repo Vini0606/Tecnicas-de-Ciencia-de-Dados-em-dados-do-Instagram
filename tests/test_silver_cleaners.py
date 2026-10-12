@@ -583,3 +583,23 @@ def test_is_pinned_chega_a_silver_escrita(tmp_path):
         lido = DeltaTable(str(tmp_path / nome)).to_pandas()
         assert lido["isPinned"].iloc[0] == esperado
         assert pd.isna(lido["isPinned"].iloc[1])
+
+
+def test_silver_antiga_sem_is_pinned_aceita_reconstrucao_com_a_coluna(tmp_path):
+    """ADR 0041: tabela Delta existente sem `isPinned` -> reescrita com a coluna."""
+    import pyarrow as pa
+    from deltalake import DeltaTable
+
+    from src.delta_io import write_delta
+    from src.schemas_delta import SILVER_POSTS_SCHEMA
+
+    pc = PostCleaner()
+    antigo = pa.schema([f for f in SILVER_POSTS_SCHEMA if f.name != "isPinned"])
+    limpo = pc.clean_posts(_linhas_fixado([True, None]))
+    write_delta(tmp_path / "posts", limpo.drop(columns=["isPinned"]), antigo)
+    assert "isPinned" not in DeltaTable(str(tmp_path / "posts")).to_pandas().columns
+
+    pc.write_posts(limpo, tmp_path / "posts")  # reconstrucao (overwrite)
+    lido = DeltaTable(str(tmp_path / "posts")).to_pandas()
+    assert lido["isPinned"].iloc[0] == True
+    assert pd.isna(lido["isPinned"].iloc[1])

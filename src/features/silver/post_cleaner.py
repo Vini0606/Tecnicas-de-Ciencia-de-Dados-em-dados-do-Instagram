@@ -93,7 +93,8 @@ class PostCleaner:
                 return v
             return str(v).lower() in ("true", "1", "yes")
 
-        df["isPinned"] = pd.Series([_para_bool(v) for v in df["isPinned"]], index=df.index, dtype="object")
+        valores = [_para_bool(v) for v in df["isPinned"]]
+        df["isPinned"] = pd.Series(valores, index=df.index, dtype="object")
         return df
 
     def _preserve_type_raw(self, df: pd.DataFrame) -> pd.DataFrame:

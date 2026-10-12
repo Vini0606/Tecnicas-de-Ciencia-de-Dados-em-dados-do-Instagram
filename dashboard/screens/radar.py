@@ -62,8 +62,8 @@ texto completo):
    issue #154).** `_maior_alta_negatividade` foi portada sem redesenho de
    `resumo.py` (que perdeu o destaque "Tema em alta de negatividade" na
    mesma issue) -- responde "qual tópico concentrou mais negatividade no
-   período escolhido pela analista", reaproveitando o MESMO `st.date_input`
-   já usado pela linha do tempo (decisão 3), nunca um segundo widget.
+   período escolhido pela analista", reaproveitando o seletor único de período
+   (`dashboard/core/seletor_periodo.py`, ADR 0041) já usado pela linha do tempo, nunca um segundo widget.
    Visual e funcionalmente distinta da frase de decisão no topo (que usa
    `_tema_maior_alta_negatividade`, decisão 6): uma é alerta automático de
    tendência recente, a outra é consulta livre de período.
@@ -235,9 +235,9 @@ def _tema_maior_alta_negatividade(df_sentiment_history: pd.DataFrame) -> dict | 
 # concentrou mais negatividade no período que a analista escolheu" (consulta
 # exploratória, sem noção de "atual vs. anterior"); aquela responde "qual
 # tópico subiu mais na janela fixa de `deltas.JANELA_ALERTA_NEGATIVIDADE_DIAS`
-# dias" (alerta automático). `render()` chama esta reaproveitando o MESMO
-# `st.date_input` já usado pela linha do tempo -- nunca um segundo widget de
-# calendário.
+# dias" (alerta automático). `render()` chama esta reaproveitando o seletor único
+# (`dashboard/core/seletor_periodo.py`, ADR 0041) já usado pela linha do tempo
+# -- nunca um segundo widget de calendário.
 # ---------------------------------------------------------------------------
 
 
@@ -535,8 +535,8 @@ def render() -> None:
     )
     # ADR 0026 / issue #154: `data_inicio`/`data_fim` inicializados aqui
     # (fora do `if`/`else` abaixo) porque a 2ª leitura exploratória logo
-    # depois da linha do tempo reaproveita o MESMO `st.date_input` -- nunca
-    # um segundo widget de calendário.
+    # depois da linha do tempo reaproveita o seletor único
+    # (`dashboard/core/seletor_periodo.py`) -- nunca um segundo widget de calendário.
     data_inicio = data_fim = None
     if df_timeline_completo.empty:
         st.caption("Sem histórico suficiente para mostrar uma linha do tempo ainda.")

@@ -26,7 +26,7 @@ Investigação da marcação de fixado (Silver local do piloto, Bronze e código
 1. **A marcação passa a existir na Silver de posts e de reels**: `isPinned` (bool, nullable) entra em
    `BRONZE_POSTS_SCHEMA`, `SILVER_POSTS_SCHEMA` e `SILVER_REELS_SCHEMA`; `PostCleaner` normaliza o campo nas duas
    limpezas e **preserva o nulo** (não o converte em falso). Silvers antigas só ganham a coluna na próxima
-   reconstrução (Bronze fiel + `coleta.py`, ADR 0039); até lá a coluna ausente é tratada como nula.
+   reconstrução (Bronze fiel + `coleta.py`, ADR 0039); até lá a coluna ausente é tratada como nula e o filtro de fixados é inerte (Comparar avisa na tela). A reconstrução sobre tabela com esquema antigo funciona porque `write_delta` grava com `schema_mode="overwrite"` no modo overwrite (coberto por teste com tabela temporária).
 2. **Regra para nulo: nulo (e coluna ausente) = não fixado.** Excluir o nulo apagaria posts legítimos de Bronzes
    que nunca trouxeram o campo; manter um fixado por engano é o erro menor e visível.
 3. **A regra de exclusão fica na camada de tela, no núcleo do dashboard, não na Silver.** A Silver continua fiel
