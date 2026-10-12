@@ -10,7 +10,7 @@ decisão; o notebook é a prova; o TCC conta a história.
 | `em avaliação` | Há uma pergunta aberta e notebooks comparando métodos. Não está em produção. |
 | `validada` | Método escolhido com evidência registrada e em uso. |
 | `descartada` | Avaliada e abandonada; a ficha guarda o motivo. |
-| `a documentar` | Existe no código, mas a ficha ainda não foi preenchida. |
+| `a documentar` | Existe no código e a ficha descreve o que há registrado, mas ainda não há validação registrada (a ficha diz o que falta). |
 
 ## Inventário
 
@@ -20,7 +20,7 @@ decisão; o notebook é a prova; o TCC conta a história.
 | Clusterização de perfis e de comentários | [clusterizacao.md](clusterizacao.md) | a documentar |
 | Tópicos de discurso e de comentário (BERTopic) | [topicos.md](topicos.md) | a documentar |
 | Sentimento dos comentários | [sentimento.md](sentimento.md) | a documentar |
-| Engajamento qualificado (NSM) | [nsm.md](nsm.md) | a documentar |
+| Engajamento qualificado (NSM) | [nsm.md](nsm.md) | validada |
 | Regressão de performance por post (Lasso) | [regressao-performance-post.md](regressao-performance-post.md) | a documentar |
 | Escore composto e CMGR de engajamento | [escore-composto-cmgr.md](escore-composto-cmgr.md) | a documentar |
 
