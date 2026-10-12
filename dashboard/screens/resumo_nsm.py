@@ -1,6 +1,8 @@
 """Sub-aba NSM do Resumo (ADR 0031 / issues #183 e #187).
 
-Mostra os cartões de NSM (com ▲/▼ do comparativo vs. mediana, ADR 0033),
+Mostra os cartões de NSM (com a Tendência da proporção de comentários
+positivos, ADR 0040 / issue #285 -- RASCUNHO PROVISÓRIO, método e limiares
+aguardam o backtest #284),
 melhor aprovação e maior rejeição e o contraste dos rankings completos (com
 rolagem) por engajamento bruto x qualificado (NSM como índice 0-100).
 A frase de decisão e as linhas de KPIs (incluindo Crescimento) que a sub-aba
@@ -19,6 +21,16 @@ import pandas as pd
 import streamlit as st
 
 from dashboard.core import data
+from dashboard.core.deltas import parse_publication_dates
+from dashboard.core.tendencia import (
+    CAINDO,
+    ESTAVEL,
+    INSUFICIENTE,
+    SUBINDO,
+    Tendencia,
+    tendencia_conjunto,
+    tendencia_proporcao,
+)
 from dashboard.screens.resumo_comum import (
     _PLACEHOLDER_SEM_GOVERNADOR,
     TODOS_OS_GOVERNADORES,
@@ -244,72 +256,122 @@ def valor_cartao_nsm(
     return float(linha.iloc[0]) if not linha.empty else None
 
 
-def comparativo_nsm(tabela: pd.DataFrame, chave_selecionada: str | None) -> dict | None:
-    """Comparativo vs. mediana do cartao principal (ADR 0033), em PONTOS do
-    indice 0-100: governador selecionado contra a mediana dos DEMAIS perfis
-    com NSM (`modo="selecionado"`); em "Todos" (`None`), a media do grupo
-    contra a mediana do grupo (`modo="todos"`, sinal de assimetria). Devolve
-    `{"dif", "n", "modo"}`, ou `None` sem valor do selecionado ou sem pares."""
-    if tabela.empty or "nsm" not in tabela.columns:
-        return None
-    validos = tabela.dropna(subset=["nsm"])
-    if chave_selecionada is None:
-        if len(validos) < 2:
-            return None
-        return {
-            "dif": float(validos["nsm"].mean() - validos["nsm"].median()),
-            "n": len(validos),
-            "modo": "todos",
-        }
-    proprio = validos.loc[validos["chave"] == chave_selecionada, "nsm"]
-    pares = validos.loc[validos["chave"] != chave_selecionada, "nsm"]
-    if proprio.empty or pares.empty:
-        return None
-    return {
-        "dif": float(proprio.iloc[0] - pares.median()),
-        "n": len(pares),
-        "modo": "selecionado",
-    }
+def series_sentimento_por_dia(df_comentarios: pd.DataFrame) -> pd.DataFrame:
+    """Série BRUTA de comentários por perfil, data e formato: colunas `chave`,
+    `data`, `formato` (`origem_comentario`: reel/post; "?" se ausente),
+    `positivos` e `total`. Nunca usa o índice 0-100 min-máx do NSM.
 
-
-def html_seta(comparativo: dict | None) -> str:
-    """Seta ▲/▼ + diferenca em pontos ao lado do valor do cartao. Verde/
-    vermelha com governador selecionado; neutra em "Todos" (nao e desempenho).
-    Sinal e valor sempre em texto. Vazio sem comparativo."""
-    if comparativo is None:
-        return ""
-    dif = comparativo["dif"]
-    if round(abs(dif), 1) == 0:
-        texto, tom = "= 0,0 pts", "neutro"
-    else:
-        sinal = "▲ +" if dif > 0 else "▼ −"
-        texto = f"{sinal}{abs(dif):.1f}".replace(".", ",") + " pts"
-        if comparativo["modo"] == "todos":
-            tom = "neutro"
-        else:
-            tom = "verde" if dif > 0 else "verm"
-    return f'<span class="n-seta {tom}">{texto}</span>'
-
-
-def legenda_comparativo(comparativo: dict | None) -> str:
-    """Legenda da seta, distinta da de SUBIU/CAIU (posicao)."""
-    if comparativo is None:
-        return ""
-    if comparativo["modo"] == "todos":
-        leitura = (
-            "média abaixo da mediana = poucos perfis baixos puxam a média"
-            if comparativo["dif"] < 0
-            else "média acima da mediana = poucos perfis altos puxam a média"
-        )
-        return (
-            "▲/▼ ao lado do engajamento qualificado: média do grupo contra a "
-            f"mediana do grupo, em pontos; {leitura}."
-        )
-    return (
-        "▲/▼ ao lado do engajamento qualificado: diferença, em pontos do "
-        "índice, contra a mediana dos demais governadores "
-        f"(n = {comparativo['n']})."
+    Limitação (rascunho): a data é a do COMENTÁRIO (`timestamp` de
+    `governor_sentiment`), não a da publicação comentada -- a Gold de
+    sentimento não traz a data do post/reel. Decisão do autor pendente."""
+    colunas = ["chave", "data", "formato", "positivos", "total"]
+    if df_comentarios.empty or not {
+        "inputUrl",
+        "timestamp",
+        "sentiment_label",
+    }.issubset(df_comentarios.columns):
+        return pd.DataFrame(columns=colunas)
+    df = df_comentarios
+    if "id_comment" in df.columns:
+        df = df.drop_duplicates(subset=["id_comment"], keep="first")
+    formato = (
+        df["origem_comentario"].fillna("?")
+        if "origem_comentario" in df.columns
+        else pd.Series("?", index=df.index)
     )
+    base = pd.DataFrame(
+        {
+            "chave": _normalize_url(df["inputUrl"]),
+            "data": parse_publication_dates(df),
+            "formato": formato.astype(str),
+            "positivo": (df["sentiment_label"] == "positive").astype(int),
+        }
+    ).dropna(subset=["data"])
+    if base.empty:
+        return pd.DataFrame(columns=colunas)
+    agregado = (
+        base.groupby(["chave", "data", "formato"])["positivo"]
+        .agg(positivos="sum", total="size")
+        .reset_index()
+    )
+    return agregado[colunas]
+
+
+def tendencia_nsm(
+    df_comentarios: pd.DataFrame, chave_selecionada: str | None
+) -> Tendencia:
+    """Tendência da proporção de comentários positivos (ADR 0040, PROVISÓRIO).
+    Governador selecionado: só a série dele (os outros perfis não entram, logo
+    não a alteram). `None` ("Todos"): mediana das tendências de cada perfil,
+    peso igual por perfil."""
+    series = series_sentimento_por_dia(df_comentarios)
+
+    def _de(perfil: pd.DataFrame) -> Tendencia:
+        return tendencia_proporcao(
+            perfil,
+            coluna_positivos="positivos",
+            coluna_total="total",
+            coluna_formato="formato",
+        )
+
+    if chave_selecionada is None:
+        return tendencia_conjunto([_de(g) for _, g in series.groupby("chave")])
+    return _de(series[series["chave"] == chave_selecionada])
+
+
+def _pct_sinal(valor: float) -> str:
+    """Fração -> "+12,3%" / "−8,0%" (sinal sempre em texto)."""
+    sinal = "+" if valor >= 0 else "−"
+    return f"{sinal}{abs(valor) * 100:.1f}%".replace(".", ",")
+
+
+def _texto_magnitude(t: Tendencia) -> str:
+    return (
+        f"{_pct_sinal(t.variacao)} (IC 95%: {_pct_sinal(t.ic_inferior)} a "
+        f"{_pct_sinal(t.ic_superior)})"
+    )
+
+
+def html_tendencia(t: Tendencia | None) -> str:
+    """Tendência sob o valor do cartão: seta + estado + magnitude e incerteza.
+    "Estável" diz "sem evidência suficiente de mudança" (não "nada mudou");
+    "Dados insuficientes" não tem seta nem número. Vazio sem tendência."""
+    if t is None:
+        return ""
+    if t.estado == SUBINDO:
+        tom, texto = "verde", f"▲ Subindo {_texto_magnitude(t)}"
+    elif t.estado == CAINDO:
+        tom, texto = "verm", f"▼ Caindo {_texto_magnitude(t)}"
+    elif t.estado == ESTAVEL:
+        tom = "neutro"
+        texto = (
+            "Estável · sem evidência suficiente de mudança "
+            f"(estimativa {_texto_magnitude(t)})"
+        )
+    else:
+        tom, texto = "neutro", INSUFICIENTE
+    return f'<div class="n-tend {tom}">{texto}</div>'
+
+
+def legenda_tendencia(t: Tendencia | None) -> str:
+    """Legenda da Tendência, distinta da de SUBIU/CAIU (posição no ranking)."""
+    if t is None:
+        return ""
+    base = (
+        "Tendência no cartão de engajamento qualificado: variação estimada da "
+        "proporção de comentários positivos ao longo do período coletado, sobre "
+        "a série bruta por data (não o índice de 0–100), com o formato "
+        "(reel/post) como controle e intervalo de confiança de 95%. "
+        "Estável significa sem evidência suficiente de mudança, não que nada "
+        "mudou. Tendência provisória: método e limiares ainda sem validação "
+        "com dado real (ADR 0040, aguarda #284); a data usada é a do comentário. "
+    )
+    if t.n_perfis is not None:
+        base += (
+            "Em Todos: mediana das tendências dos perfis, cada um com o mesmo "
+            f"peso (n = {t.n_perfis})."
+        )
+    return base
 
 
 # Tokens de cor de dado (claro, escuro): azul/verde/vermelho reaproveitados
@@ -349,10 +411,10 @@ _CSS_NSM = (
   font-size: 13px; padding: 2px 6px; border-radius: 6px; }
 .nsm-viz .n-linha.sel { outline: 2px solid currentColor; font-weight: 600; }
 .nsm-viz .n-scroll { max-height: 320px; overflow-y: auto; padding-right: 4px; }
-.nsm-viz .n-seta { font-size: 13px; font-weight: 600; margin-left: 8px; }
-.nsm-viz .n-seta.verde { color: var(--n-verde); }
-.nsm-viz .n-seta.verm { color: var(--n-verm); }
-.nsm-viz .n-seta.neutro { color: var(--n-neutro); }
+.nsm-viz .n-tend { font-size: 13px; font-weight: 600; }
+.nsm-viz .n-tend.verde { color: var(--n-verde); }
+.nsm-viz .n-tend.verm { color: var(--n-verm); }
+.nsm-viz .n-tend.neutro { color: var(--n-neutro); }
 .nsm-viz .n-pos { width: 28px; text-align: right; opacity: .7; }
 .nsm-viz .n-nome { width: 150px; overflow: hidden; text-overflow: ellipsis;
   white-space: nowrap; }
@@ -371,11 +433,11 @@ _CSS_NSM = (
 
 
 def _html_cartao(
-    titulo: str, valor: str, sub: str, tom: str | None, seta: str = ""
+    titulo: str, valor: str, sub: str, tom: str | None, tendencia: str = ""
 ) -> str:
     return (
         f'<div class="n-card {tom or ""}"><div class="n-card-t">{html.escape(titulo)}'
-        f'</div><div class="n-card-v">{html.escape(valor)}{seta}</div>'
+        f'</div><div class="n-card-v">{html.escape(valor)}</div>{tendencia}'
         f'<div class="n-card-s">{html.escape(sub)}</div></div>'
     )
 
@@ -418,10 +480,9 @@ def _fmt_nsm_0_100(valor: float | None) -> str:
 
 
 def _render_contraste(governor_url: str, is_todos: bool) -> None:
+    comentarios = data.comments_only(data.load_sentiment())
     tabela = montar_tabela_contraste(
-        data.load_nsm(),
-        data.comments_only(data.load_sentiment()),
-        data.load_governors_metadata(),
+        data.load_nsm(), comentarios, data.load_governors_metadata()
     )
     chave = None if is_todos else _normalize_url(pd.Series([governor_url])).iloc[0]
 
@@ -437,14 +498,14 @@ def _render_contraste(governor_url: str, is_todos: bool) -> None:
     valor = valor_cartao_nsm(tabela, chave)
     melhor = extremo_com_amostra(tabela, "pct_pos")
     pior = extremo_com_amostra(tabela, "pct_neg")
-    comparativo = comparativo_nsm(tabela, chave)
+    tendencia = tendencia_nsm(comentarios, chave)
     cartoes = [
         _html_cartao(
             "Engajamento qualificado" + (" (média dos perfis)" if is_todos else ""),
             _fmt_nsm_0_100(valor),
             "índice de 0 a 100",
             "verde",
-            seta=html_seta(comparativo),
+            tendencia=html_tendencia(tendencia),
         ),
         _html_cartao(
             "Melhor aprovação",
@@ -479,7 +540,7 @@ def _render_contraste(governor_url: str, is_todos: bool) -> None:
         "Engajamento bruto = total de curtidas e comentários por perfil. "
         "SUBIU/CAIU compara a posição no ranking qualificado com a do bruto. "
         f"Melhor aprovação e Maior rejeição só consideram perfis com pelo menos {MIN_COMENTARIOS_CARTAO} comentários. "
-        + legenda_comparativo(comparativo)
+        + legenda_tendencia(tendencia)
     )
 
 
