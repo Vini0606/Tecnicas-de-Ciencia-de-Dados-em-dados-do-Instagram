@@ -22,20 +22,25 @@ from typing import Any
 import pandas as pd
 from deltalake import DeltaTable
 
+from src.coleta.custo import diferenca_percentual
 from src.coleta.recorte import Recorte, tag_valida
 
-VERSAO_ESQUEMA = 2
-VERSOES_ACEITAS = (1, VERSAO_ESQUEMA)  # a 1 não tem `recorte_efetivo`
+VERSAO_ESQUEMA = 4
+# v1 não tem `recorte_efetivo`; v1 e v2 gravam todas as chaves de `recorte`, com nulo onde não se aplicam;
+# a v3 só grava as que se aplicam (sem nulos); a v4 troca o bloco `custo` (ADR 0042).
+VERSOES_ACEITAS = (1, 2, 3, VERSAO_ESQUEMA)
+COLECOES_CUSTO = ("perfis", "posts", "reels", "ugc", "total")
 NOME_ARQUIVO = "manifesto.json"
 FONTES = ("posts", "reels", "perfis", "ugc")
 CAMADAS = ("bronze", "silver", "gold")
 
-# fonte -> (tabela Bronze, coluna de perfil, coluna de data) para a cobertura.
+# fonte -> (tabela Bronze, coluna de perfil, coluna de data) para a cobertura. Posts, reels e UGC usam a data de
+# publicação (`timestamp`, UTC); perfis não têm publicação, então a data é a da captura (`_ingested_at`).
 _BRONZE = {
     "posts": ("instagram_posts", "ownerUsername", "timestamp"),
     "reels": ("instagram_reels", "ownerUsername", "timestamp"),
-    "perfis": ("instagram_profiles", None, None),
-    "ugc": ("ugc_mentions", None, None),
+    "perfis": ("instagram_profiles", None, "_ingested_at"),
+    "ugc": ("ugc_mentions", None, "timestamp"),
 }
 # UGC por perfil vem da Silver, onde o post de terceiro já foi correlacionado a
 # um governador (`governor_username`); o autor do post (pessoa) nunca entra.
@@ -99,6 +104,29 @@ def _tabelas(data_dir: Path) -> list[dict[str, Any]]:
     return tabelas
 
 
+def _bloco_custo(estimado: dict[str, Any] | None, real: dict[str, Any] | None) -> dict[str, Any]:
+    """`custo` v4: só os blocos que existem (`real` e `diferenca` faltam se a Apify não devolveu o custo)."""
+    custo: dict[str, Any] = {}
+    if estimado is not None:
+        custo["estimado"] = json.loads(json.dumps(estimado))
+    if real is not None:
+        custo["real"] = json.loads(json.dumps(real))
+        if estimado is not None:
+            custo["diferenca"] = diferenca_percentual(estimado, real)
+    return custo
+
+
+def _recorte_pedido(recorte: Recorte) -> dict[str, Any]:
+    """O que foi pedido, só com as chaves que se aplicam (a janela efetiva vai em `recorte_efetivo`)."""
+    pedido: dict[str, Any] = {
+        "dias": recorte.dias,
+        "inicio": recorte.inicio.isoformat() if recorte.inicio else None,
+        "fim": recorte.fim.isoformat() if recorte.fim else None,
+        "teto": recorte.teto,
+    }
+    return {k: v for k, v in pedido.items() if v is not None}
+
+
 def gerar_manifesto(
     data_dir: Path | str,
     *,
@@ -106,8 +134,8 @@ def gerar_manifesto(
     recorte: Recorte,
     extraido_em: datetime,
     versao_codigo: str,
-    custo_estimado: dict[str, float] | None = None,
-    custo_real: float | dict[str, float] | None = None,
+    custo_estimado: dict[str, Any] | None = None,
+    custo_real: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Monta e valida o manifesto do Snapshot em `data_dir` (`bronze/`, `silver/`, `gold/`)."""
     base = Path(data_dir)
@@ -127,20 +155,12 @@ def gerar_manifesto(
             "extraido_em": extraido_em.isoformat(timespec="seconds"),
             "versao_codigo": versao_codigo,
         },
-        "recorte": {
-            "dias": recorte.dias,
-            "inicio": recorte.inicio.isoformat() if recorte.inicio else None,
-            "fim": recorte.fim.isoformat() if recorte.fim else None,
-            "teto": recorte.teto,
-        },
+        "recorte": _recorte_pedido(recorte),
         "recorte_efetivo": (
             {"inicio": janela[0].isoformat(), "fim": janela[1].isoformat()} if janela else None
         ),
         "cobertura": cobertura,
-        "custo": {
-            "estimado": dict(custo_estimado) if custo_estimado is not None else None,
-            "real": dict(custo_real) if isinstance(custo_real, dict) else custo_real,
-        },
+        "custo": _bloco_custo(custo_estimado, custo_real),
         "tabelas": _tabelas(base),
     }
     validar_manifesto(manifesto)
@@ -195,6 +215,52 @@ def _intervalo(obj: dict, caminho: str) -> None:
         _exigir(obj["mais_antiga"] <= obj["mais_recente"], caminho, "mais_antiga depois de mais_recente")
 
 
+def _por_colecao(obj: Any, caminho: str, tipo: str) -> dict:
+    """Bloco com `perfis`, `posts`, `reels`, `ugc` e `total`: `tipo` = `int`, `usd` (>= 0) ou `pct` (qualquer número)."""
+    obj = _chaves(obj, set(COLECOES_CUSTO), caminho)
+    for k, v in obj.items():
+        if tipo == "int":
+            _int(v, f"{caminho}.{k}")
+        elif tipo == "usd":
+            _numero(v, f"{caminho}.{k}")
+        else:
+            _exigir(isinstance(v, (int, float)) and not isinstance(v, bool), f"{caminho}.{k}", "número")
+    return obj
+
+
+def _validar_custo_v4(custo: Any) -> None:
+    """`custo` v4 (ADR 0042): `estimado`, `real` e `diferenca`, todos opcionais, sem campo nulo; `diferenca` só com os
+    dois outros."""
+    _exigir(isinstance(custo, dict), "custo", "esperado objeto")
+    _exigir(set(custo) <= {"estimado", "real", "diferenca"}, "custo", f"chaves {sorted(custo)} fora do esquema")
+    _exigir(("diferenca" in custo) == ("real" in custo and "estimado" in custo), "custo", "diferenca exige estimado e real")
+    if "estimado" in custo:
+        est = _chaves(
+            custo["estimado"],
+            {"estimado_usd", "maximo_usd", "resultados_itens", "teto", "base_calibracao"},
+            "custo.estimado",
+        )
+        estimado = _por_colecao(est["estimado_usd"], "custo.estimado.estimado_usd", "usd")
+        maximo = _por_colecao(est["maximo_usd"], "custo.estimado.maximo_usd", "usd")
+        _por_colecao(est["resultados_itens"], "custo.estimado.resultados_itens", "int")
+        for k in COLECOES_CUSTO:
+            _exigir(estimado[k] <= maximo[k] + 1e-9, f"custo.estimado.estimado_usd.{k}", "estimado acima do máximo")
+        teto = _chaves(est["teto"], {"aplicado_itens_por_perfil", "padrao"}, "custo.estimado.teto")
+        _int(teto["aplicado_itens_por_perfil"], "custo.estimado.teto.aplicado_itens_por_perfil", 1)
+        _exigir(isinstance(teto["padrao"], bool), "custo.estimado.teto.padrao", "booleano")
+        base = _chaves(est["base_calibracao"], {"posts", "reels", "ugc"}, "custo.estimado.base_calibracao")
+        for k, v in base.items():
+            _exigir(isinstance(v, str) and bool(v), f"custo.estimado.base_calibracao.{k}", "texto (Coleta ou sem_base)")
+    if "real" in custo:
+        real = _chaves(custo["real"], {"custo_usd", "resultados_itens"}, "custo.real")
+        _por_colecao(real["custo_usd"], "custo.real.custo_usd", "usd")
+        _por_colecao(real["resultados_itens"], "custo.real.resultados_itens", "int")
+    if "diferenca" in custo:
+        dif = _chaves(custo["diferenca"], {"custo_pct", "resultados_pct"}, "custo.diferenca")
+        _por_colecao(dif["custo_pct"], "custo.diferenca.custo_pct", "pct")
+        _por_colecao(dif["resultados_pct"], "custo.diferenca.resultados_pct", "pct")
+
+
 def validar_manifesto(m: Any) -> None:
     """Levanta `ValueError` se `m` não segue o esquema (chaves exatas, tipos,
     datas ISO). Esquema fechado: um campo extra (p.ex. texto) é recusado."""
@@ -203,6 +269,7 @@ def validar_manifesto(m: Any) -> None:
     _exigir(v_esquema in VERSOES_ACEITAS, "versao_esquema", f"esperado um de {VERSOES_ACEITAS}")
     chaves = {"versao_esquema", "identidade", "recorte", "cobertura", "custo", "tabelas"}
     m = _chaves(m, chaves | ({"recorte_efetivo"} if v_esquema >= 2 else set()), "manifesto")
+    v3 = v_esquema >= 3
 
     ident = _chaves(m["identidade"], {"tag", "extraido_em", "versao_codigo"}, "identidade")
     _exigir(isinstance(ident["tag"], str) and tag_valida(ident["tag"]), "identidade.tag", "tag fora da gramática")
@@ -217,7 +284,14 @@ def validar_manifesto(m: Any) -> None:
         "hash sem espaços",
     )
 
-    rec = _chaves(m["recorte"], {"dias", "inicio", "fim", "teto"}, "recorte")
+    chaves_recorte = {"dias", "inicio", "fim", "teto"}
+    if v3:  # só as chaves que se aplicam, nunca nulas
+        _exigir(isinstance(m["recorte"], dict), "recorte", "esperado objeto")
+        _exigir(set(m["recorte"]) <= chaves_recorte, "recorte", f"chaves {sorted(m['recorte'])} fora de {sorted(chaves_recorte)}")
+        _exigir(all(v is not None for v in m["recorte"].values()), "recorte", "v3 não grava chave nula")
+        rec = {k: m["recorte"].get(k) for k in chaves_recorte}
+    else:
+        rec = _chaves(m["recorte"], chaves_recorte, "recorte")
     for k in ("dias", "teto"):
         if rec[k] is not None:
             _int(rec[k], f"recorte.{k}", 1)
@@ -243,18 +317,21 @@ def validar_manifesto(m: Any) -> None:
             _exigir(isinstance(p["username"], str) and bool(p["username"]), f"{caminho}.username", "texto")
             _intervalo(p, caminho)
 
-    custo = _chaves(m["custo"], {"estimado", "real"}, "custo")
-    if custo["estimado"] is not None:
-        _exigir(isinstance(custo["estimado"], dict), "custo.estimado", "objeto de números")
-        for k, v in custo["estimado"].items():
-            _exigir(isinstance(k, str), "custo.estimado", "chave texto")
-            _numero(v, f"custo.estimado.{k}")
-    if isinstance(custo["real"], dict):  # por actor (esquema novo); número ou nulo = Coletas antigas
-        for k, v in custo["real"].items():
-            _exigir(isinstance(k, str), "custo.real", "chave texto")
-            _numero(v, f"custo.real.{k}")
-    elif custo["real"] is not None:
-        _numero(custo["real"], "custo.real")
+    if v_esquema >= 4:
+        _validar_custo_v4(m["custo"])
+    else:
+        custo = _chaves(m["custo"], {"estimado", "real"}, "custo")
+        if custo["estimado"] is not None:
+            _exigir(isinstance(custo["estimado"], dict), "custo.estimado", "objeto de números")
+            for k, v in custo["estimado"].items():
+                _exigir(isinstance(k, str), "custo.estimado", "chave texto")
+                _numero(v, f"custo.estimado.{k}")
+        if isinstance(custo["real"], dict):  # por actor (esquema novo); número ou nulo = Coletas antigas
+            for k, v in custo["real"].items():
+                _exigir(isinstance(k, str), "custo.real", "chave texto")
+                _numero(v, f"custo.real.{k}")
+        elif custo["real"] is not None:
+            _numero(custo["real"], "custo.real")
 
     _exigir(isinstance(m["tabelas"], list), "tabelas", "esperado lista")
     for i, t in enumerate(m["tabelas"]):

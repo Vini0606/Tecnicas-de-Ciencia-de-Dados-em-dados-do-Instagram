@@ -56,15 +56,35 @@ class InstagramScraper:
         return itens
 
     def _custo_final(self, run: dict) -> float | None:
-        """`usageTotalUsd` da execução já finalizada; `None` se não for legível (nunca inventa valor)."""
+        """Custo da execução já finalizada: `usageTotalUsd`; se a Apify ainda não o calculou, os eventos
+        cobrados x o preço de cada evento da própria execução. `None` se nenhum dos dois for legível
+        (nunca inventa valor)."""
         try:
             final = self._client.run(run.get("id")).get() or {}
-            usd = final.get("usageTotalUsd")
         except Exception:  # custo é só registro: falhar aqui não pode derrubar a extração
             return None
-        if isinstance(usd, bool) or not isinstance(usd, (int, float)):
+        usd = final.get("usageTotalUsd")
+        if isinstance(usd, (int, float)) and not isinstance(usd, bool):
+            return float(usd)
+        return self._custo_por_eventos(final)
+
+    @staticmethod
+    def _custo_por_eventos(run: dict) -> float | None:
+        """`chargedEventCounts` x `pricingInfo...eventPriceUsd` (confere com o `usageTotalUsd` em runs reais)."""
+        contagens = run.get("chargedEventCounts")
+        info = run.get("pricingInfo")
+        eventos = ((info or {}).get("pricingPerEvent") or {}).get("actorChargeEvents") if isinstance(info, dict) else None
+        if not isinstance(contagens, dict) or not isinstance(eventos, dict):
             return None
-        return float(usd)
+        total = 0.0
+        for evento, n in contagens.items():
+            if not n:
+                continue
+            preco = (eventos.get(evento) or {}).get("eventPriceUsd")
+            if isinstance(preco, bool) or not isinstance(preco, (int, float)) or isinstance(n, bool):
+                return None
+            total += n * preco
+        return round(total, 6)
 
     def scrape_profiles(self, links: list[str]) -> list[dict]:
         run_input = {

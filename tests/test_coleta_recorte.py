@@ -88,8 +88,8 @@ def test_recorte_so_com_teto_nao_tem_janela():
 
 
 def test_custo_so_com_teto_e_menor_que_o_de_uma_janela_longa():
-    pequeno = estimar_custo(Recorte(teto=10), 26, EXTRACAO)["total"]
-    grande = estimar_custo(Recorte(dias=90, teto=250), 26, EXTRACAO)["total"]
+    pequeno = estimar_custo(Recorte(teto=10), 26, EXTRACAO)["estimado_usd"]["total"]
+    grande = estimar_custo(Recorte(dias=90, teto=250), 26, EXTRACAO)["estimado_usd"]["total"]
     assert 0 < pequeno < grande
 
 

@@ -51,7 +51,7 @@ A spec #210 levantou quatro problemas.
      `--force-extract`.
    - `--days` **implica extração real**; sem isso, a Bronze em cache faria a janela ser ignorada em
      silêncio.
-   - Teto efetivo: `--results-limit`, senão `default_results_limit(days)` (max(200, 10 × N)), senão
+   - Teto efetivo: `--results-limit`, senão `default_results_limit(days)` (max(200, 7 × N), era 10 × N até o ADR 0042), senão
      `RESULTS_LIMIT`.
    - Custo estimado: sem janela, as três coleções pelo teto; com janela, posts+reels pela taxa calibrada e
      UGC pelo teto. Qualquer extração continua exigindo `--yes`.
