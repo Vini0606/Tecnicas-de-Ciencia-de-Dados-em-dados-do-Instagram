@@ -182,6 +182,16 @@ def test_recorte_absoluto_e_custo_ausente(tmp_path):
     assert m["custo"] == {"estimado": None, "real": None}
 
 
+def test_manifesto_grava_a_estimativa_de_custo_com_esperado_e_pior_caso(tmp_path):
+    from src.coleta.custo import estimar_custo
+
+    custo = estimar_custo(RECORTE, 26, date(2026, 10, 9))
+    m = _gerar(tmp_path, custo_estimado=custo)
+    validar_manifesto(m)
+    assert m["custo"]["estimado"]["total"] == custo["total"]
+    assert m["custo"]["estimado"]["pior_caso_total"] == custo["pior_caso_total"]
+
+
 def test_recorte_so_com_teto_nao_tem_janela_efetiva(tmp_path):
     recorte = Recorte(teto=10)
     m = _gerar(tmp_path, recorte=recorte, tag=gerar_tag(recorte, date(2026, 10, 9)))

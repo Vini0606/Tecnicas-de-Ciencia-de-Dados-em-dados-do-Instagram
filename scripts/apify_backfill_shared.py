@@ -20,17 +20,20 @@ from config import settings
 
 DEFAULT_DAYS = 90
 
-# Baseline calculado na sessao de 2026-08-29 a partir da amostra atual (30
-# itens mais recentes por governador) -- ver handoff. E o que o teste de
-# calibracao confirma ou corrige, independente da janela (--days) escolhida.
-BASELINE_REELS_PER_DAY = 1.65
-BASELINE_POSTS_PER_DAY = 2.60
+# Taxas diarias por governador, calibradas em execucao real com 26 governadores
+# (ADR 0012): razao de totais `itens / (dias * governadores)`, media que assume
+# taxa constante. Substituem o baseline anterior (2,60 posts e 1,65 reels, extrapolado
+# dos 30 itens mais recentes por governador em 2026-08-29), que ficou ~3x abaixo.
+# Reverificar com a Coleta de 90 dias.
+BASELINE_REELS_PER_DAY = 5.19
+BASELINE_POSTS_PER_DAY = 7.22
 
 # resultsLimit e aplicado POR PERFIL pela Apify, nao no total do run -- se o
 # default fosse fixo (ex: 1000), uma janela grande (--days 365+) trunca
 # silenciosamente qualquer governador acima da media, subestimando a
 # calibracao/backfill sem avisar. Escala com --days usando uma margem de
-# seguranca bem acima do baseline conhecido (4.25 itens/dia/governador).
+# seguranca acima da taxa calibrada de cada colecao (7.22 posts e 5.19 reels
+# por dia por governador; o limite vale por colecao, nao pela soma).
 RESULTS_LIMIT_SAFETY_MARGIN_PER_DAY = 10
 RESULTS_LIMIT_FLOOR = 200
 

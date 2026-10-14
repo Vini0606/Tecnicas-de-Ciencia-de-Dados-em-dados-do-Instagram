@@ -31,7 +31,7 @@ import pandas as pd
 from config import settings
 from src.coleta import hf
 from src.coleta.coletar import ColetaNaoConfirmada, coletar, criar_scraper
-from src.coleta.custo import estimar_custo, teto_efetivo
+from src.coleta.custo import PLANO_PADRAO, estimar_custo, teto_efetivo
 from src.coleta.recorte import Recorte
 from src.run_id import build_run_id
 
@@ -145,17 +145,34 @@ def _cmd_coletar(args, scraper_factory: ScraperFactory, agora: datetime) -> int:
         )
         return 2
 
+    plano = os.environ.get("APIFY_PLAN", PLANO_PADRAO).upper()
     links, usernames, df_governadores = _carregar_governadores()
-    custo = estimar_custo(recorte, len(links), hoje)
+    try:
+        custo = estimar_custo(recorte, len(links), hoje, plano)
+    except ValueError as erro:
+        print(f"[ERRO] {erro} (variavel APIFY_PLAN).", file=sys.stderr)
+        return 2
     janela = recorte.janela_efetiva(hoje)
     aproximada = " (aproximada)" if recorte.dias is not None else ""
     linha_janela = f"Janela: {janela[0]} a {janela[1]}{aproximada}\n" if janela else ""
+    teto = teto_efetivo(recorte, hoje)
+    aviso_teto = (
+        f"[AVISO] Sem --teto: usando o teto padrao de {teto} por perfil e por colecao "
+        f"(pior caso ate US$ {custo['pior_caso_total']}). Informe --teto para limitar o gasto.\n"
+        if recorte.teto is None
+        else ""
+    )
     print(
         f"Recorte: {recorte}\n"
         f"{linha_janela}"
-        f"Governadores: {len(links)}; teto efetivo: {teto_efetivo(recorte, hoje)} por perfil.\n"
-        f"Custo estimado (pior caso): posts+reels ~US$ {custo['posts_reels']}, "
-        f"UGC ~US$ {custo['ugc']}, total ~US$ {custo['total']}."
+        f"Governadores: {len(links)}; teto efetivo: {teto} por perfil.\n"
+        f"{aviso_teto}"
+        f"Resultados esperados: posts {custo['resultados_posts']:.0f}, reels {custo['resultados_reels']:.0f}, "
+        f"UGC {custo['resultados_ugc']:.0f} (UGC sem calibracao: assume o teto cheio).\n"
+        f"Custo esperado (plano {plano}): posts+reels ~US$ {custo['posts_reels']}, UGC ~US$ {custo['ugc']}, "
+        f"perfis ~US$ {custo['perfis']}, total ~US$ {custo['total']}.\n"
+        f"Pior caso (teto cheio em cada colecao): posts+reels ~US$ {custo['pior_caso_posts_reels']}, "
+        f"UGC ~US$ {custo['pior_caso_ugc']}, total ~US$ {custo['pior_caso_total']}."
     )
 
     def confirmar(_custo: float) -> bool:
@@ -178,6 +195,7 @@ def _cmd_coletar(args, scraper_factory: ScraperFactory, agora: datetime) -> int:
             rotulo=args.rotulo,
             run_id=run_id,
             modelar=_modelar_callback(run_id) if args.modelar else None,
+            plano=plano,
         )
     except ColetaNaoConfirmada:
         return 0 if not args.yes else 1

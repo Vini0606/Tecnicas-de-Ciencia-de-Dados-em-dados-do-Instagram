@@ -11,6 +11,11 @@ estão definidos em `CONTEXT.md`.
 
 - Extração real gasta dinheiro na Apify. **Nunca rode sem `--yes` e sem aval explícito do usuário no chat**, e mostre antes
   a estimativa de custo (pior caso).
+- A estimativa de `coletar` (sem `--yes`) mostra o custo **esperado** (taxas calibradas de posts e reels limitadas pelo
+  teto; UGC pelo teto cheio, sem calibração) e o **pior caso** (teto cheio em cada coleção), com preço por actor e plano
+  da conta Apify (variável `APIFY_PLAN`, padrão `BRONZE`; tabela de preços verificada em 2026-10-13 em `src/coleta/custo.py`).
+  Sem `--teto`, a CLI avisa que o teto padrão foi usado e quanto ele permite gastar. O preço do evento `post-details` do
+  actor de posts está assumido como cobrado em cada post: confirme no Console da Apify depois da primeira Coleta de 90 dias.
 - Extraia sempre em pasta de dados limpa (`DATA_DIR`), nunca por cima da pasta `data/` em uso.
 - O **Recorte** pode combinar janela relativa, intervalo absoluto e teto por perfil. Confirme o Recorte com o usuário.
 

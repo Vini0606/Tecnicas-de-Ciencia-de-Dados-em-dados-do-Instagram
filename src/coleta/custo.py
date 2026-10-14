@@ -1,5 +1,13 @@
-"""Estimativa de custo (US$, pior caso) de um Recorte nas três coleções pagas
-(posts, reels, UGC). Mesmas fórmulas calibradas de `scripts/apify_backfill_shared`."""
+"""Estimativa de custo (US$) de um Recorte nos quatro actors pagos (perfis, posts, reels, UGC).
+
+Duas faixas (issue #294):
+
+- **esperado**: posts e reels pela taxa diária calibrada (ADR 0012), limitada pelo teto por perfil de cada
+  coleção; UGC sem calibração, então pelo teto cheio (conservador); perfis, um resultado por governador.
+- **pior caso**: teto cheio em cada coleção.
+
+Preços por actor e por plano da conta Apify, sem rede: a tabela abaixo é um retrato com data de verificação.
+"""
 
 from __future__ import annotations
 
@@ -7,11 +15,31 @@ from datetime import date
 
 from config import settings
 from scripts.apify_backfill_shared import (
+    BASELINE_POSTS_PER_DAY,
+    BASELINE_REELS_PER_DAY,
     default_results_limit,
-    estimate_cost_usd,
-    estimate_cost_usd_for_results_limit,
 )
 from src.coleta.recorte import Recorte
+
+PLANO_PADRAO = "BRONZE"  # equivale ao Starter (assumido; confirmar no Console da Apify)
+PRECOS_VERIFICADOS_EM = "2026-10-13"
+
+# US$ por 1.000 resultados, por plano. Fonte: api.apify.com/v2/acts/<slug>, `pricingInfos` mais recente
+# (ver aba "Actors Apify" do dicionário de dados).
+_PERFIS = {"FREE": 2.70, "BRONZE": 2.30, "SILVER": 1.90, "GOLD": 1.50, "PLATINUM": 0.90, "DIAMOND": 0.50}
+_UGC = {"FREE": 2.70, "BRONZE": 2.30, "SILVER": 1.90, "GOLD": 1.50, "PLATINUM": 1.00, "DIAMOND": 0.50}
+_REELS = {"FREE": 2.60, "BRONZE": 2.30, "SILVER": 1.40, "GOLD": 1.00, "PLATINUM": 0.80, "DIAMOND": 0.40}
+# Posts: evento "post" + evento "post-details". Assume-se que os dois incidem em cada post (conservador;
+# confirmar pelo faturamento da primeira Coleta de 90 dias).
+_POSTS_BASE = {"FREE": 1.70, "BRONZE": 1.50, "SILVER": 1.30, "GOLD": 1.00, "PLATINUM": 0.80, "DIAMOND": 0.40}
+_POSTS_DETALHES = {"FREE": 1.00, "BRONZE": 0.80, "SILVER": 0.70, "GOLD": 0.60, "PLATINUM": 0.20, "DIAMOND": 0.10}
+PRECO_POR_1000: dict[str, dict[str, float]] = {
+    "perfis": _PERFIS,
+    "posts": {p: round(_POSTS_BASE[p] + _POSTS_DETALHES[p], 2) for p in _POSTS_BASE},
+    "reels": _REELS,
+    "ugc": _UGC,
+}
+REELS_ACTOR_START_USD = 0.001  # taxa fixa por execução do actor de reels
 
 
 def teto_efetivo(recorte: Recorte, hoje: date) -> int:
@@ -23,14 +51,48 @@ def teto_efetivo(recorte: Recorte, hoje: date) -> int:
     return default_results_limit(dias) if dias else settings.RESULTS_LIMIT
 
 
-def estimar_custo(recorte: Recorte, n_governadores: int, hoje: date) -> dict[str, float]:
+def _precos(plano: str) -> dict[str, float]:
+    plano = plano.upper()
+    if plano not in _PERFIS:
+        raise ValueError(f"plano Apify desconhecido: {plano!r}; use um de {sorted(_PERFIS)}")
+    return {actor: tabela[plano] for actor, tabela in PRECO_POR_1000.items()}
+
+
+def estimar_custo(
+    recorte: Recorte, n_governadores: int, hoje: date, plano: str = PLANO_PADRAO
+) -> dict[str, float]:
+    """Dicionário plano (texto -> número, o formato que o manifesto grava).
+
+    `posts_reels`, `ugc`, `perfis` e `total` são o **esperado**; `pior_caso_*` é o teto cheio por coleção;
+    `resultados_*` são os resultados esperados por coleção."""
+    preco = _precos(plano)
     teto = teto_efetivo(recorte, hoje)
-    ugc = estimate_cost_usd_for_results_limit(teto, n_governadores, media_types=1)
     dias = recorte.dias_a_extrair(hoje)
-    if dias:
-        posts_reels = estimate_cost_usd(dias, n_governadores)
-        total = round(posts_reels + ugc, 2)
-    else:
-        posts_reels = estimate_cost_usd_for_results_limit(teto, n_governadores, media_types=2)
-        total = estimate_cost_usd_for_results_limit(teto, n_governadores, media_types=3)
-    return {"posts_reels": posts_reels, "ugc": ugc, "total": total}
+
+    def esperado(taxa_por_dia: float) -> float:
+        por_perfil = min(taxa_por_dia * dias, teto) if dias else teto
+        return n_governadores * por_perfil
+
+    res_posts, res_reels = esperado(BASELINE_POSTS_PER_DAY), esperado(BASELINE_REELS_PER_DAY)
+    res_ugc = res_cheio = n_governadores * teto  # UGC sem calibração: teto cheio
+
+    def custo(resultados: float, actor: str) -> float:
+        return resultados / 1000 * preco[actor]
+
+    perfis = custo(n_governadores, "perfis")
+    posts_reels = custo(res_posts, "posts") + custo(res_reels, "reels") + REELS_ACTOR_START_USD
+    ugc = custo(res_ugc, "ugc")
+    pior_posts_reels = custo(res_cheio, "posts") + custo(res_cheio, "reels") + REELS_ACTOR_START_USD
+
+    return {
+        "posts_reels": round(posts_reels, 2),
+        "ugc": round(ugc, 2),
+        "perfis": round(perfis, 2),
+        "total": round(posts_reels + ugc + perfis, 2),
+        "pior_caso_posts_reels": round(pior_posts_reels, 2),
+        "pior_caso_ugc": round(ugc, 2),
+        "pior_caso_total": round(pior_posts_reels + ugc + perfis, 2),
+        "resultados_posts": res_posts,
+        "resultados_reels": res_reels,
+        "resultados_ugc": res_ugc,
+    }
