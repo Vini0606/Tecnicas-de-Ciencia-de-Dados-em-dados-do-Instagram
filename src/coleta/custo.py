@@ -51,6 +51,27 @@ def teto_efetivo(recorte: Recorte, hoje: date) -> int:
     return default_results_limit(dias) if dias else settings.RESULTS_LIMIT
 
 
+COLECOES = ("perfis", "posts", "reels", "ugc")
+
+
+def agregar_custo_real(execucoes: list[dict] | None) -> dict[str, float] | None:
+    """Soma o custo real por coleção (um actor pode rodar mais de uma vez). Mesmas chaves de custo do
+    estimado (`perfis`, `posts`, `reels`, `ugc`, `total`) mais `resultados_<coleção>`.
+
+    Devolve `None` sem registro ou se qualquer chamada veio sem custo legível: nunca soma parcial."""
+    if not execucoes or any(e.get("usd") is None for e in execucoes):
+        return None
+    custo = {c: 0.0 for c in COLECOES}
+    itens = {c: 0 for c in COLECOES}
+    for e in execucoes:
+        custo[e["colecao"]] += e["usd"]
+        itens[e["colecao"]] += e["itens"]
+    real = {c: round(v, 4) for c, v in custo.items()}
+    real["total"] = round(sum(custo.values()), 4)
+    real.update({f"resultados_{c}": itens[c] for c in COLECOES})
+    return real
+
+
 def teto_e_padrao(recorte: Recorte) -> bool:
     """Verdadeiro quando o teto não foi informado e vale o padrão (sem `--teto`)."""
     return recorte.teto is None

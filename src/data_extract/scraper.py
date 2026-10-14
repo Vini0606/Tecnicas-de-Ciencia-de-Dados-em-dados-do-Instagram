@@ -39,6 +39,32 @@ class InstagramScraper:
     def __init__(self, client: ApifyClient, config: ScraperConfig | None = None):
         self._client = client
         self._config = config or ScraperConfig()
+        # Uma entrada por chamada paga (issue #297): coleção, custo final em US$ e itens devolvidos.
+        self.execucoes: list[dict] = []
+
+    def _rodar(self, colecao: str, actor_id: str, run_input: dict) -> list[dict]:
+        """Chama o actor, lê os itens e registra o custo da execução finalizada."""
+        try:
+            run = self._client.actor(actor_id).call(run_input=run_input)
+            itens = list(self._client.dataset(run["defaultDatasetId"]).iterate_items())
+        except Exception:
+            # chamada que falhou pode já ter gastado: registra custo ilegível, para o custo real
+            # da Coleta ficar nulo em vez de uma soma parcial (a ingestão tolera falha do UGC)
+            self.execucoes.append({"colecao": colecao, "usd": None, "itens": 0})
+            raise
+        self.execucoes.append({"colecao": colecao, "usd": self._custo_final(run), "itens": len(itens)})
+        return itens
+
+    def _custo_final(self, run: dict) -> float | None:
+        """`usageTotalUsd` da execução já finalizada; `None` se não for legível (nunca inventa valor)."""
+        try:
+            final = self._client.run(run.get("id")).get() or {}
+            usd = final.get("usageTotalUsd")
+        except Exception:  # custo é só registro: falhar aqui não pode derrubar a extração
+            return None
+        if isinstance(usd, bool) or not isinstance(usd, (int, float)):
+            return None
+        return float(usd)
 
     def scrape_profiles(self, links: list[str]) -> list[dict]:
         run_input = {
@@ -48,10 +74,7 @@ class InstagramScraper:
             "resultsType": "details",
             "searchType": "user",
         }
-        run = self._client.actor(self._config.profiles_actor_id).call(
-            run_input=run_input
-        )
-        return list(self._client.dataset(run["defaultDatasetId"]).iterate_items())
+        return self._rodar("perfis", self._config.profiles_actor_id, run_input)
 
     def scrape_posts(
         self, usernames: list[str], extra_run_input: dict | None = None
@@ -61,8 +84,7 @@ class InstagramScraper:
             "resultsLimit": self._config.results_limit,
             **(extra_run_input or {}),
         }
-        run = self._client.actor(self._config.posts_actor_id).call(run_input=run_input)
-        return list(self._client.dataset(run["defaultDatasetId"]).iterate_items())
+        return self._rodar("posts", self._config.posts_actor_id, run_input)
 
     def scrape_reels(
         self, usernames: list[str], extra_run_input: dict | None = None
@@ -76,8 +98,7 @@ class InstagramScraper:
             **({"includeTranscript": True} if self._config.include_transcript else {}),
             **(extra_run_input or {}),
         }
-        run = self._client.actor(self._config.reels_actor_id).call(run_input=run_input)
-        return list(self._client.dataset(run["defaultDatasetId"]).iterate_items())
+        return self._rodar("reels", self._config.reels_actor_id, run_input)
 
     def scrape_mentions(
         self, usernames: list[str], extra_run_input: dict | None = None
@@ -95,7 +116,4 @@ class InstagramScraper:
             "resultsLimit": self._config.results_limit,
             **(extra_run_input or {}),
         }
-        run = self._client.actor(self._config.mentions_actor_id).call(
-            run_input=run_input
-        )
-        return list(self._client.dataset(run["defaultDatasetId"]).iterate_items())
+        return self._rodar("ugc", self._config.mentions_actor_id, run_input)

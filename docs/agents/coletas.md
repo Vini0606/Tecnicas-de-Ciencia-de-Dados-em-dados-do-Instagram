@@ -54,6 +54,10 @@ Exemplos:
 - O manifesto traz identidade (tag, data e hora, versão do código), Recorte pedido, cobertura real por fonte e por perfil
   (contagens e datas mais antiga e mais recente), custo na Apify e a lista de tabelas derivadas com número de linhas.
   Não carrega conteúdo (nomes, textos) nem segredos.
+- `custo.estimado` é o esperado e o pior caso da estimativa; `custo.real` (desde a #297) é o que a Apify cobrou, por coleção
+  (`perfis`, `posts`, `reels`, `ugc`, `total`) mais `resultados_<coleção>`, lido da execução finalizada. É `null` se qualquer
+  chamada vier sem custo legível (nunca soma parcial) e nas Coletas anteriores. `coletar --yes` imprime ao fim a tabela
+  estimado x real.
 - `recorte` guarda o que foi **pedido** (`dias` ou `inicio`/`fim`, e `teto`); `recorte_efetivo` (esquema v2) traz a janela em
   datas, `{inicio, fim}`: `extração - dias` até a extração na janela relativa (aproximada, o actor conta a partir do instante
   da execução), ou o próprio intervalo no absoluto; `null` se o Recorte só tem teto. A `mais_antiga` da cobertura pode ser
