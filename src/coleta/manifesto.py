@@ -107,7 +107,7 @@ def gerar_manifesto(
     extraido_em: datetime,
     versao_codigo: str,
     custo_estimado: dict[str, float] | None = None,
-    custo_real: float | None = None,
+    custo_real: float | dict[str, float] | None = None,
 ) -> dict[str, Any]:
     """Monta e valida o manifesto do Snapshot em `data_dir` (`bronze/`, `silver/`, `gold/`)."""
     base = Path(data_dir)
@@ -139,7 +139,7 @@ def gerar_manifesto(
         "cobertura": cobertura,
         "custo": {
             "estimado": dict(custo_estimado) if custo_estimado is not None else None,
-            "real": custo_real,
+            "real": dict(custo_real) if isinstance(custo_real, dict) else custo_real,
         },
         "tabelas": _tabelas(base),
     }
@@ -249,7 +249,11 @@ def validar_manifesto(m: Any) -> None:
         for k, v in custo["estimado"].items():
             _exigir(isinstance(k, str), "custo.estimado", "chave texto")
             _numero(v, f"custo.estimado.{k}")
-    if custo["real"] is not None:
+    if isinstance(custo["real"], dict):  # por actor (esquema novo); número ou nulo = Coletas antigas
+        for k, v in custo["real"].items():
+            _exigir(isinstance(k, str), "custo.real", "chave texto")
+            _numero(v, f"custo.real.{k}")
+    elif custo["real"] is not None:
         _numero(custo["real"], "custo.real")
 
     _exigir(isinstance(m["tabelas"], list), "tabelas", "esperado lista")

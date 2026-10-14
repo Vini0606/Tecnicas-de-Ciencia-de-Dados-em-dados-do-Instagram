@@ -24,7 +24,7 @@ from pathlib import Path
 import pandas as pd
 
 from scripts.apify_backfill_shared import profiles_hitting_limit
-from src.coleta.custo import PLANO_PADRAO, estimar_custo, teto_efetivo
+from src.coleta.custo import PLANO_PADRAO, agregar_custo_real, estimar_custo, teto_efetivo
 from src.coleta.derivacao import caminhos_do_destino, derivar_silver_gold
 from src.coleta.manifesto import escrever_manifesto, gerar_manifesto, versao_do_codigo
 from src.coleta.recorte import Recorte, gerar_tag
@@ -48,6 +48,7 @@ class ResultadoColeta:
     destino: Path
     custo_estimado: dict[str, float]
     manifesto: dict
+    custo_real: dict[str, float] | None = None
 
 
 def criar_scraper(client, recorte: Recorte, hoje: date) -> InstagramScraper:
@@ -65,6 +66,11 @@ class _ScraperRecortado:
     def __init__(self, scraper, recorte: Recorte):
         self._scraper = scraper
         self._recorte = recorte
+
+    @property
+    def execucoes(self) -> list[dict]:
+        """Registro de custo por chamada do scraper real; vazio se o scraper não registra."""
+        return getattr(self._scraper, "execucoes", [])
 
     def scrape_profiles(self, links):
         return self._scraper.scrape_profiles(links)
@@ -147,10 +153,12 @@ def coletar(
     dias = recorte.dias_a_extrair(hoje)
     extra = {"onlyPostsNewerThan": f"{dias} days"} if dias else None
     logger.info("[COLETA] %s: extraindo (custo estimado US$ %.2f)...", tag, custo["total"])
-    bruto = extract_and_land(
-        _ScraperRecortado(scraper, recorte), bronze, links, run_id=run_id, extra_run_input=extra
-    )
+    scraper_recortado = _ScraperRecortado(scraper, recorte)
+    bruto = extract_and_land(scraper_recortado, bronze, links, run_id=run_id, extra_run_input=extra)
     _avisar_truncados(bruto, teto_efetivo(recorte, hoje))
+    custo_real = agregar_custo_real(scraper_recortado.execucoes)
+    if custo_real is None:
+        logger.warning("[COLETA] %s: custo real indisponivel (sem custo legivel em alguma chamada da Apify).", tag)
 
     governors_cleaner = GovernorsMetadataCleaner()
     governors_cleaner.write(governors_cleaner.clean(df_governadores, run_id), p["silver_governors"])
@@ -164,8 +172,10 @@ def coletar(
         extraido_em=agora,
         versao_codigo=versao_do_codigo(),
         custo_estimado=custo,
+        custo_real=custo_real,
     )
     escrever_manifesto(destino, manifesto)
     return ResultadoColeta(
-        tag=tag, run_id=run_id, destino=destino, custo_estimado=custo, manifesto=manifesto
+        tag=tag, run_id=run_id, destino=destino, custo_estimado=custo, manifesto=manifesto,
+        custo_real=custo_real,
     )

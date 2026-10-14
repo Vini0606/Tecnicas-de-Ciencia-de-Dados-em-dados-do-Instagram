@@ -194,6 +194,32 @@ def formatar_estimativa(
     return "\n".join(linhas)
 
 
+def _com_sinal(valor: float, fmt: str) -> str:
+    return ("+" if valor > 0 else "") + fmt
+
+
+def formatar_comparacao(estimado: dict[str, float], real: dict[str, float] | None) -> str:
+    """Tabela estimado (esperado) x real por coleção, ao fim de `coletar --yes` (so ASCII)."""
+    if real is None:
+        return "Custo real indisponivel: a Apify nao devolveu o custo de alguma chamada (manifesto com custo.real nulo)."
+    linhas = [("Colecao", "Estimado (US$)", "Real (US$)", "Dif. (US$)", "Dif. (%)")]
+    for nome, chave in (("Posts", "posts"), ("Reels", "reels"), ("UGC", "ugc"), ("Perfis", "perfis"), ("Total", "total")):
+        est, rea = estimado[chave], real[chave]
+        dif = rea - est
+        pct = _com_sinal(dif, _usd(dif / est * 100)[:-1] + "%") if est else "-"  # 1 casa: 12,3%
+        linhas.append((nome, _usd(est), _usd(rea), _com_sinal(dif, _usd(dif)), pct))
+    larguras = [max(len(linha[i]) for linha in linhas) for i in range(5)]
+
+    def formatar(linha: tuple[str, ...]) -> str:
+        return "  " + "   ".join(
+            (c.ljust(larguras[i]) if i == 0 else c.rjust(larguras[i])) for i, c in enumerate(linha)
+        )
+
+    separador = "  " + "   ".join("-" * largura for largura in larguras)
+    corpo = [formatar(linhas[0]), separador, *map(formatar, linhas[1:5]), separador, formatar(linhas[5])]
+    return "\n".join(["", "CUSTO ESTIMADO x REAL", "", *corpo])
+
+
 def _cmd_coletar(args, scraper_factory: ScraperFactory, agora: datetime) -> int:
     recorte = Recorte(dias=args.dias, inicio=args.inicio, fim=args.fim, teto=args.teto)
     hoje = agora.date()
@@ -243,6 +269,7 @@ def _cmd_coletar(args, scraper_factory: ScraperFactory, agora: datetime) -> int:
     except ColetaNaoConfirmada:
         return 0 if not args.yes else 1
     print(f"[OK] Coleta {resultado.tag} gravada em {resultado.destino} (run_id {resultado.run_id}).")
+    print(formatar_comparacao(resultado.custo_estimado, resultado.custo_real))
     print(f"Proximo passo: coleta.py publicar {resultado.destino}")
 
     if args.modelar:
