@@ -98,3 +98,11 @@ def test_custo_so_com_teto_e_menor_que_o_de_uma_janela_longa():
     pequeno = estimar_custo(Recorte(teto=10), 26, EXTRACAO)["total"]
     grande = estimar_custo(Recorte(dias=90, teto=250), 26, EXTRACAO)["total"]
     assert 0 < pequeno < grande
+
+
+def test_janela_efetiva_relativa_absoluta_e_so_teto():
+    hoje = date(2026, 10, 9)
+    assert Recorte(dias=90, teto=250).janela_efetiva(hoje) == (date(2026, 7, 11), hoje)
+    absoluto = Recorte(inicio=date(2026, 3, 1), fim=date(2026, 6, 30))
+    assert absoluto.janela_efetiva(hoje) == (date(2026, 3, 1), date(2026, 6, 30))
+    assert Recorte(teto=10).janela_efetiva(hoje) is None
