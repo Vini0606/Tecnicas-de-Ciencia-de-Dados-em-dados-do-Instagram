@@ -444,6 +444,7 @@ APIFY_ACTORS: list[dict] = [
         "actor_id": "shu8hvrXbJbY3Eb9W",
         "dev": "Apify (oficial)",
         "status": "Produção",
+        "preco": "Pay-per-event, evento 'result'. US$ por 1.000 resultados, por plano: Free 2,70 | Bronze 2,30 | Silver 1,90 | Gold 1,50 | Platinum 0,90 | Diamond 0,50.",
         "parametros_producao": "directUrls=<links>, addParentData=False, resultsLimit=100, resultsType='details', searchType='user' (src/data_extract/scraper.py::InstagramScraper.scrape_profiles).",
         "confiabilidade": "ID confirmado via api.apify.com/v2/acts/shu8hvrXbJbY3Eb9W -> {\"name\":\"instagram-scraper\",\"username\":\"apify\"} (docs/research/..., §0).",
         "notas": "É o actor GENÉRICO \"canivete suíço\" da Apify, não o dedicado apify/instagram-profile-scraper -- rodado só em resultsType='details' hoje. O mesmo actor/ID também suporta resultsType='mentions'/'comments' e busca por hashtag, não explorado no pipeline atual (ver docs/research/..., §7.3, para a rota de UGC que reaproveitaria este mesmo actor sem integrar um novo).",
@@ -451,29 +452,32 @@ APIFY_ACTORS: list[dict] = [
     {
         "papel": "Posts de feed (instagram_posts)",
         "actor_slug": "apify/instagram-post-scraper",
-        "actor_id": "(resolvido pelo slug pela Apify -- não fixado como ID literal no código)",
+        "actor_id": "nH2AHrwxeTRJoN5hX (resolvido pelo slug pela Apify -- o código usa o slug, não o ID literal)",
         "dev": "Apify (oficial)",
         "status": "Produção",
+        "preco": "Pay-per-event. Evento 'post', US$ por 1.000: Free 1,70 | Bronze 1,50 | Silver 1,30 | Gold 1,00 | Platinum 0,80 | Diamond 0,40. MAIS o evento 'post-details' (\"post gravado com informação detalhada\"), US$ por 1.000: Free 1,00 | Bronze 0,80 | Silver 0,70 | Gold 0,60 | Platinum 0,20 | Diamond 0,10. Se os dois incidem em cada post (a confirmar pelo faturamento da primeira Coleta de 90 dias), o total em Bronze é 2,30 por 1.000, igual aos demais actors. Add-on 'music-data' (Bronze 6,00 por 1.000 imagens/carrosséis com música) não usado.",
         "parametros_producao": "username=<usernames>, resultsLimit=30 (ScraperConfig.results_limit) + extra_run_input opcional (ex.: onlyPostsNewerThan, usado por src/coleta/coletar.py para o Recorte por janela relativa).",
-        "confiabilidade": "Confirmado via página do actor + input-schema (docs/research/..., §1.1) -- pay-per-event, ~$1.00/1.000 posts.",
+        "confiabilidade": "Input-schema confirmado (docs/research/..., §1.1). Preço reverificado em 2026-10-13 pela API pública (api.apify.com/v2/acts/apify~instagram-post-scraper, pricingInfos mais recente); o '~$1.00/1.000' da pesquisa de 2026-09-08 está desatualizado (o preço mudou em 2026-03-10, 2026-07-13 e 2026-10-07).",
         "notas": "Não tem includeTranscript nem includeSharesCount (esses são do reel-scraper) -- não confundir com o actor genérico usado para perfis.",
     },
     {
         "papel": "Reels (instagram_reels)",
         "actor_slug": "apify/instagram-reel-scraper",
-        "actor_id": "(resolvido pelo slug pela Apify -- não fixado como ID literal no código)",
+        "actor_id": "xMc5Ga1oCONPmWJIa (resolvido pelo slug pela Apify -- o código usa o slug, não o ID literal)",
         "dev": "Apify (oficial)",
         "status": "Produção",
+        "preco": "Pay-per-event. Evento 'reel', US$ por 1.000: Free 2,60 | Bronze 2,30 | Silver 1,40 | Gold 1,00 | Platinum 0,80 | Diamond 0,40. MAIS 'actor-start' de US$ 0,001 fixo por execução. Add-ons não habilitados hoje: 'shares-count' (Bronze 6,00 por 1.000 reels) e 'transcript' (Bronze US$ 0,041 por minuto iniciado de vídeo).",
         "parametros_producao": "username=<usernames>, resultsLimit=30 + includeTranscript=True SOMENTE quando ScraperConfig.include_transcript=True (default False -- flag paga, cobrada por minuto de vídeo transcrito) + extra_run_input opcional.",
-        "confiabilidade": "Confirmado via página do actor + input-schema (docs/research/..., §1.2) -- pay-per-event, ~$1.00/1.000 reels.",
+        "confiabilidade": "Input-schema confirmado (docs/research/..., §1.2). Preço reverificado em 2026-10-13 pela API pública (api.apify.com/v2/acts/apify~instagram-reel-scraper, pricingInfos mais recente); o '~$1.00/1.000' da pesquisa de 2026-09-08 não vale para o plano Bronze.",
         "notas": "Também suporta includeSharesCount (plano Starter+) e includeDownloadedVideo (cobrado por MB) -- nenhuma das duas está habilitada em ScraperConfig hoje (ver docs/research/..., §1.2, achado chave sobre sharesCount).",
     },
     {
         "papel": "Menções/UGC de terceiros (ugc_mentions) -- Produção",
         "actor_slug": "apify/instagram-tagged-scraper",
-        "actor_id": "(resolvido pelo slug pela Apify -- não fixado como ID literal no código)",
+        "actor_id": "zTSjdcGqjg6KEIBlt (resolvido pelo slug pela Apify -- o código usa o slug, não o ID literal)",
         "dev": "Apify (oficial)",
         "status": "Produção -- coletado a cada Coleta (`coleta.py coletar`, via extract_and_land, issue #211); primeira execução real em 2026-09-19 (PR #140). O script de piloto isolado (run_apify_mentions_pilot.py) foi removido na ADR 0039.",
+        "preco": "Pay-per-event, evento 'post'. US$ por 1.000 posts, por plano: Free 2,70 | Bronze 2,30 | Silver 1,90 | Gold 1,50 | Platinum 1,00 | Diamond 0,50. A pesquisa de 2026-09-08 citava US$ 1,50 por 1.000, que hoje é o preço do plano Gold.",
         "parametros_producao": "username=<usernames>, resultsLimit=<baixo no piloto> (ScraperConfig.mentions_actor_id, InstagramScraper.scrape_mentions).",
         "confiabilidade": "Escolhido sobre fetch_cat/instagram-mentions-scraper por reprodutibilidade (9.999 usuários, 5.0 estrelas vs. actor community \"under maintenance\", 2 usuários -- docs/research/..., §7.1). Schema de output confirmado 1:1 contra os 27 perfis do projeto pelo piloto real de 2026-09-19, e validado de novo pela execução de produção do mesmo dia.",
         "notas": "docs/research/apify-instagram-actors-cobra-mapping.md (§7) também mapeia uma rota alternativa sem integrar actor novo: reconfigurar o actor de perfis já em uso (shu8hvrXbJbY3Eb9W) para resultsType='mentions' -- capacidade confirmada, schema de output dessa rota específica NÃO confirmado por exemplo primário.",
@@ -1104,16 +1108,17 @@ def build_actors_sheet(wb: Workbook) -> None:
     ws = wb.create_sheet("Actors Apify")
     header = [
         "Papel no pipeline", "Actor (slug)", "Actor ID técnico", "Desenvolvedor",
-        "Status", "Parâmetros usados em produção", "Confiabilidade da fonte", "Notas",
+        "Status", "Preço por resultado (verificado em 2026-10-13)", "Parâmetros usados em produção",
+        "Confiabilidade da fonte", "Notas",
     ]
     rows = [
         [
-            a["papel"], a["actor_slug"], a["actor_id"], a["dev"], a["status"],
+            a["papel"], a["actor_slug"], a["actor_id"], a["dev"], a["status"], a["preco"],
             a["parametros_producao"], a["confiabilidade"], a["notas"],
         ]
         for a in APIFY_ACTORS
     ]
-    widths = [34, 30, 30, 16, 20, 55, 50, 55]
+    widths = [34, 30, 30, 16, 20, 60, 55, 50, 55]
     _write_rows(ws, header, rows, widths)
 
 
