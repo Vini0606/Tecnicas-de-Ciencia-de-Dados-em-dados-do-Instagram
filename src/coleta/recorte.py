@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, timedelta
 
 # Prefixos reservados: um rótulo livre não pode imitar um segmento da gramática.
 _ROTULO_RE = r"(?!(?:teto|ultimos|de)-)[a-z0-9]+(?:-[a-z0-9]+)*"
@@ -64,6 +64,16 @@ class Recorte:
             return self.dias
         if self.inicio is not None:
             return max((hoje - self.inicio).days, 1)
+        return None
+
+    def janela_efetiva(self, hoje: date) -> tuple[date, date] | None:
+        """Janela em datas: `(hoje - dias, hoje)` para a relativa, `(inicio, fim)`
+        para o intervalo absoluto, `None` sem janela (só teto). Aproximada na
+        relativa: o actor conta "N dias" a partir do instante da execução."""
+        if self.dias is not None:
+            return hoje - timedelta(days=self.dias), hoje
+        if self.inicio is not None:
+            return self.inicio, self.fim
         return None
 
     def dentro_do_recorte(self, publicado_em: date) -> bool:

@@ -24,7 +24,8 @@ from deltalake import DeltaTable
 
 from src.coleta.recorte import Recorte, tag_valida
 
-VERSAO_ESQUEMA = 1
+VERSAO_ESQUEMA = 2
+VERSOES_ACEITAS = (1, VERSAO_ESQUEMA)  # a 1 não tem `recorte_efetivo`
 NOME_ARQUIVO = "manifesto.json"
 FONTES = ("posts", "reels", "perfis", "ugc")
 CAMADAS = ("bronze", "silver", "gold")
@@ -118,6 +119,7 @@ def gerar_manifesto(
     if silver_ugc is not None:
         cobertura["ugc"]["por_perfil"] = _cobertura(silver_ugc, silver_perfil, silver_data)["por_perfil"]
 
+    janela = recorte.janela_efetiva(extraido_em.date())
     manifesto = {
         "versao_esquema": VERSAO_ESQUEMA,
         "identidade": {
@@ -131,6 +133,9 @@ def gerar_manifesto(
             "fim": recorte.fim.isoformat() if recorte.fim else None,
             "teto": recorte.teto,
         },
+        "recorte_efetivo": (
+            {"inicio": janela[0].isoformat(), "fim": janela[1].isoformat()} if janela else None
+        ),
         "cobertura": cobertura,
         "custo": {
             "estimado": dict(custo_estimado) if custo_estimado is not None else None,
@@ -193,8 +198,11 @@ def _intervalo(obj: dict, caminho: str) -> None:
 def validar_manifesto(m: Any) -> None:
     """Levanta `ValueError` se `m` não segue o esquema (chaves exatas, tipos,
     datas ISO). Esquema fechado: um campo extra (p.ex. texto) é recusado."""
-    m = _chaves(m, {"versao_esquema", "identidade", "recorte", "cobertura", "custo", "tabelas"}, "manifesto")
-    _exigir(m["versao_esquema"] == VERSAO_ESQUEMA, "versao_esquema", f"esperado {VERSAO_ESQUEMA}")
+    _exigir(isinstance(m, dict), "manifesto", "esperado objeto")
+    v_esquema = m.get("versao_esquema")
+    _exigir(v_esquema in VERSOES_ACEITAS, "versao_esquema", f"esperado um de {VERSOES_ACEITAS}")
+    chaves = {"versao_esquema", "identidade", "recorte", "cobertura", "custo", "tabelas"}
+    m = _chaves(m, chaves | ({"recorte_efetivo"} if v_esquema >= 2 else set()), "manifesto")
 
     ident = _chaves(m["identidade"], {"tag", "extraido_em", "versao_codigo"}, "identidade")
     _exigir(isinstance(ident["tag"], str) and tag_valida(ident["tag"]), "identidade.tag", "tag fora da gramática")
@@ -215,6 +223,14 @@ def validar_manifesto(m: Any) -> None:
             _int(rec[k], f"recorte.{k}", 1)
     _data_opcional(rec["inicio"], "recorte.inicio")
     _data_opcional(rec["fim"], "recorte.fim")
+    if "recorte_efetivo" in m:
+        ef = m["recorte_efetivo"]
+        if ef is not None:
+            ef = _chaves(ef, {"inicio", "fim"}, "recorte_efetivo")
+            for k in ("inicio", "fim"):
+                _exigir(ef[k] is not None, f"recorte_efetivo.{k}", "data ISO obrigatória")
+                _data_opcional(ef[k], f"recorte_efetivo.{k}")
+            _exigir(ef["inicio"] <= ef["fim"], "recorte_efetivo", "inicio depois de fim")
 
     cob = _chaves(m["cobertura"], set(FONTES), "cobertura")
     for fonte in FONTES:

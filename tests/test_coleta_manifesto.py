@@ -116,13 +116,14 @@ def _gerar(snapshot, **kw):
 def test_manifesto_traz_todos_os_campos_e_valida(snapshot):
     m = _gerar(snapshot, custo_real=1.8)
 
-    assert m["versao_esquema"] == 1
+    assert m["versao_esquema"] == 2
     assert m["identidade"] == {
         "tag": "coleta_2026-10-09_ultimos-90d_teto-250",
         "extraido_em": "2026-10-09T14:30:00+00:00",
         "versao_codigo": "abc123def456",
     }
     assert m["recorte"] == {"dias": 90, "inicio": None, "fim": None, "teto": 250}
+    assert m["recorte_efetivo"] == {"inicio": "2026-07-11", "fim": "2026-10-09"}
     assert m["custo"] == {"estimado": {"posts_reels": 1.5, "ugc": 0.5, "total": 2.0}, "real": 1.8}
     tabelas = {(t["camada"], t["nome"]): t["linhas"] for t in m["tabelas"]}
     assert tabelas == {
@@ -177,7 +178,43 @@ def test_recorte_absoluto_e_custo_ausente(tmp_path):
     recorte = Recorte(inicio=date(2026, 3, 1), fim=date(2026, 6, 30))
     m = _gerar(tmp_path, recorte=recorte, tag=gerar_tag(recorte, date(2026, 10, 9)), custo_estimado=None)
     assert m["recorte"]["inicio"] == "2026-03-01"
+    assert m["recorte_efetivo"] == {"inicio": "2026-03-01", "fim": "2026-06-30"}
     assert m["custo"] == {"estimado": None, "real": None}
+
+
+def test_recorte_so_com_teto_nao_tem_janela_efetiva(tmp_path):
+    recorte = Recorte(teto=10)
+    m = _gerar(tmp_path, recorte=recorte, tag=gerar_tag(recorte, date(2026, 10, 9)))
+    assert m["recorte_efetivo"] is None
+    validar_manifesto(m)
+
+
+def test_manifesto_v1_sem_recorte_efetivo_continua_valido(snapshot):
+    m = _gerar(snapshot)
+    m["versao_esquema"] = 1
+    del m["recorte_efetivo"]
+    validar_manifesto(m)
+
+    m["recorte_efetivo"] = None  # campo da v2 numa v1: recusado
+    with pytest.raises(ValueError, match="chaves"):
+        validar_manifesto(m)
+
+
+def test_manifesto_v2_exige_recorte_efetivo_coerente(snapshot):
+    m = _gerar(snapshot)
+    sem_campo = {k: v for k, v in m.items() if k != "recorte_efetivo"}
+    with pytest.raises(ValueError, match="chaves"):
+        validar_manifesto(sem_campo)
+
+    invertido = json.loads(json.dumps(m))
+    invertido["recorte_efetivo"] = {"inicio": "2026-10-09", "fim": "2026-07-11"}
+    with pytest.raises(ValueError, match="inicio depois de fim"):
+        validar_manifesto(invertido)
+
+    incompleto = json.loads(json.dumps(m))
+    incompleto["recorte_efetivo"] = {"inicio": "2026-07-11", "fim": None}
+    with pytest.raises(ValueError, match="obrigatória"):
+        validar_manifesto(incompleto)
 
 
 def test_esquema_recusa_campo_extra_tag_ruim_e_data_invalida(snapshot):

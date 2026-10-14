@@ -38,9 +38,10 @@ def _manifesto(tag: str = TAG, dias: int | None = 90, teto: int | None = 250) ->
         "por_perfil": [{"username": "gov_a", "itens": 10, "mais_antiga": "2026-07-12", "mais_recente": "2026-10-08"}],
     }
     m = {
-        "versao_esquema": 1,
+        "versao_esquema": 2,
         "identidade": {"tag": tag, "extraido_em": "2026-10-09T10:00:00", "versao_codigo": "abc123"},
         "recorte": {"dias": dias, "inicio": None, "fim": None, "teto": teto},
+        "recorte_efetivo": None,
         "cobertura": {"posts": posts, "reels": dict(vazio), "perfis": dict(vazio), "ugc": dict(vazio)},
         "custo": {"estimado": None, "real": None},
         "tabelas": [{"camada": "bronze", "nome": "instagram_posts", "linhas": 10}],

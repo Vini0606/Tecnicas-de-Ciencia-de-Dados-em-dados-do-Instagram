@@ -49,6 +49,10 @@ Exemplos:
 - O manifesto traz identidade (tag, data e hora, versão do código), Recorte pedido, cobertura real por fonte e por perfil
   (contagens e datas mais antiga e mais recente), custo na Apify e a lista de tabelas derivadas com número de linhas.
   Não carrega conteúdo (nomes, textos) nem segredos.
+- `recorte` guarda o que foi **pedido** (`dias` ou `inicio`/`fim`, e `teto`); `recorte_efetivo` (esquema v2) traz a janela em
+  datas, `{inicio, fim}`: `extração - dias` até a extração na janela relativa (aproximada, o actor conta a partir do instante
+  da execução), ou o próprio intervalo no absoluto; `null` se o Recorte só tem teto. A `mais_antiga` da cobertura pode ser
+  anterior ao `inicio` efetivo, porque itens fixados no perfil entram mesmo fora da janela. Manifestos v1 (sem o campo) continuam válidos.
 - A `main` do dataset guarda **só a Coleta vigente**. Uma Coleta nova entra como um commit que substitui os arquivos da
   anterior; as anteriores continuam na história da `main`, acessíveis pelo identificador, pelo hash do commit ou por uma tag de uso.
 - **Nunca apague o commit de uma Coleta anterior** nem reescreva a `main` com force-push (um `super_squash_history` descarta
