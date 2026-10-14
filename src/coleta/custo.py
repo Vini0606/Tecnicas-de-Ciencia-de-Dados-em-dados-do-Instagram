@@ -12,6 +12,7 @@ Preços por actor e por plano da conta Apify, sem rede: a tabela abaixo é um re
 from __future__ import annotations
 
 from datetime import date
+from typing import TYPE_CHECKING
 
 from config import settings
 from scripts.apify_backfill_shared import (
@@ -20,6 +21,9 @@ from scripts.apify_backfill_shared import (
     default_results_limit,
 )
 from src.coleta.recorte import Recorte
+
+if TYPE_CHECKING:
+    from src.coleta.calibracao import Calibracao
 
 PLANO_PADRAO = "BRONZE"  # equivale ao Starter (assumido; confirmar no Console da Apify)
 PRECOS_VERIFICADOS_EM = "2026-10-13"
@@ -85,21 +89,32 @@ def _precos(plano: str) -> dict[str, float]:
 
 
 def estimar_custo(
-    recorte: Recorte, n_governadores: int, hoje: date, plano: str = PLANO_PADRAO
+    recorte: Recorte,
+    n_governadores: int,
+    hoje: date,
+    plano: str = PLANO_PADRAO,
+    calibracao: Calibracao | None = None,
 ) -> dict[str, float]:
     """Dicionário plano (texto -> número, o formato que o manifesto grava).
 
     `posts_reels`, `ugc`, `perfis` e `total` são o **esperado**; `pior_caso_*` é o teto cheio por coleção;
-    `resultados_*` são os resultados esperados por coleção."""
+    `resultados_*` são os resultados esperados por coleção. Com `calibracao` (issue #299), posts e reels usam a
+    taxa de cada governador; sem ela, ou em fallback, as taxas fixas da ADR 0012. O pior caso não depende dela."""
     preco = _precos(plano)
     teto = teto_efetivo(recorte, hoje)
     dias = recorte.dias_a_extrair(hoje)
 
-    def esperado(taxa_por_dia: float) -> float:
-        por_perfil = min(taxa_por_dia * dias, teto) if dias else teto
-        return n_governadores * por_perfil
+    def esperado(colecao: str, taxa_fixa: float) -> float:
+        if not dias:
+            return n_governadores * teto
+        if calibracao is None or calibracao.usa_taxas_fixas:
+            return n_governadores * min(taxa_fixa * dias, teto)
+        # taxa de cada governador (Coleta anterior); quem não tem usa a média dos calibrados
+        taxas = calibracao.taxas[colecao].values()
+        sem_taxa = max(n_governadores - len(taxas), 0)
+        return sum(min(r * dias, teto) for r in taxas) + sem_taxa * min(calibracao.taxa_media[colecao] * dias, teto)
 
-    res_posts, res_reels = esperado(TAXA_POSTS_POR_DIA), esperado(TAXA_REELS_POR_DIA)
+    res_posts, res_reels = esperado("posts", TAXA_POSTS_POR_DIA), esperado("reels", TAXA_REELS_POR_DIA)
     res_teto_cheio = n_governadores * teto  # pior caso de cada coleção; também o UGC esperado (sem calibração)
 
     def usd(resultados: float, actor: str) -> float:

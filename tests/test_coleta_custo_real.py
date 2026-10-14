@@ -12,7 +12,7 @@ import pytest
 from test_coleta_coletar import LINK, _coletar, _governadores, _ScraperFalso
 from test_coleta_manifesto import _gerar, snapshot  # noqa: F401  (fixture)
 
-from src.coleta import cli
+from src.coleta import cli, hf
 from src.coleta.manifesto import validar_manifesto
 from src.coleta.recorte import Recorte
 from src.data_extract.scraper import InstagramScraper
@@ -143,6 +143,16 @@ def test_custo_real_aceita_nulo_numero_antigo_e_dicionario_de_numeros(snapshot):
 
 
 # --- CLI ----------------------------------------------------------------------------------
+
+
+@pytest.fixture(autouse=True)
+def _sem_rede_no_hf(monkeypatch):
+    """A calibração consulta o HF; nos testes ele nunca é tocado (cai nas taxas fixas)."""
+
+    def sem_hf(*_a, **_k):
+        raise hf.ErroColetaHF("HF bloqueado nos testes")
+
+    monkeypatch.setattr(hf, "ClienteColetaHFReal", sem_hf)
 
 
 @pytest.fixture
