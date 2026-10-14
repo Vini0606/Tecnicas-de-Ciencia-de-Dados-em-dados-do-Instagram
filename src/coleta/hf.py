@@ -154,10 +154,10 @@ def _ler_manifesto_local(pasta: Path) -> dict[str, Any]:
 def _recorte_do(manifesto: dict[str, Any]) -> Recorte:
     r = manifesto["recorte"]
     return Recorte(
-        dias=r["dias"],
-        inicio=date.fromisoformat(r["inicio"]) if r["inicio"] else None,
-        fim=date.fromisoformat(r["fim"]) if r["fim"] else None,
-        teto=r["teto"],
+        dias=r.get("dias"),
+        inicio=date.fromisoformat(r["inicio"]) if r.get("inicio") else None,
+        fim=date.fromisoformat(r["fim"]) if r.get("fim") else None,
+        teto=r.get("teto"),
     )
 
 

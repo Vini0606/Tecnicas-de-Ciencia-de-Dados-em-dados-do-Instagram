@@ -195,3 +195,42 @@ def test_com_yes_sem_custo_real_avisa_que_nao_foi_possivel_ler(tmp_path, capsys,
 
     assert "CUSTO ESTIMADO x REAL" not in saida
     assert "Custo real indisponivel" in saida
+
+
+def _run_com_eventos(usd, contagens, precos):
+    return {
+        "usageTotalUsd": usd,
+        "chargedEventCounts": contagens,
+        "pricingInfo": {
+            "pricingModel": "PAY_PER_EVENT",
+            "pricingPerEvent": {"actorChargeEvents": {k: {"eventPriceUsd": v} for k, v in precos.items()}},
+        },
+    }
+
+
+def test_sem_usage_total_o_custo_sai_dos_eventos_cobrados_e_seus_precos():
+    # run real de posts do piloto: 601 x (post 0.0017 + post-details 0.001) = 1.6227
+    final = _run_com_eventos(None, {"post": 601, "post-details": 601}, {"post": 0.0017, "post-details": 0.001})
+    scraper = InstagramScraper(_client(final, [{"id": "1"}]))
+
+    scraper.scrape_posts(["gov"])
+
+    assert scraper.execucoes[0]["usd"] == pytest.approx(1.6227)
+
+
+def test_usage_total_tem_prioridade_sobre_o_calculo_por_eventos():
+    final = _run_com_eventos(0.5, {"post": 10}, {"post": 0.0017})
+    scraper = InstagramScraper(_client(final))
+
+    scraper.scrape_posts(["gov"])
+
+    assert scraper.execucoes[0]["usd"] == 0.5
+
+
+def test_evento_cobrado_sem_preco_conhecido_nao_gera_custo_parcial():
+    final = _run_com_eventos(None, {"post": 10, "transcript": 3}, {"post": 0.0017})
+    scraper = InstagramScraper(_client(final))
+
+    scraper.scrape_posts(["gov"])
+
+    assert scraper.execucoes[0]["usd"] is None

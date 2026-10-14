@@ -116,13 +116,13 @@ def _gerar(snapshot, **kw):
 def test_manifesto_traz_todos_os_campos_e_valida(snapshot):
     m = _gerar(snapshot, custo_real=1.8)
 
-    assert m["versao_esquema"] == 2
+    assert m["versao_esquema"] == 3
     assert m["identidade"] == {
         "tag": "coleta_2026-10-09_ultimos-90d_teto-250",
         "extraido_em": "2026-10-09T14:30:00+00:00",
         "versao_codigo": "abc123def456",
     }
-    assert m["recorte"] == {"dias": 90, "inicio": None, "fim": None, "teto": 250}
+    assert m["recorte"] == {"dias": 90, "teto": 250}  # v3: só as chaves que se aplicam
     assert m["recorte_efetivo"] == {"inicio": "2026-07-11", "fim": "2026-10-09"}
     assert m["custo"] == {"estimado": {"posts_reels": 1.5, "ugc": 0.5, "total": 2.0}, "real": 1.8}
     tabelas = {(t["camada"], t["nome"]): t["linhas"] for t in m["tabelas"]}
@@ -151,6 +151,9 @@ def test_cobertura_por_perfil_bate_com_o_snapshot(snapshot):
     ]
     assert cob["perfis"]["itens"] == 2
     assert cob["ugc"]["itens"] == 2
+    # UGC: data de publicação; perfis não têm publicação, então a data é a da captura (_ingested_at)
+    assert (cob["ugc"]["mais_antiga"], cob["ugc"]["mais_recente"]) == ("2026-09-10", "2026-09-12")
+    assert cob["perfis"]["mais_antiga"] == cob["perfis"]["mais_recente"] == datetime.now(timezone.utc).date().isoformat()
     assert cob["ugc"]["por_perfil"] == [
         {"username": "gov_a", "itens": 2, "mais_antiga": "2026-09-10", "mais_recente": "2026-09-12"}
     ]
@@ -203,6 +206,7 @@ def test_manifesto_v1_sem_recorte_efetivo_continua_valido(snapshot):
     m = _gerar(snapshot)
     m["versao_esquema"] = 1
     del m["recorte_efetivo"]
+    m["recorte"] = {"dias": 90, "inicio": None, "fim": None, "teto": 250}  # v1/v2 gravam todas as chaves
     validar_manifesto(m)
 
     m["recorte_efetivo"] = None  # campo da v2 numa v1: recusado
@@ -254,3 +258,31 @@ def test_esquema_recusa_campo_extra_tag_ruim_e_data_invalida(snapshot):
 def test_versao_do_codigo_e_hash_git_ou_desconhecida(tmp_path):
     assert versao_do_codigo(tmp_path) == "desconhecida"
     assert versao_do_codigo() != ""
+
+
+def test_recorte_v3_nao_grava_chave_nula_e_recusa_chave_estranha(snapshot):
+    m = _gerar(snapshot)
+    assert all(v is not None for v in m["recorte"].values())
+
+    com_nulo = json.loads(json.dumps(m))
+    com_nulo["recorte"]["inicio"] = None
+    with pytest.raises(ValueError, match="nula"):
+        validar_manifesto(com_nulo)
+
+    estranha = json.loads(json.dumps(m))
+    estranha["recorte"]["texto"] = "x"
+    with pytest.raises(ValueError, match="chaves"):
+        validar_manifesto(estranha)
+
+
+def test_manifesto_v2_com_chaves_nulas_no_recorte_continua_valido(snapshot):
+    m = _gerar(snapshot)
+    m["versao_esquema"] = 2
+    m["recorte"] = {"dias": 5, "inicio": None, "fim": None, "teto": 30}
+    validar_manifesto(m)
+
+
+def test_recorte_absoluto_sem_teto_so_grava_inicio_e_fim(tmp_path):
+    recorte = Recorte(inicio=date(2026, 3, 1), fim=date(2026, 6, 30))
+    m = _gerar(tmp_path, recorte=recorte, tag=gerar_tag(recorte, date(2026, 10, 9)))
+    assert m["recorte"] == {"inicio": "2026-03-01", "fim": "2026-06-30"}

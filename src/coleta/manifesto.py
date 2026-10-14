@@ -24,18 +24,21 @@ from deltalake import DeltaTable
 
 from src.coleta.recorte import Recorte, tag_valida
 
-VERSAO_ESQUEMA = 2
-VERSOES_ACEITAS = (1, VERSAO_ESQUEMA)  # a 1 não tem `recorte_efetivo`
+VERSAO_ESQUEMA = 3
+# v1 não tem `recorte_efetivo`; v1 e v2 gravam todas as chaves de `recorte`, com nulo onde não se aplicam;
+# a v3 só grava as que se aplicam (sem nulos).
+VERSOES_ACEITAS = (1, 2, VERSAO_ESQUEMA)
 NOME_ARQUIVO = "manifesto.json"
 FONTES = ("posts", "reels", "perfis", "ugc")
 CAMADAS = ("bronze", "silver", "gold")
 
-# fonte -> (tabela Bronze, coluna de perfil, coluna de data) para a cobertura.
+# fonte -> (tabela Bronze, coluna de perfil, coluna de data) para a cobertura. Posts, reels e UGC usam a data de
+# publicação (`timestamp`, UTC); perfis não têm publicação, então a data é a da captura (`_ingested_at`).
 _BRONZE = {
     "posts": ("instagram_posts", "ownerUsername", "timestamp"),
     "reels": ("instagram_reels", "ownerUsername", "timestamp"),
-    "perfis": ("instagram_profiles", None, None),
-    "ugc": ("ugc_mentions", None, None),
+    "perfis": ("instagram_profiles", None, "_ingested_at"),
+    "ugc": ("ugc_mentions", None, "timestamp"),
 }
 # UGC por perfil vem da Silver, onde o post de terceiro já foi correlacionado a
 # um governador (`governor_username`); o autor do post (pessoa) nunca entra.
@@ -99,6 +102,17 @@ def _tabelas(data_dir: Path) -> list[dict[str, Any]]:
     return tabelas
 
 
+def _recorte_pedido(recorte: Recorte) -> dict[str, Any]:
+    """O que foi pedido, só com as chaves que se aplicam (a janela efetiva vai em `recorte_efetivo`)."""
+    pedido: dict[str, Any] = {
+        "dias": recorte.dias,
+        "inicio": recorte.inicio.isoformat() if recorte.inicio else None,
+        "fim": recorte.fim.isoformat() if recorte.fim else None,
+        "teto": recorte.teto,
+    }
+    return {k: v for k, v in pedido.items() if v is not None}
+
+
 def gerar_manifesto(
     data_dir: Path | str,
     *,
@@ -127,12 +141,7 @@ def gerar_manifesto(
             "extraido_em": extraido_em.isoformat(timespec="seconds"),
             "versao_codigo": versao_codigo,
         },
-        "recorte": {
-            "dias": recorte.dias,
-            "inicio": recorte.inicio.isoformat() if recorte.inicio else None,
-            "fim": recorte.fim.isoformat() if recorte.fim else None,
-            "teto": recorte.teto,
-        },
+        "recorte": _recorte_pedido(recorte),
         "recorte_efetivo": (
             {"inicio": janela[0].isoformat(), "fim": janela[1].isoformat()} if janela else None
         ),
@@ -203,6 +212,7 @@ def validar_manifesto(m: Any) -> None:
     _exigir(v_esquema in VERSOES_ACEITAS, "versao_esquema", f"esperado um de {VERSOES_ACEITAS}")
     chaves = {"versao_esquema", "identidade", "recorte", "cobertura", "custo", "tabelas"}
     m = _chaves(m, chaves | ({"recorte_efetivo"} if v_esquema >= 2 else set()), "manifesto")
+    v3 = v_esquema >= 3
 
     ident = _chaves(m["identidade"], {"tag", "extraido_em", "versao_codigo"}, "identidade")
     _exigir(isinstance(ident["tag"], str) and tag_valida(ident["tag"]), "identidade.tag", "tag fora da gramática")
@@ -217,7 +227,14 @@ def validar_manifesto(m: Any) -> None:
         "hash sem espaços",
     )
 
-    rec = _chaves(m["recorte"], {"dias", "inicio", "fim", "teto"}, "recorte")
+    chaves_recorte = {"dias", "inicio", "fim", "teto"}
+    if v3:  # só as chaves que se aplicam, nunca nulas
+        _exigir(isinstance(m["recorte"], dict), "recorte", "esperado objeto")
+        _exigir(set(m["recorte"]) <= chaves_recorte, "recorte", f"chaves {sorted(m['recorte'])} fora de {sorted(chaves_recorte)}")
+        _exigir(all(v is not None for v in m["recorte"].values()), "recorte", "v3 não grava chave nula")
+        rec = {k: m["recorte"].get(k) for k in chaves_recorte}
+    else:
+        rec = _chaves(m["recorte"], chaves_recorte, "recorte")
     for k in ("dias", "teto"):
         if rec[k] is not None:
             _int(rec[k], f"recorte.{k}", 1)

@@ -58,13 +58,25 @@ Exemplos:
   (contagens e datas mais antiga e mais recente), custo na Apify e a lista de tabelas derivadas com número de linhas.
   Não carrega conteúdo (nomes, textos) nem segredos.
 - `custo.estimado` é o esperado e o pior caso da estimativa; `custo.real` (desde a #297) é o que a Apify cobrou, por coleção
-  (`perfis`, `posts`, `reels`, `ugc`, `total`) mais `resultados_<coleção>`, lido da execução finalizada. É `null` se qualquer
-  chamada vier sem custo legível (nunca soma parcial) e nas Coletas anteriores. `coletar --yes` imprime ao fim a tabela
-  estimado x real.
-- `recorte` guarda o que foi **pedido** (`dias` ou `inicio`/`fim`, e `teto`); `recorte_efetivo` (esquema v2) traz a janela em
-  datas, `{inicio, fim}`: `extração - dias` até a extração na janela relativa (aproximada, o actor conta a partir do instante
-  da execução), ou o próprio intervalo no absoluto; `null` se o Recorte só tem teto. A `mais_antiga` da cobertura pode ser
-  anterior ao `inicio` efetivo, porque itens fixados no perfil entram mesmo fora da janela. Manifestos v1 (sem o campo) continuam válidos.
+  (`perfis`, `posts`, `reels`, `ugc`, `total`) mais `resultados_<coleção>`, lido da execução finalizada: o `usageTotalUsd` do
+  run ou, se a Apify ainda não o calculou, os eventos cobrados x o preço de cada evento do próprio run (confere centavo a
+  centavo com o `usageTotalUsd`). É `null` só se nenhuma das duas leituras for possível (nunca soma parcial). `coletar --yes`
+  imprime ao fim a tabela estimado x real. **Os runs somem da conta Apify após 7 dias (plano FREE)**: o manifesto é o único
+  registro durável do custo, então a Coleta fica sem custo real se ele não for gravado na hora.
+- **Manifesto sem nulos (esquema v3).** `recorte` guarda o que foi **pedido** só com as chaves que se aplicam (`dias` **ou**
+  `inicio`/`fim`, mais `teto` se informado); a janela em datas fica em `recorte_efetivo`. Na `cobertura`, posts, reels e UGC
+  usam a data de **publicação** (UTC, `timestamp` da Bronze) e `perfis` usa a data de **captura** (`_ingested_at`), porque um
+  perfil não tem publicação. Uma fonte sem nenhum item (ex.: UGC vazio) continua com datas `null`, por não haver o que medir.
+  Manifestos v1 e v2 (com `null` em `recorte` e sem `recorte_efetivo` na v1) continuam válidos.
+- **Coleta piloto (`coleta_2026-10-06_ultimos-5d_teto-30`), manifesto corrigido em 2026-10-14** (commit `fix:` na `main` do HF; a
+  tag `reboot-iesb` segue apontando para o commit original, com o manifesto v1): `custo.real` vem dos 4 runs da conta Apify
+  **IESB** (plano FREE, US$ 3,7153 no total; as contas pessoal e IESB são `APIFY_API_TOKEN` e `APIFY_API_TOKEN_IESB`),
+  `custo.estimado` foi recalculado depois com o estimador atual e os preços do plano FREE (a estimativa da época nunca foi
+  gravada) e `recorte_efetivo` e as datas de `perfis`/`ugc` saíram do próprio Snapshot.
+- `recorte_efetivo` (esquema v2+) traz a janela em datas, `{inicio, fim}`: `extração - dias` até a extração na janela relativa
+  (aproximada, o actor conta a partir do instante da execução), ou o próprio intervalo no absoluto; `null` se o Recorte só tem
+  teto. A `mais_antiga` da cobertura pode ser anterior ao `inicio` efetivo, porque itens fixados no perfil entram mesmo fora da
+  janela, e o UGC não é limitado pela janela. O manifesto não carrega conteúdo (nomes, textos) nem segredos.
 - A `main` do dataset guarda **só a Coleta vigente**. Uma Coleta nova entra como um commit que substitui os arquivos da
   anterior; as anteriores continuam na história da `main`, acessíveis pelo identificador, pelo hash do commit ou por uma tag de uso.
 - **Nunca apague o commit de uma Coleta anterior** nem reescreva a `main` com force-push (um `super_squash_history` descarta
