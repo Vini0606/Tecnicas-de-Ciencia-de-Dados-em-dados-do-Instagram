@@ -33,7 +33,26 @@ def test_coletar_sem_yes_mostra_custo_e_nao_gasta_nem_escreve(tmp_path, capsys):
     assert codigo == 0
     assert "Custo estimado" in saida and "total ~US$" in saida
     assert "ABORTADO" in saida
+    assert "Janela: 2026-07-11 a 2026-10-09 (aproximada)" in saida
     assert not destino.exists()
+
+
+def test_estimativa_janela_absoluta_e_so_teto(tmp_path, capsys):
+    cli.main(
+        ["coletar", "--inicio", "2026-03-01", "--fim", "2026-06-30", "--destino", str(tmp_path / "a")],
+        scraper_factory=_fabrica_proibida,
+        agora=AGORA,
+    )
+    saida = capsys.readouterr().out
+    assert "Janela: 2026-03-01 a 2026-06-30\n" in saida
+    assert "aproximada" not in saida
+
+    cli.main(
+        ["coletar", "--teto", "10", "--destino", str(tmp_path / "b")],
+        scraper_factory=_fabrica_proibida,
+        agora=AGORA,
+    )
+    assert "Janela:" not in capsys.readouterr().out
 
 
 def test_coletar_com_yes_grava_snapshot_com_manifesto(tmp_path, capsys):

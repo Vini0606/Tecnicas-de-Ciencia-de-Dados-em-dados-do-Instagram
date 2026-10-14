@@ -147,8 +147,12 @@ def _cmd_coletar(args, scraper_factory: ScraperFactory, agora: datetime) -> int:
 
     links, usernames, df_governadores = _carregar_governadores()
     custo = estimar_custo(recorte, len(links), hoje)
+    janela = recorte.janela_efetiva(hoje)
+    aproximada = " (aproximada)" if recorte.dias is not None else ""
+    linha_janela = f"Janela: {janela[0]} a {janela[1]}{aproximada}\n" if janela else ""
     print(
         f"Recorte: {recorte}\n"
+        f"{linha_janela}"
         f"Governadores: {len(links)}; teto efetivo: {teto_efetivo(recorte, hoje)} por perfil.\n"
         f"Custo estimado (pior caso): posts+reels ~US$ {custo['posts_reels']}, "
         f"UGC ~US$ {custo['ugc']}, total ~US$ {custo['total']}."
