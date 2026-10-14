@@ -24,7 +24,7 @@ from pathlib import Path
 import pandas as pd
 
 from scripts.apify_backfill_shared import profiles_hitting_limit
-from src.coleta.custo import estimar_custo, teto_efetivo
+from src.coleta.custo import PLANO_PADRAO, estimar_custo, teto_efetivo
 from src.coleta.derivacao import caminhos_do_destino, derivar_silver_gold
 from src.coleta.manifesto import escrever_manifesto, gerar_manifesto, versao_do_codigo
 from src.coleta.recorte import Recorte, gerar_tag
@@ -118,10 +118,11 @@ def coletar(
     rotulo: str | None = None,
     run_id: str | None = None,
     modelar: Callable[[dict[str, pd.DataFrame]], None] | None = None,
+    plano: str = PLANO_PADRAO,
 ) -> ResultadoColeta:
     """Executa uma Coleta completa em `destino` e devolve o Snapshot local.
 
-    `confirmar(custo)` é chamado com o custo estimado (pior caso, US$) antes
+    `confirmar(custo)` é chamado com o custo esperado (US$, plano `plano` da Apify) antes
     de qualquer chamada paga; se devolver falso, levanta `ColetaNaoConfirmada`
     sem tocar na Apify nem no disco. `modelar`, opcional, recebe as tabelas
     Silver/Gold já derivadas para a modelagem pesada (fora do escopo daqui)."""
@@ -130,7 +131,7 @@ def coletar(
     destino = Path(destino)
     run_id = build_run_id(run_id)
 
-    custo = estimar_custo(recorte, len(links), hoje)
+    custo = estimar_custo(recorte, len(links), hoje, plano)
     if not confirmar(custo["total"]):
         raise ColetaNaoConfirmada(f"Custo estimado de US$ {custo['total']:.2f} não confirmado.")
 

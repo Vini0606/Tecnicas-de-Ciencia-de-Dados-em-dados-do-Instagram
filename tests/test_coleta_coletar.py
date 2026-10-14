@@ -147,7 +147,7 @@ def test_sem_confirmacao_nenhuma_chamada_paga_e_nenhum_arquivo_sao_feitos(tmp_pa
 
     assert scraper.chamadas == []
     assert not (tmp_path / "dados").exists()
-    assert custos == [pytest.approx(1.45, abs=0.01)]  # 1 link, pior caso (37,82 / 26)
+    assert custos == [pytest.approx(1.73, abs=0.01)]  # 1 link: 3 x 250 x 2,30/1000 + start 0,001 + perfil 0,0023
 
 
 def test_intervalo_absoluto_descarta_localmente_o_que_esta_fora_do_fim(tmp_path):

@@ -31,10 +31,35 @@ def test_coletar_sem_yes_mostra_custo_e_nao_gasta_nem_escreve(tmp_path, capsys):
     )
     saida = capsys.readouterr().out
     assert codigo == 0
-    assert "Custo estimado" in saida and "total ~US$" in saida
+    assert "Custo esperado" in saida and "Pior caso" in saida
+    assert "posts 250, reels 250, UGC 250" in saida  # 1 governador falso: teto por coleção
+    assert "AVISO" not in saida  # --teto informado: sem aviso de teto padrão
     assert "ABORTADO" in saida
     assert "Janela: 2026-07-11 a 2026-10-09 (aproximada)" in saida
     assert not destino.exists()
+
+
+def test_sem_teto_avisa_do_teto_padrao_e_do_custo_maximo(tmp_path, capsys):
+    destino = tmp_path / "dados"
+    cli.main(["coletar", "--dias", "90", "--destino", str(destino)], scraper_factory=_fabrica_proibida, agora=AGORA)
+    saida = capsys.readouterr().out
+
+    assert "AVISO" in saida and "--teto" in saida and "900" in saida
+    assert "ABORTADO" in saida
+    assert not destino.exists()
+
+
+def test_plano_apify_vem_do_ambiente_e_plano_invalido_e_erro_claro(tmp_path, capsys, monkeypatch):
+    args = ["coletar", "--dias", "90", "--teto", "250", "--destino", str(tmp_path / "dados")]
+
+    monkeypatch.setenv("APIFY_PLAN", "gold")
+    assert cli.main(args, scraper_factory=_fabrica_proibida, agora=AGORA) == 0
+    assert "plano GOLD" in capsys.readouterr().out
+
+    monkeypatch.setenv("APIFY_PLAN", "platina")
+    assert cli.main(args, scraper_factory=_fabrica_proibida, agora=AGORA) == 2
+    assert "plano Apify desconhecido" in capsys.readouterr().err
+    assert not (tmp_path / "dados").exists()
 
 
 def test_estimativa_janela_absoluta_e_so_teto(tmp_path, capsys):
