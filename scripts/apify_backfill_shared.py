@@ -31,10 +31,11 @@ TAXA_POSTS_POR_DIA = 7.22
 # resultsLimit e aplicado POR PERFIL pela Apify, nao no total do run -- se o
 # default fosse fixo (ex: 1000), uma janela grande (--days 365+) trunca
 # silenciosamente qualquer governador acima da media, subestimando a
-# calibracao/backfill sem avisar. Escala com --days usando uma margem de
-# seguranca acima da taxa calibrada de cada colecao (7.22 posts e 5.19 reels
-# por dia por governador; o limite vale por colecao, nao pela soma).
-RESULTS_LIMIT_SAFETY_MARGIN_PER_DAY = 10
+# calibracao/backfill sem avisar. Escala com --days usando 7 itens por dia
+# (ADR 0042; era 10), proximo da taxa calibrada de posts (7.22 por dia por
+# governador, 5.19 reels): quem publica acima da media pode ser truncado
+# (a coleta avisa os perfis que batem no teto). O limite vale por colecao.
+RESULTS_LIMIT_SAFETY_MARGIN_PER_DAY = 7
 RESULTS_LIMIT_FLOOR = 200
 
 # Plano Starter da Apify usado nas estimativas de custo do backfill.

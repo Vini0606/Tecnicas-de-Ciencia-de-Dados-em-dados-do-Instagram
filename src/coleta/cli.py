@@ -32,7 +32,7 @@ from config import settings
 from src.coleta import hf
 from src.coleta.calibracao import Calibracao, carregar_calibracao
 from src.coleta.coletar import ColetaNaoConfirmada, coletar, criar_scraper
-from src.coleta.custo import PLANO_PADRAO, estimar_custo, teto_e_padrao, teto_efetivo
+from src.coleta.custo import PLANO_PADRAO, diferenca_percentual, estimar_custo, teto_e_padrao
 from src.coleta.recorte import Recorte
 from src.run_id import build_run_id
 
@@ -165,13 +165,14 @@ def formatar_estimativa(
     hoje: date,
     n_governadores: int,
     plano: str,
-    custo: dict[str, float],
+    custo: dict,
     calibracao: Calibracao | None = None,
 ) -> str:
     """Texto da estimativa de `coletar`: cabecalho do Recorte e tabela por colecao (so ASCII,
-    para o console do Windows)."""
-    teto = teto_efetivo(recorte, hoje)
+    para o console do Windows). `custo` e o bloco `estimado` do manifesto (ADR 0042)."""
+    teto = custo["teto"]["aplicado_itens_por_perfil"]
     janela = recorte.janela_efetiva(hoje)
+    est, mx, itens = custo["estimado_usd"], custo["maximo_usd"], custo["resultados_itens"]
     linhas = ["ESTIMATIVA DE CUSTO DA COLETA", ""]
     cabecalho = [("Recorte", _descrever_recorte(recorte, teto))]
     if janela:
@@ -182,21 +183,20 @@ def formatar_estimativa(
     cabecalho.append(("Calibracao", calibracao.resumo()))
     linhas += [f"  {nome:<14}{valor}" for nome, valor in cabecalho]
     linhas.append(f"  {'':<14}{calibracao.detalhe()}")
-    if teto_e_padrao(recorte):
+    if custo["teto"]["padrao"]:
         linhas += [
             "",
             f"  [AVISO] Sem --teto: usando o teto padrao de {_milhar(teto)} por perfil e por colecao.",
-            f"          Pior caso ate US$ {_usd(custo['pior_caso_total'])}. Informe --teto para limitar o gasto.",
+            f"          Maximo ate US$ {_usd(mx['total'])}. Informe --teto para limitar o gasto.",
         ]
 
     cheio = n_governadores * teto
-    tabela = [
-        ("Colecao", "Resultados (esp. / pior)", "Esperado (US$)", "Pior caso (US$)"),
-        ("Posts", f"{_milhar(custo['resultados_posts'])} / {_milhar(cheio)}", _usd(custo["posts"]), _usd(custo["pior_caso_posts"])),
-        ("Reels", f"{_milhar(custo['resultados_reels'])} / {_milhar(cheio)}", _usd(custo["reels"]), _usd(custo["pior_caso_reels"])),
-        ("UGC *", f"{_milhar(custo['resultados_ugc'])} / {_milhar(cheio)}", _usd(custo["ugc"]), _usd(custo["pior_caso_ugc"])),
-        ("Perfis", f"{_milhar(n_governadores)} / {_milhar(n_governadores)}", _usd(custo["perfis"]), _usd(custo["pior_caso_perfis"])),
-    ]
+    base = custo["base_calibracao"]
+    tabela = [("Colecao", "Resultados (est. / max.)", "Estimado (US$)", "Maximo (US$)")]
+    for nome, chave in (("Posts", "posts"), ("Reels", "reels"), ("UGC", "ugc")):
+        marca = " *" if base[chave] == "sem_base" else ""
+        tabela.append((nome + marca, f"{_milhar(itens[chave])} / {_milhar(cheio)}", _usd(est[chave]), _usd(mx[chave])))
+    tabela.append(("Perfis", f"{_milhar(n_governadores)} / {_milhar(n_governadores)}", _usd(est["perfis"]), _usd(mx["perfis"])))
     larguras = [max(len(linha[i]) for linha in tabela) for i in range(4)]
 
     def formatar(linha: tuple[str, ...]) -> str:
@@ -205,11 +205,13 @@ def formatar_estimativa(
         )
 
     separador = "  " + "   ".join("-" * largura for largura in larguras)
-    total = ("Total", "", _usd(custo["total"]), _usd(custo["pior_caso_total"]))
+    total = ("Total", "", _usd(est["total"]), _usd(mx["total"]))
     linhas += ["", formatar(tabela[0]), separador, *map(formatar, tabela[1:]), separador, formatar(total), ""]
-    linhas.append("  * UGC sem calibracao: assume o teto cheio em todos os perfis.")
-    if custo["total"] == custo["pior_caso_total"]:
-        linhas.append("  Esperado e pior caso coincidem: o teto vale em todas as colecoes.")
+    linhas.append("  Estimado = media + 3 desvios-padrao do total, limitado ao maximo. Maximo = teto cheio em todos os perfis.")
+    if any(v == "sem_base" for v in base.values()):
+        linhas.append("  * Sem base de calibracao: o estimado vale o maximo.")
+    if est["total"] == mx["total"]:
+        linhas.append("  Estimado e maximo coincidem: o teto vale em todas as colecoes.")
     return "\n".join(linhas)
 
 
@@ -217,16 +219,23 @@ def _com_sinal(valor: float, fmt: str) -> str:
     return ("+" if valor > 0 else "") + fmt
 
 
-def formatar_comparacao(estimado: dict[str, float], real: dict[str, float] | None) -> str:
-    """Tabela estimado (esperado) x real por coleção, ao fim de `coletar --yes` (so ASCII)."""
+def formatar_comparacao(estimado: dict, real: dict | None) -> str:
+    """Tabela estimado x real por colecao, ao fim de `coletar --yes` (so ASCII)."""
     if real is None:
-        return "Custo real indisponivel: a Apify nao devolveu o custo de alguma chamada (manifesto com custo.real nulo)."
-    linhas = [("Colecao", "Estimado (US$)", "Real (US$)", "Dif. (US$)", "Dif. (%)")]
+        return "Custo real indisponivel: a Apify nao devolveu o custo de alguma chamada (manifesto sem os blocos real e diferenca)."
+    dif = diferenca_percentual(estimado, real)["custo_pct"]
+    linhas = [("Colecao", "Estimado (US$)", "Real (US$)", "Dif. (%)", "Itens (est. / real)")]
     for nome, chave in (("Posts", "posts"), ("Reels", "reels"), ("UGC", "ugc"), ("Perfis", "perfis"), ("Total", "total")):
-        est, rea = estimado[chave], real[chave]
-        dif = rea - est
-        pct = _com_sinal(dif, _decimal(dif / est * 100, 1) + "%") if est else "-"
-        linhas.append((nome, _usd(est), _usd(rea), _com_sinal(dif, _usd(dif)), pct))
+        itens = f"{_milhar(estimado['resultados_itens'][chave])} / {_milhar(real['resultados_itens'][chave])}"
+        linhas.append(
+            (
+                nome,
+                _usd(estimado["estimado_usd"][chave]),
+                _usd(real["custo_usd"][chave]),
+                _com_sinal(dif[chave], _decimal(dif[chave], 1) + "%"),
+                itens,
+            )
+        )
     larguras = [max(len(linha[i]) for linha in linhas) for i in range(5)]
 
     def formatar(linha: tuple[str, ...]) -> str:
@@ -236,7 +245,7 @@ def formatar_comparacao(estimado: dict[str, float], real: dict[str, float] | Non
 
     separador = "  " + "   ".join("-" * largura for largura in larguras)
     corpo = [formatar(linhas[0]), separador, *map(formatar, linhas[1:5]), separador, formatar(linhas[5])]
-    return "\n".join(["", "CUSTO ESTIMADO x REAL", "", *corpo])
+    return "\n".join(["", "CUSTO ESTIMADO x REAL (negativo = abaixo do estimado)", "", *corpo])
 
 
 def _cmd_coletar(args, scraper_factory: ScraperFactory, agora: datetime, cliente_factory: ClienteFactory) -> int:

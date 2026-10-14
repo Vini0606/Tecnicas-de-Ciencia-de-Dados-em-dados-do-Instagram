@@ -13,6 +13,7 @@ from src.coleta.manifesto import (
     validar_manifesto,
     versao_do_codigo,
 )
+from src.coleta.custo import agregar_custo_real, estimar_custo
 from src.coleta.recorte import Recorte, gerar_tag
 from src.data_extract.bronze_writer import BronzeWriter
 from src.delta_io import write_delta
@@ -24,6 +25,12 @@ LEGENDA = "legenda privada com opiniao"
 NOME_PESSOA = "Maria Silva Terceira"
 EXTRAIDO = datetime(2026, 10, 9, 14, 30, tzinfo=timezone.utc)
 RECORTE = Recorte(dias=90, teto=250)
+EXECUCOES = [
+    {"colecao": "perfis", "usd": 0.07, "itens": 2},
+    {"colecao": "posts", "usd": 0.70, "itens": 3},
+    {"colecao": "reels", "usd": 0.40, "itens": 1},
+    {"colecao": "ugc", "usd": 0.25, "itens": 2},
+]
 
 
 @pytest.fixture
@@ -107,16 +114,16 @@ def _gerar(snapshot, **kw):
         recorte=RECORTE,
         extraido_em=EXTRAIDO,
         versao_codigo="abc123def456",
-        custo_estimado={"posts_reels": 1.5, "ugc": 0.5, "total": 2.0},
+        custo_estimado=estimar_custo(RECORTE, 2, date(2026, 10, 9)),
     )
     args.update(kw)
     return gerar_manifesto(snapshot, **args)
 
 
 def test_manifesto_traz_todos_os_campos_e_valida(snapshot):
-    m = _gerar(snapshot, custo_real=1.8)
+    m = _gerar(snapshot, custo_real=agregar_custo_real(EXECUCOES))
 
-    assert m["versao_esquema"] == 3
+    assert m["versao_esquema"] == 4
     assert m["identidade"] == {
         "tag": "coleta_2026-10-09_ultimos-90d_teto-250",
         "extraido_em": "2026-10-09T14:30:00+00:00",
@@ -124,7 +131,9 @@ def test_manifesto_traz_todos_os_campos_e_valida(snapshot):
     }
     assert m["recorte"] == {"dias": 90, "teto": 250}  # v3: só as chaves que se aplicam
     assert m["recorte_efetivo"] == {"inicio": "2026-07-11", "fim": "2026-10-09"}
-    assert m["custo"] == {"estimado": {"posts_reels": 1.5, "ugc": 0.5, "total": 2.0}, "real": 1.8}
+    assert set(m["custo"]) == {"estimado", "real", "diferenca"}
+    assert m["custo"]["estimado"] == estimar_custo(RECORTE, 2, date(2026, 10, 9))
+    assert m["custo"]["real"]["custo_usd"]["total"] == 1.42
     tabelas = {(t["camada"], t["nome"]): t["linhas"] for t in m["tabelas"]}
     assert tabelas == {
         ("bronze", "instagram_profiles"): 2,
@@ -174,7 +183,7 @@ def test_snapshot_vazio_gera_manifesto_valido(tmp_path):
     m = _gerar(tmp_path)
     assert m["tabelas"] == []
     assert m["cobertura"]["posts"] == {"itens": 0, "mais_antiga": None, "mais_recente": None, "por_perfil": []}
-    assert m["custo"]["real"] is None
+    assert "real" not in m["custo"] and "diferenca" not in m["custo"]  # v4 nunca grava null: omite o bloco
 
 
 def test_recorte_absoluto_e_custo_ausente(tmp_path):
@@ -182,17 +191,66 @@ def test_recorte_absoluto_e_custo_ausente(tmp_path):
     m = _gerar(tmp_path, recorte=recorte, tag=gerar_tag(recorte, date(2026, 10, 9)), custo_estimado=None)
     assert m["recorte"]["inicio"] == "2026-03-01"
     assert m["recorte_efetivo"] == {"inicio": "2026-03-01", "fim": "2026-06-30"}
-    assert m["custo"] == {"estimado": None, "real": None}
+    assert m["custo"] == {}  # sem estimativa nem custo real, o bloco fica vazio, sem nulos
+    validar_manifesto(m)
 
 
-def test_manifesto_grava_a_estimativa_de_custo_com_esperado_e_pior_caso(tmp_path):
-    from src.coleta.custo import estimar_custo
-
+def test_manifesto_grava_a_estimativa_com_estimado_maximo_resultados_teto_e_base(tmp_path):
     custo = estimar_custo(RECORTE, 26, date(2026, 10, 9))
     m = _gerar(tmp_path, custo_estimado=custo)
     validar_manifesto(m)
-    assert m["custo"]["estimado"]["total"] == custo["total"]
-    assert m["custo"]["estimado"]["pior_caso_total"] == custo["pior_caso_total"]
+    estimado = m["custo"]["estimado"]
+    assert set(estimado) == {"estimado_usd", "maximo_usd", "resultados_itens", "teto", "base_calibracao"}
+    assert estimado["estimado_usd"]["total"] == custo["estimado_usd"]["total"]
+    assert estimado["maximo_usd"]["total"] == custo["maximo_usd"]["total"]
+    assert estimado["teto"] == {"aplicado_itens_por_perfil": 250, "padrao": False}
+    assert set(estimado["base_calibracao"].values()) == {"sem_base"}
+
+
+def test_diferenca_do_manifesto_e_real_menos_estimado_em_percentual(tmp_path):
+    m = _gerar(tmp_path, custo_real=agregar_custo_real(EXECUCOES))
+    est = m["custo"]["estimado"]
+
+    dif = m["custo"]["diferenca"]
+    assert set(dif) == {"custo_pct", "resultados_pct"}
+    assert dif["resultados_pct"]["posts"] == round((3 - est["resultados_itens"]["posts"]) / est["resultados_itens"]["posts"] * 100, 1)
+    assert dif["custo_pct"]["total"] < 0  # gastou menos que o estimado
+
+
+def test_v4_recusa_estimado_acima_do_maximo_e_chave_sem_unidade(tmp_path):
+    m = _gerar(tmp_path)
+
+    acima = json.loads(json.dumps(m))
+    acima["custo"]["estimado"]["estimado_usd"]["posts"] = acima["custo"]["estimado"]["maximo_usd"]["posts"] + 1
+    with pytest.raises(ValueError, match="acima do máximo"):
+        validar_manifesto(acima)
+
+    antigo = json.loads(json.dumps(m))
+    antigo["custo"]["estimado"]["total"] = 1.0  # chave do formato antigo, sem unidade
+    with pytest.raises(ValueError, match="chaves"):
+        validar_manifesto(antigo)
+
+    teto_ruim = json.loads(json.dumps(m))
+    teto_ruim["custo"]["estimado"]["teto"]["padrao"] = "sim"
+    with pytest.raises(ValueError, match="booleano"):
+        validar_manifesto(teto_ruim)
+
+    base_nula = json.loads(json.dumps(m))
+    base_nula["custo"]["estimado"]["base_calibracao"]["ugc"] = None
+    with pytest.raises(ValueError, match="base_calibracao"):
+        validar_manifesto(base_nula)
+
+
+def test_manifestos_v1_v2_e_v3_continuam_validos_com_o_custo_antigo(snapshot):
+    for versao in (1, 2, 3):
+        m = _gerar(snapshot)
+        m["versao_esquema"] = versao
+        if versao == 1:
+            del m["recorte_efetivo"]
+        if versao < 3:
+            m["recorte"] = {"dias": 90, "inicio": None, "fim": None, "teto": 250}
+        m["custo"] = {"estimado": {"posts_reels": 1.5, "ugc": 0.5, "total": 2.0}, "real": 1.8 if versao == 1 else None}
+        validar_manifesto(m)
 
 
 def test_recorte_so_com_teto_nao_tem_janela_efetiva(tmp_path):
@@ -207,6 +265,7 @@ def test_manifesto_v1_sem_recorte_efetivo_continua_valido(snapshot):
     m["versao_esquema"] = 1
     del m["recorte_efetivo"]
     m["recorte"] = {"dias": 90, "inicio": None, "fim": None, "teto": 250}  # v1/v2 gravam todas as chaves
+    m["custo"] = {"estimado": None, "real": None}  # custo do formato antigo
     validar_manifesto(m)
 
     m["recorte_efetivo"] = None  # campo da v2 numa v1: recusado
@@ -279,6 +338,7 @@ def test_manifesto_v2_com_chaves_nulas_no_recorte_continua_valido(snapshot):
     m = _gerar(snapshot)
     m["versao_esquema"] = 2
     m["recorte"] = {"dias": 5, "inicio": None, "fim": None, "teto": 30}
+    m["custo"] = {"estimado": None, "real": None}
     validar_manifesto(m)
 
 
@@ -286,3 +346,20 @@ def test_recorte_absoluto_sem_teto_so_grava_inicio_e_fim(tmp_path):
     recorte = Recorte(inicio=date(2026, 3, 1), fim=date(2026, 6, 30))
     m = _gerar(tmp_path, recorte=recorte, tag=gerar_tag(recorte, date(2026, 10, 9)))
     assert m["recorte"] == {"inicio": "2026-03-01", "fim": "2026-06-30"}
+
+
+def _nulos(o, caminho=""):
+    if isinstance(o, dict):
+        for k, v in o.items():
+            yield from _nulos(v, f"{caminho}.{k}")
+    elif isinstance(o, list):
+        for i, v in enumerate(o):
+            yield from _nulos(v, f"{caminho}[{i}]")
+    elif o is None:
+        yield caminho
+
+
+def test_manifesto_v4_completo_nao_tem_nenhum_campo_nulo(snapshot):
+    m = _gerar(snapshot, custo_real=agregar_custo_real(EXECUCOES))
+
+    assert list(_nulos(m)) == []

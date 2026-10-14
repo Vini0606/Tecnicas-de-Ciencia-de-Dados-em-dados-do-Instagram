@@ -47,9 +47,9 @@ class ResultadoColeta:
     tag: str
     run_id: str
     destino: Path
-    custo_estimado: dict[str, float]
+    custo_estimado: dict
     manifesto: dict
-    custo_real: dict[str, float] | None = None
+    custo_real: dict | None = None
 
 
 def criar_scraper(client, recorte: Recorte, hoje: date) -> InstagramScraper:
@@ -130,7 +130,7 @@ def coletar(
 ) -> ResultadoColeta:
     """Executa uma Coleta completa em `destino` e devolve o Snapshot local.
 
-    `confirmar(custo)` é chamado com o custo esperado (US$, plano `plano` da Apify) antes
+    `confirmar(custo)` é chamado com o custo estimado (US$, plano `plano` da Apify) antes
     de qualquer chamada paga; se devolver falso, levanta `ColetaNaoConfirmada`
     sem tocar na Apify nem no disco. `modelar`, opcional, recebe as tabelas
     Silver/Gold já derivadas para a modelagem pesada (fora do escopo daqui)."""
@@ -140,8 +140,9 @@ def coletar(
     run_id = build_run_id(run_id)
 
     custo = estimar_custo(recorte, len(links), hoje, plano, calibracao)
-    if not confirmar(custo["total"]):
-        raise ColetaNaoConfirmada(f"Custo estimado de US$ {custo['total']:.2f} não confirmado.")
+    estimado_total = custo["estimado_usd"]["total"]
+    if not confirmar(estimado_total):
+        raise ColetaNaoConfirmada(f"Custo estimado de US$ {estimado_total:.2f} não confirmado.")
 
     tag = gerar_tag(recorte, hoje, rotulo)
     p = caminhos_do_destino(destino)
@@ -154,13 +155,18 @@ def coletar(
     )
     dias = recorte.dias_a_extrair(hoje)
     extra = {"onlyPostsNewerThan": f"{dias} days"} if dias else None
-    logger.info("[COLETA] %s: extraindo (custo estimado US$ %.2f)...", tag, custo["total"])
+    logger.info("[COLETA] %s: extraindo (custo estimado US$ %.2f)...", tag, estimado_total)
     scraper_recortado = _ScraperRecortado(scraper, recorte)
     bruto = extract_and_land(scraper_recortado, bronze, links, run_id=run_id, extra_run_input=extra)
     _avisar_truncados(bruto, teto_efetivo(recorte, hoje))
     custo_real = agregar_custo_real(scraper_recortado.execucoes)
     if custo_real is None:
         logger.warning("[COLETA] %s: custo real indisponivel (sem custo legivel em alguma chamada da Apify).", tag)
+    elif custo_real["custo_usd"]["total"] > custo["maximo_usd"]["total"] + 1e-9:
+        logger.warning(
+            "[COLETA] %s: custo real US$ %.2f acima do custo maximo US$ %.2f (o teto nao limitou algum actor).",
+            tag, custo_real["custo_usd"]["total"], custo["maximo_usd"]["total"],
+        )
 
     governors_cleaner = GovernorsMetadataCleaner()
     governors_cleaner.write(governors_cleaner.clean(df_governadores, run_id), p["silver_governors"])
