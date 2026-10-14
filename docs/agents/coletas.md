@@ -14,7 +14,10 @@ estão definidos em `CONTEXT.md`.
 - A estimativa de `coletar` (sem `--yes`) mostra o custo **esperado** (taxas calibradas de posts e reels limitadas pelo
   teto; UGC pelo teto cheio, sem calibração) e o **pior caso** (teto cheio em cada coleção), com preço por actor e plano
   da conta Apify (variável `APIFY_PLAN`, padrão `BRONZE`; tabela de preços verificada em 2026-10-13 em `src/coleta/custo.py`).
-  Sem `--teto`, a CLI avisa que o teto padrão foi usado e quanto ele permite gastar. O preço do evento `post-details` do
+  As taxas de posts e reels são calibradas **por governador** com a Coleta mais recente do HF (itens ÷ dias da janela, lidos
+  do manifesto); se essa Coleta tiver janela menor que 30 dias, não tiver os governadores ou o HF estiver indisponível, a
+  estimativa usa as taxas fixas da ADR 0012 e a linha `Calibracao` da saída diz o motivo. `--sem-calibracao` desliga a consulta
+  ao HF. Sem `--teto`, a CLI avisa que o teto padrão foi usado e quanto ele permite gastar. O preço do evento `post-details` do
   actor de posts está assumido como cobrado em cada post: confirme no Console da Apify depois da primeira Coleta de 90 dias.
 - Extraia sempre em pasta de dados limpa (`DATA_DIR`), nunca por cima da pasta `data/` em uso.
 - O **Recorte** pode combinar janela relativa, intervalo absoluto e teto por perfil. Confirme o Recorte com o usuário.
