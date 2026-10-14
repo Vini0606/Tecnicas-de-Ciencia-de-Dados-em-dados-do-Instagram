@@ -15,6 +15,7 @@ from dataclasses import dataclass, field
 
 from scripts.apify_backfill_shared import TAXA_POSTS_POR_DIA, TAXA_REELS_POR_DIA
 from src.coleta import hf
+from src.coleta.custo import teto_efetivo
 
 MIN_DIAS_CALIBRACAO = 30
 COLECOES_CALIBRADAS = ("posts", "reels")
@@ -33,6 +34,11 @@ class Calibracao:
     perfis_calibrados: int = 0
     perfis_truncados: int = 0
     motivo_fallback: str | None = None
+
+    @classmethod
+    def sem_calibracao(cls, motivo: str, n_governadores: int) -> Calibracao:
+        """Estimativa com as taxas fixas da ADR 0012; `motivo` aparece na saída."""
+        return cls(n_governadores=n_governadores, motivo_fallback=motivo)
 
     @property
     def usa_taxas_fixas(self) -> bool:
@@ -55,7 +61,7 @@ class Calibracao:
 
 
 def _fallback(motivo: str, n_governadores: int) -> Calibracao:
-    return Calibracao(n_governadores=n_governadores, motivo_fallback=motivo)
+    return Calibracao.sem_calibracao(motivo, n_governadores)
 
 
 def calibrar(coleta: hf.ColetaListada | None, usernames: Sequence[str]) -> Calibracao:
@@ -71,7 +77,7 @@ def calibrar(coleta: hf.ColetaListada | None, usernames: Sequence[str]) -> Calib
         return _fallback(f"janela de {dias} dias e curta demais para calibrar (minimo {MIN_DIAS_CALIBRACAO})", n)
 
     governadores = {u.lower() for u in usernames}
-    teto = coleta.recorte.teto
+    teto = teto_efetivo(coleta.recorte, coleta.extraido_em.date())  # inclui o teto padrão da Coleta de origem
     taxas: dict[str, dict[str, float]] = {c: {} for c in COLECOES_CALIBRADAS}
     truncados: set[str] = set()
     for colecao in COLECOES_CALIBRADAS:
@@ -80,7 +86,7 @@ def calibrar(coleta: hf.ColetaListada | None, usernames: Sequence[str]) -> Calib
             if username not in governadores:
                 continue
             taxas[colecao][username] = perfil["itens"] / dias
-            if teto is not None and perfil["itens"] >= teto:
+            if perfil["itens"] >= teto:
                 truncados.add(username)
     calibrados = set().union(*(set(t) for t in taxas.values()))
     if not calibrados:
@@ -105,4 +111,7 @@ def carregar_calibracao(cliente_factory: Callable[[], hf.ClienteColetaHF], usern
         coletas = hf.listar(cliente=cliente_factory())
     except Exception as erro:
         return _fallback(f"HF indisponivel ({type(erro).__name__})", len(usernames))
-    return calibrar(coletas[0] if coletas else None, usernames)
+    try:
+        return calibrar(coletas[0] if coletas else None, usernames)
+    except (KeyError, TypeError, ValueError, AttributeError) as erro:  # cobertura fora do formato esperado
+        return _fallback(f"cobertura da Coleta anterior ilegivel ({type(erro).__name__})", len(usernames))

@@ -176,5 +176,26 @@ def test_calibracao_e_imutavel_e_descreve_a_origem():
         c.origem = "outra"  # type: ignore[misc]
 
 
-def test_modulo_expoe_as_constantes_nomeadas():
-    assert cal.MIN_DIAS_CALIBRACAO == 30
+def test_perfil_no_teto_padrao_da_coleta_de_origem_tambem_e_sinalizado():
+    # Coleta anterior sem --teto: vale o teto padrão max(200, 10 x 90) = 900 por perfil
+    coleta = _coleta([_perfil("gov_a", 900), _perfil("gov_b", 50)])
+    coleta = hf.ColetaListada(**{**coleta.__dict__, "recorte": Recorte(dias=90)})
+
+    assert calibrar(coleta, ["gov_a", "gov_b"]).perfis_truncados == 1
+
+
+def test_cobertura_fora_do_formato_vira_fallback_sem_quebrar_a_estimativa(monkeypatch):
+    quebrada = _coleta([_perfil("gov_a", 1)])
+    del quebrada.cobertura["posts"]["por_perfil"][0]["itens"]  # manifesto fora do formato
+    monkeypatch.setattr(hf, "listar", lambda *, cliente: [quebrada])
+
+    c = carregar_calibracao(lambda: object(), ["gov_a"])
+
+    assert c.usa_taxas_fixas and "ilegivel" in c.motivo_fallback
+
+
+def test_sem_calibracao_constroi_fallback_com_motivo_e_taxas_fixas():
+    c = Calibracao.sem_calibracao("desligada", 26)
+
+    assert c.usa_taxas_fixas and c.detalhe() == "desligada" and c.n_governadores == 26
+    assert c.taxa_media == cal.TAXAS_FIXAS

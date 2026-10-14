@@ -178,7 +178,7 @@ def formatar_estimativa(
         aproximada = " (aproximada)" if recorte.dias is not None else ""
         cabecalho.append(("Janela", f"{janela[0]} a {janela[1]}{aproximada}"))
     cabecalho += [("Governadores", str(n_governadores)), ("Plano Apify", plano)]
-    calibracao = calibracao or Calibracao(n_governadores=n_governadores, motivo_fallback="calibracao nao usada")
+    calibracao = calibracao or Calibracao.sem_calibracao("calibracao nao usada", n_governadores)
     cabecalho.append(("Calibracao", calibracao.resumo()))
     linhas += [f"  {nome:<14}{valor}" for nome, valor in cabecalho]
     linhas.append(f"  {'':<14}{calibracao.detalhe()}")
@@ -257,7 +257,7 @@ def _cmd_coletar(args, scraper_factory: ScraperFactory, agora: datetime, cliente
     plano = os.environ.get("APIFY_PLAN", PLANO_PADRAO).upper()
     links, usernames, df_governadores = _carregar_governadores()
     if args.sem_calibracao:
-        calibracao = Calibracao(n_governadores=len(links), motivo_fallback="calibracao desligada (--sem-calibracao)")
+        calibracao = Calibracao.sem_calibracao("calibracao desligada (--sem-calibracao)", len(usernames))
     else:
         calibracao = carregar_calibracao(cliente_factory, usernames)
     try:
