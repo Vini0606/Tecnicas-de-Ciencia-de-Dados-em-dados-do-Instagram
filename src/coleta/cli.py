@@ -31,7 +31,7 @@ import pandas as pd
 from config import settings
 from src.coleta import hf
 from src.coleta.coletar import ColetaNaoConfirmada, coletar, criar_scraper
-from src.coleta.custo import PLANO_PADRAO, estimar_custo, teto_efetivo
+from src.coleta.custo import PLANO_PADRAO, estimar_custo, teto_e_padrao, teto_efetivo
 from src.coleta.recorte import Recorte
 from src.run_id import build_run_id
 
@@ -159,7 +159,7 @@ def _cmd_coletar(args, scraper_factory: ScraperFactory, agora: datetime) -> int:
     aviso_teto = (
         f"[AVISO] Sem --teto: usando o teto padrao de {teto} por perfil e por colecao "
         f"(pior caso ate US$ {custo['pior_caso_total']}). Informe --teto para limitar o gasto.\n"
-        if recorte.teto is None
+        if teto_e_padrao(recorte)
         else ""
     )
     print(
@@ -169,10 +169,11 @@ def _cmd_coletar(args, scraper_factory: ScraperFactory, agora: datetime) -> int:
         f"{aviso_teto}"
         f"Resultados esperados: posts {custo['resultados_posts']:.0f}, reels {custo['resultados_reels']:.0f}, "
         f"UGC {custo['resultados_ugc']:.0f} (UGC sem calibracao: assume o teto cheio).\n"
-        f"Custo esperado (plano {plano}): posts+reels ~US$ {custo['posts_reels']}, UGC ~US$ {custo['ugc']}, "
-        f"perfis ~US$ {custo['perfis']}, total ~US$ {custo['total']}.\n"
-        f"Pior caso (teto cheio em cada colecao): posts+reels ~US$ {custo['pior_caso_posts_reels']}, "
-        f"UGC ~US$ {custo['pior_caso_ugc']}, total ~US$ {custo['pior_caso_total']}."
+        f"Custo esperado (plano {plano}): posts ~US$ {custo['posts']}, reels ~US$ {custo['reels']}, "
+        f"UGC ~US$ {custo['ugc']}, perfis ~US$ {custo['perfis']}, total ~US$ {custo['total']}.\n"
+        f"Pior caso (teto cheio em cada colecao): posts ~US$ {custo['pior_caso_posts']}, "
+        f"reels ~US$ {custo['pior_caso_reels']}, UGC ~US$ {custo['pior_caso_ugc']}, "
+        f"perfis ~US$ {custo['pior_caso_perfis']}, total ~US$ {custo['pior_caso_total']}."
     )
 
     def confirmar(_custo: float) -> bool:

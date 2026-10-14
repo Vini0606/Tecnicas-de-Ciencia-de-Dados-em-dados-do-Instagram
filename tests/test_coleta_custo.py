@@ -6,7 +6,7 @@ from datetime import date
 
 import pytest
 
-from src.coleta.custo import estimar_custo
+from src.coleta.custo import estimar_custo, teto_e_padrao
 from src.coleta.recorte import Recorte
 
 HOJE = date(2026, 10, 13)
@@ -27,6 +27,39 @@ def test_referencia_90_dias_teto_250_26_governadores_plano_bronze():
     assert custo["pior_caso_posts_reels"] == pytest.approx(29.90, abs=0.01)
     assert custo["pior_caso_ugc"] == pytest.approx(14.95, abs=0.01)
     assert custo["pior_caso_total"] == pytest.approx(44.91, abs=0.01)
+
+
+def test_quebra_por_actor_no_plano_bronze_e_no_gold_com_valores_exatos():
+    bronze = estimar_custo(Recorte(dias=90, teto=250), 26, HOJE)
+    for chave in ("posts", "reels", "ugc", "pior_caso_posts", "pior_caso_reels", "pior_caso_ugc"):
+        assert bronze[chave] == pytest.approx(14.95, abs=0.01), chave  # 6.500 x US$ 2,30 / 1.000
+    assert bronze["pior_caso_perfis"] == pytest.approx(0.06, abs=0.01)
+
+    # Gold: posts 1,00 + 0,60 (post-details), reels 1,00, UGC 1,50, perfis 1,50 por 1.000
+    gold = estimar_custo(Recorte(dias=90, teto=250), 26, HOJE, plano="gold")
+    assert gold["posts"] == pytest.approx(10.40, abs=0.01)
+    assert gold["reels"] == pytest.approx(6.50, abs=0.01)
+    assert gold["ugc"] == pytest.approx(9.75, abs=0.01)
+    assert gold["perfis"] == pytest.approx(0.04, abs=0.01)
+    assert gold["total"] == pytest.approx(26.69, abs=0.01)
+
+
+def test_teto_so_vale_quando_menor_que_o_volume_esperado():
+    # 7,22 posts/dia x 30 dias = 216,6 < 250: o teto não limita posts; reels 5,19 x 30 = 155,7
+    custo = estimar_custo(Recorte(dias=30, teto=250), 10, HOJE)
+    assert custo["resultados_posts"] == pytest.approx(2166)
+    assert custo["resultados_reels"] == pytest.approx(1557)
+
+    # teto 100 < volume: vale o teto
+    limitado = estimar_custo(Recorte(dias=30, teto=100), 10, HOJE)
+    assert limitado["resultados_posts"] == 1000
+    assert limitado["resultados_reels"] == 1000
+
+
+def test_teto_e_padrao_so_quando_o_teto_nao_foi_informado():
+    assert teto_e_padrao(Recorte(dias=90))
+    assert not teto_e_padrao(Recorte(dias=90, teto=250))
+    assert not teto_e_padrao(Recorte(teto=10))
 
 
 def test_janela_curta_com_teto_alto_tem_esperado_menor_que_o_pior_caso():

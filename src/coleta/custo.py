@@ -15,8 +15,8 @@ from datetime import date
 
 from config import settings
 from scripts.apify_backfill_shared import (
-    BASELINE_POSTS_PER_DAY,
-    BASELINE_REELS_PER_DAY,
+    TAXA_POSTS_POR_DIA,
+    TAXA_REELS_POR_DIA,
     default_results_limit,
 )
 from src.coleta.recorte import Recorte
@@ -51,6 +51,11 @@ def teto_efetivo(recorte: Recorte, hoje: date) -> int:
     return default_results_limit(dias) if dias else settings.RESULTS_LIMIT
 
 
+def teto_e_padrao(recorte: Recorte) -> bool:
+    """Verdadeiro quando o teto não foi informado e vale o padrão (sem `--teto`)."""
+    return recorte.teto is None
+
+
 def _precos(plano: str) -> dict[str, float]:
     plano = plano.upper()
     if plano not in _PERFIS:
@@ -73,26 +78,32 @@ def estimar_custo(
         por_perfil = min(taxa_por_dia * dias, teto) if dias else teto
         return n_governadores * por_perfil
 
-    res_posts, res_reels = esperado(BASELINE_POSTS_PER_DAY), esperado(BASELINE_REELS_PER_DAY)
-    res_ugc = res_cheio = n_governadores * teto  # UGC sem calibração: teto cheio
+    res_posts, res_reels = esperado(TAXA_POSTS_POR_DIA), esperado(TAXA_REELS_POR_DIA)
+    res_teto_cheio = n_governadores * teto  # pior caso de cada coleção; também o UGC esperado (sem calibração)
 
-    def custo(resultados: float, actor: str) -> float:
+    def usd(resultados: float, actor: str) -> float:
         return resultados / 1000 * preco[actor]
 
-    perfis = custo(n_governadores, "perfis")
-    posts_reels = custo(res_posts, "posts") + custo(res_reels, "reels") + REELS_ACTOR_START_USD
-    ugc = custo(res_ugc, "ugc")
-    pior_posts_reels = custo(res_cheio, "posts") + custo(res_cheio, "reels") + REELS_ACTOR_START_USD
+    perfis = usd(n_governadores, "perfis")
+    ugc = usd(res_teto_cheio, "ugc")
+    posts, reels = usd(res_posts, "posts"), usd(res_reels, "reels") + REELS_ACTOR_START_USD
+    pior_posts = usd(res_teto_cheio, "posts")
+    pior_reels = usd(res_teto_cheio, "reels") + REELS_ACTOR_START_USD
 
     return {
-        "posts_reels": round(posts_reels, 2),
+        "posts": round(posts, 2),
+        "reels": round(reels, 2),
+        "posts_reels": round(posts + reels, 2),
         "ugc": round(ugc, 2),
         "perfis": round(perfis, 2),
-        "total": round(posts_reels + ugc + perfis, 2),
-        "pior_caso_posts_reels": round(pior_posts_reels, 2),
+        "total": round(posts + reels + ugc + perfis, 2),
+        "pior_caso_posts": round(pior_posts, 2),
+        "pior_caso_reels": round(pior_reels, 2),
+        "pior_caso_posts_reels": round(pior_posts + pior_reels, 2),
         "pior_caso_ugc": round(ugc, 2),
-        "pior_caso_total": round(pior_posts_reels + ugc + perfis, 2),
+        "pior_caso_perfis": round(perfis, 2),
+        "pior_caso_total": round(pior_posts + pior_reels + ugc + perfis, 2),
         "resultados_posts": res_posts,
         "resultados_reels": res_reels,
-        "resultados_ugc": res_ugc,
+        "resultados_ugc": res_teto_cheio,
     }

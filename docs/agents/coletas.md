@@ -10,7 +10,7 @@ estão definidos em `CONTEXT.md`.
 ## Antes de extrair
 
 - Extração real gasta dinheiro na Apify. **Nunca rode sem `--yes` e sem aval explícito do usuário no chat**, e mostre antes
-  a estimativa de custo (pior caso).
+  a estimativa de custo (esperado e pior caso).
 - A estimativa de `coletar` (sem `--yes`) mostra o custo **esperado** (taxas calibradas de posts e reels limitadas pelo
   teto; UGC pelo teto cheio, sem calibração) e o **pior caso** (teto cheio em cada coleção), com preço por actor e plano
   da conta Apify (variável `APIFY_PLAN`, padrão `BRONZE`; tabela de preços verificada em 2026-10-13 em `src/coleta/custo.py`).

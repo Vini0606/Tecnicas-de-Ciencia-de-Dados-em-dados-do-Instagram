@@ -25,8 +25,8 @@ DEFAULT_DAYS = 90
 # taxa constante. Substituem o baseline anterior (2,60 posts e 1,65 reels, extrapolado
 # dos 30 itens mais recentes por governador em 2026-08-29), que ficou ~3x abaixo.
 # Reverificar com a Coleta de 90 dias.
-BASELINE_REELS_PER_DAY = 5.19
-BASELINE_POSTS_PER_DAY = 7.22
+TAXA_REELS_POR_DIA = 5.19
+TAXA_POSTS_POR_DIA = 7.22
 
 # resultsLimit e aplicado POR PERFIL pela Apify, nao no total do run -- se o
 # default fosse fixo (ex: 1000), uma janela grande (--days 365+) trunca
@@ -91,7 +91,7 @@ def load_governor_usernames() -> list[str]:
 def estimate_cost_usd(days: int, n_governors: int) -> float:
     """Estimativa PRE-run baseada no baseline conhecido -- o resultado real so
     sai depois de chamar a Apify. Usada so pro aviso de confirmacao do --yes."""
-    estimated_results = (BASELINE_REELS_PER_DAY + BASELINE_POSTS_PER_DAY) * days * n_governors
+    estimated_results = (TAXA_REELS_POR_DIA + TAXA_POSTS_POR_DIA) * days * n_governors
     return round(estimated_results / 1000 * STARTER_PRICE_PER_1000_RESULTS, 2)
 
 
