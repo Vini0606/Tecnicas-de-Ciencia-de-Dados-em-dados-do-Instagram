@@ -8,7 +8,7 @@ import pytest
 from test_coleta_coletar import LINK, _governadores, _ScraperFalso
 from test_coleta_hf import TAG, ClienteFake, _snapshot
 
-from src.coleta import cli
+from src.coleta import cli, hf
 
 AGORA = datetime(2026, 10, 9, 12, 0, tzinfo=timezone.utc)
 
@@ -16,6 +16,16 @@ AGORA = datetime(2026, 10, 9, 12, 0, tzinfo=timezone.utc)
 @pytest.fixture(autouse=True)
 def _governadores_falsos(monkeypatch):
     monkeypatch.setattr(cli, "_carregar_governadores", lambda: ([LINK], ["gov_a"], _governadores()))
+
+
+@pytest.fixture(autouse=True)
+def _sem_rede_no_hf(monkeypatch):
+    """A calibração consulta o HF; nos testes ele nunca é tocado (cai nas taxas fixas)."""
+
+    def sem_hf(*_a, **_k):
+        raise hf.ErroColetaHF("HF bloqueado nos testes")
+
+    monkeypatch.setattr(hf, "ClienteColetaHFReal", sem_hf)
 
 
 def _fabrica_proibida(*_a):

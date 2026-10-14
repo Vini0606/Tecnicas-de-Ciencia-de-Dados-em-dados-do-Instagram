@@ -30,6 +30,7 @@ import pandas as pd
 
 from config import settings
 from src.coleta import hf
+from src.coleta.calibracao import Calibracao, carregar_calibracao
 from src.coleta.coletar import ColetaNaoConfirmada, coletar, criar_scraper
 from src.coleta.custo import PLANO_PADRAO, estimar_custo, teto_e_padrao, teto_efetivo
 from src.coleta.recorte import Recorte
@@ -68,6 +69,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--modelar",
         action="store_true",
         help="roda tambem o estagio deterministico de modelagem (pesado; exige DATA_DIR=<destino>)",
+    )
+    c.add_argument(
+        "--sem-calibracao",
+        action="store_true",
+        help="estima com as taxas fixas da ADR 0012, sem consultar a Coleta vigente no HF (offline)",
     )
 
     p = sub.add_parser("publicar", help="publica um Snapshot local no HF como a Coleta vigente")
@@ -155,7 +161,12 @@ def _descrever_recorte(recorte: Recorte, teto: int) -> str:
 
 
 def formatar_estimativa(
-    recorte: Recorte, hoje: date, n_governadores: int, plano: str, custo: dict[str, float]
+    recorte: Recorte,
+    hoje: date,
+    n_governadores: int,
+    plano: str,
+    custo: dict[str, float],
+    calibracao: Calibracao | None = None,
 ) -> str:
     """Texto da estimativa de `coletar`: cabecalho do Recorte e tabela por colecao (so ASCII,
     para o console do Windows)."""
@@ -167,7 +178,10 @@ def formatar_estimativa(
         aproximada = " (aproximada)" if recorte.dias is not None else ""
         cabecalho.append(("Janela", f"{janela[0]} a {janela[1]}{aproximada}"))
     cabecalho += [("Governadores", str(n_governadores)), ("Plano Apify", plano)]
+    calibracao = calibracao or Calibracao.sem_calibracao("calibracao nao usada", n_governadores)
+    cabecalho.append(("Calibracao", calibracao.resumo()))
     linhas += [f"  {nome:<14}{valor}" for nome, valor in cabecalho]
+    linhas.append(f"  {'':<14}{calibracao.detalhe()}")
     if teto_e_padrao(recorte):
         linhas += [
             "",
@@ -225,7 +239,7 @@ def formatar_comparacao(estimado: dict[str, float], real: dict[str, float] | Non
     return "\n".join(["", "CUSTO ESTIMADO x REAL", "", *corpo])
 
 
-def _cmd_coletar(args, scraper_factory: ScraperFactory, agora: datetime) -> int:
+def _cmd_coletar(args, scraper_factory: ScraperFactory, agora: datetime, cliente_factory: ClienteFactory) -> int:
     recorte = Recorte(dias=args.dias, inicio=args.inicio, fim=args.fim, teto=args.teto)
     hoje = agora.date()
     destino: Path = args.destino
@@ -242,12 +256,16 @@ def _cmd_coletar(args, scraper_factory: ScraperFactory, agora: datetime) -> int:
 
     plano = os.environ.get("APIFY_PLAN", PLANO_PADRAO).upper()
     links, usernames, df_governadores = _carregar_governadores()
+    if args.sem_calibracao:
+        calibracao = Calibracao.sem_calibracao("calibracao desligada (--sem-calibracao)", len(usernames))
+    else:
+        calibracao = carregar_calibracao(cliente_factory, usernames)
     try:
-        custo = estimar_custo(recorte, len(links), hoje, plano)
+        custo = estimar_custo(recorte, len(links), hoje, plano, calibracao)
     except ValueError as erro:
         print(f"[ERRO] {erro} (variavel APIFY_PLAN).", file=sys.stderr)
         return 2
-    print(formatar_estimativa(recorte, hoje, len(links), plano, custo))
+    print(formatar_estimativa(recorte, hoje, len(links), plano, custo, calibracao))
 
     def confirmar(_custo: float) -> bool:
         if not args.yes:
@@ -270,6 +288,7 @@ def _cmd_coletar(args, scraper_factory: ScraperFactory, agora: datetime) -> int:
             run_id=run_id,
             modelar=_modelar_callback(run_id) if args.modelar else None,
             plano=plano,
+            calibracao=calibracao,
         )
     except ColetaNaoConfirmada:
         return 0 if not args.yes else 1
@@ -308,7 +327,7 @@ def main(
     agora = agora or datetime.now(timezone.utc)
     try:
         if args.comando == "coletar":
-            return _cmd_coletar(args, scraper_factory or _scraper_real(env), agora)
+            return _cmd_coletar(args, scraper_factory or _scraper_real(env), agora, cliente_factory)
         cliente = cliente_factory()
         if args.comando == "publicar":
             resultado = hf.publicar(

@@ -24,6 +24,7 @@ from pathlib import Path
 import pandas as pd
 
 from scripts.apify_backfill_shared import profiles_hitting_limit
+from src.coleta.calibracao import Calibracao
 from src.coleta.custo import PLANO_PADRAO, agregar_custo_real, estimar_custo, teto_efetivo
 from src.coleta.derivacao import caminhos_do_destino, derivar_silver_gold
 from src.coleta.manifesto import escrever_manifesto, gerar_manifesto, versao_do_codigo
@@ -125,6 +126,7 @@ def coletar(
     run_id: str | None = None,
     modelar: Callable[[dict[str, pd.DataFrame]], None] | None = None,
     plano: str = PLANO_PADRAO,
+    calibracao: Calibracao | None = None,
 ) -> ResultadoColeta:
     """Executa uma Coleta completa em `destino` e devolve o Snapshot local.
 
@@ -137,7 +139,7 @@ def coletar(
     destino = Path(destino)
     run_id = build_run_id(run_id)
 
-    custo = estimar_custo(recorte, len(links), hoje, plano)
+    custo = estimar_custo(recorte, len(links), hoje, plano, calibracao)
     if not confirmar(custo["total"]):
         raise ColetaNaoConfirmada(f"Custo estimado de US$ {custo['total']:.2f} não confirmado.")
 
