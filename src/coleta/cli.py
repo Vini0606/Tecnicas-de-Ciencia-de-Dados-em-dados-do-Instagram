@@ -134,8 +134,13 @@ def _milhar(valor: float) -> str:
     return f"{valor:,.0f}".replace(",", ".")
 
 
+def _decimal(valor: float, casas: int) -> str:
+    """Milhar com ponto e decimal com virgula (6500.5 -> '6.500,5')."""
+    return f"{valor:,.{casas}f}".replace(",", "_").replace(".", ",").replace("_", ".")
+
+
 def _usd(valor: float) -> str:
-    return f"{valor:,.2f}".replace(",", "_").replace(".", ",").replace("_", ".")
+    return _decimal(valor, 2)
 
 
 def _descrever_recorte(recorte: Recorte, teto: int) -> str:
@@ -206,7 +211,7 @@ def formatar_comparacao(estimado: dict[str, float], real: dict[str, float] | Non
     for nome, chave in (("Posts", "posts"), ("Reels", "reels"), ("UGC", "ugc"), ("Perfis", "perfis"), ("Total", "total")):
         est, rea = estimado[chave], real[chave]
         dif = rea - est
-        pct = _com_sinal(dif, _usd(dif / est * 100)[:-1] + "%") if est else "-"  # 1 casa: 12,3%
+        pct = _com_sinal(dif, _decimal(dif / est * 100, 1) + "%") if est else "-"
         linhas.append((nome, _usd(est), _usd(rea), _com_sinal(dif, _usd(dif)), pct))
     larguras = [max(len(linha[i]) for linha in linhas) for i in range(5)]
 

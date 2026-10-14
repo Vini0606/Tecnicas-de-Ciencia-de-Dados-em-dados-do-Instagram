@@ -44,8 +44,14 @@ class InstagramScraper:
 
     def _rodar(self, colecao: str, actor_id: str, run_input: dict) -> list[dict]:
         """Chama o actor, lê os itens e registra o custo da execução finalizada."""
-        run = self._client.actor(actor_id).call(run_input=run_input)
-        itens = list(self._client.dataset(run["defaultDatasetId"]).iterate_items())
+        try:
+            run = self._client.actor(actor_id).call(run_input=run_input)
+            itens = list(self._client.dataset(run["defaultDatasetId"]).iterate_items())
+        except Exception:
+            # chamada que falhou pode já ter gastado: registra custo ilegível, para o custo real
+            # da Coleta ficar nulo em vez de uma soma parcial (a ingestão tolera falha do UGC)
+            self.execucoes.append({"colecao": colecao, "usd": None, "itens": 0})
+            raise
         self.execucoes.append({"colecao": colecao, "usd": self._custo_final(run), "itens": len(itens)})
         return itens
 
