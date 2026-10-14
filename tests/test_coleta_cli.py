@@ -31,12 +31,33 @@ def test_coletar_sem_yes_mostra_custo_e_nao_gasta_nem_escreve(tmp_path, capsys):
     )
     saida = capsys.readouterr().out
     assert codigo == 0
-    assert "Custo esperado" in saida and "Pior caso" in saida
-    assert "posts 250, reels 250, UGC 250" in saida  # 1 governador falso: teto por coleção
+    assert "Esperado (US$)" in saida and "Pior caso (US$)" in saida
+    assert "250 / 250" in saida  # 1 governador falso: teto por coleção
     assert "AVISO" not in saida  # --teto informado: sem aviso de teto padrão
     assert "ABORTADO" in saida
-    assert "Janela: 2026-07-11 a 2026-10-09 (aproximada)" in saida
+    assert "2026-07-11 a 2026-10-09 (aproximada)" in saida
     assert not destino.exists()
+
+
+def test_formatar_estimativa_mostra_tabela_por_colecao_com_esperado_e_pior_caso():
+    from datetime import date
+
+    from src.coleta.custo import estimar_custo
+    from src.coleta.recorte import Recorte
+
+    recorte, hoje = Recorte(dias=90, teto=250), date(2026, 10, 14)
+    linhas = cli.formatar_estimativa(recorte, hoje, 26, "BRONZE", estimar_custo(recorte, 26, hoje)).splitlines()
+
+    assert linhas[0] == "ESTIMATIVA DE CUSTO DA COLETA"
+    assert "  Recorte       ultimos 90 dias, ate 250 itens por perfil e colecao" in linhas
+    assert "  Janela        2026-07-16 a 2026-10-14 (aproximada)" in linhas
+    assert "  Plano Apify   BRONZE" in linhas
+    tabela = {linha.split()[0]: linha for linha in linhas if linha.split()[:1] in (["Posts"], ["Reels"], ["Total"])}
+    assert tabela["Posts"].split()[1:] == ["6.500", "/", "6.500", "14,95", "14,95"]  # milhar com ponto, decimal com virgula
+    assert tabela["Reels"].split()[1:] == ["6.500", "/", "6.500", "14,95", "14,95"]
+    assert tabela["Total"].split()[1:] == ["44,91", "44,91"]
+    assert all(len(linha) < 80 for linha in linhas)  # cabe no terminal
+    assert all(linha.isascii() for linha in linhas)  # console do Windows
 
 
 def test_sem_teto_avisa_do_teto_padrao_e_do_custo_maximo(tmp_path, capsys):
@@ -54,7 +75,7 @@ def test_plano_apify_vem_do_ambiente_e_plano_invalido_e_erro_claro(tmp_path, cap
 
     monkeypatch.setenv("APIFY_PLAN", "gold")
     assert cli.main(args, scraper_factory=_fabrica_proibida, agora=AGORA) == 0
-    assert "plano GOLD" in capsys.readouterr().out
+    assert "GOLD" in capsys.readouterr().out
 
     monkeypatch.setenv("APIFY_PLAN", "platina")
     assert cli.main(args, scraper_factory=_fabrica_proibida, agora=AGORA) == 2
@@ -69,7 +90,7 @@ def test_estimativa_janela_absoluta_e_so_teto(tmp_path, capsys):
         agora=AGORA,
     )
     saida = capsys.readouterr().out
-    assert "Janela: 2026-03-01 a 2026-06-30\n" in saida
+    assert "2026-03-01 a 2026-06-30" in saida
     assert "aproximada" not in saida
 
     cli.main(
@@ -77,7 +98,7 @@ def test_estimativa_janela_absoluta_e_so_teto(tmp_path, capsys):
         scraper_factory=_fabrica_proibida,
         agora=AGORA,
     )
-    assert "Janela:" not in capsys.readouterr().out
+    assert "Janela" not in capsys.readouterr().out
 
 
 def test_coletar_com_yes_grava_snapshot_com_manifesto(tmp_path, capsys):

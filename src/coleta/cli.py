@@ -130,6 +130,70 @@ def _modelar_callback(run_id: str) -> Callable[[dict[str, pd.DataFrame]], None]:
     return modelar
 
 
+def _milhar(valor: float) -> str:
+    return f"{valor:,.0f}".replace(",", ".")
+
+
+def _usd(valor: float) -> str:
+    return f"{valor:,.2f}".replace(",", "_").replace(".", ",").replace("_", ".")
+
+
+def _descrever_recorte(recorte: Recorte, teto: int) -> str:
+    if recorte.dias is not None:
+        janela = f"ultimos {recorte.dias} dias"
+    elif recorte.inicio is not None:
+        janela = f"de {recorte.inicio} a {recorte.fim}"
+    else:
+        janela = "so teto"
+    padrao = " (teto padrao)" if teto_e_padrao(recorte) else ""
+    return f"{janela}, ate {_milhar(teto)} itens por perfil e colecao{padrao}"
+
+
+def formatar_estimativa(
+    recorte: Recorte, hoje: date, n_governadores: int, plano: str, custo: dict[str, float]
+) -> str:
+    """Texto da estimativa de `coletar`: cabecalho do Recorte e tabela por colecao (so ASCII,
+    para o console do Windows)."""
+    teto = teto_efetivo(recorte, hoje)
+    janela = recorte.janela_efetiva(hoje)
+    linhas = ["ESTIMATIVA DE CUSTO DA COLETA", ""]
+    cabecalho = [("Recorte", _descrever_recorte(recorte, teto))]
+    if janela:
+        aproximada = " (aproximada)" if recorte.dias is not None else ""
+        cabecalho.append(("Janela", f"{janela[0]} a {janela[1]}{aproximada}"))
+    cabecalho += [("Governadores", str(n_governadores)), ("Plano Apify", plano)]
+    linhas += [f"  {nome:<14}{valor}" for nome, valor in cabecalho]
+    if teto_e_padrao(recorte):
+        linhas += [
+            "",
+            f"  [AVISO] Sem --teto: usando o teto padrao de {_milhar(teto)} por perfil e por colecao.",
+            f"          Pior caso ate US$ {_usd(custo['pior_caso_total'])}. Informe --teto para limitar o gasto.",
+        ]
+
+    cheio = n_governadores * teto
+    tabela = [
+        ("Colecao", "Resultados (esp. / pior)", "Esperado (US$)", "Pior caso (US$)"),
+        ("Posts", f"{_milhar(custo['resultados_posts'])} / {_milhar(cheio)}", _usd(custo["posts"]), _usd(custo["pior_caso_posts"])),
+        ("Reels", f"{_milhar(custo['resultados_reels'])} / {_milhar(cheio)}", _usd(custo["reels"]), _usd(custo["pior_caso_reels"])),
+        ("UGC *", f"{_milhar(custo['resultados_ugc'])} / {_milhar(cheio)}", _usd(custo["ugc"]), _usd(custo["pior_caso_ugc"])),
+        ("Perfis", f"{_milhar(n_governadores)} / {_milhar(n_governadores)}", _usd(custo["perfis"]), _usd(custo["pior_caso_perfis"])),
+    ]
+    larguras = [max(len(linha[i]) for linha in tabela) for i in range(4)]
+
+    def formatar(linha: tuple[str, ...]) -> str:
+        return "  " + "   ".join(
+            (celula.ljust(larguras[i]) if i == 0 else celula.rjust(larguras[i])) for i, celula in enumerate(linha)
+        )
+
+    separador = "  " + "   ".join("-" * largura for largura in larguras)
+    total = ("Total", "", _usd(custo["total"]), _usd(custo["pior_caso_total"]))
+    linhas += ["", formatar(tabela[0]), separador, *map(formatar, tabela[1:]), separador, formatar(total), ""]
+    linhas.append("  * UGC sem calibracao: assume o teto cheio em todos os perfis.")
+    if custo["total"] == custo["pior_caso_total"]:
+        linhas.append("  Esperado e pior caso coincidem: o teto vale em todas as colecoes.")
+    return "\n".join(linhas)
+
+
 def _cmd_coletar(args, scraper_factory: ScraperFactory, agora: datetime) -> int:
     recorte = Recorte(dias=args.dias, inicio=args.inicio, fim=args.fim, teto=args.teto)
     hoje = agora.date()
@@ -152,29 +216,7 @@ def _cmd_coletar(args, scraper_factory: ScraperFactory, agora: datetime) -> int:
     except ValueError as erro:
         print(f"[ERRO] {erro} (variavel APIFY_PLAN).", file=sys.stderr)
         return 2
-    janela = recorte.janela_efetiva(hoje)
-    aproximada = " (aproximada)" if recorte.dias is not None else ""
-    linha_janela = f"Janela: {janela[0]} a {janela[1]}{aproximada}\n" if janela else ""
-    teto = teto_efetivo(recorte, hoje)
-    aviso_teto = (
-        f"[AVISO] Sem --teto: usando o teto padrao de {teto} por perfil e por colecao "
-        f"(pior caso ate US$ {custo['pior_caso_total']}). Informe --teto para limitar o gasto.\n"
-        if teto_e_padrao(recorte)
-        else ""
-    )
-    print(
-        f"Recorte: {recorte}\n"
-        f"{linha_janela}"
-        f"Governadores: {len(links)}; teto efetivo: {teto} por perfil.\n"
-        f"{aviso_teto}"
-        f"Resultados esperados: posts {custo['resultados_posts']:.0f}, reels {custo['resultados_reels']:.0f}, "
-        f"UGC {custo['resultados_ugc']:.0f} (UGC sem calibracao: assume o teto cheio).\n"
-        f"Custo esperado (plano {plano}): posts ~US$ {custo['posts']}, reels ~US$ {custo['reels']}, "
-        f"UGC ~US$ {custo['ugc']}, perfis ~US$ {custo['perfis']}, total ~US$ {custo['total']}.\n"
-        f"Pior caso (teto cheio em cada colecao): posts ~US$ {custo['pior_caso_posts']}, "
-        f"reels ~US$ {custo['pior_caso_reels']}, UGC ~US$ {custo['pior_caso_ugc']}, "
-        f"perfis ~US$ {custo['pior_caso_perfis']}, total ~US$ {custo['pior_caso_total']}."
-    )
+    print(formatar_estimativa(recorte, hoje, len(links), plano, custo))
 
     def confirmar(_custo: float) -> bool:
         if not args.yes:
