@@ -18,10 +18,12 @@ da navegação lateral.
 _Avoid_: Tela (para algo interno a outra Tela), aba solta (ambíguo).
 
 **Comparativo vs. mediana**:
-Seta ▲/▼ que compara o valor do governador selecionado com a mediana dos demais governadores (no Funil,
-em percentual; no NSM, em pontos do índice). Em "Todos" no NSM, compara a média do grupo com a mediana do
-grupo e indica assimetria, não desempenho. Distinta de SUBIU/CAIU, que compara posições de ranking.
-Em substituição pela **Tendência** (decisão em discussão, sem ADR ainda); até lá, continua valendo na interface.
+Seta ▲/▼ que compara o valor do governador selecionado com a mediana dos demais governadores, em percentual
+do valor absoluto de cada etapa. Hoje existe só no Funil; em "Todos" não há comparativo. No NSM foi
+substituído pela **Tendência** (rascunho provisório, issue #285). Distinta de SUBIU/CAIU, que compara posições
+de ranking.
+Em substituição pela **Tendência** também no Funil (decisão do autor pendente: o Funil não tem série por data
+de publicação); até lá, continua valendo lá.
 _Avoid_: Projeção, tendência (a tendência é outro conceito, calculado no tempo).
 
 **Tendência**:
@@ -29,7 +31,9 @@ Direção e tamanho da variação de um indicador do próprio governador ao long
 bruta por data de publicação (nunca sobre o índice normalizado entre perfis, que misturaria o governador com os
 demais). Aparece em quatro estados: Subindo, Caindo, Estável e Dados insuficientes. Só é Subindo ou Caindo quando
 a incerteza da estimativa exclui "sem variação" e o efeito é grande o bastante para importar; sem dado suficiente,
-nenhuma seta é mostrada. Não compara o governador com os demais.
+nenhuma seta é mostrada. Não compara o governador com os demais. Hoje aparece no cartão de Engajamento
+qualificado do NSM (proporção de comentários positivos, por data do comentário), com método e limiares
+provisórios até o backtest da Coleta de 90 dias (#284).
 _Avoid_: Projeção (prever o futuro é outra coisa), SUBIU/CAIU (posição no ranking), CMGR sozinho (taxa específica
 de tendência do engajamento, ver CMGR de engajamento).
 

@@ -8,11 +8,20 @@ reais escritas em `tmp_path`, mesmo padrão dos dois arquivos acima."""
 
 import inspect
 
+import numpy as np
 import pandas as pd
 import streamlit as st
 
 from config import settings
 from dashboard.core import data
+from dashboard.core.tendencia import (
+    LIMIAR_COBERTURA_BAIXA,
+    MIN_DIAS_DISTINTOS,
+    MIN_OBSERVACOES,
+    MIN_PERFIS_CONJUNTO,
+    Tendencia,
+    tendencia_positividade_comentarios,
+)
 from dashboard.screens import resumo_comum
 from dashboard.screens import resumo_nsm as resumo
 
@@ -287,74 +296,186 @@ def test_montar_tabela_contraste_descarta_url_repetida():
 
 
 # ---------------------------------------------------------------------------
-# Comparativo vs. mediana no cartão principal (ADR 0033 / issue #208)
+# Tendencia no cartao principal (ADR 0040 / issue #285) -- RASCUNHO PROVISORIO:
+# metodo e limiares aguardam o backtest (#284). Substitui o Comparativo vs.
+# mediana (ADR 0033) no NSM.
 # ---------------------------------------------------------------------------
 
 
-def _tabela_nsm(valores):
-    return _tabela([(k, 1, v, 0, 0) for k, v in valores.items()])
+def _cenario(chaves, n_dias=40, efeito=0.0, seed=0):
+    """Comentarios + reels/posts de varios perfis: 1 publicacao de reel e 1 de
+    post a cada 2 dias (data de PUBLICACAO), 10 comentarios em cada. A data do
+    comentario e deliberadamente absurda (2030) para provar que nao e usada."""
+    rng = np.random.default_rng(seed)
+    com, reels, posts = [], [], []
+    for chave in [chaves] if isinstance(chaves, str) else chaves:
+        for i in range(n_dias):
+            p = min(0.95, 0.3 * (1 + efeito * i / max(n_dias - 1, 1)))
+            dia = pd.Timestamp("2026-01-01") + pd.Timedelta(days=2 * i)
+            for formato, destino in (("reel", reels), ("post", posts)):
+                pid = f"{chave}-{formato}-{i}"
+                destino.append({"id": pid, "data_hora": dia})
+                for j in range(10):
+                    com.append(
+                        {
+                            "inputUrl": f"https://www.instagram.com/{chave}/",
+                            "timestamp": "2030-01-01T12:00:00.000Z",
+                            "sentiment_label": (
+                                "positive" if rng.random() < p else "negative"
+                            ),
+                            "id_comment": f"{pid}-{j}",
+                            "id_reel": pid,
+                            "origem_comentario": formato,
+                        }
+                    )
+    return pd.DataFrame(com), pd.DataFrame(reels), pd.DataFrame(posts)
 
 
-def test_comparativo_nsm_selecionado_usa_mediana_dos_demais_em_pontos():
-    t = _tabela_nsm({"a": 60.0, "b": 10.0, "c": 20.0, "d": 100.0})
-    comp = resumo.comparativo_nsm(t, "a")
-    assert comp["modo"] == "selecionado"
-    assert comp["n"] == 3
-    assert comp["dif"] == 40.0  # 60 - mediana(10, 20, 100) = 60 - 20
+def _serie(monkeypatch, chaves, **kw):
+    com, reels, posts = _cenario(chaves, **kw)
+    monkeypatch.setattr(data, "load_reels_content", lambda: reels)
+    monkeypatch.setattr(data, "load_posts_content", lambda: posts)
+    return com, resumo.serie_nsm(com)
 
 
-def test_comparativo_nsm_ignora_demais_sem_nsm_e_none_sem_pares_ou_sem_valor():
-    t = _tabela_nsm({"a": 30.0, "b": 10.0, "c": None})
-    assert resumo.comparativo_nsm(t, "a")["n"] == 1
-    assert resumo.comparativo_nsm(t, "c") is None  # selecionado sem NSM
-    assert resumo.comparativo_nsm(_tabela_nsm({"a": 30.0}), "a") is None  # sem pares
-    assert resumo.comparativo_nsm(_tabela([]), "a") is None
+def _chave(c):
+    return resumo._normalize_url(pd.Series([f"https://www.instagram.com/{c}/"])).iloc[0]
 
 
-def test_comparativo_nsm_todos_compara_media_com_mediana_do_grupo():
-    t = _tabela_nsm({"a": 100.0, "b": 0.0, "c": 0.0, "d": 20.0})
-    comp = resumo.comparativo_nsm(t, None)
-    assert comp["modo"] == "todos"
-    assert comp["n"] == 4
-    assert comp["dif"] == 20.0  # media 30 - mediana de (0, 0, 20, 100) = 10
+def test_serie_nsm_usa_data_de_publicacao_e_devolve_cobertura(monkeypatch):
+    _, s = _serie(monkeypatch, "a", n_dias=3)
+    assert s.taxa_correspondencia == 1.0 and s.n_comentarios == 60
+    assert len(s.serie) == 6  # 3 dias x 2 publicacoes (reel e post)
+    assert s.serie["data"].max() == pd.Timestamp("2026-01-05")  # nao 2030
+    assert s.serie["chave"].unique().tolist() == [_chave("a")]
 
 
-def test_html_seta_selecionado_acima_verde_abaixo_vermelha_com_sinal_em_texto():
-    acima = resumo.html_seta({"dif": 12.44, "n": 25, "modo": "selecionado"})
-    assert "▲ +12,4 pts" in acima and "verde" in acima
-    abaixo = resumo.html_seta({"dif": -3.0, "n": 25, "modo": "selecionado"})
-    assert "▼ −3,0 pts" in abaixo and "verm" in abaixo
+def test_serie_nsm_sem_colunas_ou_vazio(monkeypatch):
+    monkeypatch.setattr(data, "load_reels_content", lambda: pd.DataFrame())
+    monkeypatch.setattr(data, "load_posts_content", lambda: pd.DataFrame())
+    assert resumo.serie_nsm(pd.DataFrame()).serie.empty
+    assert resumo.serie_nsm(pd.DataFrame({"x": [1]})).serie.empty
 
 
-def test_html_seta_todos_e_neutra_sem_verde_nem_vermelho():
-    html = resumo.html_seta({"dif": 20.0, "n": 26, "modo": "todos"})
-    assert "▲ +20,0 pts" in html and "neutro" in html
-    assert "verde" not in html and "verm" not in html
+def test_tendencia_selecionado_sobe_e_cai(monkeypatch):
+    _, s1 = _serie(monkeypatch, "a", efeito=1.0)
+    _, s2 = _serie(monkeypatch, "b", efeito=-0.6, seed=1)
+    tp = tendencia_positividade_comentarios
+    assert tp(s1.serie, _chave("a")).estado == "Subindo"
+    assert tp(s2.serie, _chave("b")).estado == "Caindo"
 
 
-def test_html_seta_sem_comparativo_ou_diferenca_nula():
-    assert resumo.html_seta(None) == ""
-    assert "= 0,0 pts" in resumo.html_seta({"dif": 0.0, "n": 5, "modo": "selecionado"})
+def test_tendencia_perfil_inexistente_ou_sem_dado_e_insuficiente(monkeypatch):
+    _, s = _serie(monkeypatch, "a", efeito=1.0)
+    tp = tendencia_positividade_comentarios
+    assert tp(s.serie, _chave("zzz")).estado == "Dados insuficientes"
+    assert tp(resumo.serie_nsm(pd.DataFrame()).serie, _chave("a")).estado == (
+        "Dados insuficientes"
+    )
 
 
-def test_legenda_comparativo_muda_por_modo_e_mostra_n():
-    sel = resumo.legenda_comparativo({"dif": 1.0, "n": 25, "modo": "selecionado"})
-    assert "mediana dos demais governadores (n = 25)" in sel
-    todos = resumo.legenda_comparativo({"dif": 1.0, "n": 26, "modo": "todos"})
-    assert "média" in todos and "mediana" in todos and "poucos perfis" in todos
-    abaixo = resumo.legenda_comparativo({"dif": -2.0, "n": 26, "modo": "todos"})
-    assert "média abaixo da mediana" in abaixo and "poucos perfis baixos" in abaixo
-    assert resumo.legenda_comparativo(None) == ""
+def test_tendencia_de_um_governador_nao_muda_quando_os_outros_mudam(monkeypatch):
+    _, a = _serie(monkeypatch, ["a"], efeito=0.8)
+    _, ab1 = _serie(monkeypatch, ["a", "b"], efeito=0.8)
+    _, ab2 = _serie(monkeypatch, ["a", "b", "c"], efeito=0.8)
+    tp = tendencia_positividade_comentarios
+    sozinho = tp(a.serie, _chave("a"))
+    assert tp(ab1.serie, _chave("a")) == tp(ab2.serie, _chave("a")) == sozinho
 
 
-def test_css_da_seta_neutra_tem_cor_propria_e_nao_herda_o_verde_do_cartao():
-    assert ".n-seta.neutro { color: var(--n-neutro)" in resumo._CSS_NSM
+def test_tendencia_todos_e_mediana_dos_perfis(monkeypatch):
+    chaves = list("abcdefg")
+    _, s = _serie(monkeypatch, chaves, efeito=1.0)
+    conj = tendencia_positividade_comentarios(s.serie, None)
+    assert conj.estado == "Subindo" and conj.n_perfis == 7
+    _, pouco = _serie(monkeypatch, chaves[: MIN_PERFIS_CONJUNTO - 1], efeito=1.0)
+    ins = tendencia_positividade_comentarios(pouco.serie, None)
+    assert ins.estado == "Dados insuficientes"
+    assert ins.n_perfis == MIN_PERFIS_CONJUNTO - 1
 
 
-def test_html_cartao_coloca_a_seta_ao_lado_do_valor():
-    html = resumo._html_cartao("T", "62,3", "sub", "verde", seta="<b>SETA</b>")
-    assert html.index("62,3") < html.index("SETA") < html.index("sub")
-    assert "SETA" not in resumo._html_cartao("T", "62,3", "sub", None)
+def test_html_tendencia_subindo_verde_caindo_vermelho_com_magnitude_e_incerteza():
+    sobe = resumo.html_tendencia(Tendencia("Subindo", 0.123, 0.031, 0.22, 0.1, 40, 40))
+    assert "▲ Subindo" in sobe and "+12,3%" in sobe and "IC 95%" in sobe
+    assert "+3,1%" in sobe and "+22,0%" in sobe and "verde" in sobe
+    cai = resumo.html_tendencia(Tendencia("Caindo", -0.2, -0.3, -0.1, -0.2, 40, 40))
+    assert "▼ Caindo" in cai and "−20,0%" in cai and "verm" in cai
+
+
+def test_html_tendencia_estavel_diz_sem_evidencia_e_nao_afirma_que_nada_mudou():
+    est = resumo.html_tendencia(Tendencia("Estável", 0.02, -0.08, 0.13, 0.02, 40, 40))
+    assert "Estável" in est and "sem evidência suficiente de mudança" in est
+    assert "neutro" in est and "▲" not in est and "▼" not in est
+
+
+def test_html_tendencia_dados_insuficientes_sem_seta_e_none_vazio():
+    ins = resumo.html_tendencia(Tendencia("Dados insuficientes"))
+    assert "Dados insuficientes" in ins and "▲" not in ins and "▼" not in ins
+    assert resumo.html_tendencia(None) == ""
+
+
+def test_legenda_tendencia_e_provisoria_e_nao_cita_o_comparativo_antigo():
+    sel = resumo.legenda_tendencia(Tendencia("Subindo", 0.1, 0.01, 0.2, 0.1, 40, 40))
+    assert "provisória" in sel and "série bruta" in sel and "0–100" in sel
+    assert "data de publicação" in sel and "90 dias" in sel
+    assert "mediana dos demais" not in sel
+    assert "Atenção" not in sel  # sem taxa, nada a avisar
+    assert resumo.legenda_tendencia(None) == ""
+
+
+def test_legenda_todos_explica_media_do_cartao_x_mediana_da_tendencia():
+    todos = resumo.legenda_tendencia(
+        Tendencia("Subindo", 0.1, 0.01, 0.2, 0.1, 0, 0, 12)
+    )
+    assert "mediana das tendências" in todos and "n = 12" in todos
+    assert "média simples" in todos
+
+
+def test_legenda_avisa_cobertura_baixa_pela_constante():
+    t = Tendencia("Subindo", 0.1, 0.01, 0.2, 0.1, 40, 40)
+    abaixo = resumo.legenda_tendencia(t, LIMIAR_COBERTURA_BAIXA - 0.01)
+    assert "Atenção" in abaixo and "ficaram fora da série" in abaixo
+    assert "Atenção" not in resumo.legenda_tendencia(t, LIMIAR_COBERTURA_BAIXA)
+    assert "Atenção" not in resumo.legenda_tendencia(t, 1.0)
+
+
+def test_html_tendencia_escapa_texto_dinamico(monkeypatch):
+    monkeypatch.setattr(resumo, "_texto_magnitude", lambda t: "<i>x</i>")
+    out = resumo.html_tendencia(Tendencia("Subindo", 0.1, 0.01, 0.2, 0.1, 40, 40))
+    assert "<i>" not in out and "&lt;i&gt;" in out
+
+
+def test_html_tendencia_todos_com_poucos_perfis_explica_o_minimo():
+    ins = resumo.html_tendencia(
+        Tendencia("Dados insuficientes", n_perfis=MIN_PERFIS_CONJUNTO - 1)
+    )
+    assert f"só {MIN_PERFIS_CONJUNTO - 1} perfis" in ins
+    assert f"exige {MIN_PERFIS_CONJUNTO}" in ins
+
+
+def test_html_tendencia_um_perfil_insuficiente_explica_os_minimos():
+    ins = resumo.html_tendencia(
+        Tendencia("Dados insuficientes", n_observacoes=4, n_dias=3)
+    )
+    assert "4 publicações em 3 dias" in ins
+    assert f"{MIN_OBSERVACOES} publicações" in ins
+    assert f"{MIN_DIAS_DISTINTOS} dias distintos" in ins
+
+
+def test_nsm_nao_tem_mais_o_comparativo_vs_mediana():
+    fonte = inspect.getsource(resumo)
+    for velho in ("comparativo_nsm", "html_seta", "legenda_comparativo"):
+        assert velho not in fonte
+
+
+def test_css_da_tendencia_neutra_tem_cor_propria():
+    assert ".n-tend.neutro { color: var(--n-neutro)" in resumo._CSS_NSM
+
+
+def test_html_cartao_coloca_a_tendencia_abaixo_do_valor():
+    html = resumo._html_cartao("T", "62,3", "sub", "verde", tendencia="<b>TEND</b>")
+    assert html.index("62,3") < html.index("TEND") < html.index("sub")
+    assert "TEND" not in resumo._html_cartao("T", "62,3", "sub", None)
 
 
 def test_html_ranking_lista_todos_em_container_rolavel_e_destaca_selecionado():
