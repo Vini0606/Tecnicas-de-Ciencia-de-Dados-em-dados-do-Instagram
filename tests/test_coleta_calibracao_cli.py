@@ -40,27 +40,30 @@ def test_estimativa_mostra_a_coleta_de_origem_da_calibracao(tmp_path, capsys, mo
 
     assert "Calibracao" in saida
     assert "coleta_2026-10-01_ultimos-90d_teto-250" in saida
-    assert "1/1 governadores com taxa propria" in saida
-    assert all(len(linha) < 80 for linha in saida.splitlines() if "ABORTADO" not in linha)
+    assert "1/1 governadores com itens na base" in saida
+    assert all(len(linha) < 120 for linha in saida.splitlines() if "ABORTADO" not in linha)
 
 
-def test_hf_com_erro_cai_nas_taxas_fixas_e_diz_o_motivo(tmp_path, capsys):
+def test_hf_com_erro_vira_sem_base_estimado_igual_ao_maximo_e_diz_o_motivo(tmp_path, capsys):
     def quebra():
         raise hf.ErroColetaHF("sem token")
 
     saida = _estimar(tmp_path, capsys, cliente_factory=quebra)
 
-    assert "taxas fixas da ADR 0012" in saida
+    assert "sem base de calibracao" in saida
     assert "HF indisponivel" in saida
-    assert "Esperado (US$)" in saida  # a estimativa sai mesmo assim
+    assert "Estimado (US$)" in saida  # a estimativa sai mesmo assim
+    assert "Sem base de calibracao: o estimado vale o maximo" in saida
 
 
-def test_coleta_anterior_curta_cai_nas_taxas_fixas_com_o_motivo(tmp_path, capsys, monkeypatch):
+def test_coleta_anterior_curta_serve_de_base_sem_aviso_de_janela_curta(tmp_path, capsys, monkeypatch):
     monkeypatch.setattr(hf, "listar", lambda *, cliente: [_coleta([_perfil("gov_a", 30)], dias=5, teto=30)])
 
     saida = _estimar(tmp_path, capsys, cliente_factory=lambda: object())
 
-    assert "taxas fixas da ADR 0012" in saida and "curta demais" in saida
+    assert "coleta_2026-10-01_ultimos-5d_teto-30" in saida
+    assert "5 dias; 1/1 governadores com itens na base" in saida
+    assert "curta demais" not in saida and "sem base de calibracao" not in saida
 
 
 def test_sem_calibracao_nunca_consulta_o_hf(tmp_path, capsys):
@@ -69,19 +72,20 @@ def test_sem_calibracao_nunca_consulta_o_hf(tmp_path, capsys):
 
     saida = _estimar(tmp_path, capsys, "--sem-calibracao", cliente_factory=nao_deve_ser_chamado)
 
-    assert "taxas fixas da ADR 0012" in saida and "--sem-calibracao" in saida
+    assert "sem base de calibracao" in saida and "--sem-calibracao" in saida
 
 
-def test_calibracao_muda_o_esperado_e_nao_o_pior_caso(tmp_path, capsys, monkeypatch):
+def test_base_muda_o_estimado_e_nao_o_maximo(tmp_path, capsys, monkeypatch):
     monkeypatch.setattr(hf, "listar", lambda *, cliente: [_coleta([_perfil("gov_a", 90)], [_perfil("gov_a", 45)])])
 
     calibrada = _estimar(tmp_path / "a", capsys, cliente_factory=lambda: object())
-    fixa = _estimar(tmp_path / "b", capsys, "--sem-calibracao", cliente_factory=lambda: object())
+    sem_base = _estimar(tmp_path / "b", capsys, "--sem-calibracao", cliente_factory=lambda: object())
 
-    def total(saida):  # colunas do Total: esperado, pior caso
+    def total(saida):  # colunas do Total: estimado, maximo
         return next(linha.split()[1:] for linha in saida.splitlines() if linha.split()[:1] == ["Total"])
 
-    esperado_calibrado, pior_calibrado = total(calibrada)
-    esperado_fixo, pior_fixo = total(fixa)
-    assert pior_calibrado == pior_fixo
-    assert float(esperado_calibrado.replace(",", ".")) < float(esperado_fixo.replace(",", "."))
+    estimado_calibrado, maximo_calibrado = total(calibrada)
+    estimado_sem_base, maximo_sem_base = total(sem_base)
+    assert maximo_calibrado == maximo_sem_base
+    assert estimado_sem_base == maximo_sem_base  # sem base: estimado = maximo
+    assert float(estimado_calibrado.replace(",", ".")) < float(estimado_sem_base.replace(",", "."))

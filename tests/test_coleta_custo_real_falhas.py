@@ -46,4 +46,6 @@ def test_ugc_que_falha_nao_vira_total_parcial_no_manifesto(tmp_path):
     resultado = _coletar(tmp_path, Recorte(dias=90, teto=250), _ScraperComUgcQueFalha())
 
     assert resultado.custo_real is None
-    assert resultado.manifesto["custo"]["real"] is None
+    # v4 nunca grava null: sem custo real legível, os blocos real e diferenca são omitidos
+    assert "real" not in resultado.manifesto["custo"] and "diferenca" not in resultado.manifesto["custo"]
+    assert "estimado" in resultado.manifesto["custo"]

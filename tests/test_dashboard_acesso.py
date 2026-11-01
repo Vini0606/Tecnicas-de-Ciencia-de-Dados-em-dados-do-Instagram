@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 from streamlit.testing.v1 import AppTest
 
@@ -88,8 +90,11 @@ def test_senha_vem_do_ambiente_ou_dos_secrets(monkeypatch):
 # -------------------------------------------------- app inteiro (AppTest)
 
 
+_APP = Path(__file__).resolve().parent.parent / "dashboard" / "app.py"
+
+
 def _app() -> AppTest:
-    return AppTest.from_file("dashboard/app.py", default_timeout=120)
+    return AppTest.from_file(str(_APP), default_timeout=120)
 
 
 def test_app_com_senha_mostra_so_o_formulario_e_nenhuma_tela(monkeypatch):

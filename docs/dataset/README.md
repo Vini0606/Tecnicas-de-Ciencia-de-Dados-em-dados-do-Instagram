@@ -56,7 +56,33 @@ manifesto.json
 - **Gold:** engajamento, NSM, scorecard, clusters de posts e reels, sentimento, tópicos de discurso, prioridade de pautas, menções UGC e a regressão de performance por post.
 - **Tabelas legadas desta Coleta:** `governor_nsm_history` e `governor_sentiment_history` existem aqui, mas o código atual não gera mais `governor_nsm_history`, e nenhuma tela as lê.
 
-O manifesto traz a identidade da Coleta, o Recorte, a cobertura por fonte e por perfil e a contagem de linhas de cada tabela. Para esta Coleta, o custo na Apify não foi registrado.
+O manifesto (esquema v4) traz a identidade da Coleta, o Recorte pedido e a janela efetiva em datas, a cobertura por fonte e por perfil, o custo e a contagem de linhas de cada tabela. Nenhum campo é nulo: o que não se aplica simplesmente não aparece. Na cobertura, posts, reels e UGC usam a data de **publicação** (UTC); perfis não têm publicação, então usam a data da **captura**.
+
+## Custo da Coleta
+
+O bloco `custo` do manifesto separa o que se previa gastar, o que a Apify cobrou e a diferença. Todo valor tem a unidade no nome: `_usd` são **dólares** (a Apify cobra em dólar; nada é convertido) e `_itens` é a quantidade de resultados. Cada bloco traz `perfis`, `posts`, `reels` e `ugc`, mais o `total`.
+
+| Chave | Conteúdo |
+|---|---|
+| `estimado.estimado_usd` | previsão do gasto, **média + 3 desvios-padrão do total**, nunca acima do máximo |
+| `estimado.maximo_usd` | gasto no limite absoluto: o teto de itens por perfil cheio em todos os perfis |
+| `estimado.resultados_itens` | itens por trás do estimado |
+| `estimado.teto` | `aplicado_itens_por_perfil` (o limite enviado ao scraper) e `padrao` (`true` se veio do padrão, sem `--teto`) |
+| `estimado.base_calibracao` | a Coleta que calibrou posts, reels e UGC, ou `sem_base` |
+| `real.custo_usd`, `real.resultados_itens` | o que a Apify cobrou e os itens que devolveu, lidos do run finalizado |
+| `diferenca.custo_pct`, `diferenca.resultados_pct` | `(real − estimado) / estimado × 100`, só em percentual; **negativo = abaixo do estimado** |
+
+**Como o estimado é calculado.**
+
+1. **Máximo.** `teto aplicado × nº de perfis × preço por item` de cada coleção (mais a taxa fixa de partida do actor de reels). Sem `--teto`, o teto padrão é `max(200, 7 × dias da janela)` com janela e 30 sem janela. Perfis custam um resultado por governador.
+2. **Base de calibração.** É a Coleta anterior mais recente, por menor que seja a janela dela. A contagem de itens de cada governador vem da cobertura por perfil do manifesto dela. Sem base, o estimado de cada coleção é o máximo.
+3. **Projeção por governador para o novo Recorte.** Posts e reels: itens ÷ dias da janela da base × dias da nova Coleta. UGC não depende da janela: usa a contagem da base. Todos limitados ao novo teto. Governador que atingiu o teto da base está censurado (a quantidade real é maior) e sobe direto ao novo teto. Governador que estava na base e não teve itens conta zero; se o elenco cresceu desde a base, só os governadores a mais entram com a média dos demais.
+4. **Média + 3σ no total.** Com `N` governadores, `v_i` o valor projetado de cada um e `σ` o desvio-padrão (populacional) entre os `v_i`: `estimado_itens = Σ v_i + 3 · √N · σ`, arredondado para cima e limitado ao máximo. Multiplicar por `√N` (e não por `N`) trata o total como a soma de `N` contagens independentes. Aplicar média + 3σ perfil a perfil só reproduziria o teto, porque o desvio entre governadores mede quanto eles diferem entre si, e não o acaso de cada um.
+5. **Em dólares.** `itens ÷ 1.000 × preço por 1.000 resultados` do actor e do plano da conta Apify (tabela verificada em 2026-10-13).
+
+Como o estimado é uma previsão alta de propósito, a diferença costuma ser **negativa**: ela mede a folga do orçamento, não o erro da previsão.
+
+**Esta Coleta.** É a primeira, então não tem base de calibração: o estimado é igual ao máximo, US$ 6,31 (teto 30 × 26 perfis = 780 itens por coleção). O custo real foi de US$ 3,72 (perfis 0,07, posts 1,62, reels 1,36, UGC 0,66), cerca de 41% abaixo do estimado. O custo real foi lido dos quatro runs na conta Apify (plano FREE) e o estimado foi recalculado depois com a regra atual, porque a previsão da época não foi gravada.
 
 ## Como usar
 

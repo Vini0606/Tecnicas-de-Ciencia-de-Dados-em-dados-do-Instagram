@@ -5,7 +5,7 @@ Tudo com Apify falsa: nenhuma rede, nenhum custo."""
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from unittest.mock import MagicMock
 
 import pytest
@@ -13,6 +13,7 @@ from test_coleta_coletar import LINK, _coletar, _governadores, _ScraperFalso
 from test_coleta_manifesto import _gerar, snapshot  # noqa: F401  (fixture)
 
 from src.coleta import cli, hf
+from src.coleta.custo import agregar_custo_real, estimar_custo
 from src.coleta.manifesto import validar_manifesto
 from src.coleta.recorte import Recorte
 from src.data_extract.scraper import InstagramScraper
@@ -44,27 +45,44 @@ def test_custo_real_por_actor_vai_para_o_manifesto_e_para_o_resultado(tmp_path):
     resultado = _coletar(tmp_path, Recorte(dias=90, teto=250), _ScraperComCusto(EXECUCOES))
 
     esperado = {
-        "perfis": 0.07, "posts": 0.70, "reels": 0.40, "ugc": 0.25, "total": 1.42,
-        "resultados_perfis": 26, "resultados_posts": 270, "resultados_reels": 154, "resultados_ugc": 93,
+        "custo_usd": {"perfis": 0.07, "posts": 0.70, "reels": 0.40, "ugc": 0.25, "total": 1.42},
+        "resultados_itens": {"perfis": 26, "posts": 270, "reels": 154, "ugc": 93, "total": 543},
     }
-    assert resultado.custo_real == pytest.approx(esperado)
     gravado = json.loads((tmp_path / "dados" / "manifesto.json").read_text(encoding="utf-8"))
-    assert gravado["custo"]["real"] == pytest.approx(esperado)
+    assert gravado["versao_esquema"] == 4
+    for real in (resultado.custo_real, gravado["custo"]["real"]):
+        assert real["custo_usd"] == pytest.approx(esperado["custo_usd"])
+        assert real["resultados_itens"] == esperado["resultados_itens"]
+
+
+def test_manifesto_traz_estimado_real_e_diferenca_percentual_sem_nulos(tmp_path):
+    resultado = _coletar(tmp_path, Recorte(dias=90, teto=250), _ScraperComCusto(EXECUCOES))
+
+    custo = resultado.manifesto["custo"]
+    assert set(custo) == {"estimado", "real", "diferenca"}
+    assert set(custo["diferenca"]) == {"custo_pct", "resultados_pct"}
+    # 1 governador falso, sem base: estimado = maximo = 250 itens; posts reais 270 => +8,0%
+    assert custo["estimado"]["resultados_itens"]["posts"] == 250
+    assert custo["diferenca"]["resultados_pct"]["posts"] == 8.0
+    assert custo["diferenca"]["custo_pct"]["total"] == round(
+        (1.42 - custo["estimado"]["estimado_usd"]["total"]) / custo["estimado"]["estimado_usd"]["total"] * 100, 1
+    )
+    assert custo["estimado"]["teto"] == {"aplicado_itens_por_perfil": 250, "padrao": False}
 
 
 def test_chaves_de_custo_real_e_estimado_sao_comparaveis(tmp_path):
     resultado = _coletar(tmp_path, Recorte(dias=90, teto=250), _ScraperComCusto(EXECUCOES))
 
-    comuns = {"perfis", "posts", "reels", "ugc", "total"}
-    assert comuns <= set(resultado.custo_real)
-    assert comuns <= set(resultado.manifesto["custo"]["estimado"])
+    estimado = resultado.manifesto["custo"]["estimado"]
+    assert set(resultado.custo_real["custo_usd"]) == set(estimado["estimado_usd"]) == set(estimado["maximo_usd"])
+    assert set(resultado.custo_real["resultados_itens"]) == set(estimado["resultados_itens"])
 
 
-def test_sem_registro_de_execucoes_o_custo_real_fica_nulo(tmp_path):
+def test_sem_registro_de_execucoes_nao_ha_custo_real_nem_diferenca_no_manifesto(tmp_path):
     resultado = _coletar(tmp_path, Recorte(dias=90, teto=250))  # _ScraperFalso não registra nada
 
     assert resultado.custo_real is None
-    assert resultado.manifesto["custo"]["real"] is None
+    assert set(resultado.manifesto["custo"]) == {"estimado"}  # nunca null: os blocos que faltam são omitidos
 
 
 def test_custo_real_nunca_e_parcial_quando_uma_chamada_vem_sem_custo(tmp_path, caplog):
@@ -73,8 +91,16 @@ def test_custo_real_nunca_e_parcial_quando_uma_chamada_vem_sem_custo(tmp_path, c
         resultado = _coletar(tmp_path, Recorte(dias=90, teto=250), _ScraperComCusto(execucoes))
 
     assert resultado.custo_real is None
-    assert resultado.manifesto["custo"]["real"] is None
+    assert "real" not in resultado.manifesto["custo"] and "diferenca" not in resultado.manifesto["custo"]
     assert "custo real" in caplog.text.lower()
+
+
+def test_custo_real_acima_do_maximo_gera_aviso(tmp_path, caplog):
+    caro = [{"colecao": "posts", "usd": 5.0, "itens": 10}, *[{"colecao": c, "usd": 0.1, "itens": 1} for c in ("perfis", "reels", "ugc")]]
+    with caplog.at_level("WARNING"):
+        _coletar(tmp_path, Recorte(dias=90, teto=250), _ScraperComCusto(caro))
+
+    assert "acima do custo maximo" in caplog.text
 
 
 # --- seam secundário: o scraper com cliente Apify falso --------------------------------
@@ -130,13 +156,50 @@ def test_custo_que_nao_e_numero_vira_none(final):
 # --- manifesto ----------------------------------------------------------------------------
 
 
-def test_custo_real_aceita_nulo_numero_antigo_e_dicionario_de_numeros(snapshot):  # noqa: F811
-    m = _gerar(snapshot)
-    for real in (None, 1.8, {"posts": 0.7, "total": 1.4, "resultados_posts": 270}):
-        m["custo"]["real"] = real
+def _v4(snapshot):  # noqa: F811
+    return _gerar(
+        snapshot,
+        custo_estimado=estimar_custo(Recorte(dias=90, teto=250), 26, date(2026, 10, 9)),
+        custo_real=agregar_custo_real(EXECUCOES_CHEIAS),
+    )
+
+
+EXECUCOES_CHEIAS = [
+    {"colecao": "perfis", "usd": 0.07, "itens": 26},
+    {"colecao": "posts", "usd": 0.70, "itens": 270},
+    {"colecao": "reels", "usd": 0.40, "itens": 154},
+    {"colecao": "ugc", "usd": 0.25, "itens": 93},
+]
+
+
+def test_manifesto_v4_valido_com_estimado_real_e_diferenca(snapshot):  # noqa: F811
+    m = _v4(snapshot)
+
+    validar_manifesto(m)
+    assert m["versao_esquema"] == 4
+
+
+def test_custo_real_e_diferenca_podem_faltar_mas_nunca_ser_nulos(snapshot):  # noqa: F811
+    m = _v4(snapshot)
+    nulo = json.loads(json.dumps(m))
+    nulo["custo"]["real"] = None  # com a diferenca presente: o bloco existe, mas vazio
+    with pytest.raises(ValueError, match="custo.real"):
+        validar_manifesto(nulo)
+
+    del m["custo"]["real"], m["custo"]["diferenca"]
+    validar_manifesto(m)  # só o estimado
+
+
+def test_diferenca_exige_estimado_e_real(snapshot):  # noqa: F811
+    m = _v4(snapshot)
+    del m["custo"]["real"]
+    with pytest.raises(ValueError, match="diferenca exige"):
         validar_manifesto(m)
 
-    for ruim in ({"posts": "caro"}, {"posts": True}, {1: 0.5}, "1,8", [0.5]):
+
+def test_custo_real_v4_recusa_formato_ruim(snapshot):  # noqa: F811
+    for ruim in ({"posts": "caro"}, {"custo_usd": {"posts": True}}, 1.8, [0.5], {"custo_usd": {}, "resultados_itens": {}}):
+        m = _v4(snapshot)
         m["custo"]["real"] = ruim
         with pytest.raises(ValueError, match="custo.real"):
             validar_manifesto(m)
@@ -147,7 +210,7 @@ def test_custo_real_aceita_nulo_numero_antigo_e_dicionario_de_numeros(snapshot):
 
 @pytest.fixture(autouse=True)
 def _sem_rede_no_hf(monkeypatch):
-    """A calibração consulta o HF; nos testes ele nunca é tocado (cai nas taxas fixas)."""
+    """A calibração consulta o HF; nos testes ele nunca é tocado (sem base: estimado = máximo)."""
 
     def sem_hf(*_a, **_k):
         raise hf.ErroColetaHF("HF bloqueado nos testes")
@@ -178,11 +241,12 @@ def test_com_yes_mostra_a_comparacao_entre_custo_estimado_e_real(tmp_path, capsy
 
     assert "CUSTO ESTIMADO x REAL" in saida
     comparacao = _linhas_da_tabela(saida.split("CUSTO ESTIMADO x REAL")[1])
-    # colunas: coleção, estimado, real, diferença (US$), diferença (%) -- vírgula decimal
+    # colunas: coleção, estimado (US$), real (US$), diferença (%), itens estimados / reais -- vírgula decimal
     assert comparacao["Posts"][2] == "0,70"
     assert comparacao["Total"][2] == "1,42"
     assert comparacao["Total"][3].startswith("-")  # real abaixo do estimado (1 governador: US$ 1,73)
-    assert comparacao["Total"][4].endswith("%")
+    assert comparacao["Total"][3].endswith("%")
+    assert comparacao["Total"][-3:] == [comparacao["Total"][-3], "/", "543"]  # itens reais
 
 
 def test_com_yes_sem_custo_real_avisa_que_nao_foi_possivel_ler(tmp_path, capsys, _governadores_falsos):
@@ -195,3 +259,44 @@ def test_com_yes_sem_custo_real_avisa_que_nao_foi_possivel_ler(tmp_path, capsys,
 
     assert "CUSTO ESTIMADO x REAL" not in saida
     assert "Custo real indisponivel" in saida
+    manifesto = json.loads((tmp_path / "dados" / "manifesto.json").read_text(encoding="utf-8"))
+    assert set(manifesto["custo"]) == {"estimado"}
+
+
+def _run_com_eventos(usd, contagens, precos):
+    return {
+        "usageTotalUsd": usd,
+        "chargedEventCounts": contagens,
+        "pricingInfo": {
+            "pricingModel": "PAY_PER_EVENT",
+            "pricingPerEvent": {"actorChargeEvents": {k: {"eventPriceUsd": v} for k, v in precos.items()}},
+        },
+    }
+
+
+def test_sem_usage_total_o_custo_sai_dos_eventos_cobrados_e_seus_precos():
+    # run real de posts do piloto: 601 x (post 0.0017 + post-details 0.001) = 1.6227
+    final = _run_com_eventos(None, {"post": 601, "post-details": 601}, {"post": 0.0017, "post-details": 0.001})
+    scraper = InstagramScraper(_client(final, [{"id": "1"}]))
+
+    scraper.scrape_posts(["gov"])
+
+    assert scraper.execucoes[0]["usd"] == pytest.approx(1.6227)
+
+
+def test_usage_total_tem_prioridade_sobre_o_calculo_por_eventos():
+    final = _run_com_eventos(0.5, {"post": 10}, {"post": 0.0017})
+    scraper = InstagramScraper(_client(final))
+
+    scraper.scrape_posts(["gov"])
+
+    assert scraper.execucoes[0]["usd"] == 0.5
+
+
+def test_evento_cobrado_sem_preco_conhecido_nao_gera_custo_parcial():
+    final = _run_com_eventos(None, {"post": 10, "transcript": 3}, {"post": 0.0017})
+    scraper = InstagramScraper(_client(final))
+
+    scraper.scrape_posts(["gov"])
+
+    assert scraper.execucoes[0]["usd"] is None

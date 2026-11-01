@@ -153,3 +153,29 @@ _Avoid_: Versão, release, dump.
 O pedido de uma Coleta: janela relativa (últimos N dias), intervalo absoluto (início e fim), teto de itens por perfil, ou
 uma combinação. Distinto da cobertura real, que é o período efetivamente obtido por perfil e fica registrado junto da Coleta.
 _Avoid_: Filtro, parâmetros da extração.
+
+**Teto aplicado**:
+O limite de itens por perfil que de fato foi enviado ao scraper numa Coleta: o teto pedido no Recorte ou, sem ele, o teto
+padrão do projeto. O manifesto diz qual foi e se veio do padrão.
+_Avoid_: Limite, resultsLimit (é o nome do campo no Apify, não o termo do domínio).
+
+**Custo estimado**:
+A previsão, em dólares e em itens, do gasto de uma Coleta antes de extrair: a média esperada somada a três desvios-padrão
+do total (uma previsão deliberadamente alta, mas plausível), nunca acima do Custo máximo. Sem Base de calibração vale o
+Custo máximo.
+_Avoid_: Esperado, orçamento, pior caso (o pior caso é o Custo máximo).
+
+**Custo máximo**:
+O gasto no limite absoluto de uma Coleta: o Teto aplicado cheio em todos os perfis. É o único valor garantido, porque o
+scraper nunca devolve mais itens que o teto.
+_Avoid_: Pior caso, teto de custo.
+
+**Custo real**:
+O que a Apify cobrou de fato por uma Coleta, em dólares, e os itens que devolveu, por coleção. Fica no manifesto porque os
+runs somem da Apify depois de 7 dias.
+_Avoid_: Custo final, faturamento.
+
+**Base de calibração**:
+A Coleta anterior cuja cobertura por perfil alimenta o Custo estimado da próxima, por menor que seja a janela dela.
+Sem ela, o Custo estimado é o Custo máximo.
+_Avoid_: Histórico, taxa fixa.

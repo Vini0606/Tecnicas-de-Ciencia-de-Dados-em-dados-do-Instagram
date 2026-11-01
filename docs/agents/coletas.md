@@ -11,14 +11,14 @@ estão definidos em `CONTEXT.md`.
 
 - Extração real gasta dinheiro na Apify. **Nunca rode sem `--yes` e sem aval explícito do usuário no chat**, e mostre antes
   a estimativa de custo (esperado e pior caso).
-- A estimativa de `coletar` (sem `--yes`) mostra o custo **esperado** (taxas calibradas de posts e reels limitadas pelo
-  teto; UGC pelo teto cheio, sem calibração) e o **pior caso** (teto cheio em cada coleção), com preço por actor e plano
-  da conta Apify (variável `APIFY_PLAN`, padrão `BRONZE`; tabela de preços verificada em 2026-10-13 em `src/coleta/custo.py`).
-  As taxas de posts e reels são calibradas **por governador** com a Coleta mais recente do HF (itens ÷ dias da janela, lidos
-  do manifesto); se essa Coleta tiver janela menor que 30 dias, não tiver os governadores ou o HF estiver indisponível, a
-  estimativa usa as taxas fixas da ADR 0012 e a linha `Calibracao` da saída diz o motivo. `--sem-calibracao` desliga a consulta
-  ao HF. Sem `--teto`, a CLI avisa que o teto padrão foi usado e quanto ele permite gastar. O preço do evento `post-details` do
-  actor de posts está assumido como cobrado em cada post: confirme no Console da Apify depois da primeira Coleta de 90 dias.
+- A estimativa de `coletar` (sem `--yes`) mostra, por coleção, o custo **estimado** e o **máximo** (ADR 0042), com preço por
+  actor e plano da conta Apify (variável `APIFY_PLAN`, padrão `BRONZE`; tabela de preços verificada em 2026-10-13 em
+  `src/coleta/custo.py`). O **máximo** é o teto cheio em todos os perfis, o único valor garantido. O **estimado** é média + 3
+  desvios-padrão do total, projetada da **Base de calibração** (a Coleta mais recente do HF, por menor que seja a janela
+  dela) e nunca acima do máximo; sem base (nenhuma Coleta, sem os governadores, HF fora do ar, `--sem-calibracao`) ele vale o
+  máximo e a linha `Calibracao` da saída diz o motivo. Sem `--teto`, a CLI avisa que o teto padrão (`max(200, 7 × dias)` com
+  janela, 30 sem janela) foi usado e quanto ele permite gastar. O evento `post-details` do actor de posts é cobrado em cada
+  post (confirmado nos runs reais do piloto).
 - Extraia sempre em pasta de dados limpa (`DATA_DIR`), nunca por cima da pasta `data/` em uso.
 - O **Recorte** pode combinar janela relativa, intervalo absoluto e teto por perfil. Confirme o Recorte com o usuário.
 
@@ -57,14 +57,37 @@ Exemplos:
 - O manifesto traz identidade (tag, data e hora, versão do código), Recorte pedido, cobertura real por fonte e por perfil
   (contagens e datas mais antiga e mais recente), custo na Apify e a lista de tabelas derivadas com número de linhas.
   Não carrega conteúdo (nomes, textos) nem segredos.
-- `custo.estimado` é o esperado e o pior caso da estimativa; `custo.real` (desde a #297) é o que a Apify cobrou, por coleção
-  (`perfis`, `posts`, `reels`, `ugc`, `total`) mais `resultados_<coleção>`, lido da execução finalizada. É `null` se qualquer
-  chamada vier sem custo legível (nunca soma parcial) e nas Coletas anteriores. `coletar --yes` imprime ao fim a tabela
-  estimado x real.
-- `recorte` guarda o que foi **pedido** (`dias` ou `inicio`/`fim`, e `teto`); `recorte_efetivo` (esquema v2) traz a janela em
-  datas, `{inicio, fim}`: `extração - dias` até a extração na janela relativa (aproximada, o actor conta a partir do instante
-  da execução), ou o próprio intervalo no absoluto; `null` se o Recorte só tem teto. A `mais_antiga` da cobertura pode ser
-  anterior ao `inicio` efetivo, porque itens fixados no perfil entram mesmo fora da janela. Manifestos v1 (sem o campo) continuam válidos.
+- **Bloco `custo` (esquema v4, ADR 0042).** Todo valor tem a unidade no nome (`_usd` em dólares, `_itens` em resultados) e cada
+  bloco traz `perfis`, `posts`, `reels`, `ugc` e `total`. `estimado` guarda `estimado_usd` (média + 3σ do total, limitada ao
+  máximo), `maximo_usd` (teto cheio), `resultados_itens`, `teto` (`aplicado_itens_por_perfil` e `padrao`, se veio do teto
+  padrão) e `base_calibracao` (a Coleta que calibrou posts, reels e UGC, ou `sem_base`). `real` guarda `custo_usd` e
+  `resultados_itens`, o que a Apify cobrou, lido do run finalizado: o `usageTotalUsd` ou, se a Apify ainda não o calculou,
+  os eventos cobrados x o preço de cada evento do próprio run (confere centavo a centavo). `diferenca` guarda `custo_pct` e
+  `resultados_pct`, `(real − estimado) / estimado × 100`, só percentual: negativo = abaixo do estimado, e como o estimado é
+  alto de propósito ela costuma ser negativa (folga do orçamento). Se nenhuma leitura do custo for possível, `real` e
+  `diferenca` **não aparecem** (nunca nulos, nunca soma parcial). `coletar --yes` imprime ao fim a tabela estimado x real e
+  avisa se o real passar do máximo. **Os runs somem da conta Apify após 7 dias (plano FREE)**: o manifesto é o único registro
+  durável do custo. Manifestos v1 a v3 mantêm o `custo` antigo (`estimado`, `real`) e continuam válidos.
+- **Como o estimado projeta a base** (ver o ADR para as alternativas): posts e reels = itens do governador ÷ dias da janela da
+  base × dias da nova Coleta; UGC = a contagem da base (independe da janela); tudo limitado ao novo teto. Governador com
+  contagem igual ou acima do teto da base está censurado e sobe ao novo teto; governador da base sem itens conta zero; só o
+  elenco que cresceu desde a base entra com a média. Total estimado = soma + 3·√N·σ (σ populacional entre os valores
+  projetados). Base zerada numa coleção, ou Recorte sem janela para posts e reels, = estimado igual ao máximo.
+- **Manifesto sem nulos (a partir do esquema v3).** `recorte` guarda o que foi **pedido** só com as chaves que se aplicam (`dias` **ou**
+  `inicio`/`fim`, mais `teto` se informado); a janela em datas fica em `recorte_efetivo`. Na `cobertura`, posts, reels e UGC
+  usam a data de **publicação** (UTC, `timestamp` da Bronze) e `perfis` usa a data de **captura** (`_ingested_at`), porque um
+  perfil não tem publicação. Uma fonte sem nenhum item (ex.: UGC vazio) continua com datas `null`, por não haver o que medir.
+  Manifestos v1 e v2 (com `null` em `recorte` e sem `recorte_efetivo` na v1) continuam válidos.
+- **Coleta piloto (`coleta_2026-10-06_ultimos-5d_teto-30`), manifesto corrigido em 2026-10-14** (commit `fix:` na `main` do HF; a
+  tag `reboot-iesb` segue apontando para o commit original, com o manifesto v1): `custo.real` vem dos 4 runs da conta Apify
+  **IESB** (plano FREE, US$ 3,7153 no total; as contas pessoal e IESB são `APIFY_API_TOKEN` e `APIFY_API_TOKEN_IESB`),
+  o `estimado` foi recalculado depois com a regra atual (primeira Coleta, sem base: estimado = máximo, US$ 6,31, preços do plano
+  FREE; a estimativa da época nunca foi gravada), a `diferenca` saiu dos dois e `recorte_efetivo` e as datas de `perfis`/`ugc`
+  saíram do próprio Snapshot. O manifesto na `main` está em v4 (commit `fix:` posterior ao `163ee2c8`, que o deixou em v3).
+- `recorte_efetivo` (esquema v2+) traz a janela em datas, `{inicio, fim}`: `extração - dias` até a extração na janela relativa
+  (aproximada, o actor conta a partir do instante da execução), ou o próprio intervalo no absoluto; `null` se o Recorte só tem
+  teto. A `mais_antiga` da cobertura pode ser anterior ao `inicio` efetivo, porque itens fixados no perfil entram mesmo fora da
+  janela, e o UGC não é limitado pela janela. O manifesto não carrega conteúdo (nomes, textos) nem segredos.
 - A `main` do dataset guarda **só a Coleta vigente**. Uma Coleta nova entra como um commit que substitui os arquivos da
   anterior; as anteriores continuam na história da `main`, acessíveis pelo identificador, pelo hash do commit ou por uma tag de uso.
 - **Nunca apague o commit de uma Coleta anterior** nem reescreva a `main` com force-push (um `super_squash_history` descarta
@@ -90,7 +113,7 @@ Exemplos:
 - O `README.md` na raiz do dataset é o card que o HF mostra. Ele **não faz parte do Snapshot**: `publicar` não o envia nem o
   apaga (só mexe em `bronze/`, `silver/`, `gold/` e `manifesto.json`). A cópia versionada no repositório é
   `docs/dataset/README.md`; a do HF é enviada à mão.
-- **Todo push ou restore de Coleta deixa o card desatualizado.** Depois de publicar, atualize em `docs/dataset/README.md` o que
+- **Todo push ou restore de Coleta deixa o card desatualizado** (inclusive a seção "Custo da Coleta", que descreve o cálculo e traz os números da Coleta vigente). Depois de publicar, atualize em `docs/dataset/README.md` o que
   descreve a Coleta vigente: a tabela "Coleta vigente" (identificador, commit, extração, Recorte, perfis, tags de uso), a
   cobertura e a linha do tempo (copie do `manifesto.json`), a nota de como o Recorte foi determinado (só vale para Coletas sem
   manifesto) e as observações da estrutura (`landing/`, coluna `_raw`, tabelas legadas). A convenção de commits e tags só muda
