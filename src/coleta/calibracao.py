@@ -102,7 +102,7 @@ def carregar_calibracao(cliente_factory: Callable[[], hf.ClienteColetaHF], usern
     nunca depende da rede."""
     try:
         coletas = hf.listar(cliente=cliente_factory())
-    except Exception as erro:
+    except Exception as erro:  # noqa: BLE001 - qualquer falha do HF vira fallback
         return _fallback(f"HF indisponivel ({type(erro).__name__})", len(usernames))
     try:
         return calibrar(coletas[0] if coletas else None, usernames)

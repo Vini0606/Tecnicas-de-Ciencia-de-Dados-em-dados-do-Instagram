@@ -61,7 +61,7 @@ class InstagramScraper:
         (nunca inventa valor)."""
         try:
             final = self._client.run(run.get("id")).get() or {}
-        except Exception:  # custo é só registro: falhar aqui não pode derrubar a extração
+        except Exception:  # noqa: BLE001 - custo é só registro: falhar aqui não pode derrubar a extração
             return None
         usd = final.get("usageTotalUsd")
         if isinstance(usd, (int, float)) and not isinstance(usd, bool):

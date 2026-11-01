@@ -25,7 +25,12 @@ import pandas as pd
 
 from scripts.apify_backfill_shared import profiles_hitting_limit
 from src.coleta.calibracao import Calibracao
-from src.coleta.custo import PLANO_PADRAO, agregar_custo_real, estimar_custo, teto_efetivo
+from src.coleta.custo import (
+    PLANO_PADRAO,
+    agregar_custo_real,
+    estimar_custo,
+    teto_efetivo,
+)
 from src.coleta.derivacao import caminhos_do_destino, derivar_silver_gold
 from src.coleta.manifesto import escrever_manifesto, gerar_manifesto, versao_do_codigo
 from src.coleta.recorte import Recorte, gerar_tag

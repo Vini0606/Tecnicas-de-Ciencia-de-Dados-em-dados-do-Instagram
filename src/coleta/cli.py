@@ -32,7 +32,12 @@ from config import settings
 from src.coleta import hf
 from src.coleta.calibracao import Calibracao, carregar_calibracao
 from src.coleta.coletar import ColetaNaoConfirmada, coletar, criar_scraper
-from src.coleta.custo import PLANO_PADRAO, diferenca_percentual, estimar_custo, teto_e_padrao
+from src.coleta.custo import (
+    PLANO_PADRAO,
+    diferenca_percentual,
+    estimar_custo,
+    teto_e_padrao,
+)
 from src.coleta.recorte import Recorte
 from src.run_id import build_run_id
 
