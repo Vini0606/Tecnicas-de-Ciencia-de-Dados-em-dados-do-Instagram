@@ -12,15 +12,16 @@ enviava ao scraper. Numa extração que quer **todo** o conteúdo de uma janela 
 governadores) isso é um viés silencioso. No piloto, 2 governadores bateram o teto de 30 em 5 dias (6 ou mais itens por
 dia); em 207 dias o padrão de 1.519 poderia cortá-los, e o corte cai nos itens mais antigos, a pré-campanha.
 
-A documentação da Apify diz que `resultsLimit` é opcional, mas o valor padrão do actor quando ele é omitido não foi
-confirmado. O preço é por resultado entregue.
+O schema de entrada dos actors de posts, reels e UGC (verificado na API da Apify em 2026-11-08) exige só `username`:
+`resultsLimit` é opcional, inteiro, mínimo 1, sem `default` nem `maximum`. O comportamento quando ele é omitido não é
+documentado; decidimos confiar no actor. O preço é por resultado entregue.
 
 ## Decisão
 
 1. **Sem `--teto`, a Coleta é sem teto.** O Teto aplicado existe só quando o Recorte traz teto. O teto padrão por janela
    continua apenas para os scripts de backfill e é mantido, sob outro nome, só para ler Coletas anteriores.
-2. **O scraper envia um limite sentinela (1.000.000 por perfil)** aos actors de posts, reels e UGC, em vez de omitir o
-   campo, para não depender do padrão do actor. A coleção de perfis mantém o limite próprio.
+2. **O scraper omite `resultsLimit`** nos actors de posts, reels e UGC e confia no comportamento do actor (decisão do
+   autor, 2026-11-08; antes se pensou em enviar um sentinela de 1.000.000). A coleção de perfis mantém o limite próprio.
 3. **Manifesto v5.** `custo.estimado.teto` vira `{"sem_teto": true}` e `maximo_usd` não existe (sem campos nulos). Os
    esquemas v1 a v4 continuam válidos; `sem_teto` só é aceito a partir da v5. A v5 também é a versão gravada pelas
    Coletas com teto (o bloco continua igual).
@@ -34,7 +35,7 @@ confirmado. O preço é por resultado entregue.
 
 ## Alternativas rejeitadas
 
-- **Omitir `resultsLimit` ao scraper:** depende de um padrão do actor que não foi confirmado.
+- **Enviar um limite sentinela (1.000.000):** valor arbitrário; o autor preferiu confiar no actor.
 - **Manter um teto padrão alto (ex.: 3.000):** continua sendo um corte que o autor não pediu.
 - **`--orcamento-max`:** trava dentro do repo; fica para uma issue futura.
 - **Estimar sem base com as taxas fixas da ADR 0012:** já abandonadas pela ADR 0042.
@@ -44,4 +45,5 @@ confirmado. O preço é por resultado entregue.
 - Uma Coleta sem teto não tem gasto máximo garantido; o Custo estimado é uma previsão sem teto superior.
 - Coletas já publicadas (v1 a v4, inclusive com `padrao: true`) continuam legíveis e podem servir de base.
 - Um `coletar` sem `--teto` e sem Coleta anterior no HF passa a falhar: informe `--teto` na primeira Coleta.
-- Um piloto de 1 perfil sem teto, com aval de custo, confirma no Console da Apify que o limite enviado foi aceito.
+- Se o actor aplicar um limite interno ao omitir o campo, a Coleta sai truncada sem aviso; confira a cobertura por perfil
+  do manifesto depois da extração.

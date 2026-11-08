@@ -4,10 +4,6 @@ from dataclasses import dataclass
 
 from apify_client import ApifyClient
 
-# `resultsLimit` enviado quando a Coleta não tem teto: alto o bastante para nunca cortar um perfil. A Apify cobra por
-# resultado entregue, então o valor alto não custa a mais.
-SEM_TETO_RESULTS_LIMIT = 1_000_000
-
 
 @dataclass
 class ScraperConfig:
@@ -23,7 +19,8 @@ class ScraperConfig:
     # 9.999 usuários, 5.0*, vs. actor "under maintenance" com 2 usuários --
     # ver docs/research/apify-instagram-actors-cobra-mapping.md, §7).
     mentions_actor_id: str = "apify/instagram-tagged-scraper"
-    # None: sem teto (Coleta, ADR 0043). O actor não tem "sem limite", então vai o sentinela SEM_TETO_RESULTS_LIMIT.
+    # None: sem teto (Coleta, ADR 0043). `resultsLimit` é opcional nos actors de posts, reels e UGC (só `username` é
+    # obrigatório no schema), então sem teto o campo é omitido e vale o comportamento do actor.
     results_limit: int | None = 30
     # ADR 0020 (Ficha 3) / issue #88: `includeTranscript` é uma flag paga do
     # `apify/instagram-reel-scraper`, cobrada por minuto de vídeo transcrito
@@ -35,9 +32,9 @@ class ScraperConfig:
     include_transcript: bool = False
 
     @property
-    def limite_enviado(self) -> int:
-        """`resultsLimit` dos actors de posts, reels e UGC: o teto, ou o sentinela sem teto."""
-        return SEM_TETO_RESULTS_LIMIT if self.results_limit is None else self.results_limit
+    def limite_input(self) -> dict:
+        """`resultsLimit` dos actors de posts, reels e UGC: o teto, ou nada (campo omitido) sem teto."""
+        return {} if self.results_limit is None else {"resultsLimit": self.results_limit}
 
 
 class InstagramScraper:
@@ -111,7 +108,7 @@ class InstagramScraper:
     ) -> list[dict]:
         run_input = {
             "username": usernames,
-            "resultsLimit": self._config.limite_enviado,
+            **self._config.limite_input,
             **(extra_run_input or {}),
         }
         return self._rodar("posts", self._config.posts_actor_id, run_input)
@@ -121,7 +118,7 @@ class InstagramScraper:
     ) -> list[dict]:
         run_input = {
             "username": usernames,
-            "resultsLimit": self._config.limite_enviado,
+            **self._config.limite_input,
             # `includeTranscript` só entra quando `ScraperConfig.include_transcript`
             # está ligado (ADR 0020 Ficha 3 / issue #88) -- `extra_run_input`
             # abaixo ainda pode sobrescrever, mesmo padrão de `resultsLimit`.
@@ -143,7 +140,7 @@ class InstagramScraper:
         confirmados contra os 27 perfis reais do projeto."""
         run_input = {
             "username": usernames,
-            "resultsLimit": self._config.limite_enviado,
+            **self._config.limite_input,
             **(extra_run_input or {}),
         }
         return self._rodar("ugc", self._config.mentions_actor_id, run_input)
