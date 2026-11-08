@@ -124,6 +124,7 @@ def _recorte_pedido(recorte: Recorte) -> dict[str, Any]:
         "inicio": recorte.inicio.isoformat() if recorte.inicio else None,
         "fim": recorte.fim.isoformat() if recorte.fim else None,
         "teto": recorte.teto,
+        "teto_ugc": recorte.teto_ugc,
     }
     return {k: v for k, v in pedido.items() if v is not None}
 
@@ -241,20 +242,40 @@ def _validar_custo_v4(custo: Any, *, admite_sem_teto: bool = False) -> None:
         _exigir(admite_sem_teto or not sem_teto, "custo.estimado.teto", "sem_teto exige o esquema v5")
         est = _chaves(
             custo["estimado"],
-            {"estimado_usd", "resultados_itens", "teto", "base_calibracao"} | (set() if sem_teto else {"maximo_usd"}),
+            {"estimado_usd", "resultados_itens", "teto", "base_calibracao"}
+            | (set() if sem_teto else {"maximo_usd"})
+            | ({"maximo_ugc_usd"} if sem_teto and "maximo_ugc_usd" in custo["estimado"] else set()),
             "custo.estimado",
         )
         estimado = _por_colecao(est["estimado_usd"], "custo.estimado.estimado_usd", "usd")
         _por_colecao(est["resultados_itens"], "custo.estimado.resultados_itens", "int")
         if sem_teto:
-            teto = _chaves(est["teto"], {"sem_teto"}, "custo.estimado.teto")
+            com_ugc = "ugc_itens_por_perfil" in est["teto"]
+            _exigir(com_ugc == ("maximo_ugc_usd" in est), "custo.estimado", "maximo_ugc_usd vai com ugc_itens_por_perfil")
+            teto = _chaves(
+                est["teto"], {"sem_teto"} | ({"ugc_itens_por_perfil"} if com_ugc else set()), "custo.estimado.teto"
+            )
             _exigir(teto["sem_teto"] is True, "custo.estimado.teto.sem_teto", "esperado true")
+            if com_ugc:
+                _int(teto["ugc_itens_por_perfil"], "custo.estimado.teto.ugc_itens_por_perfil", 1)
+                _exigir(
+                    isinstance(est["maximo_ugc_usd"], (int, float)) and not isinstance(est["maximo_ugc_usd"], bool),
+                    "custo.estimado.maximo_ugc_usd",
+                    "número",
+                )
         else:
             maximo = _por_colecao(est["maximo_usd"], "custo.estimado.maximo_usd", "usd")
             for k in COLECOES_CUSTO:
                 _exigir(estimado[k] <= maximo[k] + 1e-9, f"custo.estimado.estimado_usd.{k}", "estimado acima do máximo")
-            teto = _chaves(est["teto"], {"aplicado_itens_por_perfil", "padrao"}, "custo.estimado.teto")
+            com_ugc = "ugc_itens_por_perfil" in est["teto"]
+            teto = _chaves(
+                est["teto"],
+                {"aplicado_itens_por_perfil", "padrao"} | ({"ugc_itens_por_perfil"} if com_ugc else set()),
+                "custo.estimado.teto",
+            )
             _int(teto["aplicado_itens_por_perfil"], "custo.estimado.teto.aplicado_itens_por_perfil", 1)
+            if com_ugc:
+                _int(teto["ugc_itens_por_perfil"], "custo.estimado.teto.ugc_itens_por_perfil", 1)
             _exigir(isinstance(teto["padrao"], bool), "custo.estimado.teto.padrao", "booleano")
         base = _chaves(est["base_calibracao"], {"posts", "reels", "ugc"}, "custo.estimado.base_calibracao")
         for k, v in base.items():
@@ -292,15 +313,16 @@ def validar_manifesto(m: Any) -> None:
         "hash sem espaços",
     )
 
-    chaves_recorte = {"dias", "inicio", "fim", "teto"}
+    chaves_recorte = {"dias", "inicio", "fim", "teto", "teto_ugc"}
     if v3:  # só as chaves que se aplicam, nunca nulas
         _exigir(isinstance(m["recorte"], dict), "recorte", "esperado objeto")
         _exigir(set(m["recorte"]) <= chaves_recorte, "recorte", f"chaves {sorted(m['recorte'])} fora de {sorted(chaves_recorte)}")
         _exigir(all(v is not None for v in m["recorte"].values()), "recorte", "v3 não grava chave nula")
         rec = {k: m["recorte"].get(k) for k in chaves_recorte}
     else:
-        rec = _chaves(m["recorte"], chaves_recorte, "recorte")
-    for k in ("dias", "teto"):
+        # v1 e v2 não têm teto_ugc; cópia para não alterar o manifesto validado
+        rec = {**_chaves(m["recorte"], chaves_recorte - {"teto_ugc"}, "recorte"), "teto_ugc": None}
+    for k in ("dias", "teto", "teto_ugc"):
         if rec[k] is not None:
             _int(rec[k], f"recorte.{k}", 1)
     _data_opcional(rec["inicio"], "recorte.inicio")

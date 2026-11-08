@@ -4,6 +4,7 @@ publicar, restaurar, listar e baixar Coletas.
 
     uv run python coleta.py coletar --dias 90 --teto 250 --destino <pasta limpa>       # so mostra o custo
     uv run python coleta.py coletar --dias 90 --teto 250 --destino <pasta limpa> --yes # gasta na Apify
+    uv run python coleta.py coletar --inicio A --fim B --teto-ugc 3000 --destino <pasta limpa>  # teto so no UGC
     uv run python coleta.py publicar <pasta> [--rotulo piloto] [--yes]
     uv run python coleta.py restaurar <tag> [--rotulo restaurada] [--yes]
     uv run python coleta.py listar
@@ -63,6 +64,11 @@ def build_parser() -> argparse.ArgumentParser:
     c.add_argument("--inicio", type=_data, help="inicio do intervalo absoluto (AAAA-MM-DD)")
     c.add_argument("--fim", type=_data, help="fim do intervalo absoluto (AAAA-MM-DD)")
     c.add_argument("--teto", type=int, help="teto de itens por perfil em cada colecao")
+    c.add_argument(
+        "--teto-ugc",
+        type=int,
+        help="teto de itens por perfil so na colecao UGC (o actor de UGC nao filtra por data); vale no UGC no lugar de --teto",
+    )
     c.add_argument("--rotulo", help="rotulo opcional da tag (minusculas, digitos, '-')")
     c.add_argument("--destino", required=True, type=Path, help="pasta de dados LIMPA (nunca a data/ em uso)")
     c.add_argument(
@@ -154,7 +160,7 @@ def _usd(valor: float) -> str:
     return _decimal(valor, 2)
 
 
-def _descrever_recorte(recorte: Recorte, teto: int | None) -> str:
+def _descrever_recorte(recorte: Recorte, teto: int | None, teto_ugc: int | None = None) -> str:
     if recorte.dias is not None:
         janela = f"ultimos {recorte.dias} dias"
     elif recorte.inicio is not None:
@@ -162,8 +168,12 @@ def _descrever_recorte(recorte: Recorte, teto: int | None) -> str:
     else:
         janela = "so teto"
     if teto is None:
-        return f"{janela}, sem teto"
-    return f"{janela}, ate {_milhar(teto)} itens por perfil e colecao"
+        texto = f"{janela}, sem teto"
+    else:
+        texto = f"{janela}, ate {_milhar(teto)} itens por perfil e colecao"
+    if teto_ugc is not None:
+        texto += f" (UGC: ate {_milhar(teto_ugc)} itens por perfil)"
+    return texto
 
 
 def formatar_estimativa(
@@ -180,7 +190,7 @@ def formatar_estimativa(
     janela = recorte.janela_efetiva(hoje)
     est, mx, itens = custo["estimado_usd"], custo.get("maximo_usd"), custo["resultados_itens"]
     linhas = ["ESTIMATIVA DE CUSTO DA COLETA", ""]
-    cabecalho = [("Recorte", _descrever_recorte(recorte, teto))]
+    cabecalho = [("Recorte", _descrever_recorte(recorte, teto, recorte.teto_ugc))]
     if janela:
         aproximada = " (aproximada)" if recorte.dias is not None else ""
         cabecalho.append(("Janela", f"{janela[0]} a {janela[1]}{aproximada}"))
@@ -196,12 +206,18 @@ def formatar_estimativa(
             "          O unico freio e o limite de uso mensal da conta Apify (Console); confira-o antes de usar --yes.",
             "          Para limitar o gasto, informe --teto.",
         ]
+        if recorte.teto_ugc is not None:
+            linhas.append(
+                f"          O UGC tem teto proprio de {_milhar(recorte.teto_ugc)} itens por perfil: "
+                f"maximo so do UGC US$ {_usd(custo['maximo_ugc_usd'])}."
+            )
 
     base = custo["base_calibracao"]
     if teto is None:
         tabela = [("Colecao", "Resultados (est.)", "Estimado (US$)")]
     else:
         cheio = n_governadores * teto
+        cheio_ugc = n_governadores * recorte.teto_do_ugc
         tabela = [("Colecao", "Resultados (est. / max.)", "Estimado (US$)", "Maximo (US$)")]
 
     def linha(nome: str, chave: str, itens_estimados: str, itens_maximo: str) -> tuple[str, ...]:
@@ -211,7 +227,8 @@ def formatar_estimativa(
 
     for nome, chave in (("Posts", "posts"), ("Reels", "reels"), ("UGC", "ugc")):
         marca = " *" if base[chave] == "sem_base" else ""
-        tabela.append(linha(nome + marca, chave, _milhar(itens[chave]), "" if teto is None else _milhar(cheio)))
+        maximo_itens = "" if teto is None else _milhar(cheio_ugc if chave == "ugc" else cheio)
+        tabela.append(linha(nome + marca, chave, _milhar(itens[chave]), maximo_itens))
     tabela.append(linha("Perfis", "perfis", _milhar(n_governadores), _milhar(n_governadores)))
     colunas = len(tabela[0])
     larguras = [max(len(linha_[i]) for linha_ in tabela) for i in range(colunas)]
@@ -270,7 +287,7 @@ def formatar_comparacao(estimado: dict, real: dict | None) -> str:
 
 
 def _cmd_coletar(args, scraper_factory: ScraperFactory, agora: datetime, cliente_factory: ClienteFactory) -> int:
-    recorte = Recorte(dias=args.dias, inicio=args.inicio, fim=args.fim, teto=args.teto)
+    recorte = Recorte(dias=args.dias, inicio=args.inicio, fim=args.fim, teto=args.teto, teto_ugc=args.teto_ugc)
     hoje = agora.date()
     destino: Path = args.destino
     if destino.exists() and any(destino.iterdir()):

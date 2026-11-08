@@ -159,6 +159,7 @@ def _recorte_do(manifesto: dict[str, Any]) -> Recorte:
         inicio=date.fromisoformat(r["inicio"]) if r.get("inicio") else None,
         fim=date.fromisoformat(r["fim"]) if r.get("fim") else None,
         teto=r.get("teto"),
+        teto_ugc=r.get("teto_ugc"),
     )
 
 

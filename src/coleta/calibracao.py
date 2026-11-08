@@ -25,6 +25,7 @@ class Calibracao:
     origem: str | None = None
     dias_janela: int | None = None  # None: a base não tem janela em dias (só teto, ou um dia só)
     base_teto: int | None = None  # teto da Coleta de origem (contagem >= teto = censurado); None: base sem teto
+    base_teto_ugc: int | None = None  # teto próprio do UGC na Coleta de origem (ADR 0044); None: vale `base_teto`
     n_perfis_base: int = 0  # perfis que a Coleta de origem leu (para distinguir governador novo de governador sem itens)
     contagens: dict[str, dict[str, int]] = field(default_factory=lambda: {c: {} for c in COLECOES_CALIBRADAS})
     perfis_calibrados: int = 0
@@ -35,6 +36,12 @@ class Calibracao:
     def sem_calibracao(cls, motivo: str, n_governadores: int) -> Calibracao:
         """Estimativa sem base: o estimado vale o máximo; `motivo` aparece na saída."""
         return cls(n_governadores=n_governadores, motivo_fallback=motivo)
+
+    def base_teto_de(self, colecao: str) -> int | None:
+        """Teto da Coleta de origem para a coleção (o UGC pode ter teto próprio)."""
+        if colecao == "ugc" and self.base_teto_ugc is not None:
+            return self.base_teto_ugc
+        return self.base_teto
 
     @property
     def usa_sem_base(self) -> bool:
@@ -75,15 +82,17 @@ def calibrar(coleta: hf.ColetaListada | None, usernames: Sequence[str]) -> Calib
         teto = None
     else:
         teto = coleta.recorte.teto or teto_padrao_legado(coleta.recorte, coleta.extraido_em.date())
+    teto_ugc = coleta.recorte.teto_ugc
     contagens: dict[str, dict[str, int]] = {c: {} for c in COLECOES_CALIBRADAS}
     truncados: set[str] = set()
     for colecao in COLECOES_CALIBRADAS:
+        teto_colecao = teto_ugc if colecao == "ugc" and teto_ugc is not None else teto
         for perfil in coleta.cobertura.get(colecao, {}).get("por_perfil", []):
             username = str(perfil["username"]).lower()
             if username not in governadores:
                 continue
             contagens[colecao][username] = int(perfil["itens"])
-            if teto is not None and perfil["itens"] >= teto:
+            if teto_colecao is not None and perfil["itens"] >= teto_colecao:
                 truncados.add(username)
     calibrados = set().union(*(set(t) for t in contagens.values()))
     if not calibrados:
@@ -94,6 +103,7 @@ def calibrar(coleta: hf.ColetaListada | None, usernames: Sequence[str]) -> Calib
         origem=coleta.coleta,
         dias_janela=dias if dias > 0 else None,
         base_teto=teto,
+        base_teto_ugc=teto_ugc,
         n_perfis_base=int(coleta.cobertura.get("perfis", {}).get("itens", 0)),
         contagens=contagens,
         perfis_calibrados=len(calibrados),
