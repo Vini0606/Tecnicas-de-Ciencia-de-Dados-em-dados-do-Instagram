@@ -49,7 +49,7 @@ def test_custo_real_por_actor_vai_para_o_manifesto_e_para_o_resultado(tmp_path):
         "resultados_itens": {"perfis": 26, "posts": 270, "reels": 154, "ugc": 93, "total": 543},
     }
     gravado = json.loads((tmp_path / "dados" / "manifesto.json").read_text(encoding="utf-8"))
-    assert gravado["versao_esquema"] == 4
+    assert gravado["versao_esquema"] == 5
     for real in (resultado.custo_real, gravado["custo"]["real"]):
         assert real["custo_usd"] == pytest.approx(esperado["custo_usd"])
         assert real["resultados_itens"] == esperado["resultados_itens"]
@@ -176,7 +176,7 @@ def test_manifesto_v4_valido_com_estimado_real_e_diferenca(snapshot):  # noqa: F
     m = _v4(snapshot)
 
     validar_manifesto(m)
-    assert m["versao_esquema"] == 4
+    assert m["versao_esquema"] == 5
 
 
 def test_custo_real_e_diferenca_podem_faltar_mas_nunca_ser_nulos(snapshot):  # noqa: F811

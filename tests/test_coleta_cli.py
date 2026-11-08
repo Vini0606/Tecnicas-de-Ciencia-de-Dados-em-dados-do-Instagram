@@ -9,6 +9,7 @@ from test_coleta_coletar import LINK, _governadores, _ScraperFalso
 from test_coleta_hf import TAG, ClienteFake, _snapshot
 
 from src.coleta import cli, hf
+from src.coleta.recorte import Recorte
 
 AGORA = datetime(2026, 10, 9, 12, 0, tzinfo=timezone.utc)
 
@@ -72,13 +73,49 @@ def test_formatar_estimativa_mostra_tabela_por_colecao_com_estimado_e_maximo():
     assert all(linha.isascii() for linha in linhas)  # console do Windows
 
 
-def test_sem_teto_avisa_do_teto_padrao_e_do_custo_maximo(tmp_path, capsys):
+def test_sem_teto_e_sem_base_recusa_a_estimativa_e_manda_informar_o_teto(tmp_path, capsys):
     destino = tmp_path / "dados"
-    cli.main(["coletar", "--dias", "90", "--destino", str(destino)], scraper_factory=_fabrica_proibida, agora=AGORA)
+    codigo = cli.main(
+        ["coletar", "--dias", "90", "--destino", str(destino)], scraper_factory=_fabrica_proibida, agora=AGORA
+    )
+    captura = capsys.readouterr()
+
+    assert codigo == 2
+    assert "--teto" in captura.err and "base de calibracao" in captura.err
+    assert not destino.exists()
+
+
+def test_sem_teto_com_base_estima_sem_custo_maximo_e_avisa_do_freio_na_apify(tmp_path, capsys, monkeypatch):
+    base = hf.ColetaListada(
+        coleta="coleta_2026-10-06_ultimos-5d",
+        commit="abc",
+        recorte=Recorte(dias=5),
+        cobertura={
+            "posts": {"itens": 5, "mais_antiga": None, "mais_recente": None, "por_perfil": [{"username": "gov_a", "itens": 5}]},
+            "reels": {"itens": 3, "mais_antiga": None, "mais_recente": None, "por_perfil": [{"username": "gov_a", "itens": 3}]},
+            "perfis": {"itens": 1, "mais_antiga": None, "mais_recente": None, "por_perfil": []},
+            "ugc": {"itens": 2, "mais_antiga": None, "mais_recente": None, "por_perfil": [{"username": "gov_a", "itens": 2}]},
+        },
+        extraido_em=AGORA,
+        sem_teto=True,
+    )
+    monkeypatch.setattr(hf, "listar", lambda *, cliente: [base])
+    destino = tmp_path / "dados"
+
+    codigo = cli.main(
+        ["coletar", "--dias", "90", "--destino", str(destino)],
+        scraper_factory=_fabrica_proibida,
+        cliente_factory=lambda: object(),
+        agora=AGORA,
+    )
     saida = capsys.readouterr().out
 
-    assert "AVISO" in saida and "--teto" in saida and "630" in saida  # teto padrao: max(200, 7 x 90)
-    assert "ABORTADO" in saida
+    assert codigo == 0
+    assert "sem teto" in saida
+    assert "AVISO" in saida and "limite de uso mensal" in saida
+    assert "Maximo" not in saida and "teto padrao" not in saida
+    assert "Estimado (US$)" in saida
+    assert all(linha.isascii() for linha in saida.splitlines())
     assert not destino.exists()
 
 
@@ -97,7 +134,7 @@ def test_plano_apify_vem_do_ambiente_e_plano_invalido_e_erro_claro(tmp_path, cap
 
 def test_estimativa_janela_absoluta_e_so_teto(tmp_path, capsys):
     cli.main(
-        ["coletar", "--inicio", "2026-03-01", "--fim", "2026-06-30", "--destino", str(tmp_path / "a")],
+        ["coletar", "--inicio", "2026-03-01", "--fim", "2026-06-30", "--teto", "50", "--destino", str(tmp_path / "a")],
         scraper_factory=_fabrica_proibida,
         agora=AGORA,
     )

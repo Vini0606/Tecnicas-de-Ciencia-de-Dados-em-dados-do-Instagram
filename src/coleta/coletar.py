@@ -102,8 +102,10 @@ class _ScraperRecortado:
         return self._recorte.dentro_do_recorte(publicado.date())
 
 
-def _avisar_truncados(bruto: dict, teto: int) -> None:
-    """Perfis que bateram exatamente no teto: o resultado provavelmente foi truncado."""
+def _avisar_truncados(bruto: dict, teto: int | None) -> None:
+    """Perfis que bateram exatamente no teto: o resultado provavelmente foi truncado. Sem teto, nada trunca."""
+    if teto is None:
+        return
     truncados = {
         entidade: profiles_hitting_limit(bruto.get(entidade, []), teto)
         for entidade in ("posts", "reels", "ugc_mentions")
@@ -167,7 +169,7 @@ def coletar(
     custo_real = agregar_custo_real(scraper_recortado.execucoes)
     if custo_real is None:
         logger.warning("[COLETA] %s: custo real indisponivel (sem custo legivel em alguma chamada da Apify).", tag)
-    elif custo_real["custo_usd"]["total"] > custo["maximo_usd"]["total"] + 1e-9:
+    elif "maximo_usd" in custo and custo_real["custo_usd"]["total"] > custo["maximo_usd"]["total"] + 1e-9:
         logger.warning(
             "[COLETA] %s: custo real US$ %.2f acima do custo maximo US$ %.2f (o teto nao limitou algum actor).",
             tag, custo_real["custo_usd"]["total"], custo["maximo_usd"]["total"],

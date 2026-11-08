@@ -10,11 +10,12 @@ import pytest
 from src.coleta.calibracao import Calibracao
 from src.coleta.custo import (
     SEM_BASE,
+    SemEstimativa,
     agregar_custo_real,
     diferenca_percentual,
     estimar_custo,
-    teto_e_padrao,
     teto_efetivo,
+    teto_padrao_legado,
 )
 from src.coleta.recorte import Recorte
 
@@ -74,34 +75,61 @@ def test_outro_plano_muda_os_precos_e_plano_invalido_falha_claro():
         estimar_custo(Recorte(dias=90, teto=250), 26, HOJE, plano="PLATINA")
 
 
-def test_teto_aplicado_e_se_veio_do_padrao():
+def test_teto_informado_e_registrado_como_aplicado():
     informado = estimar_custo(Recorte(dias=90, teto=250), 26, HOJE)["teto"]
     assert informado == {"aplicado_itens_por_perfil": 250, "padrao": False}
 
-    padrao = estimar_custo(Recorte(dias=90), 26, HOJE)["teto"]
-    assert padrao == {"aplicado_itens_por_perfil": 630, "padrao": True}  # max(200, 7 x 90)
 
-
-def test_teto_padrao_por_janela_usa_o_piso_de_200_e_7_itens_por_dia():
-    assert teto_efetivo(Recorte(dias=5), HOJE) == 200  # piso
-    assert teto_efetivo(Recorte(dias=28), HOJE) == 200  # 7 x 28 = 196 < 200
-    assert teto_efetivo(Recorte(dias=30), HOJE) == 210
-    assert teto_efetivo(Recorte(dias=90), HOJE) == 630
+def test_so_o_teto_pedido_vale_e_sem_ele_a_coleta_fica_sem_teto():
+    assert teto_efetivo(Recorte(dias=90, teto=250), HOJE) == 250
     assert teto_efetivo(Recorte(teto=10), HOJE) == 10
+    assert teto_efetivo(Recorte(dias=90), HOJE) is None
+    assert teto_efetivo(Recorte(inicio=date(2026, 4, 4), fim=date(2026, 10, 25)), HOJE) is None
 
 
-def test_sem_teto_o_padrao_por_janela_define_o_maximo():
-    custo = estimar_custo(Recorte(dias=90), 26, HOJE)
-
-    # 26 x 630 = 16.380 itens por coleção
-    assert custo["maximo_usd"]["ugc"] == pytest.approx(37.67, abs=0.01)
-    assert custo["maximo_usd"]["total"] == pytest.approx(113.08, abs=0.01)
+def test_teto_padrao_legado_so_serve_para_ler_coletas_antigas():
+    assert teto_padrao_legado(Recorte(dias=5), HOJE) == 200  # piso
+    assert teto_padrao_legado(Recorte(dias=30), HOJE) == 210
+    assert teto_padrao_legado(Recorte(dias=90), HOJE) == 630
 
 
-def test_teto_e_padrao_so_quando_o_teto_nao_foi_informado():
-    assert teto_e_padrao(Recorte(dias=90))
-    assert not teto_e_padrao(Recorte(dias=90, teto=250))
-    assert not teto_e_padrao(Recorte(teto=10))
+def test_sem_teto_e_sem_base_nao_ha_como_estimar():
+    with pytest.raises(SemEstimativa, match="--teto"):
+        estimar_custo(Recorte(dias=90), 26, HOJE)
+
+
+def test_sem_teto_o_custo_nao_tem_maximo_e_marca_sem_teto():
+    base = _base({"posts": {"gov_a": 10}, "reels": {"gov_a": 5}, "ugc": {"gov_a": 4}}, n_perfis_base=1, n_governadores=1)
+    custo = estimar_custo(Recorte(dias=30), 1, HOJE, calibracao=base)
+
+    assert custo["teto"] == {"sem_teto": True}
+    assert "maximo_usd" not in custo
+    assert custo["resultados_itens"]["posts"] == 60  # 10 itens em 5 dias = 2/dia x 30 dias, um governador sem dispersão
+    assert custo["base_calibracao"]["posts"] == BASE
+
+
+def test_sem_teto_governador_censurado_na_base_usa_a_taxa_observada():
+    # gov_a bateu o teto 30 da base (5 dias): sem teto novo vale a taxa observada (30/5 x 30 = 180), não um teto
+    base = _base({"posts": {"gov_a": 30}, "reels": {"gov_a": 1}, "ugc": {"gov_a": 1}}, n_perfis_base=1, n_governadores=1)
+    custo = estimar_custo(Recorte(dias=30), 1, HOJE, calibracao=base)
+
+    assert custo["resultados_itens"]["posts"] == 180
+
+
+def test_base_sem_teto_nao_censura_ninguem_e_teto_novo_ainda_limita():
+    base = _base({"posts": {"gov_a": 30}, "reels": {"gov_a": 1}, "ugc": {"gov_a": 1}}, n_perfis_base=1, n_governadores=1, teto=None)
+
+    sem_teto = estimar_custo(Recorte(dias=30), 1, HOJE, calibracao=base)
+    com_teto = estimar_custo(Recorte(dias=30, teto=100), 1, HOJE, calibracao=base)
+
+    assert sem_teto["resultados_itens"]["posts"] == 180
+    assert com_teto["resultados_itens"]["posts"] == 100  # 180 projetados, limitado ao novo teto
+
+
+def test_sem_teto_com_base_zerada_numa_colecao_nao_ha_como_estimar():
+    base = _base({"posts": {"gov_a": 10}, "reels": {"gov_a": 5}, "ugc": {}}, n_perfis_base=1, n_governadores=1)
+    with pytest.raises(SemEstimativa):
+        estimar_custo(Recorte(dias=30), 1, HOJE, calibracao=base)
 
 
 def test_recorte_so_com_teto_vale_o_teto_cheio():
@@ -241,7 +269,7 @@ def test_sem_calibracao_com_motivo_vale_o_maximo():
 
 def test_estimado_nunca_passa_do_maximo_em_nenhum_recorte():
     base = _base({"posts": {"gov_a": 12, "gov_b": 1}, "reels": {"gov_a": 3}, "ugc": {"gov_b": 9}}, n_perfis_base=2)
-    for recorte in (Recorte(dias=1, teto=10), Recorte(dias=30, teto=100), Recorte(dias=90), Recorte(teto=30)):
+    for recorte in (Recorte(dias=1, teto=10), Recorte(dias=30, teto=100), Recorte(dias=90, teto=630), Recorte(teto=30)):
         custo = estimar_custo(recorte, 2, HOJE, calibracao=base)
         for chave in (*COLECOES, "total"):
             assert custo["estimado_usd"][chave] <= custo["maximo_usd"][chave] + 1e-9, (recorte, chave)

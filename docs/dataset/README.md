@@ -56,7 +56,7 @@ manifesto.json
 - **Gold:** engajamento, NSM, scorecard, clusters de posts e reels, sentimento, tópicos de discurso, prioridade de pautas, menções UGC e a regressão de performance por post.
 - **Tabelas legadas desta Coleta:** `governor_nsm_history` e `governor_sentiment_history` existem aqui, mas o código atual não gera mais `governor_nsm_history`, e nenhuma tela as lê.
 
-O manifesto (esquema v4) traz a identidade da Coleta, o Recorte pedido e a janela efetiva em datas, a cobertura por fonte e por perfil, o custo e a contagem de linhas de cada tabela. Nenhum campo é nulo: o que não se aplica simplesmente não aparece. Na cobertura, posts, reels e UGC usam a data de **publicação** (UTC); perfis não têm publicação, então usam a data da **captura**.
+O manifesto (esquema v5) traz a identidade da Coleta, o Recorte pedido e a janela efetiva em datas, a cobertura por fonte e por perfil, o custo e a contagem de linhas de cada tabela. Nenhum campo é nulo: o que não se aplica simplesmente não aparece. Na cobertura, posts, reels e UGC usam a data de **publicação** (UTC); perfis não têm publicação, então usam a data da **captura**.
 
 ## Custo da Coleta
 
@@ -65,16 +65,16 @@ O bloco `custo` do manifesto separa o que se previa gastar, o que a Apify cobrou
 | Chave | Conteúdo |
 |---|---|
 | `estimado.estimado_usd` | previsão do gasto, **média + 3 desvios-padrão do total**, nunca acima do máximo |
-| `estimado.maximo_usd` | gasto no limite absoluto: o teto de itens por perfil cheio em todos os perfis |
+| `estimado.maximo_usd` | gasto no limite absoluto: o teto de itens por perfil cheio em todos os perfis (não existe numa Coleta sem teto) |
 | `estimado.resultados_itens` | itens por trás do estimado |
-| `estimado.teto` | `aplicado_itens_por_perfil` (o limite enviado ao scraper) e `padrao` (`true` se veio do padrão, sem `--teto`) |
+| `estimado.teto` | `aplicado_itens_por_perfil` (o limite enviado ao scraper) e `padrao`; numa **Coleta sem teto** (sem `--teto`) vale `{"sem_teto": true}` e não há máximo |
 | `estimado.base_calibracao` | a Coleta que calibrou posts, reels e UGC, ou `sem_base` |
 | `real.custo_usd`, `real.resultados_itens` | o que a Apify cobrou e os itens que devolveu, lidos do run finalizado |
 | `diferenca.custo_pct`, `diferenca.resultados_pct` | `(real − estimado) / estimado × 100`, só em percentual; **negativo = abaixo do estimado** |
 
 **Como o estimado é calculado.**
 
-1. **Máximo.** `teto aplicado × nº de perfis × preço por item` de cada coleção (mais a taxa fixa de partida do actor de reels). Sem `--teto`, o teto padrão é `max(200, 7 × dias da janela)` com janela e 30 sem janela. Perfis custam um resultado por governador.
+1. **Máximo.** `teto aplicado × nº de perfis × preço por item` de cada coleção (mais a taxa fixa de partida do actor de reels). Sem `--teto` não há teto nem máximo (Coleta sem teto). Coletas anteriores à v5 sem teto pedido aplicaram `max(200, 7 × dias da janela)` com janela e 30 sem janela. Perfis custam um resultado por governador.
 2. **Base de calibração.** É a Coleta anterior mais recente, por menor que seja a janela dela. A contagem de itens de cada governador vem da cobertura por perfil do manifesto dela. Sem base, o estimado de cada coleção é o máximo.
 3. **Projeção por governador para o novo Recorte.** Posts e reels: itens ÷ dias da janela da base × dias da nova Coleta. UGC não depende da janela: usa a contagem da base. Todos limitados ao novo teto. Governador que atingiu o teto da base está censurado (a quantidade real é maior) e sobe direto ao novo teto. Governador que estava na base e não teve itens conta zero; se o elenco cresceu desde a base, só os governadores a mais entram com a média dos demais.
 4. **Média + 3σ no total.** Com `N` governadores, `v_i` o valor projetado de cada um e `σ` o desvio-padrão (populacional) entre os `v_i`: `estimado_itens = Σ v_i + 3 · √N · σ`, arredondado para cima e limitado ao máximo. Multiplicar por `√N` (e não por `N`) trata o total como a soma de `N` contagens independentes. Aplicar média + 3σ perfil a perfil só reproduziria o teto, porque o desvio entre governadores mede quanto eles diferem entre si, e não o acaso de cada um.

@@ -25,10 +25,11 @@ from deltalake import DeltaTable
 from src.coleta.custo import diferenca_percentual
 from src.coleta.recorte import Recorte, tag_valida
 
-VERSAO_ESQUEMA = 4
+VERSAO_ESQUEMA = 5
 # v1 não tem `recorte_efetivo`; v1 e v2 gravam todas as chaves de `recorte`, com nulo onde não se aplicam;
-# a v3 só grava as que se aplicam (sem nulos); a v4 troca o bloco `custo` (ADR 0042).
-VERSOES_ACEITAS = (1, 2, 3, VERSAO_ESQUEMA)
+# a v3 só grava as que se aplicam (sem nulos); a v4 troca o bloco `custo` (ADR 0042); a v5 admite a Coleta sem teto
+# (ADR 0043): `custo.estimado.teto` vira `{"sem_teto": true}` e `maximo_usd` não existe.
+VERSOES_ACEITAS = (1, 2, 3, 4, VERSAO_ESQUEMA)
 COLECOES_CUSTO = ("perfis", "posts", "reels", "ugc", "total")
 NOME_ARQUIVO = "manifesto.json"
 FONTES = ("posts", "reels", "perfis", "ugc")
@@ -105,7 +106,7 @@ def _tabelas(data_dir: Path) -> list[dict[str, Any]]:
 
 
 def _bloco_custo(estimado: dict[str, Any] | None, real: dict[str, Any] | None) -> dict[str, Any]:
-    """`custo` v4: só os blocos que existem (`real` e `diferenca` faltam se a Apify não devolveu o custo)."""
+    """`custo` v4 e v5: só os blocos que existem (`real` e `diferenca` faltam se a Apify não devolveu o custo)."""
     custo: dict[str, Any] = {}
     if estimado is not None:
         custo["estimado"] = json.loads(json.dumps(estimado))
@@ -228,26 +229,33 @@ def _por_colecao(obj: Any, caminho: str, tipo: str) -> dict:
     return obj
 
 
-def _validar_custo_v4(custo: Any) -> None:
+def _validar_custo_v4(custo: Any, *, admite_sem_teto: bool = False) -> None:
     """`custo` v4 (ADR 0042): `estimado`, `real` e `diferenca`, todos opcionais, sem campo nulo; `diferenca` só com os
     dois outros."""
     _exigir(isinstance(custo, dict), "custo", "esperado objeto")
     _exigir(set(custo) <= {"estimado", "real", "diferenca"}, "custo", f"chaves {sorted(custo)} fora do esquema")
     _exigir(("diferenca" in custo) == ("real" in custo and "estimado" in custo), "custo", "diferenca exige estimado e real")
     if "estimado" in custo:
+        _exigir(isinstance(custo["estimado"], dict), "custo.estimado", "esperado objeto")
+        sem_teto = isinstance(custo["estimado"].get("teto"), dict) and "sem_teto" in custo["estimado"]["teto"]
+        _exigir(admite_sem_teto or not sem_teto, "custo.estimado.teto", "sem_teto exige o esquema v5")
         est = _chaves(
             custo["estimado"],
-            {"estimado_usd", "maximo_usd", "resultados_itens", "teto", "base_calibracao"},
+            {"estimado_usd", "resultados_itens", "teto", "base_calibracao"} | (set() if sem_teto else {"maximo_usd"}),
             "custo.estimado",
         )
         estimado = _por_colecao(est["estimado_usd"], "custo.estimado.estimado_usd", "usd")
-        maximo = _por_colecao(est["maximo_usd"], "custo.estimado.maximo_usd", "usd")
         _por_colecao(est["resultados_itens"], "custo.estimado.resultados_itens", "int")
-        for k in COLECOES_CUSTO:
-            _exigir(estimado[k] <= maximo[k] + 1e-9, f"custo.estimado.estimado_usd.{k}", "estimado acima do máximo")
-        teto = _chaves(est["teto"], {"aplicado_itens_por_perfil", "padrao"}, "custo.estimado.teto")
-        _int(teto["aplicado_itens_por_perfil"], "custo.estimado.teto.aplicado_itens_por_perfil", 1)
-        _exigir(isinstance(teto["padrao"], bool), "custo.estimado.teto.padrao", "booleano")
+        if sem_teto:
+            teto = _chaves(est["teto"], {"sem_teto"}, "custo.estimado.teto")
+            _exigir(teto["sem_teto"] is True, "custo.estimado.teto.sem_teto", "esperado true")
+        else:
+            maximo = _por_colecao(est["maximo_usd"], "custo.estimado.maximo_usd", "usd")
+            for k in COLECOES_CUSTO:
+                _exigir(estimado[k] <= maximo[k] + 1e-9, f"custo.estimado.estimado_usd.{k}", "estimado acima do máximo")
+            teto = _chaves(est["teto"], {"aplicado_itens_por_perfil", "padrao"}, "custo.estimado.teto")
+            _int(teto["aplicado_itens_por_perfil"], "custo.estimado.teto.aplicado_itens_por_perfil", 1)
+            _exigir(isinstance(teto["padrao"], bool), "custo.estimado.teto.padrao", "booleano")
         base = _chaves(est["base_calibracao"], {"posts", "reels", "ugc"}, "custo.estimado.base_calibracao")
         for k, v in base.items():
             _exigir(isinstance(v, str) and bool(v), f"custo.estimado.base_calibracao.{k}", "texto (Coleta ou sem_base)")
@@ -318,7 +326,7 @@ def validar_manifesto(m: Any) -> None:
             _intervalo(p, caminho)
 
     if v_esquema >= 4:
-        _validar_custo_v4(m["custo"])
+        _validar_custo_v4(m["custo"], admite_sem_teto=v_esquema >= 5)
     else:
         custo = _chaves(m["custo"], {"estimado", "real"}, "custo")
         if custo["estimado"] is not None:
