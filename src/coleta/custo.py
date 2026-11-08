@@ -60,6 +60,11 @@ def teto_efetivo(recorte: Recorte, hoje: date) -> int | None:
     return recorte.teto
 
 
+def teto_da_colecao(recorte: Recorte, colecao: str) -> int | None:
+    """Teto aplicado a uma coleção (ADR 0044): o UGC usa `teto_ugc` se houver, senão o teto geral; as demais, o geral."""
+    return recorte.teto_do_ugc if colecao == "ugc" else recorte.teto
+
+
 def teto_padrao_legado(recorte: Recorte, hoje: date) -> int:
     """Teto que as Coletas anteriores à ADR 0043 aplicavam quando o Recorte não trazia teto: com janela, o padrão por
     janela (`max(200, 7 × dias)`); senão, o padrão do projeto. Só serve para ler Coletas antigas."""
@@ -126,7 +131,8 @@ def _projetar(
         return maximo, SEM_BASE
 
     def projetar(itens: int) -> float:
-        censurado = calibracao.base_teto is not None and itens >= calibracao.base_teto
+        base_teto = calibracao.base_teto_de(colecao)
+        censurado = base_teto is not None and itens >= base_teto
         if censurado and teto is not None:
             return float(teto)
         bruto = itens / calibracao.dias_janela * dias if por_janela else float(itens)
@@ -158,7 +164,10 @@ def estimar_custo(
     (a Coleta que calibrou posts, reels e UGC, ou `sem_base`).
 
     Sem teto no Recorte, `maximo_usd` não existe e `teto` vira `{"sem_teto": True}`. Se além disso alguma coleção
-    ficar sem Base de calibração utilizável, levanta `SemEstimativa`: sem máximo nem projeção não há estimativa."""
+    ficar sem Base de calibração utilizável, levanta `SemEstimativa`: sem máximo nem projeção não há estimativa.
+
+    Com `teto_ugc` (ADR 0044) o UGC tem teto próprio: entra em `teto` como `ugc_itens_por_perfil` e, sem teto geral,
+    o máximo só do UGC vai em `maximo_ugc_usd` (o total continua sem máximo)."""
     preco = _precos(plano)
     teto = teto_efetivo(recorte, hoje)
     dias = recorte.dias_a_extrair(hoje)
@@ -170,11 +179,13 @@ def estimar_custo(
     itens: dict[str, int] = {"perfis": n_governadores}
     base: dict[str, str] = {}
     for colecao in COLECOES_CALIBRADAS:
-        projetados, base[colecao] = _projetar(colecao, n_governadores, teto, dias, calibracao)
+        projetados, base[colecao] = _projetar(
+            colecao, n_governadores, teto_da_colecao(recorte, colecao), dias, calibracao
+        )
         if projetados is None:
             raise SemEstimativa(
                 f"sem teto e sem base de calibracao para {colecao}: nao ha como estimar o custo "
-                "(informe --teto ou calibre com uma Coleta anterior)"
+                "(informe --teto, --teto-ugc para o UGC, ou calibre com uma Coleta anterior)"
             )
         itens[colecao] = projetados
 
@@ -187,10 +198,17 @@ def estimar_custo(
     }
     if teto is None:
         custo["teto"] = {"sem_teto": True}
+        if recorte.teto_ugc is not None:
+            custo["teto"]["ugc_itens_por_perfil"] = recorte.teto_ugc
+            custo["maximo_ugc_usd"] = round(usd(n_governadores * recorte.teto_ugc, "ugc"), 4)
         return custo
-    cheio = {c: (n_governadores if c == "perfis" else n_governadores * teto) for c in COLECOES}
+    cheio = {
+        c: (n_governadores if c == "perfis" else n_governadores * teto_da_colecao(recorte, c)) for c in COLECOES
+    }
     maximo_usd = {c: round(usd(cheio[c], c), 4) for c in COLECOES}
     maximo_usd["total"] = round(sum(maximo_usd.values()), 4)
     custo["maximo_usd"] = maximo_usd
     custo["teto"] = {"aplicado_itens_por_perfil": teto, "padrao": False}
+    if recorte.teto_ugc is not None:
+        custo["teto"]["ugc_itens_por_perfil"] = recorte.teto_ugc
     return custo

@@ -157,7 +157,8 @@ _Avoid_: Filtro, parâmetros da extração.
 **Teto aplicado**:
 O limite de itens por perfil que de fato foi enviado ao scraper numa Coleta: só existe quando o Recorte traz teto. Sem
 `--teto`, a Coleta é **sem teto** e o manifesto registra `sem_teto` (ADR 0043). Coletas anteriores à v5 do manifesto sem teto
-pedido aplicaram um teto padrão por janela.
+pedido aplicaram um teto padrão por janela. O UGC pode ter **teto próprio** (`--teto-ugc`, ADR 0044), porque o actor de
+marcações não filtra por data; o Teto aplicado é então por coleção (o UGC usa o seu, senão o geral).
 _Avoid_: Limite, resultsLimit (é o nome do campo no Apify, não o termo do domínio).
 
 **Custo estimado**:

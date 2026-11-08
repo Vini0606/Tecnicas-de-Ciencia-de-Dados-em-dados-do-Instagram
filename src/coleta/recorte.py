@@ -20,6 +20,7 @@ _TAG = re.compile(
     rf"^coleta_{_DATA}"
     rf"(_ultimos-\d+[dm]|_de-{_DATA}_ate-{_DATA})?"
     r"(_teto-\d+)?"
+    r"(_teto-ugc-\d+)?"
     rf"(_{_ROTULO_RE})?$"
 )
 
@@ -28,12 +29,16 @@ _TAG = re.compile(
 class Recorte:
     """Janela relativa (`dias`) **ou** intervalo absoluto (`inicio`/`fim`),
     mais teto de itens por perfil (`teto`). Ao menos um critério é exigido:
-    um Recorte sem janela e sem teto extrairia tudo, sem limite de custo."""
+    um Recorte sem janela e sem teto extrairia tudo, sem limite de custo.
+
+    `teto_ugc` é um teto só da coleção UGC (ADR 0044): vale no UGC no lugar de `teto`, e não conta como critério,
+    pois posts e reels ficariam ilimitados sem janela."""
 
     dias: int | None = None
     inicio: date | None = None
     fim: date | None = None
     teto: int | None = None
+    teto_ugc: int | None = None
 
     def __post_init__(self) -> None:
         tem_intervalo = self.inicio is not None or self.fim is not None
@@ -48,12 +53,19 @@ class Recorte:
                 raise ValueError("Recorte: inicio não pode ser depois de fim")
         if self.teto is not None and self.teto <= 0:
             raise ValueError("Recorte: teto deve ser positivo")
+        if self.teto_ugc is not None and self.teto_ugc <= 0:
+            raise ValueError("Recorte: teto_ugc deve ser positivo")
         if self.dias is None and not tem_intervalo and self.teto is None:
             raise ValueError("Recorte vazio: informe janela, intervalo ou teto")
 
     @property
     def tem_janela(self) -> bool:
         return self.dias is not None or self.inicio is not None
+
+    @property
+    def teto_do_ugc(self) -> int | None:
+        """O Teto aplicado à coleção UGC: o teto próprio, ou o geral, ou nenhum."""
+        return self.teto_ugc if self.teto_ugc is not None else self.teto
 
     def dias_a_extrair(self, hoje: date) -> int | None:
         """Quantos dias para trás a Apify precisa alcançar. O actor só oferece
@@ -84,7 +96,7 @@ class Recorte:
 
 
 def gerar_tag(recorte: Recorte, extracao: date, rotulo: str | None = None) -> str:
-    """`coleta_<extração>[_<janela>][_<teto>][_<rótulo>]`, na ordem fixa."""
+    """`coleta_<extração>[_<janela>][_<teto>][_<teto-ugc>][_<rótulo>]`, na ordem fixa."""
     partes = [f"coleta_{extracao.isoformat()}"]
     if recorte.dias is not None:
         partes.append(f"ultimos-{recorte.dias}d")
@@ -92,6 +104,8 @@ def gerar_tag(recorte: Recorte, extracao: date, rotulo: str | None = None) -> st
         partes.append(f"de-{recorte.inicio.isoformat()}_ate-{recorte.fim.isoformat()}")
     if recorte.teto is not None:
         partes.append(f"teto-{recorte.teto}")
+    if recorte.teto_ugc is not None:
+        partes.append(f"teto-ugc-{recorte.teto_ugc}")
     if rotulo is not None:
         if not _ROTULO.match(rotulo):
             raise ValueError(

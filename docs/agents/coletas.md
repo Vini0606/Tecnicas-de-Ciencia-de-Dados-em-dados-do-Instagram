@@ -18,7 +18,9 @@ estão definidos em `CONTEXT.md`.
   dela) e nunca acima do máximo; sem base (nenhuma Coleta, sem os governadores, HF fora do ar, `--sem-calibracao`) ele vale o
   máximo e a linha `Calibracao` da saída diz o motivo. Sem `--teto`, a Coleta é **sem teto** (ADR 0043): a estimativa
   não tem custo máximo, a CLI avisa que o único freio é o limite de uso mensal da conta Apify (Console) e, se também não houver
-  Base de calibração, recusa a estimativa e manda informar `--teto`. Governadores no teto da base entram com a taxa observada
+  Base de calibração, recusa a estimativa e manda informar `--teto`. `--teto-ugc N` (ADR 0044) limita só o UGC: o actor de
+  marcações não filtra por data, então sem ele o UGC traz todo o histórico. Vale no UGC no lugar do `--teto`, não substitui a
+  janela (só `--teto-ugc` é recusado) e entra no identificador como `_teto-ugc-N`. Governadores no teto da base entram com a taxa observada
   (um piso). O evento `post-details` do actor de posts é cobrado em cada
   post (confirmado nos runs reais do piloto).
 - Extraia sempre em pasta de dados limpa (`DATA_DIR`), nunca por cima da pasta `data/` em uso.

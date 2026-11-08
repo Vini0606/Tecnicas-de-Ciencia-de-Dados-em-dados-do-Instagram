@@ -29,6 +29,7 @@ from src.coleta.custo import (
     PLANO_PADRAO,
     agregar_custo_real,
     estimar_custo,
+    teto_da_colecao,
     teto_efetivo,
 )
 from src.coleta.derivacao import caminhos_do_destino, derivar_silver_gold
@@ -61,7 +62,8 @@ def criar_scraper(client, recorte: Recorte, hoje: date) -> InstagramScraper:
     """Scraper com o teto efetivo do Recorte -- o ponto único que traduz teto
     em `resultsLimit` da Apify."""
     return InstagramScraper(
-        client=client, config=ScraperConfig(results_limit=teto_efetivo(recorte, hoje))
+        client=client,
+        config=ScraperConfig(results_limit=teto_efetivo(recorte, hoje), results_limit_ugc=recorte.teto_ugc),
     )
 
 
@@ -102,20 +104,44 @@ class _ScraperRecortado:
         return self._recorte.dentro_do_recorte(publicado.date())
 
 
-def _avisar_truncados(bruto: dict, teto: int | None) -> None:
-    """Perfis que bateram exatamente no teto: o resultado provavelmente foi truncado. Sem teto, nada trunca."""
-    if teto is None:
-        return
-    truncados = {
-        entidade: profiles_hitting_limit(bruto.get(entidade, []), teto)
-        for entidade in ("posts", "reels", "ugc_mentions")
-    }
-    if any(truncados.values()):
+def _data_mais_antiga_por_perfil(itens: list[dict], perfis: list[str]) -> dict[str, str]:
+    """Data (AAAA-MM-DD) do item mais antigo de cada perfil: mostra até onde o teto alcançou na janela."""
+    antigas: dict[str, str] = {}
+    for item in itens:
+        chave = item.get("inputUrl") or item.get("ownerUsername") or "desconhecido"
+        if chave not in perfis:
+            continue
+        data = pd.to_datetime(item.get("timestamp"), errors="coerce", utc=True)
+        if pd.isna(data):
+            continue
+        texto = data.date().isoformat()
+        if chave not in antigas or texto < antigas[chave]:
+            antigas[chave] = texto
+    return antigas
+
+
+def _avisar_truncados(bruto: dict, recorte: Recorte) -> None:
+    """Perfis que bateram exatamente no teto da coleção: o resultado provavelmente foi truncado. Coleção sem teto
+    não trunca. Para o UGC (sem filtro de data no actor) mostra também a data mais antiga de cada perfil truncado."""
+    entidades = (("posts", "posts", "--teto"), ("reels", "reels", "--teto"), ("ugc", "ugc_mentions", "--teto-ugc"))
+    for colecao, entidade, flag in entidades:
+        teto = teto_da_colecao(recorte, colecao)
+        if teto is None:
+            continue
+        truncados = profiles_hitting_limit(bruto.get(entidade, []), teto)
+        if not truncados:
+            continue
         logger.warning(
-            "[COLETA] Perfis que bateram no teto de %s (resultado provavelmente truncado): "
-            "posts=%s reels=%s ugc_mentions=%s. Rode de novo com --teto maior.",
-            teto, truncados["posts"], truncados["reels"], truncados["ugc_mentions"],
+            "[COLETA] %s: perfis que bateram no teto de %s (resultado provavelmente truncado): %s. "
+            "Rode de novo com %s maior.",
+            entidade, teto, truncados, flag,
         )
+        if colecao == "ugc":
+            logger.warning(
+                "[COLETA] ugc_mentions: data da marcacao mais antiga por perfil truncado (compare com o inicio da "
+                "janela): %s",
+                _data_mais_antiga_por_perfil(bruto.get(entidade, []), truncados),
+            )
 
 
 def coletar(
@@ -165,7 +191,7 @@ def coletar(
     logger.info("[COLETA] %s: extraindo (custo estimado US$ %.2f)...", tag, estimado_total)
     scraper_recortado = _ScraperRecortado(scraper, recorte)
     bruto = extract_and_land(scraper_recortado, bronze, links, run_id=run_id, extra_run_input=extra)
-    _avisar_truncados(bruto, teto_efetivo(recorte, hoje))
+    _avisar_truncados(bruto, recorte)
     custo_real = agregar_custo_real(scraper_recortado.execucoes)
     if custo_real is None:
         logger.warning("[COLETA] %s: custo real indisponivel (sem custo legivel em alguma chamada da Apify).", tag)

@@ -22,6 +22,9 @@ class ScraperConfig:
     # None: sem teto (Coleta, ADR 0043). `resultsLimit` é opcional nos actors de posts, reels e UGC (só `username` é
     # obrigatório no schema), então sem teto o campo é omitido e vale o comportamento do actor.
     results_limit: int | None = 30
+    # Teto só do UGC (ADR 0044): o actor de UGC não filtra por data, então o limite é o único freio dele. None: vale
+    # `results_limit`.
+    results_limit_ugc: int | None = None
     # ADR 0020 (Ficha 3) / issue #88: `includeTranscript` é uma flag paga do
     # `apify/instagram-reel-scraper`, cobrada por minuto de vídeo transcrito
     # (achado de `docs/research/apify-instagram-actors-cobra-mapping.md`,
@@ -35,6 +38,13 @@ class ScraperConfig:
     def limite_input(self) -> dict:
         """`resultsLimit` dos actors de posts, reels e UGC: o teto, ou nada (campo omitido) sem teto."""
         return {} if self.results_limit is None else {"resultsLimit": self.results_limit}
+
+    @property
+    def limite_input_ugc(self) -> dict:
+        """`resultsLimit` do actor de UGC: o teto próprio, senão o de `limite_input`."""
+        if self.results_limit_ugc is not None:
+            return {"resultsLimit": self.results_limit_ugc}
+        return self.limite_input
 
 
 class InstagramScraper:
@@ -140,7 +150,7 @@ class InstagramScraper:
         confirmados contra os 27 perfis reais do projeto."""
         run_input = {
             "username": usernames,
-            **self._config.limite_input,
+            **self._config.limite_input_ugc,
             **(extra_run_input or {}),
         }
         return self._rodar("ugc", self._config.mentions_actor_id, run_input)

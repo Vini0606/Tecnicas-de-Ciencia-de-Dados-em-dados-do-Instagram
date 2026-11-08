@@ -67,7 +67,7 @@ O bloco `custo` do manifesto separa o que se previa gastar, o que a Apify cobrou
 | `estimado.estimado_usd` | previsão do gasto, **média + 3 desvios-padrão do total**, nunca acima do máximo |
 | `estimado.maximo_usd` | gasto no limite absoluto: o teto de itens por perfil cheio em todos os perfis (não existe numa Coleta sem teto) |
 | `estimado.resultados_itens` | itens por trás do estimado |
-| `estimado.teto` | `aplicado_itens_por_perfil` (o limite enviado ao scraper) e `padrao`; numa **Coleta sem teto** (sem `--teto`) vale `{"sem_teto": true}` e não há máximo |
+| `estimado.teto` | `aplicado_itens_por_perfil` (o limite enviado ao scraper) e `padrao`; numa **Coleta sem teto** (sem `--teto`) vale `{"sem_teto": true}` e não há máximo; com `--teto-ugc` (teto só do UGC, ADR 0044) ganha `ugc_itens_por_perfil` e, sem teto geral, o máximo só do UGC em `estimado.maximo_ugc_usd` |
 | `estimado.base_calibracao` | a Coleta que calibrou posts, reels e UGC, ou `sem_base` |
 | `real.custo_usd`, `real.resultados_itens` | o que a Apify cobrou e os itens que devolveu, lidos do run finalizado |
 | `diferenca.custo_pct`, `diferenca.resultados_pct` | `(real − estimado) / estimado × 100`, só em percentual; **negativo = abaixo do estimado** |
