@@ -123,7 +123,7 @@ def _gerar(snapshot, **kw):
 def test_manifesto_traz_todos_os_campos_e_valida(snapshot):
     m = _gerar(snapshot, custo_real=agregar_custo_real(EXECUCOES))
 
-    assert m["versao_esquema"] == 4
+    assert m["versao_esquema"] == 5
     assert m["identidade"] == {
         "tag": "coleta_2026-10-09_ultimos-90d_teto-250",
         "extraido_em": "2026-10-09T14:30:00+00:00",
@@ -363,3 +363,64 @@ def test_manifesto_v4_completo_nao_tem_nenhum_campo_nulo(snapshot):
     m = _gerar(snapshot, custo_real=agregar_custo_real(EXECUCOES))
 
     assert list(_nulos(m)) == []
+
+
+# --- Coleta sem teto (ADR 0043, esquema v5) -------------------------------------------------------------------------
+
+
+def _sem_teto(snapshot):
+    from src.coleta.calibracao import Calibracao
+
+    base = Calibracao(
+        n_governadores=2,
+        origem="coleta_2026-10-06_ultimos-5d",
+        dias_janela=5,
+        base_teto=None,
+        n_perfis_base=2,
+        contagens={"posts": {"gov_a": 5}, "reels": {"gov_a": 3}, "ugc": {"gov_a": 2}},
+    )
+    recorte = Recorte(dias=90)
+    return gerar_manifesto(
+        snapshot,
+        tag=gerar_tag(recorte, date(2026, 10, 9)),
+        recorte=recorte,
+        extraido_em=EXTRAIDO,
+        versao_codigo="abc123def456",
+        custo_estimado=estimar_custo(recorte, 2, date(2026, 10, 9), calibracao=base),
+    )
+
+
+def test_manifesto_sem_teto_e_valido_sem_maximo_e_sem_nulos(snapshot):
+    m = _sem_teto(snapshot)
+
+    validar_manifesto(m)
+    assert m["versao_esquema"] == 5
+    assert "teto" not in m["recorte"]
+    assert m["custo"]["estimado"]["teto"] == {"sem_teto": True}
+    assert "maximo_usd" not in m["custo"]["estimado"]
+    assert "null" not in json.dumps(m["custo"])
+
+
+def test_sem_teto_junto_de_maximo_ou_de_teto_aplicado_e_incoerente(snapshot):
+    m = _sem_teto(snapshot)
+    com_maximo = json.loads(json.dumps(m))
+    com_maximo["custo"]["estimado"]["maximo_usd"] = com_maximo["custo"]["estimado"]["estimado_usd"]
+    with pytest.raises(ValueError, match="maximo_usd"):
+        validar_manifesto(com_maximo)
+
+    com_teto = json.loads(json.dumps(m))
+    com_teto["custo"]["estimado"]["teto"] = {"sem_teto": True, "aplicado_itens_por_perfil": 250}
+    with pytest.raises(ValueError, match="teto"):
+        validar_manifesto(com_teto)
+
+
+def test_sem_teto_exige_o_esquema_v5_e_manifestos_v4_com_teto_continuam_validos(snapshot):
+    m = _sem_teto(snapshot)
+    antigo = json.loads(json.dumps(m))
+    antigo["versao_esquema"] = 4
+    with pytest.raises(ValueError, match="v5"):
+        validar_manifesto(antigo)
+
+    com_teto = _gerar(snapshot)
+    com_teto["versao_esquema"] = 4  # o que a v4 gravava com teto: o mesmo bloco, válido
+    validar_manifesto(com_teto)

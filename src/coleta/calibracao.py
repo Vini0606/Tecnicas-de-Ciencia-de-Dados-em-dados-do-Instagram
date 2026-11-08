@@ -14,7 +14,7 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 
 from src.coleta import hf
-from src.coleta.custo import COLECOES_CALIBRADAS, teto_efetivo
+from src.coleta.custo import COLECOES_CALIBRADAS, teto_padrao_legado
 
 
 @dataclass(frozen=True)
@@ -24,7 +24,7 @@ class Calibracao:
     n_governadores: int
     origem: str | None = None
     dias_janela: int | None = None  # None: a base não tem janela em dias (só teto, ou um dia só)
-    base_teto: int = 0  # teto aplicado na Coleta de origem (governador com contagem >= teto está censurado)
+    base_teto: int | None = None  # teto da Coleta de origem (contagem >= teto = censurado); None: base sem teto
     n_perfis_base: int = 0  # perfis que a Coleta de origem leu (para distinguir governador novo de governador sem itens)
     contagens: dict[str, dict[str, int]] = field(default_factory=lambda: {c: {} for c in COLECOES_CALIBRADAS})
     perfis_calibrados: int = 0
@@ -70,7 +70,11 @@ def calibrar(coleta: hf.ColetaListada | None, usernames: Sequence[str]) -> Calib
     dias = (janela[1] - janela[0]).days if janela else 0
 
     governadores = {u.lower() for u in usernames}
-    teto = teto_efetivo(coleta.recorte, coleta.extraido_em.date())  # inclui o teto padrão da Coleta de origem
+    # Coleta sem teto (ADR 0043) não censura ninguém; as anteriores aplicaram o teto pedido ou o padrão de então.
+    if coleta.sem_teto:
+        teto = None
+    else:
+        teto = coleta.recorte.teto or teto_padrao_legado(coleta.recorte, coleta.extraido_em.date())
     contagens: dict[str, dict[str, int]] = {c: {} for c in COLECOES_CALIBRADAS}
     truncados: set[str] = set()
     for colecao in COLECOES_CALIBRADAS:
@@ -79,7 +83,7 @@ def calibrar(coleta: hf.ColetaListada | None, usernames: Sequence[str]) -> Calib
             if username not in governadores:
                 continue
             contagens[colecao][username] = int(perfil["itens"])
-            if perfil["itens"] >= teto:
+            if teto is not None and perfil["itens"] >= teto:
                 truncados.add(username)
     calibrados = set().union(*(set(t) for t in contagens.values()))
     if not calibrados:

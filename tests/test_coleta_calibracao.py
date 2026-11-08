@@ -4,6 +4,7 @@ Sem rede: a Coleta anterior é montada nos testes e o HF é substituído."""
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import date, datetime, timezone
 
 import pytest
@@ -106,6 +107,15 @@ def test_perfil_no_teto_padrao_da_coleta_de_origem_tambem_e_sinalizado():
     c = calibrar(coleta, ["gov_a", "gov_b"])
 
     assert c.perfis_truncados == 1 and c.base_teto == 630
+
+
+def test_base_sem_teto_nao_censura_ninguem_mesmo_com_contagem_alta():
+    coleta = _coleta([_perfil("gov_a", 5000), _perfil("gov_b", 50)], recorte=Recorte(dias=90))
+    coleta = replace(coleta, sem_teto=True)
+    c = calibrar(coleta, ["gov_a", "gov_b"])
+
+    assert c.base_teto is None and c.perfis_truncados == 0
+    assert "no teto" not in c.detalhe()
 
 
 # --- quando não há base ------------------------------------------------------------------

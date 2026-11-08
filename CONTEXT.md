@@ -155,8 +155,9 @@ uma combinação. Distinto da cobertura real, que é o período efetivamente obt
 _Avoid_: Filtro, parâmetros da extração.
 
 **Teto aplicado**:
-O limite de itens por perfil que de fato foi enviado ao scraper numa Coleta: o teto pedido no Recorte ou, sem ele, o teto
-padrão do projeto. O manifesto diz qual foi e se veio do padrão.
+O limite de itens por perfil que de fato foi enviado ao scraper numa Coleta: só existe quando o Recorte traz teto. Sem
+`--teto`, a Coleta é **sem teto** e o manifesto registra `sem_teto` (ADR 0043). Coletas anteriores à v5 do manifesto sem teto
+pedido aplicaram um teto padrão por janela.
 _Avoid_: Limite, resultsLimit (é o nome do campo no Apify, não o termo do domínio).
 
 **Custo estimado**:
@@ -167,7 +168,7 @@ _Avoid_: Esperado, orçamento, pior caso (o pior caso é o Custo máximo).
 
 **Custo máximo**:
 O gasto no limite absoluto de uma Coleta: o Teto aplicado cheio em todos os perfis. É o único valor garantido, porque o
-scraper nunca devolve mais itens que o teto.
+scraper nunca devolve mais itens que o teto. Uma Coleta sem teto não tem Custo máximo.
 _Avoid_: Pior caso, teto de custo.
 
 **Custo real**:

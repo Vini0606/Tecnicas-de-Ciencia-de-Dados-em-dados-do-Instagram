@@ -125,6 +125,7 @@ class ColetaListada:
     cobertura: dict[str, Any]
     extraido_em: datetime
     tags_de_uso: tuple[str, ...] = ()
+    sem_teto: bool = False  # Coleta sem teto (manifesto v5): o scraper não limitou os itens por perfil
 
 
 # --- helpers -----------------------------------------------------------------
@@ -307,6 +308,12 @@ def restaurar(
         )
 
 
+def _sem_teto(manifesto: dict[str, Any]) -> bool:
+    estimado = (manifesto.get("custo") or {}).get("estimado")
+    teto = estimado.get("teto") if isinstance(estimado, dict) else None
+    return isinstance(teto, dict) and teto.get("sem_teto") is True
+
+
 def listar(*, cliente: ClienteColetaHF) -> list[ColetaListada]:
     """Coletas da historia da `main` (identificador, commit, Recorte, cobertura e
     tags de uso lidos do manifesto de cada commit), da mais recente para a mais
@@ -330,6 +337,7 @@ def listar(*, cliente: ClienteColetaHF) -> list[ColetaListada]:
                 cobertura=manifesto["cobertura"],
                 extraido_em=datetime.fromisoformat(manifesto["identidade"]["extraido_em"]),
                 tags_de_uso=tuple(sorted(t for t, alvo in tags.items() if alvo == commit.id)),
+                sem_teto=_sem_teto(manifesto),
             )
         )
     return coletas

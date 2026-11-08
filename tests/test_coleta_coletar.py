@@ -9,7 +9,8 @@ import pandas as pd
 import pytest
 from deltalake import DeltaTable
 
-from src.coleta.coletar import ColetaNaoConfirmada, coletar
+from src.coleta.calibracao import Calibracao
+from src.coleta.coletar import ColetaNaoConfirmada, coletar, criar_scraper
 from src.coleta.recorte import Recorte
 
 HOJE = date(2026, 10, 9)
@@ -124,9 +125,21 @@ def test_recorte_e_scraper_falso_produzem_snapshot_com_bronze_silver_gold_e_mani
     assert manifesto["cobertura"]["reels"]["itens"] == 1
 
 
+def _base_sem_teto() -> Calibracao:
+    """Base de calibração de uma Coleta anterior sem teto (para estimar uma Coleta nova também sem teto)."""
+    return Calibracao(
+        n_governadores=1,
+        origem="coleta_2026-10-06_ultimos-5d",
+        dias_janela=5,
+        base_teto=None,
+        n_perfis_base=1,
+        contagens={"posts": {"gov_a": 5}, "reels": {"gov_a": 3}, "ugc": {"gov_a": 2}},
+    )
+
+
 def test_a_janela_do_recorte_chega_a_apify_como_posts_mais_novos_que_n_dias(tmp_path):
     scraper = _ScraperFalso()
-    _coletar(tmp_path, Recorte(dias=90), scraper)
+    _coletar(tmp_path, Recorte(dias=90, teto=250), scraper)
 
     extras = {tipo: extra for tipo, extra in scraper.chamadas}
     assert extras["posts"] == {"onlyPostsNewerThan": "90 days"}
@@ -160,7 +173,7 @@ def test_intervalo_absoluto_descarta_localmente_o_que_esta_fora_do_fim(tmp_path)
     )
     recorte = Recorte(inicio=date(2026, 7, 1), fim=date(2026, 8, 31))
 
-    resultado = _coletar(tmp_path, recorte, scraper)
+    resultado = _coletar(tmp_path, recorte, scraper, calibracao=_base_sem_teto())
 
     posts = DeltaTable(str(tmp_path / "dados" / "bronze" / "instagram_posts")).to_pandas()
     assert posts["id"].tolist() == ["dentro"]
@@ -186,3 +199,74 @@ def test_modelagem_opcional_recebe_as_tabelas_derivadas(tmp_path):
 
     assert {"reels", "comments", "posts", "engagement"} <= set(recebido)
     assert len(recebido["engagement"]) >= 1
+
+
+# --- Coleta sem teto (ADR 0043) -----------------------------------------------------------------------------------
+
+
+def test_coleta_sem_teto_grava_manifesto_v5_sem_maximo_sem_nulos_e_sem_segmento_de_teto_na_tag(tmp_path):
+    resultado = _coletar(tmp_path, Recorte(dias=90), calibracao=_base_sem_teto())
+
+    assert resultado.tag == "coleta_2026-10-09_ultimos-90d"
+    gravado = json.loads((tmp_path / "dados" / "manifesto.json").read_text(encoding="utf-8"))
+    assert gravado["versao_esquema"] == 5
+    assert "teto" not in gravado["recorte"]
+    estimado = gravado["custo"]["estimado"]
+    assert estimado["teto"] == {"sem_teto": True}
+    assert "maximo_usd" not in estimado
+    assert "null" not in json.dumps(gravado["custo"])
+
+
+def test_coleta_sem_teto_e_sem_base_nao_extrai_nada(tmp_path):
+    from src.coleta.custo import SemEstimativa
+
+    scraper = _ScraperFalso()
+    with pytest.raises(SemEstimativa):
+        _coletar(tmp_path, Recorte(dias=90), scraper)
+
+    assert scraper.chamadas == []
+    assert not (tmp_path / "dados").exists()
+
+
+def test_scraper_sem_teto_envia_o_limite_sentinela_e_com_teto_envia_o_pedido():
+    class ClienteFalso:
+        def __init__(self):
+            self.inputs = []
+
+        def actor(self, actor_id):
+            outer = self
+
+            class Ator:
+                def call(self, run_input=None, **_kw):
+                    outer.inputs.append((actor_id, run_input))
+                    return {"id": "run1", "defaultDatasetId": "ds1"}
+
+            return Ator()
+
+        def dataset(self, _id):
+            class Dataset:
+                def list_items(self):
+                    class Itens:
+                        items = []
+
+                    return Itens()
+
+            return Dataset()
+
+        def run(self, _id):
+            class Run:
+                def get(self):
+                    return {}
+
+            return Run()
+
+    for recorte, esperado in ((Recorte(dias=90), 1_000_000), (Recorte(dias=90, teto=250), 250)):
+        cliente = ClienteFalso()
+        scraper = criar_scraper(cliente, recorte, HOJE)
+        for chamar in (scraper.scrape_posts, scraper.scrape_reels, scraper.scrape_mentions):
+            try:
+                chamar(["gov_a"])
+            except Exception:  # noqa: BLE001 - só o input enviado importa aqui
+                pass
+        enviados = {run_input["resultsLimit"] for _id, run_input in cliente.inputs}
+        assert enviados == {esperado}, recorte

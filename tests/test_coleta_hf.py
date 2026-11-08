@@ -398,3 +398,29 @@ def test_baixar_referencia_inexistente_levanta_erro_claro(tmp_path):
     assert "coleta_2026-01-01_teto-1" in str(exc.value)
     with pytest.raises(ErroColetaHF):
         baixar("nao-existe", tmp_path / "y", cliente=ClienteFake())
+
+
+def test_listar_marca_a_coleta_sem_teto_pelo_manifesto_v5(tmp_path):
+    tag = "coleta_2026-10-09_ultimos-90d"
+    m = _manifesto(tag, 90, None)
+    m["versao_esquema"] = 5
+    m["recorte"] = {"dias": 90}
+    m["recorte_efetivo"] = {"inicio": "2026-07-11", "fim": "2026-10-09"}
+    zeros = {k: 1.0 for k in ("perfis", "posts", "reels", "ugc", "total")}
+    inteiros = {k: 1 for k in zeros}
+    m["custo"] = {
+        "estimado": {
+            "estimado_usd": zeros,
+            "resultados_itens": inteiros,
+            "teto": {"sem_teto": True},
+            "base_calibracao": {"posts": "sem_base", "reels": "sem_base", "ugc": "sem_base"},
+        }
+    }
+    cliente = ClienteFake()
+    publicar(_snapshot(tmp_path / "a", manifesto=m), cliente=cliente, confirmar=_sim)
+    publicar(_segundo_snapshot(tmp_path / "b"), cliente=cliente, confirmar=_sim)
+
+    com_teto, sem_teto = listar(cliente=cliente)  # a mais recente primeiro
+
+    assert com_teto.sem_teto is False  # manifesto antigo (v2) com teto
+    assert sem_teto.sem_teto is True

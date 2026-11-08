@@ -34,9 +34,9 @@ from src.coleta.calibracao import Calibracao, carregar_calibracao
 from src.coleta.coletar import ColetaNaoConfirmada, coletar, criar_scraper
 from src.coleta.custo import (
     PLANO_PADRAO,
+    SemEstimativa,
     diferenca_percentual,
     estimar_custo,
-    teto_e_padrao,
 )
 from src.coleta.recorte import Recorte
 from src.run_id import build_run_id
@@ -154,15 +154,16 @@ def _usd(valor: float) -> str:
     return _decimal(valor, 2)
 
 
-def _descrever_recorte(recorte: Recorte, teto: int) -> str:
+def _descrever_recorte(recorte: Recorte, teto: int | None) -> str:
     if recorte.dias is not None:
         janela = f"ultimos {recorte.dias} dias"
     elif recorte.inicio is not None:
         janela = f"de {recorte.inicio} a {recorte.fim}"
     else:
         janela = "so teto"
-    padrao = " (teto padrao)" if teto_e_padrao(recorte) else ""
-    return f"{janela}, ate {_milhar(teto)} itens por perfil e colecao{padrao}"
+    if teto is None:
+        return f"{janela}, sem teto"
+    return f"{janela}, ate {_milhar(teto)} itens por perfil e colecao"
 
 
 def formatar_estimativa(
@@ -175,9 +176,9 @@ def formatar_estimativa(
 ) -> str:
     """Texto da estimativa de `coletar`: cabecalho do Recorte e tabela por colecao (so ASCII,
     para o console do Windows). `custo` e o bloco `estimado` do manifesto (ADR 0042)."""
-    teto = custo["teto"]["aplicado_itens_por_perfil"]
+    teto = custo["teto"].get("aplicado_itens_por_perfil")
     janela = recorte.janela_efetiva(hoje)
-    est, mx, itens = custo["estimado_usd"], custo["maximo_usd"], custo["resultados_itens"]
+    est, mx, itens = custo["estimado_usd"], custo.get("maximo_usd"), custo["resultados_itens"]
     linhas = ["ESTIMATIVA DE CUSTO DA COLETA", ""]
     cabecalho = [("Recorte", _descrever_recorte(recorte, teto))]
     if janela:
@@ -188,21 +189,32 @@ def formatar_estimativa(
     cabecalho.append(("Calibracao", calibracao.resumo()))
     linhas += [f"  {nome:<14}{valor}" for nome, valor in cabecalho]
     linhas.append(f"  {'':<14}{calibracao.detalhe()}")
-    if custo["teto"]["padrao"]:
+    if teto is None:
         linhas += [
             "",
-            f"  [AVISO] Sem --teto: usando o teto padrao de {_milhar(teto)} por perfil e por colecao.",
-            f"          Maximo ate US$ {_usd(mx['total'])}. Informe --teto para limitar o gasto.",
+            "  [AVISO] Sem --teto: a Coleta nao limita os itens por perfil, entao nao existe custo maximo garantido.",
+            "          O unico freio e o limite de uso mensal da conta Apify (Console); confira-o antes de usar --yes.",
+            "          Para limitar o gasto, informe --teto.",
         ]
 
-    cheio = n_governadores * teto
     base = custo["base_calibracao"]
-    tabela = [("Colecao", "Resultados (est. / max.)", "Estimado (US$)", "Maximo (US$)")]
+    if teto is None:
+        tabela = [("Colecao", "Resultados (est.)", "Estimado (US$)")]
+    else:
+        cheio = n_governadores * teto
+        tabela = [("Colecao", "Resultados (est. / max.)", "Estimado (US$)", "Maximo (US$)")]
+
+    def linha(nome: str, chave: str, itens_estimados: str, itens_maximo: str) -> tuple[str, ...]:
+        if teto is None:
+            return (nome, itens_estimados, _usd(est[chave]))
+        return (nome, f"{itens_estimados} / {itens_maximo}", _usd(est[chave]), _usd(mx[chave]))
+
     for nome, chave in (("Posts", "posts"), ("Reels", "reels"), ("UGC", "ugc")):
         marca = " *" if base[chave] == "sem_base" else ""
-        tabela.append((nome + marca, f"{_milhar(itens[chave])} / {_milhar(cheio)}", _usd(est[chave]), _usd(mx[chave])))
-    tabela.append(("Perfis", f"{_milhar(n_governadores)} / {_milhar(n_governadores)}", _usd(est["perfis"]), _usd(mx["perfis"])))
-    larguras = [max(len(linha[i]) for linha in tabela) for i in range(4)]
+        tabela.append(linha(nome + marca, chave, _milhar(itens[chave]), "" if teto is None else _milhar(cheio)))
+    tabela.append(linha("Perfis", "perfis", _milhar(n_governadores), _milhar(n_governadores)))
+    colunas = len(tabela[0])
+    larguras = [max(len(linha_[i]) for linha_ in tabela) for i in range(colunas)]
 
     def formatar(linha: tuple[str, ...]) -> str:
         return "  " + "   ".join(
@@ -210,8 +222,12 @@ def formatar_estimativa(
         )
 
     separador = "  " + "   ".join("-" * largura for largura in larguras)
-    total = ("Total", "", _usd(est["total"]), _usd(mx["total"]))
+    total = ("Total", "", _usd(est["total"])) if teto is None else ("Total", "", _usd(est["total"]), _usd(mx["total"]))
     linhas += ["", formatar(tabela[0]), separador, *map(formatar, tabela[1:]), separador, formatar(total), ""]
+    if teto is None:
+        linhas.append("  Estimado = media + 3 desvios-padrao do total, projetado da base de calibracao, sem limite superior.")
+        linhas.append("  Governadores que bateram o teto da base entram com a taxa observada: e um piso, o real pode ser maior.")
+        return "\n".join(linhas)
     linhas.append("  Estimado = media + 3 desvios-padrao do total, limitado ao maximo. Maximo = teto cheio em todos os perfis.")
     if any(v == "sem_base" for v in base.values()):
         linhas.append("  * Sem base de calibracao: o estimado vale o maximo.")
@@ -276,6 +292,9 @@ def _cmd_coletar(args, scraper_factory: ScraperFactory, agora: datetime, cliente
         calibracao = carregar_calibracao(cliente_factory, usernames)
     try:
         custo = estimar_custo(recorte, len(links), hoje, plano, calibracao)
+    except SemEstimativa as erro:
+        print(f"[ERRO] {erro}.", file=sys.stderr)
+        return 2
     except ValueError as erro:
         print(f"[ERRO] {erro} (variavel APIFY_PLAN).", file=sys.stderr)
         return 2

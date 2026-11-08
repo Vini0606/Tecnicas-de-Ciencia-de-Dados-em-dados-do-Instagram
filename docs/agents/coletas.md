@@ -16,8 +16,10 @@ estão definidos em `CONTEXT.md`.
   `src/coleta/custo.py`). O **máximo** é o teto cheio em todos os perfis, o único valor garantido. O **estimado** é média + 3
   desvios-padrão do total, projetada da **Base de calibração** (a Coleta mais recente do HF, por menor que seja a janela
   dela) e nunca acima do máximo; sem base (nenhuma Coleta, sem os governadores, HF fora do ar, `--sem-calibracao`) ele vale o
-  máximo e a linha `Calibracao` da saída diz o motivo. Sem `--teto`, a CLI avisa que o teto padrão (`max(200, 7 × dias)` com
-  janela, 30 sem janela) foi usado e quanto ele permite gastar. O evento `post-details` do actor de posts é cobrado em cada
+  máximo e a linha `Calibracao` da saída diz o motivo. Sem `--teto`, a Coleta é **sem teto** (ADR 0043): a estimativa
+  não tem custo máximo, a CLI avisa que o único freio é o limite de uso mensal da conta Apify (Console) e, se também não houver
+  Base de calibração, recusa a estimativa e manda informar `--teto`. Governadores no teto da base entram com a taxa observada
+  (um piso). O evento `post-details` do actor de posts é cobrado em cada
   post (confirmado nos runs reais do piloto).
 - Extraia sempre em pasta de dados limpa (`DATA_DIR`), nunca por cima da pasta `data/` em uso.
 - O **Recorte** pode combinar janela relativa, intervalo absoluto e teto por perfil. Confirme o Recorte com o usuário.
@@ -57,7 +59,7 @@ Exemplos:
 - O manifesto traz identidade (tag, data e hora, versão do código), Recorte pedido, cobertura real por fonte e por perfil
   (contagens e datas mais antiga e mais recente), custo na Apify e a lista de tabelas derivadas com número de linhas.
   Não carrega conteúdo (nomes, textos) nem segredos.
-- **Bloco `custo` (esquema v4, ADR 0042).** Todo valor tem a unidade no nome (`_usd` em dólares, `_itens` em resultados) e cada
+- **Bloco `custo` (esquema v5, ADR 0042 e 0043; a v5 só acrescenta a Coleta sem teto: `teto` vira `{sem_teto: true}` e `maximo_usd` não existe).** Todo valor tem a unidade no nome (`_usd` em dólares, `_itens` em resultados) e cada
   bloco traz `perfis`, `posts`, `reels`, `ugc` e `total`. `estimado` guarda `estimado_usd` (média + 3σ do total, limitada ao
   máximo), `maximo_usd` (teto cheio), `resultados_itens`, `teto` (`aplicado_itens_por_perfil` e `padrao`, se veio do teto
   padrão) e `base_calibracao` (a Coleta que calibrou posts, reels e UGC, ou `sem_base`). `real` guarda `custo_usd` e

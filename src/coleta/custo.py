@@ -4,7 +4,7 @@ Três números por coleção (ADR 0042), todos em US$ e em itens:
 
 - **estimado**: média + 3 desvios-padrão do total, projetada da Base de calibração (a Coleta anterior, por menor que
   seja a janela dela) para o novo Recorte; nunca acima do máximo. Sem base vale o máximo.
-- **máximo**: o Teto aplicado cheio em todos os perfis, o único valor garantido.
+- **máximo**: o Teto aplicado cheio em todos os perfis, o único valor garantido. Não existe numa Coleta sem teto.
 - **resultados**: os itens por trás do estimado.
 
 Preços por actor e por plano da conta Apify, sem rede: a tabela abaixo é um retrato com data de verificação.
@@ -50,18 +50,21 @@ SEM_BASE = "sem_base"
 SIGMAS = 3  # desvios-padrão somados à média do total
 
 
-def teto_efetivo(recorte: Recorte, hoje: date) -> int:
-    """Teto informado; senão, com janela, o padrão por janela (`max(200, 7 × dias)`);
-    senão, o padrão do projeto."""
-    if recorte.teto is not None:
-        return recorte.teto
+class SemEstimativa(ValueError):
+    """Coleta sem teto e sem Base de calibração utilizável: não há máximo nem projeção para estimar o custo."""
+
+
+def teto_efetivo(recorte: Recorte, hoje: date) -> int | None:
+    """O Teto aplicado: o teto informado no Recorte, ou `None` (Coleta sem teto). `hoje` é mantido na assinatura
+    porque o teto já dependeu da janela."""
+    return recorte.teto
+
+
+def teto_padrao_legado(recorte: Recorte, hoje: date) -> int:
+    """Teto que as Coletas anteriores à ADR 0043 aplicavam quando o Recorte não trazia teto: com janela, o padrão por
+    janela (`max(200, 7 × dias)`); senão, o padrão do projeto. Só serve para ler Coletas antigas."""
     dias = recorte.dias_a_extrair(hoje)
     return default_results_limit(dias) if dias else settings.RESULTS_LIMIT
-
-
-def teto_e_padrao(recorte: Recorte) -> bool:
-    """Verdadeiro quando o teto não foi informado e vale o padrão (sem `--teto`)."""
-    return recorte.teto is None
 
 
 def agregar_custo_real(execucoes: list[dict] | None) -> dict[str, dict[str, float]] | None:
@@ -104,15 +107,17 @@ def _precos(plano: str) -> dict[str, float]:
 
 
 def _projetar(
-    colecao: str, n_governadores: int, teto: int, dias: int | None, calibracao: Calibracao | None
-) -> tuple[int, str]:
-    """Itens estimados de uma coleção e a Base de calibração usada (`sem_base` = vale o máximo).
+    colecao: str, n_governadores: int, teto: int | None, dias: int | None, calibracao: Calibracao | None
+) -> tuple[int | None, str]:
+    """Itens estimados de uma coleção e a Base de calibração usada (`sem_base` = vale o máximo; sem teto não há
+    máximo e o primeiro valor vem `None`).
 
     Cada governador da base é projetado para o novo Recorte: posts e reels pela taxa diária × dias, UGC pela contagem
-    (independe da janela), ambos limitados ao novo teto; quem bateu o teto da base está censurado e sobe ao novo teto.
-    Governador novo (o elenco cresceu desde a base) entra com a média; os demais ausentes da base não tiveram itens.
-    O total estimado é a soma + 3·√N·σ (σ entre os governadores), limitado ao máximo."""
-    maximo = n_governadores * teto
+    (independe da janela), ambos limitados ao novo teto, se houver. Quem bateu o teto da base está censurado: com teto
+    novo sobe a ele; sem teto novo vale a taxa observada (um piso, pois o governador pode ter mais itens). Base sem teto
+    não censura ninguém. Governador novo (o elenco cresceu desde a base) entra com a média; os demais ausentes da
+    base não tiveram itens. O total estimado é a soma + 3·√N·σ (σ entre os governadores), limitado ao máximo."""
+    maximo = None if teto is None else n_governadores * teto
     if calibracao is None or calibracao.usa_sem_base:
         return maximo, SEM_BASE
     contagens = calibracao.contagens.get(colecao) or {}
@@ -121,9 +126,11 @@ def _projetar(
         return maximo, SEM_BASE
 
     def projetar(itens: int) -> float:
-        if itens >= calibracao.base_teto:
+        censurado = calibracao.base_teto is not None and itens >= calibracao.base_teto
+        if censurado and teto is not None:
             return float(teto)
-        return min(itens / calibracao.dias_janela * dias, teto) if por_janela else float(min(itens, teto))
+        bruto = itens / calibracao.dias_janela * dias if por_janela else float(itens)
+        return bruto if teto is None else min(bruto, teto)
 
     valores = [projetar(itens) for itens in contagens.values()]  # governadores do elenco que aparecem na base
     ausentes = max(n_governadores - len(valores), 0)
@@ -131,8 +138,10 @@ def _projetar(
     valores += [0.0] * (ausentes - novos)  # estavam na base e não tiveram itens
     valores += [statistics.mean(valores) if valores else 0.0] * novos
     sigma = statistics.pstdev(valores) if len(valores) > 1 else 0.0
-    estimado = min(sum(valores) + SIGMAS * math.sqrt(n_governadores) * sigma, maximo)
-    if estimado <= 0:  # base zerada nesta coleção: não prevê nada, vale o máximo
+    estimado = sum(valores) + SIGMAS * math.sqrt(n_governadores) * sigma
+    if maximo is not None:
+        estimado = min(estimado, maximo)
+    if estimado <= 0:  # base zerada nesta coleção: não prevê nada, vale o máximo (sem teto, não há o que valer)
         return maximo, SEM_BASE
     return math.ceil(estimado), calibracao.origem or SEM_BASE
 
@@ -144,9 +153,12 @@ def estimar_custo(
     plano: str = PLANO_PADRAO,
     calibracao: Calibracao | None = None,
 ) -> dict:
-    """Bloco `estimado` do manifesto (ADR 0042): `estimado_usd`, `maximo_usd` e `resultados_itens` (cada um com
+    """Bloco `estimado` do manifesto (ADR 0042 e 0043): `estimado_usd`, `maximo_usd` e `resultados_itens` (cada um com
     `perfis`, `posts`, `reels`, `ugc` e `total`), `teto` (`aplicado_itens_por_perfil`, `padrao`) e `base_calibracao`
-    (a Coleta que calibrou posts, reels e UGC, ou `sem_base`)."""
+    (a Coleta que calibrou posts, reels e UGC, ou `sem_base`).
+
+    Sem teto no Recorte, `maximo_usd` não existe e `teto` vira `{"sem_teto": True}`. Se além disso alguma coleção
+    ficar sem Base de calibração utilizável, levanta `SemEstimativa`: sem máximo nem projeção não há estimativa."""
     preco = _precos(plano)
     teto = teto_efetivo(recorte, hoje)
     dias = recorte.dias_a_extrair(hoje)
@@ -158,17 +170,27 @@ def estimar_custo(
     itens: dict[str, int] = {"perfis": n_governadores}
     base: dict[str, str] = {}
     for colecao in COLECOES_CALIBRADAS:
-        itens[colecao], base[colecao] = _projetar(colecao, n_governadores, teto, dias, calibracao)
-    cheio = {c: (n_governadores if c == "perfis" else n_governadores * teto) for c in COLECOES}
+        projetados, base[colecao] = _projetar(colecao, n_governadores, teto, dias, calibracao)
+        if projetados is None:
+            raise SemEstimativa(
+                f"sem teto e sem base de calibracao para {colecao}: nao ha como estimar o custo "
+                "(informe --teto ou calibre com uma Coleta anterior)"
+            )
+        itens[colecao] = projetados
 
     estimado_usd = {c: round(usd(itens[c], c), 4) for c in COLECOES}
-    maximo_usd = {c: round(usd(cheio[c], c), 4) for c in COLECOES}
     estimado_usd["total"] = round(sum(estimado_usd.values()), 4)
-    maximo_usd["total"] = round(sum(maximo_usd.values()), 4)
-    return {
+    custo = {
         "estimado_usd": estimado_usd,
-        "maximo_usd": maximo_usd,
         "resultados_itens": {**itens, "total": sum(itens.values())},
-        "teto": {"aplicado_itens_por_perfil": teto, "padrao": teto_e_padrao(recorte)},
         "base_calibracao": base,
     }
+    if teto is None:
+        custo["teto"] = {"sem_teto": True}
+        return custo
+    cheio = {c: (n_governadores if c == "perfis" else n_governadores * teto) for c in COLECOES}
+    maximo_usd = {c: round(usd(cheio[c], c), 4) for c in COLECOES}
+    maximo_usd["total"] = round(sum(maximo_usd.values()), 4)
+    custo["maximo_usd"] = maximo_usd
+    custo["teto"] = {"aplicado_itens_por_perfil": teto, "padrao": False}
+    return custo
