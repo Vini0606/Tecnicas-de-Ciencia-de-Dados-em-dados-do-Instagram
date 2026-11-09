@@ -18,28 +18,32 @@ Dados do Instagram dos governadores dos estados brasileiros, coletados via Apify
 
 ## Coleta vigente
 
-A `main` guarda **só a Coleta vigente**. Cada Coleta é um commit, identificado pela mensagem `push: coleta_...` e descrito pelo `manifesto.json`, que é a fonte de verdade sobre o que foi extraído.
+A `main` guarda **só a Coleta vigente**. Cada Coleta é um commit, identificado pela mensagem `push: coleta_...` e descrito pelo `manifesto.json`, que é a fonte de verdade sobre o que foi extraído. As Coletas anteriores continuam no histórico do dataset e acessíveis pela tag de uso.
 
 | | |
 |---|---|
-| **Identificador** | `coleta_2026-10-06_ultimos-5d_teto-30` (mensagem do commit `ceba2982`) |
-| **Extração** | 2026-10-06, a partir das 17:27 UTC |
-| **Recorte** | últimos 5 dias, teto de 30 itens por perfil |
+| **Identificador** | `coleta_2026-11-08_de-2026-08-16_ate-2026-10-25_tcc` (mensagem do commit `c2aef6f0`) |
+| **Extração** | 2026-11-08, a partir das 23:19 UTC |
+| **Recorte** | de 2026-08-16 a 2026-10-25, **sem teto** |
 | **Perfis** | 26 governadores |
-| **Tags de uso** | `reboot-iesb`, a Coleta apresentada no evento da IESB |
+| **Tags de uso** | `tcc`, a Coleta do TCC |
 
-**Como o Recorte foi determinado.** Esta Coleta foi extraída antes de o manifesto existir. O Recorte foi inferido dos próprios dados: todo item anterior à janela é um post fixado (a Apify devolve itens fixados fora da data pedida) e nenhum perfil passa de 30 itens, com 12 perfis nos 30 exatos em posts e 7 em reels.
+**O período.** Do início da propaganda eleitoral (2026-08-16) ao 2º turno (2026-10-25), passando pelo 1º turno (2026-10-04). A pré-campanha ficou de fora de propósito, por custo. O actor da Apify só filtra o início da janela ("mais novo que N dias", aqui 84), então a extração foi até 2026-11-08 e a Coleta descartou depois os itens posteriores a 2026-10-25.
+
+**Sem teto.** Posts, reels e UGC foram extraídos sem limite de itens por perfil. O UGC é o ponto sensível: o actor de marcações não filtra por data e traz as marcações do mais novo ao mais antigo, então a janela só fica completa porque o limite não cortou nenhum governador.
 
 ### Cobertura
 
 | Fonte | Itens (Bronze) | Datas |
 |---|---|---|
-| Posts | 601 | 2026-05-05 a 2026-10-06 (os mais antigos são fixados) |
-| Reels | 522 | 2025-01-06 a 2026-10-06 (os mais antigos são fixados) |
-| Perfis | 26 | dados de perfil no momento da extração |
-| UGC (posts de terceiros que marcam o governador) | 246 | 233 deles nos últimos 5 dias |
+| Posts | 9.637 | 2026-08-16 a 2026-10-25 |
+| Reels | 7.202 | 2026-08-16 a 2026-10-25 |
+| Perfis | 26 | dados de perfil no momento da extração (2026-11-08) |
+| UGC (posts de terceiros que marcam o governador) | 16.849 | 2026-08-16 a 2026-10-25; 17 governadores com marcações, 9 sem nenhuma |
 
-Linha do tempo (UTC): perfis às 17:27, posts às 17:29, reels às 18:37 e UGC às 18:38 de 2026-10-06. A Silver e a Gold foram derivadas em 2026-10-07, a partir da mesma Bronze.
+Cinco governadores concentram a maior parte do UGC, cada um com mais de 2.000 itens na janela. A cobertura por perfil está no `manifesto.json`.
+
+**Coleta anterior.** A Coleta do Reboot (`coleta_2026-10-06_ultimos-5d_teto-30`, tag `reboot-iesb`) foi a apresentada no evento da IESB: últimos 5 dias, teto de 30 itens por perfil, 26 governadores, com as tabelas de modelagem. Ela continua acessível: `coleta.py baixar reboot-iesb --destino <pasta>`.
 
 ## Estrutura
 
@@ -47,14 +51,13 @@ Linha do tempo (UTC): perfis às 17:27, posts às 17:29, reels às 18:37 e UGC �
 bronze/   dado da Apify, uma tabela Delta por fonte
 silver/   dado limpo e conformado
 gold/     métricas e modelagem consumidas pelo dashboard
-landing/  payload bruto da extração (só nesta Coleta; Coletas novas não têm landing)
+landing/  payload bruto da extração (só na Coleta do Reboot; a `main` ainda a mantém)
 manifesto.json
 ```
 
-- **Bronze:** `instagram_posts`, `instagram_profiles`, `instagram_reels`, `ugc_mentions`. Nesta Coleta a Bronze **não tem a coluna `_raw`** com o item completo da Apify; o payload completo está em `landing/`. Coletas novas guardam o item completo na Bronze.
-- **Silver:** posts, reels, perfis, comentários de reels e de posts, UGC e metadados dos governadores.
-- **Gold:** engajamento, NSM, scorecard, clusters de posts e reels, sentimento, tópicos de discurso, prioridade de pautas, menções UGC e a regressão de performance por post.
-- **Tabelas legadas desta Coleta:** `governor_nsm_history` e `governor_sentiment_history` existem aqui, mas o código atual não gera mais `governor_nsm_history`, e nenhuma tela as lê.
+- **Bronze:** `instagram_posts`, `instagram_profiles`, `instagram_reels`, `ugc_mentions`. Coletas novas (como a `tcc`) guardam o item completo da Apify na Bronze; a Coleta do Reboot não tem a coluna `_raw` e o payload completo dela está em `landing/`.
+- **Silver:** `posts_clean`, `reels_clean`, `profiles_clean`, `comments_clean` (comentários de reels), `post_comments_clean`, `ugc_mentions` e `governors_metadata`.
+- **Gold da Coleta `tcc`:** só `governor_engagement`, `governor_engagement_history` e `governor_ugc_mentions`. As tabelas de **modelagem** (NSM, scorecard, clusters, sentimento, tópicos de discurso, prioridade de pautas e regressão de performance) **não foram geradas** nesta Coleta; o dashboard completo depende delas. A Coleta do Reboot (tag `reboot-iesb`) as tem.
 
 O manifesto (esquema v5) traz a identidade da Coleta, o Recorte pedido e a janela efetiva em datas, a cobertura por fonte e por perfil, o custo e a contagem de linhas de cada tabela. Nenhum campo é nulo: o que não se aplica simplesmente não aparece. Na cobertura, posts, reels e UGC usam a data de **publicação** (UTC); perfis não têm publicação, então usam a data da **captura**.
 
@@ -82,7 +85,7 @@ O bloco `custo` do manifesto separa o que se previa gastar, o que a Apify cobrou
 
 Como o estimado é uma previsão alta de propósito, a diferença costuma ser **negativa**: ela mede a folga do orçamento, não o erro da previsão.
 
-**Esta Coleta.** É a primeira, então não tem base de calibração: o estimado é igual ao máximo, US$ 6,31 (teto 30 × 26 perfis = 780 itens por coleção). O custo real foi de US$ 3,72 (perfis 0,07, posts 1,62, reels 1,36, UGC 0,66), cerca de 41% abaixo do estimado. O custo real foi lido dos quatro runs na conta Apify (plano FREE) e o estimado foi recalculado depois com a regra atual, porque a previsão da época não foi gravada.
+**Esta Coleta (`tcc`).** Foi extraída **sem teto**, então não tem custo máximo. A base de calibração foi a Coleta do Reboot (5 dias, teto de 30), e o estimado saiu em US$ 47,05 (posts 24,95, reels 21,15, UGC 0,89, perfis 0,06). O custo real foi de **US$ 85,62**, 82% acima do estimado: posts 23,59 (−5,5%), reels 17,48 (−17,4%), UGC **44,50** (+4.925%) e perfis 0,06. A diferença está toda no UGC: a base tinha teto de 30 por perfil e 5 dias, e não previa que 5 governadores passariam de 2.000 marcações na campanha (a previsão foi de 385 itens, vieram 19.346). Os itens cobrados incluem os 14 dias depois de 2026-10-25, que o actor devolve e a Coleta descarta localmente (o actor não filtra o fim do intervalo): foram cobrados 37.226 itens e mantidos 33.714 (9.637 posts, 7.202 reels, 16.849 UGC e 26 perfis). A conta Apify estava no plano Starter (tier BRONZE); o cupom de desconto da conta vale só na mensalidade, não no preço por item.
 
 ## Como usar
 
@@ -93,7 +96,7 @@ Como o estimado é uma previsão alta de propósito, a diferença costuma ser **
 ## Convenção de commits e tags
 
 - **Cada Coleta é um commit na `main`.** A mensagem segue o estilo do Git, com o identificador da Coleta na descrição: `push: <identificador>` ao publicar e `restore: <identificador>_restaurada` ao restaurar.
-- **Identificador:** `coleta_<data da extração>[_ultimos-Nd | _de-AAAA-MM-DD_ate-AAAA-MM-DD][_teto-N][_rotulo]`. Não é uma tag; fica na mensagem do commit e no manifesto.
+- **Identificador:** `coleta_<data da extração>[_ultimos-Nd | _de-AAAA-MM-DD_ate-AAAA-MM-DD][_teto-N][_teto-ugc-N][_rotulo]`. Não é uma tag; fica na mensagem do commit e no manifesto.
 - **Tags são só de uso**, criadas à mão (ex.: `reboot-iesb`, `tcc`, `article-governor-segmentation`). Apontam para o commit de uma Coleta e nunca são movidas nem apagadas pelo projeto. Se a `main` for reescrita (squash), só sobrevivem as Coletas que tiverem uma tag.
 - **Restaurar uma Coleta antiga na `main`:** novo commit; nunca force-push.
 
