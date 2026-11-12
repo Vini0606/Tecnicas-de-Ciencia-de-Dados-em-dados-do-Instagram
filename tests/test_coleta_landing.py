@@ -250,6 +250,22 @@ def test_restaurar_preserva_a_landing_da_coleta_restaurada(tmp_path):
     assert set(ARQ_LANDING) <= set(cliente.listar_arquivos())
 
 
+def test_restaurar_coleta_antiga_com_landing_e_manifesto_sem_o_bloco_funciona(tmp_path):
+    """O Reboot tem landing/ na pasta e manifesto v<6 sem o bloco: restaurar não pode ser bloqueado."""
+    from test_coleta_hf import TAG, TAG2, ClienteFake, _sim, _snapshot
+    from src.coleta.hf import publicar, restaurar
+
+    antigo = _manifesto_v6(TAG, com_landing=False)
+    antigo["versao_esquema"] = 5
+    cliente = ClienteFake()
+    publicar(_snapshot(tmp_path / "a", {"bronze/x/p.parquet": b"1", **ARQ_LANDING}, antigo), cliente=cliente, confirmar=_sim)
+    publicar(_snapshot_v6(tmp_path / "b", TAG2, com_landing=False), cliente=cliente, confirmar=_sim)
+
+    restaurar(TAG, cliente=cliente, confirmar=_sim)
+
+    assert set(ARQ_LANDING) <= set(cliente.listar_arquivos())
+
+
 # --- CLI: registrar a landing de uma Coleta já extraída -----------------------------------------------
 
 

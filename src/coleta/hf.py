@@ -226,7 +226,10 @@ def planejar(
 
     local = _arquivos_do_snapshot(pasta)
     tem_arquivos_de_landing = any(c.startswith(PREFIXO_LANDING) for c in local)
-    if tem_arquivos_de_landing != ("landing" in manifesto):
+    registrada = "landing" in manifesto
+    # Coletas antigas (esquema < 6, p.ex. o Reboot) podem ter landing/ sem bloco no manifesto: restaurar precisa funcionar
+    esquema_com_landing = manifesto.get("versao_esquema", 0) >= 6
+    if (tem_arquivos_de_landing and not registrada and esquema_com_landing) or (registrada and not tem_arquivos_de_landing):
         raise ErroColetaHF(
             "A landing da pasta não bate com o manifesto: "
             + ("há landing/ mas o manifesto não a registra (rode coleta.py landing <pasta>)"

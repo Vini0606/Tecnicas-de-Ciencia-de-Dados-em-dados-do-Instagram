@@ -2,6 +2,8 @@
 status: accepted
 ---
 
+> Parcialmente revertida pela [ADR 0045](0045-landing-volta-como-payload-bruto-completo-de-toda-coleta.md): a landing volta como payload bruto completo de toda Coleta.
+
 # Coleta versionada no Hugging Face, Bronze fiel e AWS que só reconstrói
 
 ## Contexto

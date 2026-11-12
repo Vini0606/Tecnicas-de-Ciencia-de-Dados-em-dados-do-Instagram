@@ -111,6 +111,7 @@ def build_parser() -> argparse.ArgumentParser:
     b = sub.add_parser("baixar", help="baixa o Snapshot de uma Coleta")
     b.add_argument("tag", metavar="coleta", help="identificador coleta_*, tag de uso ou hash de commit")
     b.add_argument("--destino", required=True, type=Path)
+    b.add_argument("--sem-landing", action="store_true", help="nao baixa a landing (centenas de MB)")
     return parser
 
 
@@ -422,7 +423,7 @@ def main(
                 usos = ",".join(c.tags_de_uso)
                 print(f"{c.coleta}\t{c.commit[:8]}\t{c.extraido_em.isoformat()}\t{c.recorte}\t{usos}")
         elif args.comando == "baixar":
-            pasta = hf.baixar(args.tag, args.destino, cliente=cliente)
+            pasta = hf.baixar(args.tag, args.destino, cliente=cliente, com_landing=not args.sem_landing)
             print(f"[OK] Coleta {args.tag} baixada em {pasta}.")
     except (hf.ErroColetaHF, ValueError) as exc:
         print(f"[ERRO] {exc}", file=sys.stderr)
