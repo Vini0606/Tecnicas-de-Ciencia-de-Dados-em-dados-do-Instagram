@@ -7,6 +7,7 @@ publicar, restaurar, listar e baixar Coletas.
     uv run python coleta.py coletar --inicio A --fim B --teto-ugc 3000 --destino <pasta limpa>  # teto so no UGC
     uv run python coleta.py publicar <pasta> [--rotulo piloto] [--yes]
     uv run python coleta.py restaurar <tag> [--rotulo restaurada] [--yes]
+    uv run python coleta.py landing <pasta>      # registra a landing ja presente no manifesto (Coleta antiga)
     uv run python coleta.py listar
     uv run python coleta.py baixar <tag> --destino <pasta>
 
@@ -39,6 +40,7 @@ from src.coleta.custo import (
     diferenca_percentual,
     estimar_custo,
 )
+from src.coleta.manifesto import registrar_landing
 from src.coleta.recorte import Recorte
 from src.run_id import build_run_id
 
@@ -98,6 +100,11 @@ def build_parser() -> argparse.ArgumentParser:
     r.add_argument("--rotulo", default=hf.ROTULO_RESTAURADA)
     r.add_argument("--limite-bytes", type=int, default=None)
     r.add_argument("--yes", action="store_true", help="confirma; sem isso so mostra o plano")
+
+    g = sub.add_parser(
+        "landing", help="registra no manifesto a landing (payload bruto) ja presente na pasta de um Snapshot"
+    )
+    g.add_argument("snapshot", type=Path, help="pasta do Snapshot (com manifesto.json e landing/<run_id>/)")
 
     sub.add_parser("listar", help="lista as Coletas disponiveis no HF")
 
@@ -286,6 +293,15 @@ def formatar_comparacao(estimado: dict, real: dict | None) -> str:
     return "\n".join(["", "CUSTO ESTIMADO x REAL (negativo = abaixo do estimado)", "", *corpo])
 
 
+def _cmd_landing(snapshot: Path) -> int:
+    landing = registrar_landing(snapshot)
+    print(f"[OK] Landing {landing['run_id']} registrada no manifesto (esquema v6):")
+    for fonte, bloco in landing["fontes"].items():
+        print(f"  {fonte:<6} {_milhar(bloco['itens']):>8} itens  {_milhar(bloco['bytes'] / 1e6)} MB")
+    print(f"Proximo passo: coleta.py publicar {snapshot} --rotulo <novo> (o identificador ja publicado nao se repete)")
+    return 0
+
+
 def _cmd_coletar(args, scraper_factory: ScraperFactory, agora: datetime, cliente_factory: ClienteFactory) -> int:
     recorte = Recorte(dias=args.dias, inicio=args.inicio, fim=args.fim, teto=args.teto, teto_ugc=args.teto_ugc)
     hoje = agora.date()
@@ -378,6 +394,8 @@ def main(
     try:
         if args.comando == "coletar":
             return _cmd_coletar(args, scraper_factory or _scraper_real(env), agora, cliente_factory)
+        if args.comando == "landing":
+            return _cmd_landing(args.snapshot)
         cliente = cliente_factory()
         if args.comando == "publicar":
             resultado = hf.publicar(

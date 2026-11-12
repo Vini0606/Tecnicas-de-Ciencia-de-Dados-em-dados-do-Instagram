@@ -22,14 +22,16 @@ from typing import Any
 import pandas as pd
 from deltalake import DeltaTable
 
+from src.coleta import landing as landing_mod
 from src.coleta.custo import diferenca_percentual
 from src.coleta.recorte import Recorte, tag_valida
 
-VERSAO_ESQUEMA = 5
+VERSAO_ESQUEMA = 6
 # v1 não tem `recorte_efetivo`; v1 e v2 gravam todas as chaves de `recorte`, com nulo onde não se aplicam;
 # a v3 só grava as que se aplicam (sem nulos); a v4 troca o bloco `custo` (ADR 0042); a v5 admite a Coleta sem teto
-# (ADR 0043): `custo.estimado.teto` vira `{"sem_teto": true}` e `maximo_usd` não existe.
-VERSOES_ACEITAS = (1, 2, 3, 4, VERSAO_ESQUEMA)
+# (ADR 0043): `custo.estimado.teto` vira `{"sem_teto": true}` e `maximo_usd` não existe; a v6 admite o bloco opcional
+# `landing` (ADR 0045): o payload bruto da Apify, sem filtro do Recorte.
+VERSOES_ACEITAS = (1, 2, 3, 4, 5, VERSAO_ESQUEMA)
 COLECOES_CUSTO = ("perfis", "posts", "reels", "ugc", "total")
 NOME_ARQUIVO = "manifesto.json"
 FONTES = ("posts", "reels", "perfis", "ugc")
@@ -165,6 +167,9 @@ def gerar_manifesto(
         "custo": _bloco_custo(custo_estimado, custo_real),
         "tabelas": _tabelas(base),
     }
+    landing = landing_mod.resumo(base)
+    if landing is not None:
+        manifesto["landing"] = landing
     validar_manifesto(manifesto)
     return manifesto
 
@@ -175,6 +180,27 @@ def escrever_manifesto(data_dir: Path | str, manifesto: dict[str, Any]) -> Path:
     destino = Path(data_dir) / NOME_ARQUIVO
     destino.write_text(json.dumps(manifesto, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     return destino
+
+
+def registrar_landing(data_dir: Path | str) -> dict[str, Any]:
+    """Registra no manifesto a landing que já está em `<data_dir>/landing/<run_id>/` (Coleta extraída antes da landing,
+    cujos arquivos vieram de outra fonte, como os datasets da Apify). Grava o bloco `landing` e sobe o esquema para a
+    v6. Só aceita manifestos v3 ou mais novos (sem campos nulos). Não altera nada se a landing for inválida."""
+    base = Path(data_dir)
+    arquivo = base / NOME_ARQUIVO
+    if not arquivo.is_file():
+        raise ValueError(f"{base} não tem {NOME_ARQUIVO}")
+    manifesto = json.loads(arquivo.read_text(encoding="utf-8"))
+    validar_manifesto(manifesto)
+    if manifesto["versao_esquema"] < 3:
+        raise ValueError("só dá para registrar a landing em manifestos v3 ou mais novos")
+    landing = landing_mod.resumo(base)
+    if landing is None:
+        raise ValueError(f"{base} não tem landing/<run_id>/ com o payload bruto")
+    manifesto["versao_esquema"] = VERSAO_ESQUEMA
+    manifesto["landing"] = landing
+    escrever_manifesto(base, manifesto)
+    return landing
 
 
 # --- esquema -----------------------------------------------------------------
@@ -290,6 +316,24 @@ def _validar_custo_v4(custo: Any, *, admite_sem_teto: bool = False) -> None:
         _por_colecao(dif["resultados_pct"], "custo.diferenca.resultados_pct", "pct")
 
 
+def _validar_landing(landing: Any) -> None:
+    """Bloco `landing` (v6, ADR 0045): `run_id` e, por fonte (`perfis`, `posts`, `reels` e, se gravado, `ugc`), os
+    `itens` e os `bytes` do payload bruto."""
+    landing = _chaves(landing, {"run_id", "fontes"}, "landing")
+    _exigir(isinstance(landing["run_id"], str) and bool(landing["run_id"]), "landing.run_id", "texto")
+    _exigir(isinstance(landing["fontes"], dict), "landing.fontes", "esperado objeto")
+    obrigatorias = {"perfis", "posts", "reels"}
+    _exigir(
+        obrigatorias <= set(landing["fontes"]) <= obrigatorias | {"ugc"},
+        "landing.fontes",
+        f"chaves {sorted(landing['fontes'])} fora de {sorted(obrigatorias | {'ugc'})}",
+    )
+    for fonte, bloco in landing["fontes"].items():
+        bloco = _chaves(bloco, {"itens", "bytes"}, f"landing.fontes.{fonte}")
+        _int(bloco["itens"], f"landing.fontes.{fonte}.itens")
+        _int(bloco["bytes"], f"landing.fontes.{fonte}.bytes")
+
+
 def validar_manifesto(m: Any) -> None:
     """Levanta `ValueError` se `m` não segue o esquema (chaves exatas, tipos,
     datas ISO). Esquema fechado: um campo extra (p.ex. texto) é recusado."""
@@ -297,7 +341,8 @@ def validar_manifesto(m: Any) -> None:
     v_esquema = m.get("versao_esquema")
     _exigir(v_esquema in VERSOES_ACEITAS, "versao_esquema", f"esperado um de {VERSOES_ACEITAS}")
     chaves = {"versao_esquema", "identidade", "recorte", "cobertura", "custo", "tabelas"}
-    m = _chaves(m, chaves | ({"recorte_efetivo"} if v_esquema >= 2 else set()), "manifesto")
+    opcionais = {"landing"} if v_esquema >= 6 and "landing" in m else set()  # só a v6 admite a landing
+    m = _chaves(m, chaves | ({"recorte_efetivo"} if v_esquema >= 2 else set()) | opcionais, "manifesto")
     v3 = v_esquema >= 3
 
     ident = _chaves(m["identidade"], {"tag", "extraido_em", "versao_codigo"}, "identidade")
@@ -362,6 +407,9 @@ def validar_manifesto(m: Any) -> None:
                 _numero(v, f"custo.real.{k}")
         elif custo["real"] is not None:
             _numero(custo["real"], "custo.real")
+
+    if "landing" in m:
+        _validar_landing(m["landing"])
 
     _exigir(isinstance(m["tabelas"], list), "tabelas", "esperado lista")
     for i, t in enumerate(m["tabelas"]):

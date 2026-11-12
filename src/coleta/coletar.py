@@ -33,6 +33,7 @@ from src.coleta.custo import (
     teto_efetivo,
 )
 from src.coleta.derivacao import caminhos_do_destino, derivar_silver_gold
+from src.coleta.landing import ScraperComLanding
 from src.coleta.manifesto import escrever_manifesto, gerar_manifesto, versao_do_codigo
 from src.coleta.recorte import Recorte, gerar_tag
 from src.data_extract.bronze_writer import BronzeWriter
@@ -189,7 +190,7 @@ def coletar(
     dias = recorte.dias_a_extrair(hoje)
     extra = {"onlyPostsNewerThan": f"{dias} days"} if dias else None
     logger.info("[COLETA] %s: extraindo (custo estimado US$ %.2f)...", tag, estimado_total)
-    scraper_recortado = _ScraperRecortado(scraper, recorte)
+    scraper_recortado = _ScraperRecortado(ScraperComLanding(scraper, destino, run_id), recorte)
     bruto = extract_and_land(scraper_recortado, bronze, links, run_id=run_id, extra_run_input=extra)
     _avisar_truncados(bruto, recorte)
     custo_real = agregar_custo_real(scraper_recortado.execucoes)

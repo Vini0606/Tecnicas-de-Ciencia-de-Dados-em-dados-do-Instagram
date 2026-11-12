@@ -56,8 +56,15 @@ Exemplos:
 
 ## Versionamento no Hugging Face
 
-- O Snapshot de uma Coleta contém **Bronze, Silver e Gold** e um manifesto. Não há camada landing separada: a Bronze é fiel
-  à Apify (guarda o item completo numa coluna bruta, sem descartar campos) e a validação e o parsing ficam na Silver.
+- O Snapshot de uma Coleta contém **Bronze, Silver e Gold**, a **landing** e um manifesto. A Bronze é fiel à Apify (guarda o
+  item completo numa coluna bruta, `_raw`) mas é filtrada pelo Recorte; a validação e o parsing ficam na Silver. A
+  **landing** (ADR 0045) é o payload bruto completo e sem filtro de toda Coleta, gravado pelo `coletar` assim que cada actor
+  devolve, em `landing/<run_id>/{profiles,posts,reels,ugc_mentions}.json` (uma lista JSON por fonte, inclusive registros de
+  erro e itens fora do Recorte). O manifesto (esquema v6) a registra no bloco `landing` (`run_id` e, por fonte, `itens` e
+  `bytes`). O `publicar` a envia, o `baixar` a traz (`com_landing=False` a pula) e o `restaurar` a preserva; publicar uma
+  Coleta apaga da `main` a landing de outra, que segue no histórico. Para uma Coleta extraída antes da landing,
+  `coleta.py landing <pasta>` registra no manifesto a landing já posta na pasta (v6), e `publicar --rotulo <novo>` a publica
+  como uma Coleta nova (o identificador publicado não se repete; as tags existentes não se movem).
 - O manifesto traz identidade (tag, data e hora, versão do código), Recorte pedido, cobertura real por fonte e por perfil
   (contagens e datas mais antiga e mais recente), custo na Apify e a lista de tabelas derivadas com número de linhas.
   Não carrega conteúdo (nomes, textos) nem segredos.

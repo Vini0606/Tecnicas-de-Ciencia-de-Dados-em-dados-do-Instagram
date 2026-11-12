@@ -98,8 +98,10 @@ class ClienteFake:
     def tamanho_dataset(self) -> int:
         return self.uso
 
-    def baixar(self, pasta: Path, revisao: str | None = None) -> None:
+    def baixar(self, pasta: Path, revisao: str | None = None, com_landing: bool = True) -> None:
         for rel, conteudo in self._arvore(revisao).items():
+            if not com_landing and rel.startswith("landing/"):
+                continue
             alvo = Path(pasta) / rel
             alvo.parent.mkdir(parents=True, exist_ok=True)
             alvo.write_bytes(conteudo)

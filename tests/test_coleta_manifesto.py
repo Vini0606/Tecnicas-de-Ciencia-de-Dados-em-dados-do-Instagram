@@ -123,7 +123,7 @@ def _gerar(snapshot, **kw):
 def test_manifesto_traz_todos_os_campos_e_valida(snapshot):
     m = _gerar(snapshot, custo_real=agregar_custo_real(EXECUCOES))
 
-    assert m["versao_esquema"] == 5
+    assert m["versao_esquema"] == 6
     assert m["identidade"] == {
         "tag": "coleta_2026-10-09_ultimos-90d_teto-250",
         "extraido_em": "2026-10-09T14:30:00+00:00",
@@ -394,7 +394,7 @@ def test_manifesto_sem_teto_e_valido_sem_maximo_e_sem_nulos(snapshot):
     m = _sem_teto(snapshot)
 
     validar_manifesto(m)
-    assert m["versao_esquema"] == 5
+    assert m["versao_esquema"] == 6
     assert "teto" not in m["recorte"]
     assert m["custo"]["estimado"]["teto"] == {"sem_teto": True}
     assert "maximo_usd" not in m["custo"]["estimado"]
