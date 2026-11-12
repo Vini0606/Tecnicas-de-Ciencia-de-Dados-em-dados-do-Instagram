@@ -71,7 +71,7 @@ def reconstruir(
     run_id = build_run_id(run_id)
     raiz = Path(tempfile.mkdtemp(prefix="reconstruir_", dir=pasta_trabalho))
     try:
-        snapshot = baixar(tag, raiz / "snapshot", cliente=cliente)
+        snapshot = baixar(tag, raiz / "snapshot", cliente=cliente, com_landing=False)  # só precisa das camadas
         return _reconstruir_de(snapshot, tag, destino, run_id)
     finally:
         shutil.rmtree(raiz, ignore_errors=True)

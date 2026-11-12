@@ -34,7 +34,8 @@ from typing import Any, Protocol
 from src.coleta.manifesto import NOME_ARQUIVO, escrever_manifesto, validar_manifesto
 from src.coleta.recorte import Recorte, gerar_tag, tag_valida
 
-CAMADAS_DA_COLETA = ("bronze/", "silver/", "gold/")
+CAMADAS_DA_COLETA = ("bronze/", "silver/", "gold/", "landing/")  # a landing é o payload bruto (ADR 0045)
+PREFIXO_LANDING = "landing/"
 _IGNORADOS = {".gitkeep"}
 VAR_TOKEN = "HF_TOKEN"
 VAR_REPO = "HF_DATASET_REPO"
@@ -73,7 +74,7 @@ class ClienteColetaHF(Protocol):
 
     def tamanho_dataset(self) -> int: ...
 
-    def baixar(self, pasta: Path, revisao: str | None = None) -> None: ...
+    def baixar(self, pasta: Path, revisao: str | None = None, com_landing: bool = True) -> None: ...
 
     def commit_substituicao(self, pasta: Path, apagar: list[str], mensagem: str) -> str: ...
 
@@ -224,6 +225,16 @@ def planejar(
         )
 
     local = _arquivos_do_snapshot(pasta)
+    tem_arquivos_de_landing = any(c.startswith(PREFIXO_LANDING) for c in local)
+    registrada = "landing" in manifesto
+    # Coletas antigas (esquema < 6, p.ex. o Reboot) podem ter landing/ sem bloco no manifesto: restaurar precisa funcionar
+    esquema_com_landing = manifesto.get("versao_esquema", 0) >= 6
+    if (tem_arquivos_de_landing and not registrada and esquema_com_landing) or (registrada and not tem_arquivos_de_landing):
+        raise ErroColetaHF(
+            "A landing da pasta não bate com o manifesto: "
+            + ("há landing/ mas o manifesto não a registra (rode coleta.py landing <pasta>)"
+               if tem_arquivos_de_landing else "o manifesto registra a landing mas não há landing/ na pasta")
+        )
     remoto = {c for c in cliente.listar_arquivos() if _da_coleta(c)}
     plano = Plano(
         coleta=coleta,
@@ -272,13 +283,14 @@ def publicar(
 # --- baixar / listar ---------------------------------------------------------
 
 
-def baixar(referencia: str, destino: Path | str, *, cliente: ClienteColetaHF) -> Path:
-    """Traz o Snapshot completo (Bronze, Silver, Gold e manifesto) de uma Coleta,
-    dada por identificador `coleta_*`, tag de uso ou hash de commit."""
+def baixar(referencia: str, destino: Path | str, *, cliente: ClienteColetaHF, com_landing: bool = True) -> Path:
+    """Traz o Snapshot completo (Bronze, Silver, Gold, landing e manifesto) de uma Coleta,
+    dada por identificador `coleta_*`, tag de uso ou hash de commit. `com_landing=False` pula a landing (centenas de
+    MB) para quem só precisa das camadas de dados."""
     revisao = _resolver(referencia, cliente)
     pasta = Path(destino)
     pasta.mkdir(parents=True, exist_ok=True)
-    cliente.baixar(pasta, revisao)
+    cliente.baixar(pasta, revisao, com_landing=com_landing)
     _ler_manifesto_local(pasta)
     return pasta
 
@@ -406,16 +418,17 @@ class ClienteColetaHFReal:
         except Exception as exc:  # noqa: BLE001
             raise self._falha("consulta de armazenamento", exc) from None
 
-    def baixar(self, pasta: Path, revisao: str | None = None) -> None:
+    def baixar(self, pasta: Path, revisao: str | None = None, com_landing: bool = True) -> None:
         from huggingface_hub import snapshot_download
 
+        camadas = CAMADAS_DA_COLETA if com_landing else tuple(c for c in CAMADAS_DA_COLETA if c != PREFIXO_LANDING)
         try:
             snapshot_download(
                 self._repo,
                 repo_type="dataset",
                 token=self._token,
                 local_dir=str(pasta),
-                allow_patterns=[f"{c}**" for c in CAMADAS_DA_COLETA] + [NOME_ARQUIVO],
+                allow_patterns=[f"{c}**" for c in camadas] + [NOME_ARQUIVO],
                 revision=revisao,
             )
         except Exception as exc:  # noqa: BLE001

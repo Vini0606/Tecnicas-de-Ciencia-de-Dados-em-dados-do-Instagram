@@ -209,7 +209,7 @@ def test_coleta_sem_teto_grava_manifesto_v5_sem_maximo_sem_nulos_e_sem_segmento_
 
     assert resultado.tag == "coleta_2026-10-09_ultimos-90d"
     gravado = json.loads((tmp_path / "dados" / "manifesto.json").read_text(encoding="utf-8"))
-    assert gravado["versao_esquema"] == 5
+    assert gravado["versao_esquema"] == 6
     assert "teto" not in gravado["recorte"]
     estimado = gravado["custo"]["estimado"]
     assert estimado["teto"] == {"sem_teto": True}

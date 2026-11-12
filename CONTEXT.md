@@ -145,9 +145,15 @@ reconstruídas.
 _Avoid_: Execução, run, rodada, extração (ambíguo: pode ser só a chamada ao Apify).
 
 **Snapshot**:
-A Coleta vigente junto com as tabelas Bronze, Silver e Gold derivadas dela, publicadas no mesmo commit e na mesma tag.
-É o que o dashboard publicado baixa.
+A Coleta vigente junto com as tabelas Bronze, Silver e Gold derivadas dela e a Landing, publicadas no mesmo commit e na
+mesma tag. É o que o dashboard publicado baixa (só Silver e Gold).
 _Avoid_: Versão, release, dump.
+
+**Landing**:
+O payload bruto completo e sem filtro que a Apify devolveu numa Coleta: uma lista JSON por fonte (perfis, posts, reels,
+UGC), gravada assim que cada actor responde, inclusive registros de erro e itens fora do Recorte (ADR 0045). A Bronze, por
+sua vez, é filtrada pelo Recorte.
+_Avoid_: Cache, backup, dump.
 
 **Recorte**:
 O pedido de uma Coleta: janela relativa (últimos N dias), intervalo absoluto (início e fim), teto de itens por perfil, ou

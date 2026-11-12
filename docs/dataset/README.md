@@ -51,7 +51,7 @@ Cinco governadores concentram a maior parte do UGC, cada um com mais de 2.000 it
 bronze/   dado da Apify, uma tabela Delta por fonte
 silver/   dado limpo e conformado
 gold/     métricas e modelagem consumidas pelo dashboard
-landing/  payload bruto da extração (só na Coleta do Reboot; a `main` ainda a mantém)
+landing/  payload bruto completo da Apify, sem filtro do Recorte (toda Coleta, ADR 0045; a Coleta `tcc` publicada antes dela não a tem)
 manifesto.json
 ```
 
@@ -59,7 +59,7 @@ manifesto.json
 - **Silver:** `posts_clean`, `reels_clean`, `profiles_clean`, `comments_clean` (comentários de reels), `post_comments_clean`, `ugc_mentions` e `governors_metadata`.
 - **Gold da Coleta `tcc`:** só `governor_engagement`, `governor_engagement_history` e `governor_ugc_mentions`. As tabelas de **modelagem** (NSM, scorecard, clusters, sentimento, tópicos de discurso, prioridade de pautas e regressão de performance) **não foram geradas** nesta Coleta; o dashboard completo depende delas. A Coleta do Reboot (tag `reboot-iesb`) as tem.
 
-O manifesto (esquema v5) traz a identidade da Coleta, o Recorte pedido e a janela efetiva em datas, a cobertura por fonte e por perfil, o custo e a contagem de linhas de cada tabela. Nenhum campo é nulo: o que não se aplica simplesmente não aparece. Na cobertura, posts, reels e UGC usam a data de **publicação** (UTC); perfis não têm publicação, então usam a data da **captura**.
+O manifesto (esquema v6) traz a identidade da Coleta, o Recorte pedido e a janela efetiva em datas, a cobertura por fonte e por perfil, o custo e a contagem de linhas de cada tabela. Nenhum campo é nulo: o que não se aplica simplesmente não aparece. Na cobertura, posts, reels e UGC usam a data de **publicação** (UTC); perfis não têm publicação, então usam a data da **captura**.
 
 ## Custo da Coleta
 
