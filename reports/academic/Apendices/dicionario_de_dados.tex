@@ -1,0 +1,380 @@
+% !TEX root = ../TCC - CD e IA.tex
+% Gerado por dicionario_tex.py a partir de reference/dicionario_de_dados_medallion.xlsx (scripts/generate_data_dictionary.py). Nao editar a mao.
+Este apêndice relaciona as tabelas das camadas Bronze, Silver e Gold e suas colunas. Os metadados técnicos (tabela, coluna, tipo) são extraídos dos contratos de esquema do código, de modo que o dicionário não diverge do que o pipeline valida em execução; as descrições de negócio são curadas no mesmo script que o gera. Colunas de rastreabilidade comuns a todas as tabelas (\texttt{\_run\_id}, \texttt{\_ingested\_at}, \texttt{\_generated\_at}, \texttt{\_source}, \texttt{\_source\_layer}) foram omitidas das listas de colunas.
+
+\section*{Tabelas}
+\begin{footnotesize}
+\begin{longtable}{p{1.2cm}p{3.6cm}p{3.8cm}p{6.2cm}}
+\caption{Tabelas da arquitetura Medallion}\label{tab:dic_tabelas}\\
+\toprule \textbf{Camada} & \textbf{Tabela} & \textbf{Grão} & \textbf{Descrição} \\ \midrule \endfirsthead
+\toprule \textbf{Camada} & \textbf{Tabela} & \textbf{Grão} & \textbf{Descrição} \\ \midrule \endhead
+\bottomrule \endfoot
+Bronze & \texttt{instagram\_profiles} & Uma linha por item do scraper Apify para um perfil de governador, de UMA Coleta - a Bronze é gravada em overwrite por Coleta; nada se acumula entre Coletas. & Metadados de perfil (seguidores, verificação, categoria de negócio) coletados via apify/instagram-scraper (ver aba Actors Apify), rodando em modo perfil (resultsType='details'). \\
+Bronze & \texttt{instagram\_posts} & Uma linha por post de feed (imagem/vídeo/carrossel) retornado pelo scraper, de UMA Coleta - overwrite por Coleta. & Posts do feed do Instagram (não-Reels) dos 27 perfis, via apify/instagram-post-scraper (ver aba Actors Apify). \\
+Bronze & \texttt{instagram\_reels} & Uma linha por Reel retornado pelo scraper, de UMA Coleta - overwrite por Coleta. & Reels dos 27 perfis, via apify/instagram-reel-scraper (ver aba Actors Apify), incluindo os comentários mais recentes embutidos (latestComments) e, quando a flag paga includeTranscript está ativa, a transcrição de fala do vídeo. \\
+Bronze & \texttt{ugc\_mentions} & Uma linha por post de TERCEIROS que marca/menciona o perfil do governador (nível 'Creating' do COBRA), de UMA Coleta - overwrite por Coleta. & UGC (user-generated content) de terceiros mencionando/marcando o governador, via apify/instagram-tagged-scraper (ver aba Actors Apify). \\
+Silver & \texttt{profiles\_clean} & Uma linha por perfil de governador (deduplicado - mantém só o registro mais recente por `id`). & Perfis conformados ao contrato Silver: tipos fechados (int32/bool não-nulos), colunas de baixo valor analítico descartadas (biografia, URLs de foto, endereço de negócio). \\
+Silver & \texttt{posts\_clean} & Uma linha por post de feed, deduplicado por `id`. & Posts de feed conformados: timestamp do Apify parseado para `data\_hora` (fuso America/Sao\_Paulo), `Tipo` fixado em 'FEED'. \\
+Silver & \texttt{reels\_clean} & Uma linha por Reel, deduplicado por `id`. & Reels conformados: `Tipo` fixado em 'REELS', `Total de Engajamento` pré-calculado (likes+comentários), `transcript` propagado sem transformação. \\
+Silver & \texttt{comments\_clean} & Uma linha por comentário individual, explodido a partir de `latestComments` (Bronze reels) e deduplicado por `id\_comment`. & Comentários de Reels explodidos de dentro do JSON `latestComments`, filtrados a menos de 512 caracteres. \\
+Silver & \texttt{post\_comments\_clean} & Uma linha por comentário de post de feed, explodido de `latestComments` (Bronze instagram\_posts) e deduplicado por `id\_comment`. & Comentários de posts de feed, em tabela SEPARADA de comments\_clean (reels) para as duas origens poderem ser analisadas à parte. \\
+Silver & \texttt{governors\_metadata} & Uma linha por governador COM Instagram rastreável, deduplicada por `inputUrl` - governador sem `Link` na planilha (célula em branco) não gera linha aqui. & Dimensão de governador (nome, UF, partido) ingerida de reference/governadores.xlsx - fonte única de verdade para o dashboard em vez de ler a planilha bruta a cada carregamento. \\
+Silver & \texttt{ugc\_mentions} & Uma linha por post de UGC, com `governor\_username` já resolvido e `authorUsername` já normalizado. & UGC de terceiros já limpo: `governor\_username` derivado de `mentions` E `taggedUsers` (Bronze) cruzados com a lista de usernames conhecidos; `authorUsername` normaliza o handle do autor terceiro (na prática, sempre a partir de `ownerUsername` - ver Bronze). \\
+Gold & \texttt{governor\_engagement} & Uma linha por perfil de governador - snapshot agregado da Coleta mais recente. & Métricas de engajamento por perfil: total ponderado, taxa sobre seguidores, recência e frequência de publicação. \\
+Gold & \texttt{governor\_engagement\_history} & Uma linha por perfil POR execução de derivação na mesma pasta de dados (mesmo schema de governor\_engagement). & Base de série temporal de engajamento - permite calcular tendência/crescimento sem reprocessar Bronze/Silver. \\
+Gold & \texttt{governor\_sentiment} & Uma linha por texto avaliado (comentário, legenda ou transcrição) - granularidade mista, discriminada pela coluna `fonte`. & Sentimento (cardiffnlp/twitter-xlm-roberta-base-sentiment) e tópico BERTopic por texto avaliado. \\
+Gold & \texttt{governor\_sentiment\_history} & Uma linha por comentário/legenda/transcrição POR EXECUÇÃO de modelagem (mesmo schema de governor\_sentiment, em modo append). & Base de série temporal de sentimento - alimenta a retenção de sentimento positivo do CMGR/Ficha 7. \\
+Gold & \texttt{governor\_discourse\_topics} & Uma linha por legenda/transcrição avaliada pelo BERTopic de discurso oficial. & Tópicos do que a ASSESSORIA publica (legenda de post/reel + transcrição de fala) - BERTopic próprio, não misturado ao de comentário. Cada tópico de legenda é uma PAUTA (assunto do conteúdo) na fila de "O que produzir". \\
+Gold & \texttt{governor\_clusters\_reels} & Uma linha por Reel - clusterização de CONTEÚDO, não de perfil. & Cluster de engajamento/duração por reel (PCA -> KMeans/DBSCAN/Agglomerative via AutoClusterHPO, algoritmo eleito por score CVI combinado). \\
+Gold & \texttt{governor\_clusters\_posts} & Uma linha por post de feed - clusterização de CONTEÚDO, não de perfil. & Cluster de engajamento por post de feed (PCA -> KMeans/DBSCAN/Agglomerative via AutoClusterHPO, algoritmo eleito por score CVI combinado). \\
+Gold & \texttt{governor\_profile\_clusters\_engagement} & Uma linha por GOVERNADOR (não por post) - clusterização de PERFIL por padrão de engajamento. & Agrupa governadores por semelhança de padrão de engajamento (mesma pipeline PCA->AutoClusterHPO do nível de conteúdo, mas features agregadas por perfil). \\
+Gold & \texttt{post\_performance\_coefficients} & Uma linha por preditor por grupo (vídeo/estático) por execução - formato longo. & Coeficientes e R² (treino/holdout) da regressão Lasso que explica performance-por-post, separada em grupo vídeo (Reels) e estático (posts de imagem/carrossel) por terem preditores distintos (ex.: duração de vídeo só existe no grupo vídeo). \\
+Gold & \texttt{post\_performance\_predictions} & Uma linha por post individual (treino + holdout juntos, discriminados implicitamente pelo pipeline que os gerou). & Y real, Y previsto e resíduo por post - Y = (likesCount + commentsCount × \_WC\_COMENTARIO) / followersCount, a mesma lógica de taxa ponderada de governor\_engagement.\% ENGAJAMENTO, mas por post em vez de agregada por perfil. \\
+Gold & \texttt{topic\_priority\_score} & Uma linha por tópico de COMENTÁRIO (ranking global, não por governador). & Score ICE (Impacto x Confiança x Facilidade) de priorização de tópicos de COMENTÁRIO (grupos de comentários) - não confundir com `content\_topic\_priority\_score`, o ICE por PAUTA (assunto do conteúdo) que alimenta a fila de "O que produzir". \\
+Gold & \texttt{governor\_nsm} & Uma linha por perfil de governador. & North Star Metric: (comentários positivos / comentários totais) × alcance médio - engajamento qualificado por QUALIDADE de reação, não só volume. \\
+Gold & \texttt{governor\_ugc\_mentions} & Uma linha por post de UGC (grão fino - agregação por governador é uma view em memória, não persistida). & UGC orgânico vs. publi paga por post, com `is\_organic` derivado de `paidPartnership` - separa apoio espontâneo de publi paga ANTES de qualquer agregação. \\
+Gold & \texttt{governor\_growth\_metrics} & Uma linha por perfil de governador - snapshot recalculável a partir do histórico acumulado (sempre overwrite, nunca append). & CMGR (crescimento mensal composto de seguidores) e retenção de sentimento positivo, calculados sobre governor\_engagement\_history/governor\_sentiment\_history. \\
+Gold & \texttt{governor\_scorecard} & Uma linha por governador (um perfil por `inputUrl` normalizado) - snapshot recalculável a partir da Silver/Gold atual, sempre overwrite. & Escore composto (0 a 100) dos governadores: soma ponderada de cinco dimensões normalizadas min-máx entre os perfis (Alcance, Ativação, Qualidade, Profundidade, Consistência), seguindo a lógica de indicadores compostos do OECD Handbook (indicador bruto -> normalização -> ponderação -> agregação). Relativo ao grupo: mede posição entre pares, não desempenho absoluto. \\
+Gold & \texttt{content\_topic\_priority\_score} & Uma linha por PAUTA (tópico de discurso da legenda do reel) - ranking global, todos os perfis combinados, não por governador. & Score ICE (Impacto x Confiança x Facilidade) por PAUTA: sobre qual assunto de conteúdo o público reagiu bem. Pauta = tópico de discurso da LEGENDA do reel; os comentários são ligados à pauta pelo reel (`id\_reel`). \\
+\end{longtable}
+\end{footnotesize}
+
+\section*{Colunas da camada Bronze}
+\begin{footnotesize}
+\begin{longtable}{p{3.3cm}p{3.4cm}p{1.3cm}p{6.8cm}}
+\caption{Colunas da camada Bronze}\\
+\toprule \textbf{Tabela} & \textbf{Coluna} & \textbf{Tipo} & \textbf{Descrição} \\ \midrule \endfirsthead
+\toprule \textbf{Tabela} & \textbf{Coluna} & \textbf{Tipo} & \textbf{Descrição} \\ \midrule \endhead
+\bottomrule \endfoot
+\texttt{instagram\_profiles} & \texttt{id} & string & Identificador único do registro na origem (Instagram/Apify) - semântica varia por tabela, ver coluna Grão. \\
+\texttt{} & \texttt{username} & string & Nome de usuário do perfil de Instagram. \\
+\texttt{} & \texttt{fullName} & string & Nome completo exibido no perfil. \\
+\texttt{} & \texttt{businessCategoryName} & string & Categoria de negócio declarada pelo perfil (quando conta comercial). \\
+\texttt{} & \texttt{inputUrl} & string & URL do perfil de Instagram do governador (chave de junção mais usada entre perfis/posts/reels/Gold). \\
+\texttt{} & \texttt{followersCount} & int64 & Número de seguidores do perfil. \\
+\texttt{} & \texttt{followsCount} & int64 & Número de perfis que este perfil segue. \\
+\texttt{} & \texttt{postsCount} & int64 & Número total de posts do perfil (contagem exposta pelo Instagram, não contagem local coletada). \\
+\texttt{} & \texttt{igtvVideoCount} & int64 & Número de vídeos IGTV do perfil (campo legado do Apify, baixo valor analítico hoje). \\
+\texttt{} & \texttt{verified} & bool & Selo de verificação do Instagram. \\
+\texttt{} & \texttt{private} & bool & Se o perfil é privado. \\
+\texttt{} & \texttt{isBusinessAccount} & bool & Se o perfil está configurado como conta comercial. \\
+\texttt{} & \texttt{hasChannel} & bool & Se o perfil tem canal do Instagram habilitado. \\
+\texttt{} & \texttt{joinedRecently} & bool & Flag do Apify indicando conta criada recentemente. \\
+\texttt{instagram\_posts} & \texttt{id} & string & Identificador único do registro na origem (Instagram/Apify) - semântica varia por tabela, ver coluna Grão. \\
+\texttt{} & \texttt{ownerId} & string & Id do perfil (Bronze/Instagram) que publicou o post/reel. \\
+\texttt{} & \texttt{ownerUsername} & string & Username do perfil que publicou o post/reel/comentário. \\
+\texttt{} & \texttt{inputUrl} & string & URL do perfil de Instagram do governador (chave de junção mais usada entre perfis/posts/reels/Gold). \\
+\texttt{} & \texttt{commentsCount} & int64 & Número de comentários. \\
+\texttt{} & \texttt{likesCount} & int64 & Número de curtidas. \\
+\texttt{} & \texttt{timestamp} & string & Timestamp bruto do Apify, como string ISO - ver `data\_hora` para a versão já parseada/tipada (Silver). \\
+\texttt{} & \texttt{type} & string & Tipo bruto do post retornado pelo Apify (Image/Video/Sidecar/Reel). \\
+\texttt{} & \texttt{shortCode} & string & Código curto do post/reel usado na URL pública do Instagram. \\
+\texttt{} & \texttt{caption} & string & Legenda/texto do post ou reel. \\
+\texttt{} & \texttt{videoViewCount} & int64 & Número de views do vídeo (métrica bruta do Apify, distinta de videoPlayCount). \\
+\texttt{} & \texttt{videoPlayCount} & int64 & Reproduções (plays) do vídeo - Reels/vídeo de feed. Nome correto da métrica: "reproduções (plays)", nunca "visualizações únicas" nem alcance. Insumo de Alcance/Profundidade do governor\_scorecard e do estágio "Visualizações" do funil. \\
+\texttt{} & \texttt{videoDuration} & double & Duração do vídeo em segundos. \\
+\texttt{} & \texttt{locationName} & string & Nome do local marcado no post (quando presente). \\
+\texttt{} & \texttt{isPinned} & bool & Se o reel está fixado no perfil. \\
+\texttt{} & \texttt{latestComments} & string & Lista bruta (JSON) dos comentários mais recentes do reel ou post, retornada pelo Apify - fonte de comments\_clean (reels) e de post\_comments\_clean (posts de feed, issue \#212). \\
+\texttt{instagram\_reels} & \texttt{id} & string & Identificador único do registro na origem (Instagram/Apify) - semântica varia por tabela, ver coluna Grão. \\
+\texttt{} & \texttt{ownerId} & string & Id do perfil (Bronze/Instagram) que publicou o post/reel. \\
+\texttt{} & \texttt{ownerUsername} & string & Username do perfil que publicou o post/reel/comentário. \\
+\texttt{} & \texttt{inputUrl} & string & URL do perfil de Instagram do governador (chave de junção mais usada entre perfis/posts/reels/Gold). \\
+\texttt{} & \texttt{commentsCount} & int64 & Número de comentários. \\
+\texttt{} & \texttt{likesCount} & int64 & Número de curtidas. \\
+\texttt{} & \texttt{videoViewCount} & int64 & Número de views do vídeo (métrica bruta do Apify, distinta de videoPlayCount). \\
+\texttt{} & \texttt{videoPlayCount} & int64 & Reproduções (plays) do vídeo - Reels/vídeo de feed. Nome correto da métrica: "reproduções (plays)", nunca "visualizações únicas" nem alcance. Insumo de Alcance/Profundidade do governor\_scorecard e do estágio "Visualizações" do funil. \\
+\texttt{} & \texttt{videoDuration} & double & Duração do vídeo em segundos. \\
+\texttt{} & \texttt{timestamp} & string & Timestamp bruto do Apify, como string ISO - ver `data\_hora` para a versão já parseada/tipada (Silver). \\
+\texttt{} & \texttt{type} & string & Tipo bruto do post retornado pelo Apify (Image/Video/Sidecar/Reel). \\
+\texttt{} & \texttt{shortCode} & string & Código curto do post/reel usado na URL pública do Instagram. \\
+\texttt{} & \texttt{isSponsored} & bool & Flag de conteúdo patrocinado no Reel (bruto do Apify). \\
+\texttt{} & \texttt{isCommentsDisabled} & bool & Se os comentários estão desabilitados no post/reel. \\
+\texttt{} & \texttt{isPinned} & bool & Se o reel está fixado no perfil. \\
+\texttt{} & \texttt{latestComments} & string & Lista bruta (JSON) dos comentários mais recentes do reel ou post, retornada pelo Apify - fonte de comments\_clean (reels) e de post\_comments\_clean (posts de feed, issue \#212). \\
+\texttt{} & \texttt{transcript} & string & Transcrição de fala do reel, via flag paga includeTranscript do actor - nullable (vídeo mudo/flag desligada). \\
+\texttt{ugc\_mentions} & \texttt{id} & string & Identificador único do registro na origem (Instagram/Apify) - semântica varia por tabela, ver coluna Grão. \\
+\texttt{} & \texttt{shortCode} & string & Código curto do post/reel usado na URL pública do Instagram. \\
+\texttt{} & \texttt{type} & string & Tipo bruto do post retornado pelo Apify (Image/Video/Sidecar/Reel). \\
+\texttt{} & \texttt{caption} & string & Legenda/texto do post ou reel. \\
+\texttt{} & \texttt{mentions} & string & Lista de usernames @-mencionados em legenda/comentário do post de UGC, serializada como JSON string - só \textasciitilde{}31\% dos posts reais têm este campo preenchido. \\
+\texttt{} & \texttt{taggedUsers} & string & Lista de objetos (um por pessoa marcada visualmente na foto/vídeo, com `username`/`full\_name`/`is\_verified`/`is\_private`) do post de UGC, serializada como JSON string - substitui o campo `matchTypes` (não existe no actor real); presente em \textasciitilde{}69\% dos posts, mais frequente que `mentions`. \\
+\texttt{} & \texttt{likesCount} & int64 & Número de curtidas. \\
+\texttt{} & \texttt{commentsCount} & int64 & Número de comentários. \\
+\texttt{} & \texttt{videoPlayCount} & int64 & Reproduções (plays) do vídeo - Reels/vídeo de feed. Nome correto da métrica: "reproduções (plays)", nunca "visualizações únicas" nem alcance. Insumo de Alcance/Profundidade do governor\_scorecard e do estágio "Visualizações" do funil. \\
+\texttt{} & \texttt{timestamp} & string & Timestamp bruto do Apify, como string ISO - ver `data\_hora` para a versão já parseada/tipada (Silver). \\
+\texttt{} & \texttt{ownerUsername} & string & Username de quem publicou o post de UGC (autor terceiro que marcou/mencionou o governador - Bronze, nome real do actor apify/instagram-tagged-scraper). Normalizado para `authorUsername` na Silver. \\
+\texttt{} & \texttt{ownerFullName} & string & Nome completo de quem publicou o post de UGC (Bronze, confirmado pelo piloto real). \\
+\texttt{} & \texttt{ownerId} & string & Id do perfil de quem publicou o post de UGC (autor terceiro, Bronze, confirmado pelo piloto real) - distinto do `ownerId` de posts/reels, que é o próprio governador. \\
+\texttt{} & \texttt{paidPartnership} & bool & Flag de parceria paga (publi) declarada pelo Instagram no post de UGC - único campo de publi que o actor real expõe (piloto 2026-09-19); `isAd`/`isAffiliate` da especificação original não existem. \\
+\end{longtable}
+\end{footnotesize}
+
+\section*{Colunas da camada Silver}
+\begin{footnotesize}
+\begin{longtable}{p{3.3cm}p{3.4cm}p{1.3cm}p{6.8cm}}
+\caption{Colunas da camada Silver}\\
+\toprule \textbf{Tabela} & \textbf{Coluna} & \textbf{Tipo} & \textbf{Descrição} \\ \midrule \endfirsthead
+\toprule \textbf{Tabela} & \textbf{Coluna} & \textbf{Tipo} & \textbf{Descrição} \\ \midrule \endhead
+\bottomrule \endfoot
+\texttt{profiles\_clean} & \texttt{id} & string & Identificador único do registro na origem (Instagram/Apify) - semântica varia por tabela, ver coluna Grão. \\
+\texttt{} & \texttt{username} & string & Nome de usuário do perfil de Instagram. \\
+\texttt{} & \texttt{fullName} & string & Nome completo exibido no perfil. \\
+\texttt{} & \texttt{inputUrl} & string & URL do perfil de Instagram do governador (chave de junção mais usada entre perfis/posts/reels/Gold). \\
+\texttt{} & \texttt{followersCount} & int32 & Número de seguidores do perfil. \\
+\texttt{} & \texttt{followsCount} & int32 & Número de perfis que este perfil segue. \\
+\texttt{} & \texttt{postsCount} & int32 & Número total de posts do perfil (contagem exposta pelo Instagram, não contagem local coletada). \\
+\texttt{} & \texttt{verified} & bool & Selo de verificação do Instagram. \\
+\texttt{} & \texttt{private} & bool & Se o perfil é privado. \\
+\texttt{} & \texttt{isBusinessAccount} & bool & Se o perfil está configurado como conta comercial. \\
+\texttt{} & \texttt{businessCategoryName} & string & Categoria de negócio declarada pelo perfil (quando conta comercial). \\
+\texttt{posts\_clean} & \texttt{id} & string & Identificador único do registro na origem (Instagram/Apify) - semântica varia por tabela, ver coluna Grão. \\
+\texttt{} & \texttt{ownerId} & string & Id do perfil (Bronze/Instagram) que publicou o post/reel. \\
+\texttt{} & \texttt{ownerUsername} & string & Username do perfil que publicou o post/reel/comentário. \\
+\texttt{} & \texttt{inputUrl} & string & URL do perfil de Instagram do governador (chave de junção mais usada entre perfis/posts/reels/Gold). \\
+\texttt{} & \texttt{commentsCount} & int64 & Número de comentários. \\
+\texttt{} & \texttt{likesCount} & int64 & Número de curtidas. \\
+\texttt{} & \texttt{data\_hora} & timestamp[us] & Timestamp parseado e convertido para America/Sao\_Paulo (naive), a partir de `timestamp` bruto (PostCleaner.\_parse\_timestamp). \\
+\texttt{} & \texttt{Tipo} & string & Granularidade fixada pelo cleaner: 'FEED' (posts\_clean) ou 'REELS' (reels\_clean) - não confundir com `type\_raw` (bruto do Apify). \\
+\texttt{} & \texttt{type\_raw} & string & Campo bruto `type` do Apify (Image/Video/Sidecar), preservado antes de `Tipo` (FEED/REELS) ser atribuído - preditor de Formato da regressão de performance-por-post. \\
+\texttt{} & \texttt{shortCode} & string & Código curto do post/reel usado na URL pública do Instagram. \\
+\texttt{} & \texttt{caption} & string & Legenda/texto do post ou reel. \\
+\texttt{} & \texttt{hashtags} & string & Hashtags extraídas da legenda do post - alimenta o BERTopic de tema sobre captions (ADR 0019 parte B). \\
+\texttt{} & \texttt{videoPlayCount} & int64 & Reproduções (plays) do vídeo - Reels/vídeo de feed. Nome correto da métrica: "reproduções (plays)", nunca "visualizações únicas" nem alcance. Insumo de Alcance/Profundidade do governor\_scorecard e do estágio "Visualizações" do funil. \\
+\texttt{} & \texttt{videoDuration} & double & Duração do vídeo em segundos. \\
+\texttt{} & \texttt{isPinned} & bool & Se o reel está fixado no perfil. \\
+\texttt{reels\_clean} & \texttt{id} & string & Identificador único do registro na origem (Instagram/Apify) - semântica varia por tabela, ver coluna Grão. \\
+\texttt{} & \texttt{ownerId} & string & Id do perfil (Bronze/Instagram) que publicou o post/reel. \\
+\texttt{} & \texttt{ownerUsername} & string & Username do perfil que publicou o post/reel/comentário. \\
+\texttt{} & \texttt{inputUrl} & string & URL do perfil de Instagram do governador (chave de junção mais usada entre perfis/posts/reels/Gold). \\
+\texttt{} & \texttt{commentsCount} & int64 & Número de comentários. \\
+\texttt{} & \texttt{likesCount} & int64 & Número de curtidas. \\
+\texttt{} & \texttt{videoPlayCount} & int64 & Reproduções (plays) do vídeo - Reels/vídeo de feed. Nome correto da métrica: "reproduções (plays)", nunca "visualizações únicas" nem alcance. Insumo de Alcance/Profundidade do governor\_scorecard e do estágio "Visualizações" do funil. \\
+\texttt{} & \texttt{videoDuration} & double & Duração do vídeo em segundos. \\
+\texttt{} & \texttt{data\_hora} & timestamp[us] & Timestamp parseado e convertido para America/Sao\_Paulo (naive), a partir de `timestamp` bruto (PostCleaner.\_parse\_timestamp). \\
+\texttt{} & \texttt{Tipo} & string & Granularidade fixada pelo cleaner: 'FEED' (posts\_clean) ou 'REELS' (reels\_clean) - não confundir com `type\_raw` (bruto do Apify). \\
+\texttt{} & \texttt{type\_raw} & string & Campo bruto `type` do Apify (Image/Video/Sidecar), preservado antes de `Tipo` (FEED/REELS) ser atribuído - preditor de Formato da regressão de performance-por-post. \\
+\texttt{} & \texttt{shortCode} & string & Código curto do post/reel usado na URL pública do Instagram. \\
+\texttt{} & \texttt{isSponsored} & bool & Flag de conteúdo patrocinado no Reel (bruto do Apify). \\
+\texttt{} & \texttt{isCommentsDisabled} & bool & Se os comentários estão desabilitados no post/reel. \\
+\texttt{} & \texttt{isPinned} & bool & Se o reel está fixado no perfil. \\
+\texttt{} & \texttt{Total de Engajamento} & int64 & likesCount + commentsCount deste reel (PostCleaner.clean\_reels) - por-REEL, insumo do PCA/AutoClusterHPO. Não confundir com 'TOTAL ENGAJAMENTO' (maiúsculo, com espaço) de governor\_engagement, que é por-PERFIL agregado. \\
+\texttt{} & \texttt{transcript} & string & Transcrição de fala do reel, via flag paga includeTranscript do actor - nullable (vídeo mudo/flag desligada). \\
+\texttt{comments\_clean} & \texttt{id\_reel} & string & Id da publicação (reel ou post) de origem do comentário/tópico - chave de junção com reels\_clean/posts\_clean; em governor\_sentiment, comentários de posts (origem\_comentario == 'post') também usam esta coluna. \\
+\texttt{} & \texttt{id\_comment} & string & Id único do comentário individual (pós-explosão de latestComments). \\
+\texttt{} & \texttt{text} & string & Texto avaliado - comentário, legenda ou transcrição, dependendo da tabela/coluna `fonte`. \\
+\texttt{} & \texttt{comprimento texto} & int64 & Número de caracteres de `text` - usado para filtrar comentários >= 512 caracteres (CommentCleaner.MAX\_TEXT\_LENGTH). \\
+\texttt{} & \texttt{ownerUsername} & string & Username do perfil que publicou o post/reel/comentário. \\
+\texttt{} & \texttt{likesCount} & int64 & Número de curtidas. \\
+\texttt{} & \texttt{repliesCount} & int64 & Número de respostas a um comentário. \\
+\texttt{} & \texttt{timestamp} & string & Timestamp bruto do Apify, como string ISO - ver `data\_hora` para a versão já parseada/tipada (Silver). \\
+\texttt{} & \texttt{inputUrl} & string & URL do perfil de Instagram do governador (chave de junção mais usada entre perfis/posts/reels/Gold). \\
+\texttt{post\_comments\_clean} & \texttt{id\_post} & string & Id do post de feed comentado (inclui reels capturados no grid de posts, issue \#152) - vira `id\_reel` ao entrar em governor\_sentiment. \\
+\texttt{} & \texttt{id\_comment} & string & Id único do comentário individual (pós-explosão de latestComments). \\
+\texttt{} & \texttt{text} & string & Texto avaliado - comentário, legenda ou transcrição, dependendo da tabela/coluna `fonte`. \\
+\texttt{} & \texttt{comprimento texto} & int64 & Número de caracteres de `text` - usado para filtrar comentários >= 512 caracteres (CommentCleaner.MAX\_TEXT\_LENGTH). \\
+\texttt{} & \texttt{ownerUsername} & string & Username do perfil que publicou o post/reel/comentário. \\
+\texttt{} & \texttt{likesCount} & int64 & Número de curtidas. \\
+\texttt{} & \texttt{repliesCount} & int64 & Número de respostas a um comentário. \\
+\texttt{} & \texttt{timestamp} & string & Timestamp bruto do Apify, como string ISO - ver `data\_hora` para a versão já parseada/tipada (Silver). \\
+\texttt{} & \texttt{inputUrl} & string & URL do perfil de Instagram do governador (chave de junção mais usada entre perfis/posts/reels/Gold). \\
+\texttt{governors\_metadata} & \texttt{inputUrl} & string & URL do perfil de Instagram do governador (chave de junção mais usada entre perfis/posts/reels/Gold). \\
+\texttt{} & \texttt{nome} & string & Nome do governador (reference/governadores.xlsx, coluna 'Governador'). \\
+\texttt{} & \texttt{uf} & string & Unidade Federativa do governador (reference/governadores.xlsx, coluna 'Unidade Federativa'). \\
+\texttt{} & \texttt{partido} & string & Partido do governador (reference/governadores.xlsx, coluna 'Partido'). \\
+\texttt{ugc\_mentions} & \texttt{id} & string & Identificador único do registro na origem (Instagram/Apify) - semântica varia por tabela, ver coluna Grão. \\
+\texttt{} & \texttt{shortCode} & string & Código curto do post/reel usado na URL pública do Instagram. \\
+\texttt{} & \texttt{type} & string & Tipo bruto do post retornado pelo Apify (Image/Video/Sidecar/Reel). \\
+\texttt{} & \texttt{caption} & string & Legenda/texto do post ou reel. \\
+\texttt{} & \texttt{governor\_username} & string & Username do governador mencionado/marcado, resolvido cruzando `mentions` E `taggedUsers` (Bronze) com a lista de perfis conhecidos - piloto real confirmou que \textasciitilde{}69\% dos posts só correlacionam via `taggedUsers`. \\
+\texttt{} & \texttt{authorUsername} & string & Username de quem publicou o post de UGC (autor, distinto do governador mencionado) - campo normalizado na Silver; na Bronze o actor real só preenche `ownerUsername` (ver override específico de ugc\_mentions, coluna `ownerUsername` colide de nome com posts/reels/comentários). \\
+\texttt{} & \texttt{paidPartnership} & bool & Flag de parceria paga (publi) declarada pelo Instagram no post de UGC - único campo de publi que o actor real expõe (piloto 2026-09-19); `isAd`/`isAffiliate` da especificação original não existem. \\
+\texttt{} & \texttt{likesCount} & int64 & Número de curtidas. \\
+\texttt{} & \texttt{commentsCount} & int64 & Número de comentários. \\
+\texttt{} & \texttt{videoPlayCount} & int64 & Reproduções (plays) do vídeo - Reels/vídeo de feed. Nome correto da métrica: "reproduções (plays)", nunca "visualizações únicas" nem alcance. Insumo de Alcance/Profundidade do governor\_scorecard e do estágio "Visualizações" do funil. \\
+\texttt{} & \texttt{data\_hora} & timestamp[us] & Timestamp parseado e convertido para America/Sao\_Paulo (naive), a partir de `timestamp` bruto (PostCleaner.\_parse\_timestamp). \\
+\end{longtable}
+\end{footnotesize}
+
+\section*{Colunas da camada Gold}
+\begin{footnotesize}
+\begin{longtable}{p{3.3cm}p{3.4cm}p{1.3cm}p{6.8cm}}
+\caption{Colunas da camada Gold}\\
+\toprule \textbf{Tabela} & \textbf{Coluna} & \textbf{Tipo} & \textbf{Descrição} \\ \midrule \endfirsthead
+\toprule \textbf{Tabela} & \textbf{Coluna} & \textbf{Tipo} & \textbf{Descrição} \\ \midrule \endhead
+\bottomrule \endfoot
+\texttt{governor\_engagement} & \texttt{id} & string & Identificador único do registro na origem (Instagram/Apify) - semântica varia por tabela, ver coluna Grão. \\
+\texttt{} & \texttt{username} & string & Nome de usuário do perfil de Instagram. \\
+\texttt{} & \texttt{fullName} & string & Nome completo exibido no perfil. \\
+\texttt{} & \texttt{inputUrl} & string & URL do perfil de Instagram do governador (chave de junção mais usada entre perfis/posts/reels/Gold). \\
+\texttt{} & \texttt{followersCount} & int32 & Número de seguidores do perfil. \\
+\texttt{} & \texttt{followsCount} & int32 & Número de perfis que este perfil segue. \\
+\texttt{} & \texttt{postsCount} & int32 & Número total de posts do perfil (contagem exposta pelo Instagram, não contagem local coletada). \\
+\texttt{} & \texttt{TOTAL ENGAJAMENTO} & int64 & commentsSum + likesSum (engajamento bruto, sem peso). \\
+\texttt{} & \texttt{\% ENGAJAMENTO} & double & (likesSum + commentsSum × \_WC\_COMENTARIO) / followersCount - taxa de engajamento PONDERADA sobre a base de seguidores (0.0 quando followersCount <= 0). \\
+\texttt{} & \texttt{\_WC\_COMENTARIO} & double & Peso do comentário relativo à curtida nesta execução: total\_likes / total\_comments da base inteira (calibrado pelo próprio dado, não arbitrado) - ADR 0018. Cai para 1.0 (peso igual) se não houver nenhum comentário na execução. \\
+\texttt{} & \texttt{RECENCIA} & double & 1 / (dias\_desde\_o\_post\_mais\_recente\_da\_BASE\_INTEIRA - dias\_desde\_o\_post\_mais\_recente\_DESTE\_perfil + 1) - maior valor = perfil postou mais recentemente que a média da base. 0.0 para perfil sem nenhum post/reel (nunca 'recência máxima' por ausência de dado). \\
+\texttt{} & \texttt{FREQUENCIA} & double & count / (dias entre o post mais antigo e o mais recente do perfil, +1) - posts por dia de atividade. \\
+\texttt{} & \texttt{commentsSum} & int64 & Soma de commentsCount de todos os posts+reels do perfil na execução (posts\_clean + reels\_clean concatenados). \\
+\texttt{} & \texttt{likesSum} & int64 & Soma de likesCount de todos os posts+reels do perfil na execução. \\
+\texttt{} & \texttt{count} & int64 & Número total de posts+reels do perfil considerados na agregação. \\
+\texttt{} & \texttt{minData} & timestamp[us] & Data do post/reel mais antigo do perfil considerado na agregação. \\
+\texttt{} & \texttt{maxData} & timestamp[us] & Data do post/reel mais recente do perfil considerado na agregação. \\
+\texttt{governor\_engagement\_history} & \texttt{id} & string & Identificador único do registro na origem (Instagram/Apify) - semântica varia por tabela, ver coluna Grão. \\
+\texttt{} & \texttt{username} & string & Nome de usuário do perfil de Instagram. \\
+\texttt{} & \texttt{fullName} & string & Nome completo exibido no perfil. \\
+\texttt{} & \texttt{inputUrl} & string & URL do perfil de Instagram do governador (chave de junção mais usada entre perfis/posts/reels/Gold). \\
+\texttt{} & \texttt{followersCount} & int32 & Número de seguidores do perfil. \\
+\texttt{} & \texttt{followsCount} & int32 & Número de perfis que este perfil segue. \\
+\texttt{} & \texttt{postsCount} & int32 & Número total de posts do perfil (contagem exposta pelo Instagram, não contagem local coletada). \\
+\texttt{} & \texttt{TOTAL ENGAJAMENTO} & int64 & Ver governor\_engagement - mesmo cálculo, uma linha por execução (base para o CMGR de followersCount). \\
+\texttt{} & \texttt{\% ENGAJAMENTO} & double & Ver governor\_engagement - mesmo cálculo, uma linha por execução. \\
+\texttt{} & \texttt{\_WC\_COMENTARIO} & double & Ver governor\_engagement - mesmo cálculo, recalibrado a cada execução (valor pode diferir entre linhas de execuções diferentes). \\
+\texttt{} & \texttt{RECENCIA} & double & Ver governor\_engagement - mesmo cálculo, uma linha por execução. \\
+\texttt{} & \texttt{FREQUENCIA} & double & Ver governor\_engagement - mesmo cálculo, uma linha por execução. \\
+\texttt{} & \texttt{commentsSum} & int64 & Ver governor\_engagement - mesmo cálculo, uma linha por execução em vez de snapshot único. \\
+\texttt{} & \texttt{likesSum} & int64 & Ver governor\_engagement - mesmo cálculo, uma linha por execução. \\
+\texttt{} & \texttt{count} & int64 & Ver governor\_engagement - mesmo cálculo, uma linha por execução. \\
+\texttt{} & \texttt{minData} & timestamp[us] & Ver governor\_engagement - mesmo cálculo, uma linha por execução. \\
+\texttt{} & \texttt{maxData} & timestamp[us] & Ver governor\_engagement - mesmo cálculo, uma linha por execução. \\
+\texttt{governor\_sentiment} & \texttt{id\_reel} & string & Id da publicação (reel ou post) de origem do comentário/tópico - chave de junção com reels\_clean/posts\_clean; em governor\_sentiment, comentários de posts (origem\_comentario == 'post') também usam esta coluna. \\
+\texttt{} & \texttt{id\_comment} & string & Id único do comentário individual (pós-explosão de latestComments). \\
+\texttt{} & \texttt{text} & string & Texto avaliado - comentário, legenda ou transcrição, dependendo da tabela/coluna `fonte`. \\
+\texttt{} & \texttt{inputUrl} & string & URL do perfil de Instagram do governador (chave de junção mais usada entre perfis/posts/reels/Gold). \\
+\texttt{} & \texttt{ownerUsername} & string & Username do perfil que publicou o post/reel/comentário. \\
+\texttt{} & \texttt{likesCount} & int64 & Número de curtidas. \\
+\texttt{} & \texttt{repliesCount} & int64 & Número de respostas a um comentário. \\
+\texttt{} & \texttt{timestamp} & string & Timestamp bruto do Apify, como string ISO - ver `data\_hora` para a versão já parseada/tipada (Silver). \\
+\texttt{} & \texttt{fonte} & string & Granularidade da linha dentro da tabela: 'comentario', 'legenda' ou 'transcricao' - ver ADR 0020 Ficha 3 / issue \#88. \\
+\texttt{} & \texttt{origem\_comentario} & string & Publicação em que o comentário foi feito: 'reel' (comments\_clean) ou 'post' (post\_comments\_clean) - só nas linhas fonte == 'comentario'; nula em legenda/transcrição (issue \#212, ADR 0034). Não confundir com `fonte`. \\
+\texttt{} & \texttt{sentiment\_label} & string & Rótulo de sentimento previsto: positive / neutral / negative (cardiffnlp/twitter-xlm-roberta-base-sentiment). \\
+\texttt{} & \texttt{sentiment\_score} & double & Confiança do classificador na label prevista (NÃO 'o quão positivo/negativo') - src/modeling/sentiment.py. \\
+\texttt{} & \texttt{Topic} & int64 & Id numérico do tópico BERTopic (-1 = ruído/sem tópico atribuído). \\
+\texttt{} & \texttt{Name} & string & Rótulo textual do tópico BERTopic - determinístico (KeyBERTInspired) por padrão, ou refinado manualmente via Gemini (scripts/refine\_topics.py). \\
+\texttt{governor\_sentiment\_history} & \texttt{id\_reel} & string & Id da publicação (reel ou post) de origem do comentário/tópico - chave de junção com reels\_clean/posts\_clean; em governor\_sentiment, comentários de posts (origem\_comentario == 'post') também usam esta coluna. \\
+\texttt{} & \texttt{id\_comment} & string & Id único do comentário individual (pós-explosão de latestComments). \\
+\texttt{} & \texttt{text} & string & Texto avaliado - comentário, legenda ou transcrição, dependendo da tabela/coluna `fonte`. \\
+\texttt{} & \texttt{inputUrl} & string & URL do perfil de Instagram do governador (chave de junção mais usada entre perfis/posts/reels/Gold). \\
+\texttt{} & \texttt{ownerUsername} & string & Username do perfil que publicou o post/reel/comentário. \\
+\texttt{} & \texttt{likesCount} & int64 & Número de curtidas. \\
+\texttt{} & \texttt{repliesCount} & int64 & Número de respostas a um comentário. \\
+\texttt{} & \texttt{timestamp} & string & Timestamp bruto do Apify, como string ISO - ver `data\_hora` para a versão já parseada/tipada (Silver). \\
+\texttt{} & \texttt{fonte} & string & Granularidade da linha dentro da tabela: 'comentario', 'legenda' ou 'transcricao' - ver ADR 0020 Ficha 3 / issue \#88. \\
+\texttt{} & \texttt{origem\_comentario} & string & Publicação em que o comentário foi feito: 'reel' (comments\_clean) ou 'post' (post\_comments\_clean) - só nas linhas fonte == 'comentario'; nula em legenda/transcrição (issue \#212, ADR 0034). Não confundir com `fonte`. \\
+\texttt{} & \texttt{sentiment\_label} & string & Rótulo de sentimento previsto: positive / neutral / negative (cardiffnlp/twitter-xlm-roberta-base-sentiment). \\
+\texttt{} & \texttt{sentiment\_score} & double & Confiança do classificador na label prevista (NÃO 'o quão positivo/negativo') - src/modeling/sentiment.py. \\
+\texttt{} & \texttt{Topic} & int64 & Id numérico do tópico BERTopic (-1 = ruído/sem tópico atribuído). \\
+\texttt{} & \texttt{Name} & string & Rótulo textual do tópico BERTopic - determinístico (KeyBERTInspired) por padrão, ou refinado manualmente via Gemini (scripts/refine\_topics.py). \\
+\texttt{governor\_discourse\_topics} & \texttt{id\_reel} & string & Id da publicação (reel ou post) de origem do comentário/tópico - chave de junção com reels\_clean/posts\_clean; em governor\_sentiment, comentários de posts (origem\_comentario == 'post') também usam esta coluna. \\
+\texttt{} & \texttt{text} & string & Texto avaliado - comentário, legenda ou transcrição, dependendo da tabela/coluna `fonte`. \\
+\texttt{} & \texttt{inputUrl} & string & URL do perfil de Instagram do governador (chave de junção mais usada entre perfis/posts/reels/Gold). \\
+\texttt{} & \texttt{ownerUsername} & string & Username do perfil que publicou o post/reel/comentário. \\
+\texttt{} & \texttt{timestamp} & string & Timestamp bruto do Apify, como string ISO - ver `data\_hora` para a versão já parseada/tipada (Silver). \\
+\texttt{} & \texttt{fonte} & string & Granularidade da linha dentro da tabela: 'comentario', 'legenda' ou 'transcricao' - ver ADR 0020 Ficha 3 / issue \#88. \\
+\texttt{} & \texttt{Topic} & int64 & Id numérico do tópico BERTopic (-1 = ruído/sem tópico atribuído). \\
+\texttt{} & \texttt{Name} & string & Rótulo textual do tópico BERTopic - determinístico (KeyBERTInspired) por padrão, ou refinado manualmente via Gemini (scripts/refine\_topics.py). \\
+\texttt{governor\_clusters\_reels} & \texttt{id\_reel} & string & Id da publicação (reel ou post) de origem do comentário/tópico - chave de junção com reels\_clean/posts\_clean; em governor\_sentiment, comentários de posts (origem\_comentario == 'post') também usam esta coluna. \\
+\texttt{} & \texttt{ownerUsername} & string & Username do perfil que publicou o post/reel/comentário. \\
+\texttt{} & \texttt{cluster\_label} & int64 & Rótulo do cluster atribuído pelo AutoClusterHPO (-1 = ruído do DBSCAN). \\
+\texttt{} & \texttt{cluster\_algo} & string & Nome do algoritmo eleito pelo AutoClusterHPO para esta execução (KMeans/DBSCAN/Agglomerative). \\
+\texttt{} & \texttt{cluster\_score} & double & Score CVI combinado (Silhouette + Calinski-Harabasz normalizado + Davies-Bouldin invertido) do algoritmo eleito - ver src/modeling/clustering.py. \\
+\texttt{} & \texttt{content\_type} & string & Valor constante por tabela ('reel' em governor\_clusters\_reels, 'feed' em governor\_clusters\_posts) - mantido no schema das duas para permitir recombinação futura via pd.concat sem precisar re-derivar o rótulo (ADR 0020 Ficha 2 / issue \#87; tabelas separadas desde a issue \#152). \\
+\texttt{governor\_clusters\_posts} & \texttt{id\_reel} & string & Id da publicação (reel ou post) de origem do comentário/tópico - chave de junção com reels\_clean/posts\_clean; em governor\_sentiment, comentários de posts (origem\_comentario == 'post') também usam esta coluna. \\
+\texttt{} & \texttt{ownerUsername} & string & Username do perfil que publicou o post/reel/comentário. \\
+\texttt{} & \texttt{cluster\_label} & int64 & Rótulo do cluster atribuído pelo AutoClusterHPO (-1 = ruído do DBSCAN). \\
+\texttt{} & \texttt{cluster\_algo} & string & Nome do algoritmo eleito pelo AutoClusterHPO para esta execução (KMeans/DBSCAN/Agglomerative). \\
+\texttt{} & \texttt{cluster\_score} & double & Score CVI combinado (Silhouette + Calinski-Harabasz normalizado + Davies-Bouldin invertido) do algoritmo eleito - ver src/modeling/clustering.py. \\
+\texttt{} & \texttt{content\_type} & string & Valor constante por tabela ('reel' em governor\_clusters\_reels, 'feed' em governor\_clusters\_posts) - mantido no schema das duas para permitir recombinação futura via pd.concat sem precisar re-derivar o rótulo (ADR 0020 Ficha 2 / issue \#87; tabelas separadas desde a issue \#152). \\
+\texttt{governor\_profile\_clusters\_engagement} & \texttt{inputUrl} & string & URL do perfil de Instagram do governador (chave de junção mais usada entre perfis/posts/reels/Gold). \\
+\texttt{} & \texttt{cluster\_label} & int64 & Rótulo do cluster atribuído pelo AutoClusterHPO (-1 = ruído do DBSCAN). \\
+\texttt{} & \texttt{cluster\_algo} & string & Nome do algoritmo eleito pelo AutoClusterHPO para esta execução (KMeans/DBSCAN/Agglomerative). \\
+\texttt{} & \texttt{cluster\_score} & double & Score CVI combinado (Silhouette + Calinski-Harabasz normalizado + Davies-Bouldin invertido) do algoritmo eleito - ver src/modeling/clustering.py. \\
+\texttt{post\_performance\_coefficients} & \texttt{grupo} & string & Discrimina o grupo da regressão de performance-por-post: 'video' (Reels) ou 'estatico' (posts de imagem/carrossel). \\
+\texttt{} & \texttt{preditor} & string & Nome do preditor da regressão (varia por grupo - ver coluna Notas da aba Tabelas). \\
+\texttt{} & \texttt{coeficiente} & double & Coeficiente estimado pelo LassoCV para este preditor (0.0 = preditor descartado pela regularização L1). \\
+\texttt{} & \texttt{r2\_treino} & double & R² do modelo no conjunto de treino. \\
+\texttt{} & \texttt{r2\_holdout} & double & R² do modelo no conjunto de holdout - nulo só no caso degenerado de um grupo sem governador em holdout. \\
+\texttt{} & \texttt{n\_treino} & int64 & Número de posts no conjunto de treino deste grupo. \\
+\texttt{} & \texttt{n\_holdout} & int64 & Número de posts no conjunto de holdout deste grupo. \\
+\texttt{} & \texttt{alpha} & double & Hiperparâmetro de regularização (força da penalização L1) escolhido pelo LassoCV via validação cruzada. \\
+\texttt{post\_performance\_predictions} & \texttt{id} & string & Identificador único do registro na origem (Instagram/Apify) - semântica varia por tabela, ver coluna Grão. \\
+\texttt{} & \texttt{inputUrl} & string & URL do perfil de Instagram do governador (chave de junção mais usada entre perfis/posts/reels/Gold). \\
+\texttt{} & \texttt{grupo} & string & Discrimina o grupo da regressão de performance-por-post: 'video' (Reels) ou 'estatico' (posts de imagem/carrossel). \\
+\texttt{} & \texttt{y\_real} & double & Valor real de Y = (likesCount + commentsCount × \_WC\_COMENTARIO) / followersCount para este post. \\
+\texttt{} & \texttt{y\_previsto} & double & Valor de Y previsto pela regressão Lasso treinada para o grupo (vídeo/estático) deste post. \\
+\texttt{} & \texttt{residuo} & double & y\_real - y\_previsto - posts com resíduo muito positivo performaram acima do esperado pelo modelo, e vice-versa. \\
+\texttt{topic\_priority\_score} & \texttt{Topic} & int64 & Id numérico do tópico BERTopic (-1 = ruído/sem tópico atribuído). \\
+\texttt{} & \texttt{Name} & string & Rótulo textual do tópico BERTopic - determinístico (KeyBERTInspired) por padrão, ou refinado manualmente via Gemini (scripts/refine\_topics.py). \\
+\texttt{} & \texttt{n\_comentarios} & int64 & Número de comentários atribuídos a este tópico pelo BERTopic. \\
+\texttt{} & \texttt{alcance\_topico} & int64 & Soma de (likesCount + repliesCount) dos comentários do tópico - PROXY de visibilidade/ressonância, não alcance/views real. \\
+\texttt{} & \texttt{alcance\_normalizado} & double & alcance\_topico / (alcance\_topico + 1) - normalização que satura suavemente em [0,1), nunca divide por zero, e não depende de quais outros tópicos existem na mesma execução. \\
+\texttt{} & \texttt{proporcao\_sentimento\_positivo} & double & Fração de comentários do tópico com sentiment\_label == 'positive'. \\
+\texttt{} & \texttt{confianca} & double & Média de sentiment\_score (confiança do classificador, não polaridade) dos comentários do tópico. \\
+\texttt{} & \texttt{impacto} & double & alcance\_normalizado × proporcao\_sentimento\_positivo. \\
+\texttt{} & \texttt{facilidade} & double & Fixa em 1.0 nesta v1 (FACILIDADE\_V1) - sem dado de custo de produção real para calibrar; o ranking de Score reduz-se, na prática, a Impacto × Confiança. \\
+\texttt{} & \texttt{score} & double & Impacto × Confiança × Facilidade - ranking final de priorização de produção de conteúdo. \\
+\texttt{governor\_nsm} & \texttt{inputUrl} & string & URL do perfil de Instagram do governador (chave de junção mais usada entre perfis/posts/reels/Gold). \\
+\texttt{} & \texttt{username} & string & Nome de usuário do perfil de Instagram. \\
+\texttt{} & \texttt{n\_comentarios\_positivos} & int64 & Número de comentários (fonte == 'comentario') com sentiment\_label == 'positive' deste perfil. \\
+\texttt{} & \texttt{n\_comentarios\_totais} & int64 & Número total de comentários (fonte == 'comentario') deste perfil. \\
+\texttt{} & \texttt{proporcao\_positivos} & double & n\_comentarios\_positivos / n\_comentarios\_totais - 0.0 quando o perfil não tem nenhum comentário (nunca NaN/erro). \\
+\texttt{} & \texttt{total\_engajamento} & int64 & Cópia de governor\_engagement['TOTAL ENGAJAMENTO'] para este perfil, mantida para auditoria/contraste no dashboard. \\
+\texttt{} & \texttt{count\_posts} & int64 & Cópia de governor\_engagement['count'] para este perfil. \\
+\texttt{} & \texttt{alcance\_medio} & double & total\_engajamento / count\_posts - PROXY de alcance (intensidade de engajamento por post), não alcance/views real. 0.0 quando count\_posts == 0. \\
+\texttt{} & \texttt{nsm} & double & proporcao\_positivos × alcance\_medio - North Star Metric de engajamento QUALIFICADO (pondera qualidade de reação, não só volume). \\
+\texttt{governor\_ugc\_mentions} & \texttt{id} & string & Identificador único do registro na origem (Instagram/Apify) - semântica varia por tabela, ver coluna Grão. \\
+\texttt{} & \texttt{shortCode} & string & Código curto do post/reel usado na URL pública do Instagram. \\
+\texttt{} & \texttt{governor\_username} & string & Username do governador mencionado/marcado, resolvido cruzando `mentions` E `taggedUsers` (Bronze) com a lista de perfis conhecidos - piloto real confirmou que \textasciitilde{}69\% dos posts só correlacionam via `taggedUsers`. \\
+\texttt{} & \texttt{authorUsername} & string & Username de quem publicou o post de UGC (autor, distinto do governador mencionado) - campo normalizado na Silver; na Bronze o actor real só preenche `ownerUsername` (ver override específico de ugc\_mentions, coluna `ownerUsername` colide de nome com posts/reels/comentários). \\
+\texttt{} & \texttt{caption} & string & Legenda do post de UGC (do autor terceiro, não do governador). \\
+\texttt{} & \texttt{likesCount} & int64 & Número de curtidas. \\
+\texttt{} & \texttt{commentsCount} & int64 & Número de comentários. \\
+\texttt{} & \texttt{videoPlayCount} & int64 & Reproduções (plays) do vídeo - Reels/vídeo de feed. Nome correto da métrica: "reproduções (plays)", nunca "visualizações únicas" nem alcance. Insumo de Alcance/Profundidade do governor\_scorecard e do estágio "Visualizações" do funil. \\
+\texttt{} & \texttt{is\_organic} & bool & Derivado de `paidPartnership`: True quando ausente/False - separa apoio espontâneo de publi paga. \\
+\texttt{} & \texttt{data\_hora} & timestamp[us] & Timestamp parseado e convertido para America/Sao\_Paulo (naive), a partir de `timestamp` bruto (PostCleaner.\_parse\_timestamp). \\
+\texttt{governor\_growth\_metrics} & \texttt{inputUrl} & string & URL do perfil de Instagram do governador (chave de junção mais usada entre perfis/posts/reels/Gold). \\
+\texttt{} & \texttt{valor\_inicial} & double & Valor da métrica-base (followersCount) no primeiro mês-calendário com execução registrada. \\
+\texttt{} & \texttt{valor\_final} & double & Valor da métrica-base (followersCount) no último mês-calendário com execução registrada. \\
+\texttt{} & \texttt{cmgr} & double & (valor\_final / valor\_inicial) ** (1 / n\_meses) - 1 - crescimento mensal composto. NaN quando não calculável (ver cmgr\_motivo). \\
+\texttt{} & \texttt{cmgr\_n\_periodos} & int64 & Número de meses-calendário com execução registrada usados no cálculo do CMGR. \\
+\texttt{} & \texttt{cmgr\_confiavel} & bool & False sempre que cmgr\_n\_periodos < 6 (MIN\_PERIODS\_CONFIAVEL) - sinaliza resultado ilustrativo, não conclusivo. \\
+\texttt{} & \texttt{cmgr\_motivo} & string & Motivo do CMGR ser NaN, quando aplicável: historico\_insuficiente / periodo\_zero / valor\_inicial\_invalido. \\
+\texttt{} & \texttt{retencao} & double & Média de valor\_t/valor\_(t-1) (capada em 1.0) do share mensal de sentimento positivo entre meses consecutivos - 1.0 = manteve 100\% (ou mais); mede o quanto do período anterior foi retido, não crescimento. \\
+\texttt{} & \texttt{retencao\_n\_periodos} & int64 & Número de meses-calendário com execução registrada usados no cálculo da retenção. \\
+\texttt{} & \texttt{retencao\_n\_pares\_validos} & int64 & Número de pares de meses consecutivos válidos usados na média da retenção. \\
+\texttt{} & \texttt{retencao\_confiavel} & bool & False sempre que retencao\_n\_periodos < 6 (MIN\_PERIODS\_CONFIAVEL). \\
+\texttt{} & \texttt{retencao\_motivo} & string & Motivo da retenção ser NaN, quando aplicável (mesmas categorias do cmgr\_motivo). \\
+\texttt{} & \texttt{ilustrativo} & bool & True enquanto o pipeline não tiver acumulado histórico real suficiente - sinaliza que o valor valida a FÓRMULA, não sustenta conclusão definitiva no TCC. \\
+\texttt{} & \texttt{nota} & string & Texto explicando por que o resultado é (ou não) ilustrativo, para exibição direta em dashboard/relatório sem reprocessar nada. \\
+\texttt{governor\_scorecard} & \texttt{inputUrl} & string & URL do perfil do governador (chave de junção; normalizada em minúsculas, sem espaços e sem barra final para cruzar Silver e Gold). \\
+\texttt{} & \texttt{username} & string & Username do perfil (de governor\_engagement); pode ser nulo. \\
+\texttt{} & \texttt{alcance} & double & Dimensão Alcance bruta: média de videoPlayCount (REPRODUÇÕES / plays, nunca "visualizações únicas") dos reels do perfil. Posts de feed não têm plays e não entram. Nulo sem reels com plays. \\
+\texttt{} & \texttt{ativacao} & double & Dimensão Ativação bruta: média de likesCount dos reels / followersCount do perfil. Nulo sem reels ou sem seguidores. \\
+\texttt{} & \texttt{qualidade} & double & Dimensão Qualidade bruta: comentários positivos / comentários totais do perfil (só governor\_sentiment com fonte == 'comentario'). Nulo sem comentários. \\
+\texttt{} & \texttt{profundidade} & double & Dimensão Profundidade bruta: média de commentsCount / média de videoPlayCount, ambas sobre os reels com plays (mesma base do Alcance). Nulo sem reels com plays. \\
+\texttt{} & \texttt{consistencia} & double & Dimensão Consistência bruta: CMGR de engajamento por data de publicação = exp(inclinação) - 1 da regressão log-linear sobre o engajamento médio por post (curtidas + comentários) de cada mês de publicação. Janela de até 12 meses completos (mês corrente excluído), mês válido com >= 3 posts, posts com < 7 dias de vida excluídos. Nula (pendente) com < 4 meses válidos. NÃO é crescimento de audiência. \\
+\texttt{} & \texttt{alcance\_norm} & double & alcance normalizado min-máx 0-100 entre os perfis com a dimensão (100 = maior). Amplitude zero -> 50. Nulo quando a dimensão bruta é nula. \\
+\texttt{} & \texttt{ativacao\_norm} & double & ativacao normalizada min-máx 0-100 entre os perfis (mesma regra de alcance\_norm). \\
+\texttt{} & \texttt{qualidade\_norm} & double & qualidade normalizada min-máx 0-100 entre os perfis (mesma regra de alcance\_norm). \\
+\texttt{} & \texttt{profundidade\_norm} & double & profundidade normalizada min-máx 0-100 entre os perfis (mesma regra de alcance\_norm). \\
+\texttt{} & \texttt{consistencia\_norm} & double & consistencia normalizada min-máx 0-100 entre os perfis com a dimensão. Nula quando Consistência está pendente (hoje, todos os 26 governadores). \\
+\texttt{} & \texttt{consistencia\_pendente} & bool & True quando a Consistência não pôde ser calculada (< 4 meses válidos). Selo de confiabilidade: o escore daquele perfil usa só as outras dimensões, com os pesos renormalizados. \\
+\texttt{} & \texttt{consistencia\_n\_meses} & int64 & Número de meses de publicação válidos (>= 3 posts maduros, dentro da janela) que entraram, ou entrariam, no cálculo da Consistência. \\
+\texttt{} & \texttt{n\_dimensoes} & int64 & Quantas das 5 dimensões normalizadas entraram no escore deste perfil (5, ou 4 com Consistência pendente). Perfil com < 4 fica sem escore. \\
+\texttt{} & \texttt{escore} & double & Escore composto 0-100: média simples das dimensões normalizadas disponíveis (soma ponderada com pesos iguais: 0,20 com 5 dimensões, 0,25 com 4). Nulo com < 4 dimensões. Relativo ao grupo de perfis. \\
+\texttt{} & \texttt{ranking} & int64 & Posição do perfil pelo escore (1 = maior; desempate por inputUrl). Nulo quando o perfil não tem escore. \\
+\texttt{content\_topic\_priority\_score} & \texttt{Topic} & int64 & Id numérico do tópico de DISCURSO (BERTopic de legendas) que define a pauta - espaço de ids distinto do tópico de comentário. O ruído (-1) nunca é pauta. \\
+\texttt{} & \texttt{Name} & string & Rótulo da pauta: tópico de discurso sem o prefixo de id; rótulo refinado via Gemini quando o refino do discurso rodou, palavras-chave separadas por vírgula quando provisório, ou "sem assunto definido" quando o tópico é degenerado. \\
+\texttt{} & \texttt{n\_reels} & int64 & Número de reels distintos cuja legenda pertence à pauta e que receberam ao menos um comentário. \\
+\texttt{} & \texttt{n\_comentarios} & int64 & Número de comentários (fonte == 'comentario') dos reels da pauta - cada reel conta numa única pauta, então os totais somam o total real de comentários com pauta. \\
+\texttt{} & \texttt{n\_comentarios\_positivos} & int64 & Comentários da pauta com sentiment\_label == 'positive'. \\
+\texttt{} & \texttt{n\_comentarios\_negativos} & int64 & Comentários da pauta com sentiment\_label == 'negative'. \\
+\texttt{} & \texttt{proporcao\_sentimento\_positivo} & double & n\_comentarios\_positivos / n\_comentarios. \\
+\texttt{} & \texttt{alcance\_pauta} & int64 & Soma de (likesCount + repliesCount) dos comentários da pauta - PROXY por engajamento, não alcance nem visualizações reais. \\
+\texttt{} & \texttt{alcance\_normalizado} & double & alcance\_pauta / (alcance\_pauta + 1) - satura suavemente em [0,1), estável entre execuções. \\
+\texttt{} & \texttt{confianca} & double & Média de sentiment\_score (confiança do classificador, não polaridade) dos comentários da pauta. \\
+\texttt{} & \texttt{impacto} & double & alcance\_normalizado x proporcao\_sentimento\_positivo. \\
+\texttt{} & \texttt{facilidade} & double & Fixa em 1,0 (v1) - sem dado de custo de produção real. \\
+\texttt{} & \texttt{score} & double & Impacto x Confiança x Facilidade - base do selo de prioridade (Alta/Média/Cuidado por tercis do ranking global de pautas) na fila de "O que produzir". \\
+\end{longtable}
+\end{footnotesize}

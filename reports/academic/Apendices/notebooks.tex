@@ -1,0 +1,46 @@
+% !TEX root = ../TCC - CD e IA.tex
+Os notebooks do repositório não executam a modelagem: desde a decisão registrada na ADR 0003, eles leem as tabelas Gold e o \emph{checkpoint} gravados pelos scripts e servem para análise, visualização e geração das figuras e tabelas deste texto. Isso garante que qualquer figura possa ser regenerada a partir da mesma Coleta, pelo mesmo caminho, sem reprocessar embeddings. A Tabela~\ref{tab:notebooks} relaciona cada notebook ao que ele produz.
+
+\begin{table}[htb]
+\centering
+\caption{Notebooks do repositório e o que cada um gera neste trabalho}
+\label{tab:notebooks}
+\small
+\begin{tabular}{p{5.6cm}p{8.6cm}}
+\toprule
+\textbf{Notebook} & \textbf{Papel e artefatos gerados} \\
+\midrule
+\multicolumn{2}{l}{\emph{Narrativa do TCC} (\texttt{notebooks/})} \\
+\texttt{01\_extracao\_e\_limpeza\_de\_dados} & Inspeção da Bronze e da Silver da Coleta; contagens do Capítulo~\ref{FontesDados}. \\
+\texttt{02\_analise\_exploratoria} & Estatísticas descritivas, correlações e \emph{boxplots} da Seção de análise exploratória do Capítulo~\ref{Desenvolvimento}. \\
+\texttt{03\_modelagem\_hibrida} & Leitura do \emph{checkpoint} da modelagem: componentes da ACP, avaliação do \texttt{AutoClusterHPO}, projeção dos clusters, distribuição de sentimento geral, por perfil e por cluster; figuras correspondentes. \\
+\texttt{05\_visualizacao\_e\_conclusoes} & Visualizações do BERTopic (mapa intertópico, dendrograma, matriz de similaridade) para comentários e para o discurso; cruzamento cluster--sentimento. \\
+\texttt{06\_regressao\_performance\_video}, \texttt{07\_regressao\_performance\_estatico} & Diagnóstico da regressão de desempenho por publicação (ADR 0019): coeficientes e resíduos. \\
+\midrule
+\multicolumn{2}{l}{\emph{Diagnóstico das tabelas Gold} (\texttt{notebooks/diagnostico\_medallion/}, ADR 0022)} \\
+\texttt{00\_bronze\_silver\_overview} & Completude, duplicidade e cobertura por camada. \\
+\texttt{gold\_engagement}, \texttt{gold\_sentiment}, \texttt{gold\_clusters}, \texttt{gold\_profile\_clusters\_engagement}, \texttt{gold\_discourse\_topics}, \texttt{gold\_nsm}, \texttt{gold\_growth\_metrics}, \texttt{gold\_ugc} & Um notebook por tabela Gold: distribuição, tamanho de grupos, valores nulos e conferência contra a Silver. São a verificação de sanidade dos números do Capítulo~\ref{Resultados}. \\
+\midrule
+\multicolumn{2}{l}{\emph{Avaliação de modelagens} (\texttt{notebooks/modelagens/}, ADR 0040)} \\
+\texttt{tendencia\_01\_simulacao} & Simulação com verdade conhecida dos estimadores de tendência (falso alarme, poder, cobertura do IC). \\
+\texttt{tendencia\_02\_proporcoes\_e\_agregacao} & Estimadores para indicadores de proporção e regras de agregação entre perfis. \\
+\texttt{tendencia\_03\_backtest} & Aplicação à Coleta real; base da Consistência adotada no Scorecard (ADR 0047). \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section*{Como reproduzir os resultados}
+
+Com o Python 3.10 ou superior e o gerenciador \texttt{uv} instalados, a sequência completa é:
+
+\begin{enumerate}
+    \item \texttt{uv sync}, para instalar as dependências declaradas em \texttt{pyproject.toml};
+    \item \texttt{uv run python coleta.py baixar tcc --destino data}, para obter a Coleta do TCC do \emph{dataset} privado (exige um \emph{token} de leitura);
+    \item \texttt{uv run python scripts/run\_modeling.py --parent-run-id <run\_id da Coleta>}, para o estágio determinístico (ACP, clusterização, sentimento, tópicos, NSM, prioridades); o \texttt{run\_id} da Coleta consta do manifesto;
+    \item \texttt{uv run python scripts/refine\_topics.py --run-id <run\_id da modelagem>}, para o refinamento dos rótulos via Gemini (exige chave de API; etapa não determinística, ver Capítulo~\ref{Conclusões});
+    \item \texttt{uv run python scripts/run\_growth\_metrics.py} e \texttt{uv run python scripts/run\_governor\_scorecard.py}, para as métricas de crescimento e o escore composto;
+    \item execução dos notebooks na ordem da Tabela~\ref{tab:notebooks}, que regrava as figuras em \texttt{reports/figures/};
+    \item \texttt{uv run streamlit run dashboard/app.py}, para o painel.
+\end{enumerate}
+
+As sementes de aleatoriedade são fixadas em configuração (\texttt{RANDOM\_STATE}), de modo que a ACP, a busca de hiperparâmetros e a clusterização reproduzem os mesmos resultados sobre a mesma Coleta; a exceção documentada é o refinamento de rótulos por LLM.
