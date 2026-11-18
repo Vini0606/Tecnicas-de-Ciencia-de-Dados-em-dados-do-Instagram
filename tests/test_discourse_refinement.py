@@ -87,7 +87,8 @@ def test_modelagem_persiste_modelo_e_documentos_de_discurso_no_checkpoint(
     assert saved["discourse_topic_model"] is not None
     df_discourse = saved["df_discourse"]
     assert {"id_reel", "text", "fonte", "Topic", "Name"} <= set(df_discourse.columns)
-    assert len(df_discourse) == 12 + 12  # legendas (posts) + transcricoes (reels)
+    # 12 legendas; os reels da fixture nao tem transcricao e nao viram documento.
+    assert len(df_discourse) == 12
 
 
 def _discourse_fixture():
