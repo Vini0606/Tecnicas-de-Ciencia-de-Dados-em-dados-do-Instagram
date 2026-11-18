@@ -1,7 +1,7 @@
 # Tendência própria
 
-**Status:** em avaliação (fases 1 e 2a de simulação concluídas; falta o *backtest* com dado real)
-**Atualizada em:** 2026-10-11
+**Status:** validada em simulação; estimador de contagem em produção no Scorecard (ADR 0047); proporção e "Todos" em avaliação
+**Atualizada em:** 2026-11-18
 
 ## Pergunta de negócio
 
@@ -26,10 +26,14 @@ suficiente, nenhuma seta. Limiares a calibrar no *backtest* (faixas sugeridas ab
 
 ## Método escolhido
 
-Ainda não decidido. Candidatos após as fases 1 e 2a (simulação):
+Decidido só para **contagem no Scorecard** (ADR 0047, 2026-11-18); o restante segue candidato após as fases 1 e 2a (simulação):
 
 - **Indicadores de contagem:** regressão linear do log do valor no tempo, com o formato do conteúdo como controle (OLS com
-  controles), IC de 95%.
+  controles), IC de 95%. **Em produção** como dimensão Consistência do Escore composto e como estado da Tendência do engajamento
+  na sub-aba Scorecard (`estimar_tendencia_engajamento` em `src/modeling/governor_scorecard.py`): unidade = publicação
+  deduplicada por `id`, sem fixadas, com >= 7 dias de vida; `t` em meses de 30 dias desde a primeira publicação do perfil;
+  `MIN_PUBLICACOES = 15`, `MIN_DIAS_DISTINTOS = 10`, `MIN_EFEITO_MENSAL = 0,05`. Esses limiares são os pontos de partida
+  desta ficha; o *backtest* com dado real continua pendente.
 - **Indicadores de proporção:** o mesmo OLS, aplicado ao log da proporção com correção de continuidade
   (`log((k+0,5)/(n+1))` por publicação, sem peso, com formato como controle). Alternativa equivalente: meta-regressão no logit
   empírico por post (efeitos aleatórios, Knapp–Hartung), a considerar se houver muitas publicações com poucos comentários.
@@ -117,8 +121,11 @@ célula; verdade = média dos efeitos com peso igual por perfil). Acerto do esta
 
 ## Vínculos
 
-- Código: ainda não implementado (candidatos futuros em `dashboard/core/deltas.py` ou `src/modeling/`).
-- ADR: [0040](../adr/0040-tendencia-propria-substitui-comparativo-vs-mediana-e-catalogo-de-modelagens.md) (proposto)
+- Código: contagem no Scorecard em [`src/modeling/governor_scorecard.py`](../../src/modeling/governor_scorecard.py)
+  (`estimar_tendencia_engajamento`, `classificar_tendencia`) e [`dashboard/screens/resumo_scorecard.py`](../../dashboard/screens/resumo_scorecard.py);
+  proporção e "Todos" ainda não implementados (candidatos futuros em `dashboard/core/deltas.py` ou `src/modeling/`).
+- ADR: [0047](../adr/0047-consistencia-por-regressao-por-publicacao-e-tendencia-no-scorecard.md) (aceita, contagem no Scorecard),
+  [0040](../adr/0040-tendencia-propria-substitui-comparativo-vs-mediana-e-catalogo-de-modelagens.md) (proposta para o restante)
 - Notebooks: [`notebooks/modelagens/tendencia_01_simulacao.ipynb`](../../notebooks/modelagens/tendencia_01_simulacao.ipynb),
   [`notebooks/modelagens/tendencia_02_proporcoes_e_agregacao.ipynb`](../../notebooks/modelagens/tendencia_02_proporcoes_e_agregacao.ipynb)
 - Glossário: **Tendência** e **Comparativo vs. mediana** em `CONTEXT.md`

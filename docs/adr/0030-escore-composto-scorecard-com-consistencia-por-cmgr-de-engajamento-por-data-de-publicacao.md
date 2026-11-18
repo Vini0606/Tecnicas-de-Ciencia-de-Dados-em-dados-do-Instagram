@@ -2,6 +2,13 @@
 status: accepted
 ---
 
+> **Nota (superseded parcial):** o método da dimensão Consistência (CMGR sobre médias mensais, mínimo de 4
+> meses válidos, janela de 12 meses) foi substituído pela ADR
+> [0047](0047-consistencia-por-regressao-por-publicacao-e-tendencia-no-scorecard.md): taxa mensal estimada
+> por regressão por publicação, com IC de 95%, controle de formato e o estado da Tendência do engajamento
+> gravado no scorecard. O restante desta ADR (as outras quatro dimensões, normalização, pesos, mínimo de
+> dimensões, tabela própria, "não é crescimento de audiência") continua valendo.
+
 # Escore composto (Scorecard) com Consistência medida por CMGR de engajamento por data de publicação
 
 ## Contexto
