@@ -31,6 +31,10 @@ def deduplicate_docs(docs: list[str]) -> tuple[list[str], np.ndarray]:
     deve passar a lista única, e expandir o resultado com `inverse`."""
     docs_array = np.asarray(docs, dtype=object)
     unique_docs, inverse = np.unique(docs_array, return_inverse=True)
+    if len(unique_docs) == len(docs_array):
+        # Sem duplicatas: preserva a ordem original (identidade), para que o
+        # ajuste e as consultas vejam exatamente a lista recebida.
+        return [str(doc) for doc in docs_array], np.arange(len(docs_array))
     unique_docs_list = [str(doc) for doc in unique_docs]
     logger.info(
         "BERTopic: %d documentos, %d únicos após deduplicação exata.",

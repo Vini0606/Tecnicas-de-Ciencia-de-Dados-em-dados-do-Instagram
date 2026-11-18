@@ -192,7 +192,8 @@ def test_refino_de_comentario_preserva_linhas_de_legenda_e_transcricao(
     before = DeltaTable(str(config.gold_sentiment_path)).to_pandas()
     n_legenda = (before["fonte"] == "legenda").sum()
     n_transcricao = (before["fonte"] == "transcricao").sum()
-    assert n_legenda > 0 and n_transcricao > 0
+    # Os reels da fixture nao tem transcricao: so legendas geram linha.
+    assert n_legenda > 0 and n_transcricao == 0
 
     gemini_config = GeminiRefinerConfig(
         api_key="fake-key",
