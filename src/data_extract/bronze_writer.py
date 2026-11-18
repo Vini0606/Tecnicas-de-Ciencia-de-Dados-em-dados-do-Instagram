@@ -1,6 +1,8 @@
 """
-src/data_extract/bronze_writer.py
-BronzeWriter implementation using deltalake write_deltalake.
+BronzeWriter: escreve a Bronze fiel (ADR 0039), uma tabela Delta por entidade.
+
+Só escrita (ADR 0046). Quem lê a Bronze, inclusive a derivação Silver/Gold, usa
+`DeltaRepository(bronze_dir=...)`.
 """
 
 from __future__ import annotations
@@ -13,7 +15,6 @@ from pathlib import Path
 
 import pandas as pd
 import pyarrow as pa
-from deltalake import DeltaTable
 
 from src.delta_io import write_delta
 from src.schemas_delta import (
@@ -74,29 +75,6 @@ class BronzeWriter:
             raw_data, self._paths["ugc_mentions"], BRONZE_UGC_MENTIONS_SCHEMA, run_id
         )
 
-    def get_latest_profiles(self) -> pd.DataFrame:
-        return self._read_latest(self._paths["profiles"])
-
-    def get_profiles_at(
-        self, version: int | None = None, timestamp: str | None = None
-    ) -> pd.DataFrame:
-        return self._read_at(
-            self._paths["profiles"], version=version, timestamp=timestamp
-        )
-
-    def get_latest_posts(self) -> pd.DataFrame:
-        return self._read_latest(self._paths["posts"])
-
-    def get_latest_reels(self) -> pd.DataFrame:
-        return self._read_latest(self._paths["reels"])
-
-    def get_latest_ugc_mentions(self) -> pd.DataFrame:
-        return self._read_latest(self._paths["ugc_mentions"])
-
-    def get_history(self, entity: str) -> pd.DataFrame:
-        dt = DeltaTable(self._paths[entity], storage_options=self._storage_options)
-        return pd.DataFrame(dt.history())
-
     def _add_ingestion_metadata(
         self, raw_data: list[dict], run_id: str, schema: pa.Schema | None = None
     ) -> list[dict]:
@@ -145,22 +123,3 @@ class BronzeWriter:
         )
 
         return run_id
-
-    def _read_latest(self, path: str) -> pd.DataFrame:
-        try:
-            dt = DeltaTable(path, storage_options=self._storage_options)
-            return dt.to_pandas()
-        except Exception as e:
-            raise FileNotFoundError(
-                f"Tabela Bronze não encontrada em {path}. Execute o pipeline de extração primeiro. Detalhe: {e}"
-            ) from e
-
-    def _read_at(
-        self, path: str, version: int | None, timestamp: str | None
-    ) -> pd.DataFrame:
-        dt = DeltaTable(path, storage_options=self._storage_options)
-        if version is not None:
-            return dt.load_as_version(version).to_pandas()
-        if timestamp is not None:
-            return dt.load_with_datetime(timestamp).to_pandas()
-        raise ValueError("Forneça version ou timestamp para time travel.")

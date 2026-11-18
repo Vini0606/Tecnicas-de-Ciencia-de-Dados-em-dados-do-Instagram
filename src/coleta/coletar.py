@@ -32,7 +32,7 @@ from src.coleta.custo import (
     teto_da_colecao,
     teto_efetivo,
 )
-from src.coleta.derivacao import caminhos_do_destino, derivar_silver_gold
+from src.coleta.derivacao import caminhos_do_destino, derivar_silver_gold, repositorio_do_destino
 from src.coleta.landing import ScraperComLanding
 from src.coleta.manifesto import escrever_manifesto, gerar_manifesto, versao_do_codigo
 from src.coleta.recorte import Recorte, gerar_tag
@@ -205,7 +205,8 @@ def coletar(
     governors_cleaner = GovernorsMetadataCleaner()
     governors_cleaner.write(governors_cleaner.clean(df_governadores, run_id), p["silver_governors"])
 
-    derivar_silver_gold(bronze, p, governor_usernames, run_id, modelar=modelar)
+    # Leitura da Bronze pelo repositorio, nao pelo writer (ADR 0046).
+    derivar_silver_gold(repositorio_do_destino(p), p, governor_usernames, run_id, modelar=modelar)
 
     manifesto = gerar_manifesto(
         destino,

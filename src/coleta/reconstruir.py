@@ -24,9 +24,8 @@ from urllib.parse import urlparse
 
 from deltalake import DeltaTable, write_deltalake
 
-from src.coleta.derivacao import caminhos_do_destino, derivar_silver_gold
+from src.coleta.derivacao import caminhos_do_destino, derivar_silver_gold, repositorio_do_destino
 from src.coleta.hf import ClienteColetaHF, baixar
-from src.data_extract.bronze_writer import BronzeWriter
 from src.run_id import build_run_id
 
 logger = logging.getLogger(__name__)
@@ -99,15 +98,14 @@ def _reconstruir_de(snapshot: Path, tag: str, destino: Path | str, run_id: str) 
     urls = DeltaTable(str(metadados)).to_pandas()["inputUrl"]
     usernames = sorted({_username_da_url(u) for u in urls if u})
 
-    origem_p = caminhos_do_destino(snapshot)
-    bronze = BronzeWriter(
-        bronze_profiles_path=origem_p["bronze_profiles"],
-        bronze_posts_path=origem_p["bronze_posts"],
-        bronze_reels_path=origem_p["bronze_reels"],
-        bronze_ugc_mentions_path=origem_p["bronze_ugc"],
-    )
+    # Le a Bronze do Snapshot local pelo repositorio (ADR 0046) e grava
+    # Silver/Gold no destino (local ou S3).
     derivar_silver_gold(
-        bronze, caminhos_do_destino(destino), usernames, run_id, modo_historico="overwrite"
+        repositorio_do_destino(caminhos_do_destino(snapshot)),
+        caminhos_do_destino(destino),
+        usernames,
+        run_id,
+        modo_historico="overwrite",
     )
 
     gold = snapshot / "gold"

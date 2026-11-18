@@ -9,6 +9,7 @@ from deltalake import DeltaTable, write_deltalake
 
 from src.data_extract.bronze_writer import BronzeWriter
 from src.features.gold.model_enricher import ModelEnricher
+from src.repositories.delta_repository import DeltaRepository
 from src.features.silver.comment_cleaner import CommentCleaner
 from src.modeling.comment_sources import combine_comment_sources
 from src.schemas_delta import BRONZE_POSTS_SCHEMA
@@ -18,14 +19,24 @@ def _comentario(id_comment, text="ok", autor="eleitor"):
     return f'{{"id": "{id_comment}", "text": "{text}", "ownerUsername": "{autor}"}}'
 
 
+def _writer_bronze(tmp_path):
+    return BronzeWriter(
+        tmp_path / "instagram_profiles", tmp_path / "instagram_posts", tmp_path / "instagram_reels"
+    )
+
+
+def _bronze_posts(tmp_path):
+    return DeltaRepository(gold_dir=tmp_path / "gold", bronze_dir=tmp_path).load_bronze_posts()
+
+
 def test_bronze_de_posts_guarda_latest_comments_como_json(tmp_path):
-    writer = BronzeWriter(tmp_path / "profiles", tmp_path / "posts", tmp_path / "reels")
+    writer = _writer_bronze(tmp_path)
 
     writer.write_posts(
         [{"id": "p1", "latestComments": [{"id": "c1", "text": "ok"}]}], run_id="run_1"
     )
 
-    out = writer.get_latest_posts()
+    out = _bronze_posts(tmp_path)
     assert out.iloc[0]["latestComments"] == '[{"id": "c1", "text": "ok"}]'
 
 
@@ -46,14 +57,14 @@ def test_bronze_de_posts_antiga_sem_latest_comments_e_substituida_pela_coleta_no
         if field.name not in antiga.columns:
             antiga[field.name] = pd.NA
     write_deltalake(
-        str(tmp_path / "posts"),
+        str(tmp_path / "instagram_posts"),
         pa.Table.from_pandas(antiga, schema=schema_antigo, preserve_index=False),
     )
-    writer = BronzeWriter(tmp_path / "profiles", tmp_path / "posts", tmp_path / "reels")
+    writer = _writer_bronze(tmp_path)
 
     writer.write_posts([{"id": "p1", "latestComments": [{"id": "c1"}]}], run_id="run_1")
 
-    out = writer.get_latest_posts().set_index("id")
+    out = _bronze_posts(tmp_path).set_index("id")
     assert "p0" not in out.index
     assert out.loc["p1", "latestComments"] == '[{"id": "c1"}]'
 
