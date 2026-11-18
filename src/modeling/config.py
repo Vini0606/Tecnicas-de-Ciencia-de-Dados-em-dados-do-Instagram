@@ -98,7 +98,11 @@ class TopicModelConfig:
     # `"auto"` (ver `DiscourseTopicModelConfig`) deixa o BERTopic mesclar só
     # tópicos redundantes, sem forçar uma contagem alvo.
     nr_topics: int | str = 50
-    calculate_probabilities: bool = True
+    # Desligado: a matriz de pertinência suave do HDBSCAN
+    # (`all_points_membership_vectors`) é descartada por todos os chamadores
+    # (`_probs` em `orchestration.py`) e custa horas sobre dezenas de milhares
+    # de documentos; os tópicos (rótulos duros) não mudam com a opção.
+    calculate_probabilities: bool = False
     verbose: bool = True
     token_pattern: str = EMOJI_TOKEN_PATTERN
 

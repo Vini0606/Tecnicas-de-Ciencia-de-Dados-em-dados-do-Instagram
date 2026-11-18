@@ -55,7 +55,27 @@ def model_topics(
         verbose=config.verbose,
     )
 
-    _topics, probs = topic_model.fit_transform(docs)
+    # Documentos idênticos após o pré-processamento (ex.: comentários só de
+    # emojis -- na Coleta do TCC, 49% dos 75,6 mil comentários repetem um
+    # texto já visto) entram UMA vez no ajuste e recebem o mesmo tópico no
+    # final via `inverse`. Motivo técnico: pontos exatamente coincidentes no
+    # espaço reduzido do UMAP degeneram o HDBSCAN (distâncias nulas), que
+    # ficou horas sem concluir sobre o corpus completo; motivo metodológico:
+    # o texto é o documento, então cópias não acrescentam informação ao
+    # modelo e só inflariam os tópicos de aplauso. A contagem por tópico nas
+    # tabelas Gold continua sendo por comentário (uma linha por documento
+    # original), porque `document_info` é expandido de volta abaixo.
+    docs_array = np.asarray(docs, dtype=object)
+    unique_docs, inverse = np.unique(docs_array, return_inverse=True)
+    unique_docs_list = [str(doc) for doc in unique_docs]
+    logger.info(
+        "BERTopic: %d documentos, %d únicos após deduplicação exata.",
+        len(docs_array),
+        len(unique_docs_list),
+    )
+
+    _topics, probs_unique = topic_model.fit_transform(unique_docs_list)
+    probs = probs_unique[inverse] if probs_unique is not None else None
 
     # ADR 0012/0015: `reduce_topics` recalcula a representação inteira mesmo
     # quando não há nada a reduzir (nr_topics >= tópicos atuais) -- comportamento
@@ -72,7 +92,7 @@ def model_topics(
             config.nr_topics,
         )
     start = time.monotonic()
-    topic_model.reduce_topics(docs, nr_topics=config.nr_topics)
+    topic_model.reduce_topics(unique_docs_list, nr_topics=config.nr_topics)
     elapsed = time.monotonic() - start
     logger.debug(
         "BERTopic.reduce_topics levou %.1fs (no-op=%s).", elapsed, is_noop
@@ -81,7 +101,8 @@ def model_topics(
     # `reduce_topics` não retorna as atribuições atualizadas — o array
     # `_topics` de `fit_transform` fica desatualizado após a redução.
     # `document_info["Topic"]` reflete o estado do modelo pós-redução.
-    document_info = topic_model.get_document_info(docs)
+    document_info_unique = topic_model.get_document_info(unique_docs_list)
+    document_info = document_info_unique.iloc[inverse].reset_index(drop=True)
     topics = document_info["Topic"].tolist()
 
     return topic_model, topics, probs, document_info
