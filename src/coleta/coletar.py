@@ -32,7 +32,11 @@ from src.coleta.custo import (
     teto_da_colecao,
     teto_efetivo,
 )
-from src.coleta.derivacao import caminhos_do_destino, derivar_silver_gold, repositorio_do_destino
+from src.coleta.derivacao import (
+    caminhos_do_destino,
+    derivar_silver_gold,
+    repositorio_do_destino,
+)
 from src.coleta.landing import ScraperComLanding
 from src.coleta.manifesto import escrever_manifesto, gerar_manifesto, versao_do_codigo
 from src.coleta.recorte import Recorte, gerar_tag

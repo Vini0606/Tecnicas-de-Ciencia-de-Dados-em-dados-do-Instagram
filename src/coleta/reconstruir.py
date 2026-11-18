@@ -24,7 +24,11 @@ from urllib.parse import urlparse
 
 from deltalake import DeltaTable, write_deltalake
 
-from src.coleta.derivacao import caminhos_do_destino, derivar_silver_gold, repositorio_do_destino
+from src.coleta.derivacao import (
+    caminhos_do_destino,
+    derivar_silver_gold,
+    repositorio_do_destino,
+)
 from src.coleta.hf import ClienteColetaHF, baixar
 from src.run_id import build_run_id
 
