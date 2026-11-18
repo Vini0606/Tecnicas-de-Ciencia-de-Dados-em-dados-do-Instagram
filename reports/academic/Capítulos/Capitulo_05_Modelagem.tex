@@ -9,7 +9,7 @@ A análise exploratória tem três finalidades neste trabalho: verificar a quali
 
 \subsection{Análise Univariada}
 
-\paragraph{Perfis.} A Tabela~\ref{tab:estatisticas_perfis} resume as métricas dos 26 perfis. A audiência é fortemente concentrada: a média de 1,14 milhão de seguidores é o dobro da mediana de 563,7 mil, e o desvio-padrão supera a média (coeficiente de variação de 138\%). O perfil mais seguido, o de São Paulo, tem 7,7 milhões de seguidores, 65 vezes o menos seguido, o do Espírito Santo. O número de contas seguidas (mediana de 2.930) e o total acumulado de publicações do perfil (mediana de 6.759) são métricas de histórico e não entram na modelagem; registram apenas que todos os perfis são contas maduras e ativas.
+\paragraph*{Perfis.} A Tabela~\ref{tab:estatisticas_perfis} resume as métricas dos 26 perfis. A audiência é fortemente concentrada: a média de 1,14 milhão de seguidores é o dobro da mediana de 563,7 mil, e o desvio-padrão supera a média (coeficiente de variação de 138\%). O perfil mais seguido, o de São Paulo, tem 7,7 milhões de seguidores, 65 vezes o menos seguido, o do Espírito Santo. O número de contas seguidas (mediana de 2.930) e o total acumulado de publicações do perfil (mediana de 6.759) são métricas de histórico e não entram na modelagem; registram apenas que todos os perfis são contas maduras e ativas.
 
 As métricas de engajamento da janela são as que interessam ao funil. O engajamento total (curtidas mais comentários nas publicações dos 70 dias) tem média de 4,8 milhões e mediana de 2,2 milhões, com máximo de 37,6 milhões em São Paulo. O \textbf{engajamento por seguidor}, razão entre o engajamento total da janela e o número de seguidores, é a métrica de eficiência do perfil: sua mediana é 6,6, isto é, o perfil típico acumulou na campanha um volume de interações equivalente a seis vezes e meia a sua base de seguidores, com extremos de 21,2 (Amapá) e de praticamente zero nos dois perfis quase inativos. A \textbf{frequência} de publicação (publicações por dia de atividade) tem mediana de 3,8 e máximo de 12,3 (Piauí): a campanha impôs um ritmo de várias publicações diárias. A \textbf{recência}, definida como $1/(\text{dias desde a última publicação}+1)$, vale 1,0 para pelo menos três quartos dos perfis, o que indica presença diária; os valores baixos pertencem aos perfis do Distrito Federal e de Rondônia, cuja última publicação na janela é anterior em semanas ao fim dela.
 
@@ -17,7 +17,7 @@ As métricas de engajamento da janela são as que interessam ao funil. O engajam
 \centering
 \caption{Estatísticas descritivas dos 26 perfis e de seu engajamento na janela da Coleta}
 \label{tab:estatisticas_perfis}
-\small
+\footnotesize\setlength{\tabcolsep}{3pt}
 \setlength{\tabcolsep}{4pt}
 \begin{tabular}{lrrrrrrr}
 \toprule
@@ -37,7 +37,7 @@ Recência & 0,86 & 0,30 & 0,04 & 1,00 & 1,00 & 1,00 & 1,00 \\
 \end{tabular}
 \end{table}
 
-\paragraph{\emph{Reels}.} A Tabela~\ref{tab:estatisticas_reels} descreve os 5.904 \emph{Reels}. Todas as métricas de desempenho têm assimetria positiva extrema: a média de curtidas (15.619) é cinco vezes a mediana (3.092) e o coeficiente de variação passa de 440\%; a média de comentários (1.151) é quatro vezes a mediana (275); as reproduções têm média de 357,7 mil e mediana de 87,5 mil, com um máximo de 39,3 milhões. Em cada métrica, o décimo percentil superior começa longe da mediana (29,1 mil curtidas, 2,1 mil comentários, 784,5 mil reproduções), o que indica que uma minoria de vídeos concentra a maior parte do engajamento e do alcance. É essa cauda que a clusterização da Seção~\ref{sec:clusterizacao} precisa isolar, e é por ela que as etapas seguintes trabalham com escalas logarítmicas ou com métodos robustos a valores extremos. A duração tem mediana de 50,6 segundos e metade dos vídeos entre 33 e 70 segundos, o formato curto consolidado na plataforma; 12,9\% passam de 90 segundos e 2,1\% de três minutos, com um máximo de 69 minutos, correspondente a transmissões e discursos publicados como vídeo. Quarenta e sete \emph{Reels} e 63 publicações do \emph{feed} têm contagem de curtidas igual a $-1$, código da plataforma para contagem oculta pelo autor; são tratados como ausentes.
+\paragraph*{\emph{Reels}.} A Tabela~\ref{tab:estatisticas_reels} descreve os 5.904 \emph{Reels}. Todas as métricas de desempenho têm assimetria positiva extrema: a média de curtidas (15.619) é cinco vezes a mediana (3.092) e o coeficiente de variação passa de 440\%; a média de comentários (1.151) é quatro vezes a mediana (275); as reproduções têm média de 357,7 mil e mediana de 87,5 mil, com um máximo de 39,3 milhões. Em cada métrica, o décimo percentil superior começa longe da mediana (29,1 mil curtidas, 2,1 mil comentários, 784,5 mil reproduções), o que indica que uma minoria de vídeos concentra a maior parte do engajamento e do alcance. É essa cauda que a clusterização da Seção~\ref{sec:clusterizacao} precisa isolar, e é por ela que as etapas seguintes trabalham com escalas logarítmicas ou com métodos robustos a valores extremos. A duração tem mediana de 50,6 segundos e metade dos vídeos entre 33 e 70 segundos, o formato curto consolidado na plataforma; 12,9\% passam de 90 segundos e 2,1\% de três minutos, com um máximo de 69 minutos, correspondente a transmissões e discursos publicados como vídeo. Quarenta e sete \emph{Reels} e 63 publicações do \emph{feed} têm contagem de curtidas igual a $-1$, código da plataforma para contagem oculta pelo autor; são tratados como ausentes.
 
 \begin{table}[htb]
 \centering
@@ -57,27 +57,27 @@ Duração (s) & 60,5 & 91,2 & 33,1 & 50,6 & 69,9 & 97,6 & 4.151,4 & 1,51 \\
 \end{tabular}
 \end{table}
 
-\paragraph{Publicações do \emph{feed}.} As 8.437 publicações da grade do \emph{feed} dividem-se em 5.856 vídeos (em sua quase totalidade os mesmos \emph{Reels}), 1.591 carrosséis e 990 imagens. Como o extrator do \emph{feed} não devolve reproduções nem duração, a análise dessa fonte usa curtidas e comentários (Tabela~\ref{tab:estatisticas_feed}). A comparação entre formatos é direta quando se isolam as 2.584 publicações estáticas (imagens e carrosséis que não são \emph{Reels}): sua mediana de curtidas é de 2.276, contra 3.092 nos \emph{Reels}, e a de comentários é de 162, contra 275. O vídeo curto rende, no perfil típico, cerca de um terço a mais de interações por publicação que o conteúdo estático, e é também o formato dominante em volume: 69\% das publicações da janela.
+\paragraph*{Publicações do \emph{feed}.} As 8.437 publicações da grade do \emph{feed} dividem-se em 5.856 vídeos (em sua quase totalidade os mesmos \emph{Reels}), 1.591 carrosséis e 990 imagens. Como o extrator do \emph{feed} não devolve reproduções nem duração, a análise dessa fonte usa curtidas e comentários (Tabela~\ref{tab:estatisticas_feed}). A comparação entre formatos é direta quando se isolam as 2.584 publicações estáticas (imagens e carrosséis que não são \emph{Reels}): sua mediana de curtidas é de 2.276, contra 3.092 nos \emph{Reels}, e a de comentários é de 162, contra 275. O vídeo curto rende, no perfil típico, cerca de um terço a mais de interações por publicação que o conteúdo estático, e é também o formato dominante em volume: 69\% das publicações da janela.
 
 \begin{table}[htb]
 \centering
 \caption{Estatísticas descritivas das publicações do \emph{feed} e do subconjunto estático}
 \label{tab:estatisticas_feed}
-\small
-\setlength{\tabcolsep}{4pt}
+\footnotesize\setlength{\tabcolsep}{1.5pt}
+\setlength{\tabcolsep}{2.5pt}
 \begin{tabular}{llrrrrrrr}
 \toprule
 \textbf{Conjunto} & \textbf{Métrica} & \textbf{n} & \textbf{Média} & \textbf{Q1} & \textbf{Mediana} & \textbf{Q3} & \textbf{P90} & \textbf{Máx.} \\
 \midrule
 \emph{Feed} completo & Curtidas & 8.437 & 13.838 & 1.071 & 2.818 & 8.140 & 25.656 & 2.306.451 \\
  & Comentários & 8.437 & 977 & 88 & 237 & 625 & 1.864 & 131.030 \\
-Estáticas (imagem, carrossel) & Curtidas & 2.584 & 9.652 & 909 & 2.276 & 6.825 & 21.054 & 477.420 \\
+Estáticas & Curtidas & 2.584 & 9.652 & 909 & 2.276 & 6.825 & 21.054 & 477.420 \\
  & Comentários & 2.584 & 577 & 61 & 162 & 452 & 1.266 & 46.004 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\paragraph{Distribuição no tempo.} O volume de publicações acompanha o calendário eleitoral: 1.328 \emph{Reels} na segunda quinzena de agosto, 3.189 em setembro e 1.387 nos 25 dias de outubro (o \emph{feed} segue a mesma forma, com 1.899, 4.422 e 2.116). As reproduções médias por \emph{Reel}, porém, crescem ao longo da janela, de 278 mil em agosto para 318 mil em setembro e 524 mil em outubro, quando a quantidade de publicações cai após o primeiro turno e o alcance de cada uma sobe. Essa variação temporal é a razão de a Consistência do escore composto (Seção~\ref{sec:consistencia}) ser estimada por data de publicação, e não por médias mensais.
+\paragraph*{Distribuição no tempo.} O volume de publicações acompanha o calendário eleitoral: 1.328 \emph{Reels} na segunda quinzena de agosto, 3.189 em setembro e 1.387 nos 25 dias de outubro (o \emph{feed} segue a mesma forma, com 1.899, 4.422 e 2.116). As reproduções médias por \emph{Reel}, porém, crescem ao longo da janela, de 278 mil em agosto para 318 mil em setembro e 524 mil em outubro, quando a quantidade de publicações cai após o primeiro turno e o alcance de cada uma sobe. Essa variação temporal é a razão de a Consistência do escore composto (Seção~\ref{sec:consistencia}) ser estimada por data de publicação, e não por médias mensais.
 
 \subsection{Análise Bivariada}
 
@@ -87,7 +87,7 @@ A Tabela~\ref{tab:correlacao_perfis} apresenta as correlações entre as métric
 \centering
 \caption{Matriz de correlação de Pearson entre as métricas dos 26 perfis}
 \label{tab:correlacao_perfis}
-\small
+\footnotesize\setlength{\tabcolsep}{3pt}
 \setlength{\tabcolsep}{4pt}
 \begin{tabular}{lrrrrrr}
 \toprule
@@ -126,52 +126,285 @@ Duração & 0,02 & 0,03 & 0,02 & 1,00 \\
 
 A modelagem é executada por um único estágio determinístico, que lê a Silver e a Gold de engajamento da Coleta e grava as tabelas Gold de modelagem, seguido de uma etapa manual de refinamento de rótulos. O estágio determinístico encadeia, nesta ordem: o pré-processamento dos textos; a Análise de Componentes Principais e a clusterização automática dos \emph{Reels} e, separadamente, das publicações do \emph{feed}; a análise de sentimentos dos comentários e das legendas; a modelagem de tópicos dos comentários e, com modelo próprio, das legendas; o cálculo da \emph{North Star Metric} e dos escores de prioridade; a regressão de desempenho por publicação; e a clusterização dos perfis. Toda a aleatoriedade é controlada por uma semente fixa, e o estado final (modelos de ACP e de agrupamento, modelos de tópicos, quadros intermediários) é persistido em um \emph{checkpoint} identificado pelo \texttt{run\_id} da execução, de modo que o refinamento de rótulos e os notebooks de análise leiam exatamente o que foi ajustado, sem recomputar.
 
-\paragraph{Pré-processamento textual.} Comentários e legendas passam pelo mesmo tratamento: normalização de espaços e caixa, remoção das \emph{stopwords} do português do recurso correspondente da biblioteca \texttt{nltk} e conversão dos emojis em descrições textuais (\emph{demojize}), para que um coração ou um par de mãos aplaudindo participem da representação como \emph{tokens} e não sejam descartados. Os comentários de \emph{Reels} e de publicações do \emph{feed} são unidos antes da modelagem e deduplicados pelo identificador do comentário, preferindo-se a linha de \emph{Reel}, que preserva a ligação com reproduções e duração.
+\paragraph*{Pré-processamento textual.} Comentários e legendas passam pelo mesmo tratamento: normalização de espaços e caixa, remoção das \emph{stopwords} do português do recurso correspondente da biblioteca \texttt{nltk} e conversão dos emojis em descrições textuais (\emph{demojize}), para que um coração ou um par de mãos aplaudindo participem da representação como \emph{tokens} e não sejam descartados. Os comentários de \emph{Reels} e de publicações do \emph{feed} são unidos antes da modelagem e deduplicados pelo identificador do comentário, preferindo-se a linha de \emph{Reel}, que preserva a ligação com reproduções e duração.
 
-\paragraph{Redução de dimensionalidade e clusterização automática.} As métricas de desempenho de cada \emph{Reel} (curtidas, comentários, reproduções e duração) são padronizadas e reduzidas a dois componentes principais. Sobre esses dois componentes atua o procedimento \texttt{AutoClusterHPO}, desenvolvido neste trabalho: em vez de fixar de antemão o algoritmo e o número de grupos, ele avalia três famílias de algoritmos, K-Means, DBSCAN e agrupamento hierárquico aglomerativo, cada uma com seu espaço de hiperparâmetros (número de grupos a partir de três; raio e vizinhança mínima do DBSCAN; critério de ligação do hierárquico), e busca a melhor configuração por otimização bayesiana com o estimador de Parzen em árvore (TPE, biblioteca Hyperopt), com cem avaliações por algoritmo. O critério é um índice de validação interna combinado, média de três medidas em escala comparável: a silhueta, o índice de Calinski-Harabasz comprimido por $\tanh(\mathrm{CH}/10^{4})$ e o inverso do índice de Davies-Bouldin comprimido por $\tanh(1/\mathrm{DB})$. Os pontos de ruído do DBSCAN são excluídos do cálculo dos índices, para que a comparação entre algoritmos não seja distorcida. O mesmo procedimento é aplicado às publicações do \emph{feed}, com uma ACP própria sobre curtidas e comentários, as únicas métricas que esse extrator devolve, e aos 26 perfis, sobre engajamento por seguidor, recência e frequência, com o número máximo de grupos limitado a seis em razão do tamanho da amostra.
+\paragraph*{Redução de dimensionalidade e clusterização automática.} As métricas de desempenho de cada \emph{Reel} (curtidas, comentários, reproduções e duração) são padronizadas e reduzidas a dois componentes principais. Sobre esses dois componentes atua o procedimento \texttt{AutoClusterHPO}, desenvolvido neste trabalho: em vez de fixar de antemão o algoritmo e o número de grupos, ele avalia três famílias de algoritmos, K-Means, DBSCAN e agrupamento hierárquico aglomerativo, cada uma com seu espaço de hiperparâmetros (número de grupos a partir de três; raio e vizinhança mínima do DBSCAN; critério de ligação do hierárquico), e busca a melhor configuração por otimização bayesiana com o estimador de Parzen em árvore (TPE, biblioteca Hyperopt), com cem avaliações por algoritmo. O critério é um índice de validação interna combinado, média de três medidas em escala comparável: a silhueta, o índice de Calinski-Harabasz comprimido por $\tanh(\mathrm{CH}/10^{4})$ e o inverso do índice de Davies-Bouldin comprimido por $\tanh(1/\mathrm{DB})$. Os pontos de ruído do DBSCAN são excluídos do cálculo dos índices, para que a comparação entre algoritmos não seja distorcida. O mesmo procedimento é aplicado às publicações do \emph{feed}, com uma ACP própria sobre curtidas e comentários, as únicas métricas que esse extrator devolve, e aos 26 perfis, sobre engajamento por seguidor, recência e frequência, com o número máximo de grupos limitado a seis em razão do tamanho da amostra.
 
-\paragraph{Análise de sentimentos.} Cada comentário e cada legenda é classificado pelo modelo \code{cardiffnlp/twitter-xlm-roberta-base-sentiment}, um XLM-RoBERTa ajustado para sentimento em mensagens curtas de redes sociais em vários idiomas, inclusive o português, que devolve um rótulo (positivo, neutro ou negativo) e a probabilidade associada, aqui chamada de confiança. O modelo é usado sem ajuste fino; a escolha prioriza a reprodutibilidade e a adequação ao gênero textual, e suas limitações para ironia e sarcasmo são discutidas no Capítulo~\ref{Conclusões}. O resultado grava-se por comentário, com a fonte (comentário ou legenda) e a origem (\emph{Reel} ou \emph{feed}), de modo que toda agregação posterior possa separar a reação do público do discurso da assessoria.
+\paragraph*{Análise de sentimentos.} Cada comentário e cada legenda é classificado pelo modelo \code{cardiffnlp/twitter-xlm-roberta-base-sentiment}, um XLM-RoBERTa ajustado para sentimento em mensagens curtas de redes sociais em vários idiomas, inclusive o português, que devolve um rótulo (positivo, neutro ou negativo) e a probabilidade associada, aqui chamada de confiança. O modelo é usado sem ajuste fino; a escolha prioriza a reprodutibilidade e a adequação ao gênero textual, e suas limitações para ironia e sarcasmo são discutidas no Capítulo~\ref{Conclusões}. O resultado grava-se por comentário, com a fonte (comentário ou legenda) e a origem (\emph{Reel} ou \emph{feed}), de modo que toda agregação posterior possa separar a reação do público do discurso da assessoria.
 
-\paragraph{Modelagem de tópicos.} A estrutura temática é extraída com BERTopic. Os textos são representados por \emph{embeddings} de sentenças do modelo \code{rufimelo/bert-large-portuguese-cased-sts}, pré-treinado em português; os \emph{embeddings} são reduzidos e agrupados por HDBSCAN, e cada grupo recebe uma representação por palavras-chave (\emph{KeyBERT-inspired}) a partir de um vetorizador que preserva os emojis como \emph{tokens}. Para os comentários, o número de tópicos é reduzido a cinquenta, com tamanho mínimo de grupo de quinze documentos; para as legendas, que formam um corpus menor e mais homogêneo, o número de tópicos é deixado em aberto (apenas tópicos redundantes são fundidos) e o tamanho mínimo é de cinco documentos. São dois modelos distintos, com espaços de tópicos independentes: um descreve do que o público fala (os \textbf{grupos de comentários}) e o outro, do que a assessoria fala (as \textbf{pautas}). Na etapa manual subsequente, uma amostra de documentos de cada tópico é submetida a um modelo de linguagem de grande porte (Gemini), que produz um rótulo curto e legível; o ruído (documentos sem tópico) não é rotulado, e o refinamento altera apenas os nomes, nunca a atribuição dos documentos aos tópicos.
+\paragraph*{Modelagem de tópicos.} A estrutura temática é extraída com BERTopic. Os textos são representados por \emph{embeddings} de sentenças do modelo \code{rufimelo/bert-large-portuguese-cased-sts}, pré-treinado em português; os \emph{embeddings} são reduzidos e agrupados por HDBSCAN, e cada grupo recebe uma representação por palavras-chave (\emph{KeyBERT-inspired}) a partir de um vetorizador que preserva os emojis como \emph{tokens}. Para os comentários, o número de tópicos é reduzido a cinquenta, com tamanho mínimo de grupo de quinze documentos; para as legendas, que formam um corpus menor e mais homogêneo, o número de tópicos é deixado em aberto (apenas tópicos redundantes são fundidos) e o tamanho mínimo é de cinco documentos. São dois modelos distintos, com espaços de tópicos independentes: um descreve do que o público fala (os \textbf{grupos de comentários}) e o outro, do que a assessoria fala (as \textbf{pautas}). Na etapa manual subsequente, uma amostra de documentos de cada tópico é submetida a um modelo de linguagem de grande porte (Gemini), que produz um rótulo curto e legível; o ruído (documentos sem tópico) não é rotulado, e o refinamento altera apenas os nomes, nunca a atribuição dos documentos aos tópicos.
 
-\paragraph{Métricas derivadas.} A partir dessas tabelas calculam-se, ainda no estágio determinístico, a \emph{North Star Metric} por perfil, os escores de prioridade de temas e de pautas e a regressão de desempenho por publicação; o escore composto, com a Consistência e a Tendência, é calculado em um estágio próprio sobre as tabelas prontas. Suas definições e resultados são apresentados no Capítulo~\ref{Resultados}, onde adquirem sentido como instrumentos de decisão.
+\paragraph*{Métricas derivadas.} A partir dessas tabelas calculam-se, ainda no estágio determinístico, a \emph{North Star Metric} por perfil, os escores de prioridade de temas e de pautas e a regressão de desempenho por publicação; o escore composto, com a Consistência e a Tendência, é calculado em um estágio próprio sobre as tabelas prontas. Suas definições e resultados são apresentados no Capítulo~\ref{Resultados}, onde adquirem sentido como instrumentos de decisão.
 
 \section{Redução de Dimensionalidade e Clusterização}\label{sec:clusterizacao}
 
-%%TODO-ACP: tabela de variância explicada e cargas (checkpoint); figura boxplot_pca
+As quatro métricas de desempenho dos 5.904 \emph{Reels} (curtidas, comentários, reproduções e duração) foram padronizadas e reduzidas por Análise de Componentes Principais. Dois componentes retêm 87,9\% da variância total: o primeiro, com 62,9\%, carrega quase igualmente curtidas (0,61), comentários (0,56) e reproduções (0,56) e nada de duração (0,03); o segundo, com 25,0\%, é a duração sozinha (1,00). A ACP confirma, portanto, o que a análise bivariada já sugeria: as três métricas de resposta do público formam um único eixo de desempenho, e a duração do vídeo é uma dimensão ortogonal, sem relação com esse desempenho. A Figura~\ref{fig:boxplot_pca} mostra a distribuição dos dois componentes: o primeiro é extremamente assimétrico, com a massa dos vídeos concentrada perto de zero e uma cauda longa de valores altos; o segundo tem a mesma forma, puxado por um punhado de transmissões muito longas.
+
+\begin{figure}[htb]
+\centering
+\caption{Distribuição dos dois componentes principais dos \emph{Reels}}
+\label{fig:boxplot_pca}
+\includegraphics[width=0.85\textwidth]{Figuras/boxplot_pca.png}
+\par\smallskip
+\raggedright\footnotesize Fonte: elaboração própria a partir do \emph{checkpoint} da modelagem (5.904 \emph{Reels}, métricas padronizadas).
+\end{figure}
+
 
 \subsection{Grupos de Desempenho dos \emph{Reels}}
 
-%%TODO-CLUSTERS-REELS: algoritmo eleito, hiperparâmetros, CVI; tabela de perfil dos grupos; figura clusters_reels_pca
+Sobre os dois componentes, o \texttt{AutoClusterHPO} avaliou K-Means, DBSCAN e agrupamento hierárquico e elegeu o K-Means com três grupos, com índice combinado de validação interna de 0,778. A Tabela~\ref{tab:clusters_reels} resume o perfil dos grupos e a Figura~\ref{fig:clusters_reels} os projeta no plano dos componentes.
+
+\begin{table}[htb]
+\centering
+\caption{Grupos de desempenho dos \emph{Reels} (K-Means, $k=3$)}
+\label{tab:clusters_reels}
+\scriptsize\setlength{\tabcolsep}{3pt}
+\begin{tabular}{lrrrrrrr}
+\toprule
+\textbf{Grupo} & \textbf{n} & \textbf{\%} & \textbf{Curtidas} & \textbf{Coment.} & \textbf{Repr. média} & \textbf{Repr. mediana} & \textbf{Dur. (s)} \\
+\midrule
+0 -- corpo & 5.875 & 99,5 & 12.178 & 935 & 313.157 & 86.876 & 59 \\
+2 -- virais & 27 & 0,5 & 763.431 & 47.912 & 10.045.000 & 6.414.745 & 69 \\
+1 -- transmissões longas & 2 & 0,0 & 28.519 & 2.828 & 284.047 & 284.047 & 4.023 \\
+\bottomrule
+\end{tabular}
+\par\smallskip
+\raggedright\footnotesize Fonte: Gold \texttt{governor\_clusters\_reels}. Curtidas e comentários são médias por vídeo; a numeração dos grupos é a atribuída pelo algoritmo.
+\end{table}
+
+\begin{figure}[htb]
+\centering
+\caption{\emph{Reels} no plano dos componentes principais, coloridos por grupo}
+\label{fig:clusters_reels}
+\includegraphics[width=0.85\textwidth]{Figuras/clusters_reels_pca.png}
+\par\smallskip
+\raggedright\footnotesize Fonte: elaboração própria a partir do \emph{checkpoint} da modelagem.
+\end{figure}
+
+A estrutura é a de um corpo e duas exceções. O grupo 0 contém 99,5\% dos vídeos, de todos os 26 perfis, com mediana de 87 mil reproduções e cerca de 12 mil curtidas por vídeo: é o \emph{Reel} típico de governador, que o algoritmo não consegue (nem deve) subdividir, porque a variação dentro dele é contínua. O grupo 2 isola 27 vídeos virais, com média de 10 milhões de reproduções, 763 mil curtidas e 48 mil comentários, concentrados em sete perfis e dominados por um deles: 15 dos 27 são de Tarcísio de Freitas (SP), seguidos de Rafael Fonteles (PI) com três, e Helder Barbalho (PA), Jerônimo Rodrigues (BA) e Fátima Bezerra (RN) com dois cada. O grupo 1 é um artefato útil: duas transmissões de mais de uma hora de duração (média de 4.023 segundos), uma de Ronaldo Caiado (GO) e outra de Raquel Lyra (PE), que o segundo componente separa do resto apenas pela duração, sem desempenho fora do comum. A leitura de \emph{growth} é imediata: o alcance excepcional de um perfil não vem de uma produção excepcional em média, e sim de pouquíssimas peças que saem da curva, e a identificação dessas peças, não do perfil, é o que a segmentação entrega.
+
 
 \subsection{Grupos de Desempenho das Publicações do \emph{Feed}}
 
-%%TODO-CLUSTERS-FEED: idem; figura clusters_feed; comparação com reels
+Para as 8.437 publicações do \emph{feed}, com apenas curtidas e comentários como insumo, o procedimento elegeu o K-Means com catorze grupos (índice combinado de 0,816). O resultado, na Figura~\ref{fig:clusters_feed}, tem a mesma anatomia dos \emph{Reels}, mas com a cauda muito mais fragmentada: o grupo 0 reúne 7.400 publicações (87,7\%), com mediana de 2.230 curtidas e presença dos 26 perfis; três grupos intermediários somam 921 publicações (10,9\%) com médias de 24 mil, 72 mil e 90 mil curtidas; e os dez grupos restantes contêm, juntos, 116 publicações (1,4\%), cada um com médias entre 150 mil e 2,25 milhões de curtidas e quase sempre um único perfil. Essa fragmentação é consequência direta de só haver duas métricas: sem reproduções e duração para dar forma à nuvem, o índice de validação premia a separação de pequenos conjuntos de publicações extremas em grupos próprios. Para a decisão, os catorze grupos se leem como três faixas, o corpo, as publicações acima da média e as excepcionais, e é assim que o Capítulo~\ref{Resultados} os utiliza.
+
+\begin{figure}[htb]
+\centering
+\caption{Publicações do \emph{feed} por grupo de desempenho (curtidas e comentários, escala logarítmica)}
+\label{fig:clusters_feed}
+\includegraphics[width=0.85\textwidth]{Figuras/clusters_feed.png}
+\par\smallskip
+\raggedright\footnotesize Fonte: Gold \texttt{governor\_clusters\_posts}.
+\end{figure}
+
 
 \subsection{Grupos de Perfis}
 
-%%TODO-CLUSTERS-PERFIS: grupos de governadores; tabela; figura clusters_perfis
+A clusterização dos 26 perfis, sobre engajamento por seguidor, recência e frequência, elegeu o DBSCAN ($\varepsilon = 0{,}101$, vizinhança mínima de 2) com índice combinado de 0,777, e o resultado exige leitura crítica (Figura~\ref{fig:clusters_perfis}). O algoritmo formou dois grupos densos e classificou os outros 21 perfis como ruído. O grupo 0 reúne Antonio Denarium (RR), Mauro Mendes (MT) e Wilson Lima (AM): perfis ativos (recência 1), com frequência moderada (3,1 publicações por dia) e engajamento por seguidor baixo (2,7\%), isto é, bases grandes para a resposta que obtêm. O grupo 1 reúne Ibaneis Rocha (DF) e Marcos Rocha (RO), os dois perfis praticamente inativos na janela (duas e três publicações, recência próxima de zero). Os 21 restantes, do Piauí com 16,8\% de engajamento por seguidor e 12 publicações por dia ao Rio Grande do Sul com 0,6\% e menos de uma publicação por dia, formam um contínuo sem fronteiras naturais, e é honesto dizer que o índice de validação, calculado sem os pontos de ruído, favoreceu o algoritmo que isolou dois pequenos núcleos homogêneos e deixou a heterogeneidade de fora. Com 26 observações, a segmentação por agrupamento não supervisionado é um instrumento fraco; a ordenação por escore composto, no Capítulo~\ref{Resultados}, cumpre melhor o papel de posicionar cada perfil em relação aos demais.
+
+\begin{figure}[htb]
+\centering
+\caption{Perfis por frequência de publicação e engajamento por seguidor, coloridos pelo grupo do DBSCAN}
+\label{fig:clusters_perfis}
+\includegraphics[width=0.85\textwidth]{Figuras/clusters_perfis.png}
+\par\smallskip
+\raggedright\footnotesize Fonte: Gold \texttt{governor\_profile\_clusters\_engagement}. O grupo $-1$ é o ruído do DBSCAN.
+\end{figure}
+
 
 \section{Análise de Sentimentos}\label{sec:sentimento}
 
-%%TODO-SENT-GERAL: distribuição geral, por origem, confiança; legendas; figura sentiment_plots
+Dos 75.634 comentários classificados, 61,2\% são positivos, 31,0\% neutros e 7,8\% negativos (Figura~\ref{fig:sentiment_plots}). A distribuição é idêntica nas duas origens: 61,4\% de positivos e 7,7\% de negativos nos comentários de publicações do \emph{feed}, contra 61,1\% e 7,9\% nos de \emph{Reels}, o que indica que o formato não altera o tom da reação. A confiança média do classificador é maior nos negativos (0,71, mediana 0,73) do que nos positivos (0,69, mediana 0,63) e nos neutros (0,62): a negatividade, quando existe, é expressa sem ambiguidade, enquanto o elogio é frequentemente curto ou só de emojis. As 8.437 legendas, classificadas pelo mesmo modelo, são ainda mais positivas, 63,5\% de positivas, 30,8\% de neutras e 5,7\% de negativas, o que é esperado de um discurso institucional. O contraste relevante não está na média, e sim na dispersão entre perfis, examinada a seguir.
+
+\begin{figure}[htb]
+\centering
+\caption{Distribuição do sentimento dos comentários e confiança do classificador por rótulo}
+\label{fig:sentiment_plots}
+\includegraphics[width=0.95\textwidth]{Figuras/sentiment_plots.png}
+\par\smallskip
+\raggedright\footnotesize Fonte: Gold \texttt{governor\_sentiment}, fonte comentário.
+\end{figure}
+
 
 \subsection{Sentimento por Perfil}
 
-%%TODO-SENT-PERFIL: figura sentimento_por_governador; extremos; amostra insuficiente
+A Figura~\ref{fig:sentimento_por_governador} ordena os 26 perfis pela proporção de comentários positivos. Entre os perfis com amostra suficiente (ao menos cem comentários), a aprovação vai de 80,2\% para Eduardo Leite (RS), seguido de Raquel Lyra (PE) com 78,1\% e Rafael Fonteles (PI) com 76,4\%, até 15,3\% para Eduardo Riedel (MS), cujo perfil concentra 39,1\% de comentários negativos, a maior proporção da amostra, em grande parte por uma mobilização de cobrança pela proteção dos indígenas Guarani Kaiowá, identificada na Seção~
+ef{sec:topicos}. No extremo baixo estão também Romeu Zema (MG), com 37,0\% de positivos e 27,8\% de negativos, Wilson Lima (AM), com 40,9\% de positivos, e Ricardo Ferraço (ES), com 47,1\%, neste caso por excesso de neutros (47,8\%) e não de críticas. Marcos Rocha (RO), com 95\% de positivos em 20 comentários, e Ibaneis Rocha (DF), com 15 comentários, têm amostra insuficiente para qualquer leitura, e são tratados como tal nos instrumentos do capítulo seguinte. Dois casos ilustram por que a proporção importa mais do que o volume: Tarcísio de Freitas (SP), o perfil de maior alcance, tem apenas 53,8\% de positivos e 14,3\% de negativos; Wanderlei Barbosa (TO), com a menor frequência de publicação entre os ativos, acumula 20,7\% de negativos em 406 comentários.
+
+\begin{figure}[htb]
+\centering
+\caption{Sentimento dos comentários por perfil, ordenado pela proporção de positivos}
+\label{fig:sentimento_por_governador}
+\includegraphics[width=0.95\textwidth]{Figuras/sentimento_por_governador.png}
+\par\smallskip
+\raggedright\footnotesize Fonte: Gold \texttt{governor\_sentiment}. O número entre parênteses é o total de comentários classificados do perfil.
+\end{figure}
+
 
 \subsection{Sentimento por Grupo de Desempenho}
 
-%%TODO-SENT-CLUSTER: figura sentimento_por_cluster_reels; tabela; leitura
+O cruzamento do sentimento com os grupos de desempenho é o achado que organiza o restante do trabalho (Tabela~\ref{tab:sentimento_cluster} e Figura~\ref{fig:sentimento_por_cluster_reels}). Nos \emph{Reels}, o corpo (grupo 0) tem 61,1\% de comentários positivos e 7,9\% de negativos; os 27 vídeos virais (grupo 2) têm 51,1\% de positivos e 21,3\% de negativos, quase o triplo da negatividade. No \emph{feed}, a relação é monotônica ao longo das faixas de desempenho: o corpo tem 7,1\% de negativos; os três grupos intermediários, 12,0\%, 15,2\% e 16,6\%; e os grupos de publicações excepcionais chegam a 27,4\% e 43,5\% de negativos. Quanto mais longe uma publicação chega, menor a proporção de aprovação entre os que reagem a ela, porque o alcance leva a peça para fora da base de apoiadores que comenta por hábito. O engajamento bruto, portanto, mede exposição, não adesão, e um instrumento de decisão que trate os dois como sinônimos recomendará exatamente o conteúdo que mais atrai crítica.
+
+\begin{table}[htb]
+\centering
+\caption{Sentimento dos comentários por grupo de desempenho}
+\label{tab:sentimento_cluster}
+\footnotesize
+\begin{tabular}{llrrrr}
+\toprule
+\textbf{Conjunto} & \textbf{Grupo} & \textbf{Coment.} & \textbf{Positivo (\%)} & \textbf{Neutro (\%)} & \textbf{Negativo (\%)} \\
+\midrule
+\emph{Reels} & 0 -- corpo & 52.437 & 61,1 & 31,0 & 7,9 \\
+ & 2 -- virais & 225 & 51,1 & 27,6 & 21,3 \\
+\midrule
+\emph{Feed} & 0 -- corpo & 66.529 & 61,5 & 31,4 & 7,1 \\
+ & 7 -- acima da média & 4.475 & 59,0 & 29,0 & 12,0 \\
+ & 6 -- acima da média & 2.312 & 56,1 & 28,7 & 15,2 \\
+ & 10 -- acima da média & 1.055 & 57,9 & 25,5 & 16,6 \\
+ & 5 -- excepcionais & 339 & 53,9 & 28,1 & 18,0 \\
+ & 8 -- excepcionais & 75 & 38,4 & 34,2 & 27,4 \\
+ & 13 -- excepcionais & 25 & 30,4 & 26,1 & 43,5 \\
+\bottomrule
+\end{tabular}
+\par\smallskip
+\raggedright\footnotesize Fonte: Gold \texttt{governor\_sentiment} cruzada com \texttt{governor\_clusters\_reels} e \texttt{governor\_clusters\_posts}. Os comentários disponíveis por publicação são os 10 a 12 mais recentes, o que explica o número baixo de comentários dos grupos pequenos. Grupos do \emph{feed} com menos de 25 comentários foram omitidos.
+\end{table}
+
+\begin{figure}[htb]
+\centering
+\caption{Sentimento dos comentários por grupo de desempenho dos \emph{Reels}}
+\label{fig:sentimento_por_cluster_reels}
+\includegraphics[width=0.85\textwidth]{Figuras/sentimento_por_cluster_reels.png}
+\par\smallskip
+\raggedright\footnotesize Fonte: Gold \texttt{governor\_sentiment} e \texttt{governor\_clusters\_reels}.
+\end{figure}
+
 
 \section{Modelagem de Tópicos}\label{sec:topicos}
 
 \subsection{Grupos de Comentários}
 
-%%TODO-TOPICOS-COMENTARIOS: n tópicos, maiores grupos, figuras comentarios_intertopic_map / hierarchy / heatmap; meta-tópicos
+O modelo de tópicos dos comentários foi ajustado sobre os 38.581 textos distintos dos 75.634 comentários: 49\% dos comentários repetem exatamente um texto já visto (sequências de palmas, corações e números de campanha), e documentos idênticos entram uma única vez no ajuste, recebendo todos o mesmo tópico ao final. O HDBSCAN encontrou 485 grupos brutos, reduzidos a 49 tópicos; 15.614 comentários (20,6\%) ficaram sem tópico (ruído), em geral mensagens curtas que misturam bandeira, aplauso e o nome do governador sem conteúdo distintivo. Os rótulos da Tabela~\ref{tab:topicos_comentarios} foram produzidos pelo modelo de linguagem a partir de uma amostra de dez comentários de cada tópico e preservam as palavras-chave originais para conferência; a Figura~\ref{fig:comentarios_mapa} mostra a distância entre os tópicos e a Figura~\ref{fig:comentarios_hierarquia} a sua hierarquia.
+
+\begin{table}[htb]
+\centering
+\caption{Maiores grupos de comentários e grupos mais negativos (rótulo refinado, palavras-chave e sentimento)}
+\label{tab:topicos_comentarios}
+\scriptsize\setlength{\tabcolsep}{3pt}
+\begin{tabular}{rp{5.0cm}p{3.9cm}rrr}
+\toprule
+\textbf{Tópico} & \textbf{Rótulo} & \textbf{Palavras-chave} & \textbf{Coment.} & \textbf{Pos. (\%)} & \textbf{Neg. (\%)} \\
+\midrule
+\multicolumn{6}{l}{\emph{Os doze maiores grupos}} \\
+0 & Elogios e apoio político ao governador & mãos aplaudindo, rosto com olhos de coração & 28.147 & 91,4 & 2,3 \\
+1 & Apoio político e mensagens de carinho & foguete, tecla 5, tecla 4 & 11.605 & 29,0 & 0,6 \\
+3 & Manifestações de apoio e emojis afetivos & coração vermelho, 13, onda & 3.196 & 92,6 & 0,6 \\
+7 & Apoio eleitoral e demonstrações de carinho & coração roxo, tecla 5, foguete & 1.730 & 95,0 & 0,2 \\
+2 & Cobranças e críticas à gestão pública & água, hospital, pra & 1.721 & 9,8 & 55,4 \\
+4 & Elogios e apoio político ao governador & governador, parabéns, governadora & 1.467 & 79,3 & 5,2 \\
+8 & Apoio político ao candidato número 13 & 13, lula, rafael & 1.163 & 12,1 & 0,8 \\
+25 & Comentários sem sentido ou \emph{spam} & massa, sequências de dígitos & 1.142 & 0,4 & 2,2 \\
+30 & Cobrança por proteção aos indígenas Guarani Kaiowá & guarani, kaiowá, povos & 1.095 & 0,5 & 48,9 \\
+5 & Apoio político e eleitoral a candidatos & naipe de copas, bandeira do Brasil, tecla 2 & 1.009 & 25,1 & 3,9 \\
+6 & Apoio político e elogios a gestões & senador, mauro, mendes & 783 & 56,6 & 5,5 \\
+10 & Apoio político a Lula e aliados & presidente, 2030, lula & 708 & 19,2 & 12,3 \\
+\midrule
+\multicolumn{6}{l}{\emph{Grupos com maior proporção de negativos (ao menos 50 comentários)}} \\
+43 & Rejeição ao turismo \emph{halal} no Paraná & londres, halal, promover & 51 & 0,0 & 98,0 \\
+29 & Previsão de derrota eleitoral e zombaria & perdeu, faltou, perder & 82 & 3,7 & 84,1 \\
+27 & Condolências e saudades por falecimentos & sentimentos, saudades, triste & 111 & 15,3 & 73,9 \\
+32 & Críticas e opiniões sobre o ICMS e impostos & minas, icms, mg & 81 & 13,6 & 59,3 \\
+2 & Cobranças e críticas à gestão pública & água, hospital, pra & 1.721 & 9,8 & 55,4 \\
+23 & Discussão sobre a veracidade dos fatos & mentira, verdade, mente & 163 & 4,3 & 53,4 \\
+30 & Cobrança por proteção aos indígenas Guarani Kaiowá & guarani, kaiowá, povos & 1.095 & 0,5 & 48,9 \\
+34 & Comida, fome e críticas à gestão & fome, cartão, churrasco & 62 & 14,5 & 43,5 \\
+15 & Cobrança sobre pagamento e aumento salarial & pagamento, salário, aposentados & 262 & 7,6 & 34,0 \\
+\bottomrule
+\end{tabular}
+\par\smallskip
+\raggedright\footnotesize Fonte: Gold \texttt{governor\_sentiment}, fonte comentário, após o refinamento de rótulos. O tópico $-1$ (ruído) tem 15.614 comentários, 49,8\% positivos e 14,7\% negativos. Grupos de números em formato de tecla são números de candidatos, lidos pelo classificador como neutros.
+\end{table}
+
+Lidos em conjunto, os 49 tópicos se organizam em quatro famílias. A primeira, e de longe a maior, é a do \textbf{apoio e afeto}: 25 tópicos que somam 53.123 comentários (70,2\% do total), com 69,8\% de positivos e 2,3\% de negativos, e que vão do elogio genérico ao governador até as manifestações de campanha, com números de candidatos em emojis de tecla, foguetes e corações nas cores partidárias. A segunda família é a das \textbf{cobranças e críticas}: onze tópicos com 2.651 comentários (3,5\%), mas com 52,2\% de negativos; é nela que está o conteúdo informativo para a assessoria, porque nomeia o que o público reclama: água e hospitais, salários e aposentadorias, impostos, fome, a proteção aos Guarani Kaiowá (um tópico de 1.095 comentários, dos quais 1.081 no perfil de Eduardo Riedel, MS, concentrados na última semana de outubro, o que caracteriza uma mobilização organizada e não uma reação difusa), a veracidade do que é dito e a antecipação da derrota eleitoral. A terceira família é o \textbf{ruído e \emph{spam}}: cinco tópicos com 1.921 comentários (2,5\%), de sequências de dígitos a telefones e \emph{links}. A quarta reúne \textbf{outros registros} (1,6\%): mensagens religiosas, condolências, orgulho regional, pedidos para conhecer o governador e a declaração explícita de voto. O retrato é o de uma seção de comentários dominada pela torcida, em que a crítica é minoritária em volume, mas é o único lugar em que o público formula um pedido; e é essa assimetria, não a média, que o Score ICE do Capítulo~\ref{Resultados} explora.
+
+\begin{figure}[htb]
+\centering
+\caption{Mapa de distância entre os tópicos de comentários}
+\label{fig:comentarios_mapa}
+\includegraphics[width=0.9\textwidth]{Figuras/comentarios_intertopic_map.png}
+\par\smallskip
+\raggedright\footnotesize Fonte: elaboração própria a partir do \emph{checkpoint} da modelagem (BERTopic, \emph{embeddings} dos tópicos projetados em duas dimensões; a área do círculo é proporcional ao número de comentários).
+\end{figure}
+
+\begin{figure}[htb]
+\centering
+\caption{Hierarquia dos tópicos de comentários}
+\label{fig:comentarios_hierarquia}
+\includegraphics[width=0.9\textwidth]{Figuras/comentarios_hierarchy.png}
+\par\smallskip
+\raggedright\footnotesize Fonte: elaboração própria a partir do \emph{checkpoint} da modelagem (agrupamento hierárquico dos \emph{embeddings} de tópico).
+\end{figure}
+
 
 \subsection{Pautas do Discurso (Legendas)}
 
-%%TODO-TOPICOS-DISCURSO: n pautas, maiores; figuras discurso_*
+O modelo de discurso foi ajustado sobre as 8.416 legendas com texto (21 publicações não têm legenda); como a transcrição das falas não foi coletada, a fonte ``transcrição'' não contribuiu com documentos, e o modelo descreve exclusivamente o que a assessoria escreve. Sem número alvo de tópicos, o HDBSCAN encontrou 390 grupos, fundidos em 198 \textbf{pautas}; 1.915 legendas (22,8\%) ficaram como ruído. As pautas são pequenas e específicas: a mediana é de 12 publicações, apenas 23 pautas têm 50 ou mais, e 60 das 198 pertencem a um único perfil, contra 61 compartilhadas por cinco ou mais. A Tabela~\ref{tab:pautas} lista as maiores e as mais transversais; as Figuras~\ref{fig:discurso_mapa} e~\ref{fig:discurso_hierarquia} mostram o espaço e a hierarquia das pautas.
+
+\begin{table}[htb]
+\centering
+\caption{Pautas do discurso: as doze maiores e as seis mais compartilhadas entre perfis}
+\label{tab:pautas}
+\scriptsize\setlength{\tabcolsep}{3pt}
+\begin{tabular}{rp{5.4cm}rrl}
+\toprule
+\textbf{Pauta} & \textbf{Rótulo} & \textbf{Publ.} & \textbf{Perfis} & \textbf{Perfil predominante} \\
+\midrule
+\multicolumn{5}{l}{\emph{As doze maiores}} \\
+0 & Campanha eleitoral e propostas de governo & 433 & 1 & Elmano de Freitas (CE) \\
+1 & Campanha eleitoral e realizações do governo & 384 & 3 & Fábio Mitidieri (SE) \\
+2 & Campanha eleitoral e engajamento político & 346 & 5 & Clécio Luís (AP) \\
+3 & Campanha eleitoral e propostas políticas & 287 & 3 & Ronaldo Caiado (GO) \\
+4 & Campanha eleitoral para o Senado Federal & 280 & 4 & João Azevêdo (PB) \\
+5 & Campanha eleitoral, pedidos de voto e apoios & 275 & 5 & Ricardo Ferraço (ES) \\
+6 & Campanha eleitoral e realizações de governo & 251 & 1 & Rafael Fonteles (PI) \\
+7 & Realizações de governo e obras públicas & 244 & 20 & Raquel Lyra (PE) \\
+8 & Campanha eleitoral e propostas de governo & 237 & 4 & Raquel Lyra (PE) \\
+9 & Campanha eleitoral e pedidos de votos & 231 & 5 & Ratinho Júnior (PR) \\
+10 & Campanha eleitoral e comícios políticos & 199 & 1 & Jerônimo Rodrigues (BA) \\
+11 & Campanha eleitoral e pedidos de votos & 176 & 3 & Gladson Cameli (AC) \\
+\midrule
+\multicolumn{5}{l}{\emph{As mais compartilhadas (número de perfis)}} \\
+7 & Realizações de governo e obras públicas & 244 & 20 & Raquel Lyra (PE) \\
+27 & Incentivo ao voto e cidadania nas eleições & 41 & 20 & Rafael Fonteles (PI) \\
+18 & Homenagens a familiares e vida pessoal & 60 & 19 & Antonio Denarium (RR) \\
+19 & Balanço político e agradecimento por conquistas & 59 & 15 & Rafael Fonteles (PI) \\
+15 & Críticas ao STF e a Alexandre de Moraes & 73 & 10 & Romeu Zema (MG) \\
+26 & Políticas públicas e protagonismo das mulheres & 43 & 10 & Raquel Lyra (PE) \\
+\bottomrule
+\end{tabular}
+\par\smallskip
+\raggedright\footnotesize Fonte: Gold \texttt{governor\_discourse\_topics}, após o refinamento de rótulos. ``Perfis'' é o número de governadores com ao menos uma publicação na pauta.
+\end{table}
+
+Dois traços do resultado precisam ser ditos antes de qualquer uso. Primeiro, o modelo separa o discurso tanto por assunto quanto por \emph{identidade}: as doze maiores pautas são, cada uma, a campanha de um governador ou de um pequeno grupo, porque as legendas carregam nomes de estado, gentílicos, números de candidato e \emph{slogans} que os \emph{embeddings} capturam com força. Segundo, a janela é eleitoral, e isso domina a oferta: 74 pautas, com 67,1\% das publicações classificadas, são de campanha (pedidos de voto, comícios, caminhadas, apoios a candidatos), contra 12,1\% de pautas de realizações, obras e políticas públicas que não mencionam a campanha. As pautas transversais, presentes em dez ou mais perfis, são as que descrevem o repertório comum do cargo: obras e entregas, incentivo ao voto, homenagens pessoais, balanço de conquistas, a pauta feminina e, no campo oposicionista, a crítica ao Supremo Tribunal Federal. É sobre esse repertório, mais do que sobre as pautas identitárias, que a comparação entre perfis do Capítulo~\ref{Resultados} faz sentido.
+
+\begin{figure}[htb]
+\centering
+\caption{Mapa de distância entre as pautas do discurso}
+\label{fig:discurso_mapa}
+\includegraphics[width=0.9\textwidth]{Figuras/discurso_intertopic_map.png}
+\par\smallskip
+\raggedright\footnotesize Fonte: elaboração própria a partir do \emph{checkpoint} da modelagem; a área do círculo é proporcional ao número de legendas.
+\end{figure}
+
+\begin{figure}[htb]
+\centering
+\caption{Hierarquia das pautas do discurso}
+\label{fig:discurso_hierarquia}
+\includegraphics[width=0.9\textwidth]{Figuras/discurso_hierarchy.png}
+\par\smallskip
+\raggedright\footnotesize Fonte: elaboração própria a partir do \emph{checkpoint} da modelagem.
+\end{figure}
+
 
 Os resultados deste capítulo, a segmentação das publicações e dos perfis por desempenho, a qualificação dos grupos pelo sentimento e a estrutura temática dos comentários e do discurso, constituem o diagnóstico bruto sobre o qual se assenta a etapa seguinte. No próximo capítulo, essas evidências deixam de ser descritas isoladamente e passam a ser organizadas segundo o funil de engajamento COBRA-RACE, traduzindo-se em métricas de crescimento e em recomendações práticas por perfil.

@@ -28,19 +28,28 @@ Duas observações delimitam a leitura. Primeiro, as reproduções existem apena
 
 \section{Segmentação de Publicações e Perfis por Desempenho}\label{sec:segmentacao}
 
-%%TODO-SEG-REELS: leitura de growth dos clusters de reels (números da Seção 5 correspondente; grupos de desempenho nomeados)
+A segmentação dos \emph{Reels} (Seção~\ref{sec:clusterizacao}) produziu três grupos que, lidos pelo funil, correspondem a três situações de alcance. O \textbf{corpo} (grupo 0, 5.875 vídeos, 99,5\%) é o conteúdo que sustenta a presença diária do perfil: mediana de 87 mil reproduções e cerca de 12 mil curtidas por vídeo, presente nos 26 perfis. Os \textbf{virais} (grupo 2, 27 vídeos) são as peças que ultrapassam a base de seguidores, com média de 10 milhões de reproduções, 763 mil curtidas e 48 mil comentários; metade delas pertence a um único perfil, Tarcísio de Freitas (SP), e as demais se distribuem por seis perfis. As \textbf{transmissões longas} (grupo 1, dois vídeos de mais de uma hora) não se destacam em alcance e existem como grupo apenas pela duração. Para a decisão de \emph{growth}, a assimetria é a informação: um perfil não cresce em alcance elevando a média do corpo, que é estável e semelhante entre perfis, mas aumentando a probabilidade de produzir uma peça do grupo 2. A etapa de alcance do funil é, portanto, uma etapa de variância, não de média, e as recomendações de produção devem olhar para o que distingue os 27 vídeos virais do corpo, e não para o que distingue um perfil do outro.
 
-%%TODO-SEG-FEED: clusters de feed, comparação com reels
 
-%%TODO-SEG-PERFIS: grupos de governadores, nomeação funcional à la Flesch \cite{FLESCH2017}
+No \emph{feed}, a segmentação com apenas curtidas e comentários fragmentou a cauda em catorze grupos (Seção~\ref{sec:clusterizacao}), que se leem como três faixas de ativação. O corpo (7.400 publicações, 87,7\%) tem mediana de 2.230 curtidas; a faixa acima da média (921 publicações, 10,9\%) vai de 24 mil a 90 mil curtidas médias; e a faixa excepcional (116 publicações, 1,4\%) vai de 150 mil a 2,25 milhões de curtidas médias, quase sempre com um único perfil por grupo. A comparação com os \emph{Reels} é instrutiva: como 5.856 das publicações do \emph{feed} são os próprios \emph{Reels} vistos pela grade, as faixas de ativação do \emph{feed} coincidem em grande parte com os grupos de alcance dos vídeos, e as 2.584 publicações estáticas (imagens e carrosséis) concentram-se no corpo. A publicação estática é, na Coleta, um formato de manutenção da ativação, raramente de ruptura; o vídeo é o formato pelo qual as rupturas acontecem.
+
+
+A segmentação dos perfis, por sua vez, é a menos informativa das três, e a sua leitura deve ser funcional, no sentido em que \citeonline{FLESCH2017} nomeia grupos pelo papel que desempenham e não pela sua posição numérica. O DBSCAN separou dois núcleos e deixou 21 perfis como corpo heterogêneo (Seção~\ref{sec:clusterizacao}). O primeiro núcleo, \textbf{base grande e resposta baixa}, reúne Antonio Denarium (RR), Mauro Mendes (MT) e Wilson Lima (AM): publicam com regularidade (cerca de três publicações por dia) mas obtêm 2,7\% de engajamento por seguidor na janela, contra 9,7\% no corpo. O segundo núcleo, \textbf{perfis inativos}, reúne Ibaneis Rocha (DF) e Marcos Rocha (RO), com duas e três publicações em 70 dias, para os quais nenhuma métrica de desempenho é interpretável. O corpo heterogêneo contém desde os perfis de maior resposta relativa (Clécio Luís, AP, com 21,1\% de engajamento por seguidor; Ricardo Ferraço, ES, com 18,6\%; Fábio Mitidieri, SE, com 17,7\%) até perfis de grande base e resposta modesta (Tarcísio de Freitas, SP, com 7,3\%; Romeu Zema, MG, com 5,4\%; Ronaldo Caiado, GO, com 3,6\%). Essa dispersão é exatamente o que o escore composto da Seção~\ref{sec:scorecard} organiza, com cinco dimensões em vez de três e uma ordenação em vez de grupos.
+
 
 \section{Qualificação dos Segmentos pelo Sentimento}\label{sec:qualificacao}
 
-%%TODO-QUALIF: tabela sentimento x cluster, achado central (alto engajamento != aprovação), conexão com vanity metrics \cite{FEROZ2024}
+A qualificação dos segmentos pelo sentimento (Tabela~\ref{tab:sentimento_cluster}, na Seção~\ref{sec:sentimento}) é o resultado central deste trabalho, porque contradiz a leitura ingênua das métricas de engajamento. Nos \emph{Reels}, o corpo tem 7,9\% de comentários negativos; os 27 vídeos virais têm 21,3\%. No \emph{feed}, a proporção de negativos cresce de forma monotônica com a faixa de desempenho: 7,1\% no corpo, entre 12,0\% e 16,6\% na faixa acima da média, e entre 18,0\% e 43,5\% na faixa excepcional. A proporção de positivos faz o caminho inverso, de 61,5\% no corpo a 30,4\% no grupo mais extremo com amostra. O mecanismo é o de audiência: o conteúdo que fica no corpo é visto e comentado pela base que segue o perfil e tende a apoiá-lo; o conteúdo que viraliza é entregue pelo algoritmo a públicos que não escolheram seguir o governador, e a reação desses públicos é mais crítica. Em termos do funil, o estágio de alcance e o estágio de conversão puxam em direções opostas: maximizar o primeiro degrada a taxa do segundo.
+
+É aqui que a crítica às \emph{vanity metrics} \cite{FEROZ2024} deixa de ser um argumento de princípio e se torna um fato mensurado. Uma assessoria que avalie conteúdo por curtidas e reproduções selecionará sistematicamente as peças com maior proporção de rejeição, porque são elas que produzem os maiores números absolutos. Isso não significa que viralizar seja ruim, pois 51,1\% dos comentários dos vídeos virais ainda são positivos e o volume absoluto de aprovação é enorme, mas significa que alcance e aprovação precisam ser medidos separadamente e combinados de forma explícita, o que é precisamente o papel da \emph{North Star Metric} e do escore composto apresentados a seguir.
+
 
 \section{Discurso da Assessoria versus Reação do Público}\label{sec:discurso-reacao}
 
-%%TODO-DISCURSO: pautas (legendas) x grupos de comentários; análise de lacuna
+A comparação entre as pautas das legendas (Seção~\ref{sec:topicos}) e os temas dos comentários é feita em duas direções: o que a assessoria pauta e como o público reage, e o que o público pede e se a assessoria responde. Na primeira direção, a oferta é de campanha (67,1\% das legendas com pauta) e a reação a ela é a menos favorável de todo o corpus. Entre as pautas com ao menos 150 comentários, as de menor aprovação são todas de campanha ou de polarização: ``campanha eleitoral e pedido de votos'' (8,8\% de positivos), ``campanha e contato direto com a população'' (10,8\%), ``apoio político à eleição presidencial nacional'' (23,6\%), ``críticas ao STF e a Alexandre de Moraes'' (32,3\%), ``campanha eleitoral para o Senado'' (35,7\%) e ``transporte gratuito para votação'' (36,8\%). Parte dessa baixa aprovação é mecânica, porque a reação típica à publicação de campanha é o número do candidato em emojis, que o classificador lê como neutro; mas a parte negativa também é maior nessas pautas. No extremo oposto, as pautas de maior aprovação são de serviço e de proximidade: apoio ao empreendedorismo (100\% em 60 comentários), desenvolvimento econômico do Piauí (86,0\%), homenagens a familiares e vida pessoal (83,2\%, em 546 comentários e 19 perfis), participação em debates (81,1\%) e investimentos em educação (78,7\%).
+
+Na segunda direção, a lacuna é nítida. Os temas de cobrança do público (Seção~\ref{sec:topicos}) são água e hospitais (1.721 comentários), salários e aposentadorias (262), impostos (81), fome (62) e a proteção aos Guarani Kaiowá (1.095). Do lado da oferta, há três pautas de saúde com 34 publicações em cinco perfis, três de água e segurança hídrica com 18 publicações em quatro perfis, uma de pagamento de servidores com 16 publicações em oito perfis, e nenhuma pauta sobre impostos ou sobre a questão indígena. Em sentido inverso, a segurança pública é o tema de serviço mais pautado pela assessoria, com catorze pautas, 145 publicações e dezoito perfis, e não aparece entre os temas de reclamação do público. A leitura para a decisão é dupla: as assessorias falam de campanha e de segurança, o público cobra saúde, água e renda; e as pautas de serviço, quando existem, recebem aprovação maior do que as de campanha. A Tela \textbf{Discurso e reação} do painel apresenta esse confronto por perfil, e o estudo de caso da Seção~\ref{sec:estudo-caso} o aplica a três deles.
+
 
 \section{Métricas de Crescimento e Priorização}\label{sec:metricas}
 
@@ -55,7 +64,58 @@ A crítica às métricas de vaidade \cite{FEROZ2024} exige uma métrica que una 
 
 \noindent em que $c^{+}_i$ e $c_i$ são os comentários positivos e totais classificados, $E_i$ é o engajamento total (curtidas e comentários) da janela e $n_i$ o número de publicações, de modo que $E_i/n_i$ é o engajamento médio por publicação, usado como aproximação do alcance porque a plataforma não expõe alcance para publicações estáticas. A NSM cresce com a aprovação e com a repercussão, e penaliza tanto o perfil com muito volume e pouca aprovação quanto o perfil aprovado mas inaudível. Para apresentação, é convertida em um índice de 0 a 100 pela normalização mínimo-máximo entre os perfis. O teste da métrica é simples: se ela não reordenasse os perfis em relação ao engajamento bruto, seria redundante.
 
-%%TODO-NSM: tabela ranking NSM vs bruto; quantos mudam; maiores subidas/quedas; perfis com amostra insuficiente
+A Tabela~\ref{tab:nsm} compara, para os 26 perfis, a posição pelo engajamento bruto (curtidas e comentários totais na janela) e a posição pela NSM; a Figura~\ref{fig:nsm_vs_bruto} mostra o mesmo contraste graficamente. A métrica passa no teste: 23 dos 26 perfis mudam de posição. As duas primeiras posições não mudam, Tarcísio de Freitas (SP) e Raquel Lyra (PE), mas por razões opostas: o primeiro tem a maior repercussão da amostra com aprovação de apenas 52,1\%, e a segunda tem a segunda maior repercussão com 77,4\% de aprovação, de modo que, se a base de comparação fosse a aprovação, as posições se inverteriam. A partir daí a reordenação é intensa. Jorginho Mello (SC) sobe de oitavo para terceiro, porque seu engajamento, embora modesto em volume, concentra-se em poucas publicações de grande repercussão. Eduardo Leite (RS) é a maior subida com amostra suficiente, do 18º para o 9º lugar, combinando a maior aprovação entre os perfis com mais de cem comentários (80,2\%) com um engajamento médio por publicação acima do que seu volume total sugere. Wanderlei Barbosa (TO) sobe oito posições pelo mesmo motivo. Em sentido contrário, Elmano de Freitas (CE), Ratinho Júnior (PR) e Fábio Mitidieri (SE) caem seis posições cada: são perfis de alto volume de publicação, cujo engajamento total é grande porque é somado sobre muitas peças, não porque cada peça repercuta. Marcos Rocha (RO) e Ibaneis Rocha (DF), com 20 e 15 comentários, aparecem na tabela mas não sustentam leitura, e são excluídos da escolha dos casos da Seção~\ref{sec:estudo-caso}.
+
+\begin{table}[htb]
+\centering
+\caption{Engajamento bruto e \emph{North Star Metric} por perfil}
+\label{tab:nsm}
+\footnotesize\setlength{\tabcolsep}{4pt}
+\begin{tabular}{llrrrrrr}
+\toprule
+\textbf{Perfil} & \textbf{UF} & \textbf{Coment.} & \textbf{Positivos} & \textbf{Eng. médio} & \textbf{NSM} & \textbf{Pos. bruto} & \textbf{Pos. NSM} \\
+\midrule
+Tarcísio de Freitas & SP & 1.757 & 52,1\% & 160.668 & 83.763 & 1 & 1 \\
+Raquel Lyra & PE & 6.893 & 77,4\% & 25.751 & 19.942 & 2 & 2 \\
+Jorginho Mello & SC & 953 & 50,9\% & 35.602 & 18.119 & 8 & 3 \\
+Jerônimo Rodrigues & BA & 4.292 & 54,1\% & 23.374 & 12.651 & 4 & 4 \\
+Romeu Zema & MG & 2.452 & 36,5\% & 33.305 & 12.143 & 3 & 5 \\
+Fátima Bezerra & RN & 1.958 & 61,1\% & 15.693 & 9.593 & 10 & 6 \\
+Rafael Fonteles & PI & 8.384 & 75,8\% & 12.341 & 9.350 & 5 & 7 \\
+Helder Barbalho & PA & 3.019 & 70,1\% & 11.325 & 7.934 & 7 & 8 \\
+Eduardo Leite & RS & 486 & 80,2\% & 9.485 & 7.611 & 18 & 9 \\
+Carlos Brandão & MA & 2.288 & 53,5\% & 12.378 & 6.622 & 11 & 10 \\
+Ronaldo Caiado & GO & 1.917 & 53,2\% & 12.078 & 6.420 & 9 & 11 \\
+Elmano de Freitas & CE & 5.395 & 62,7\% & 8.151 & 5.111 & 6 & 12 \\
+Paulo Dantas & AL & 1.402 & 69,5\% & 6.294 & 4.373 & 16 & 13 \\
+Marcos Rocha$^{*}$ & RO & 20 & 95,0\% & 3.555 & 3.377 & 26 & 14 \\
+Clécio Luís & AP & 4.845 & 61,4\% & 3.970 & 2.438 & 14 & 15 \\
+Wanderlei Barbosa & TO & 406 & 57,4\% & 4.122 & 2.366 & 24 & 16 \\
+João Azevêdo & PB & 4.561 & 67,1\% & 3.459 & 2.322 & 15 & 17 \\
+Ratinho Júnior & PR & 4.862 & 57,3\% & 3.886 & 2.226 & 12 & 18 \\
+Fábio Mitidieri & SE & 6.277 & 55,7\% & 3.600 & 2.007 & 13 & 19 \\
+Ibaneis Rocha$^{*}$ & DF & 15 & 33,3\% & 5.452 & 1.817 & 25 & 20 \\
+Mauro Mendes & MT & 1.786 & 57,2\% & 2.186 & 1.251 & 19 & 21 \\
+Ricardo Ferraço & ES & 3.369 & 46,2\% & 2.619 & 1.211 & 17 & 22 \\
+Wilson Lima & AM & 2.093 & 40,5\% & 1.774 & 719 & 20 & 23 \\
+Gladson Cameli & AC & 2.597 & 63,3\% & 986 & 624 & 22 & 24 \\
+Antonio Denarium & RR & 2.026 & 63,9\% & 971 & 620 & 23 & 25 \\
+Eduardo Riedel & MS & 1.581 & 15,2\% & 1.899 & 289 & 21 & 26 \\
+\bottomrule
+\end{tabular}
+\par\smallskip
+\raggedright\footnotesize Fonte: Gold \texttt{governor\_nsm}. ``Eng. médio'' é o engajamento (curtidas e comentários) médio por publicação; a NSM é o produto da proporção de positivos pelo engajamento médio. $^{*}$Amostra de comentários insuficiente para leitura.
+\end{table}
+
+\begin{figure}[htb]
+\centering
+\caption{Posição dos perfis pelo engajamento bruto e pela \emph{North Star Metric}}
+\label{fig:nsm_vs_bruto}
+\includegraphics[width=0.95\textwidth]{Figuras/nsm_vs_bruto.png}
+\par\smallskip
+\raggedright\footnotesize Fonte: Gold \texttt{governor\_nsm}.
+\end{figure}
+
 
 \subsection{Consistência e Tendência do Engajamento}\label{sec:consistencia}
 
@@ -68,13 +128,112 @@ O crescimento ao longo do tempo é a dimensão que distingue uma estratégia de 
 
 \noindent em que $y_{ij}$ é o engajamento (curtidas mais comentários) da publicação $j$, $t_{ij}$ é o tempo desde a primeira publicação do perfil, em meses, e $f_{ij}$ indica se a publicação é um \emph{Reel}, controle necessário porque uma mudança na mistura de formatos alteraria o engajamento médio sem que nada tivesse mudado dentro de cada formato. A taxa mensal é $\exp(\beta_i)-1$, diretamente comparável à CMGR, e vem acompanhada de um intervalo de confiança de 95\%. Entram apenas publicações não fixadas, com pelo menos sete dias de vida, deduplicadas entre \emph{Reels} e \emph{feed}; a estimativa só é considerada confiável com ao menos 15 publicações em 10 dias distintos. Em simulação com verdade conhecida, esse estimador manteve a taxa de falso alarme em 4,3\% e a cobertura do intervalo em 95,3\%, contra 14,6\% de falso alarme da regressão sem o controle de formato. A partir da taxa e do intervalo deriva-se o estado de \textbf{Tendência} do perfil: \emph{Subindo} quando o intervalo exclui zero por cima e a taxa supera 5\% ao mês, \emph{Caindo} no caso simétrico, \emph{Estável} quando o intervalo contém zero ou o efeito é pequeno, e \emph{Dados insuficientes} abaixo do mínimo de publicações. O crescimento de \emph{audiência} (seguidores entre medições do perfil) continua pendente, porque exige mais de uma Coleta.
 
-%%TODO-CONSISTENCIA: tabela taxa mensal, IC, estado por perfil; distribuição dos estados; leitura
+A Tabela~\ref{tab:consistencia} apresenta a taxa mensal estimada, o intervalo de confiança e o estado de Tendência de cada perfil; a Figura~\ref{fig:consistencia} mostra as taxas com seus intervalos. A estimativa foi possível para 24 dos 26 perfis, todos com mais do mínimo exigido (de 48 a 859 publicações, em 39 a 71 dias distintos); Ibaneis Rocha (DF) e Marcos Rocha (RO), com duas e três publicações, ficam em ``Dados insuficientes'', e o escore composto os avalia nas quatro dimensões restantes. O resultado agregado reflete o calendário: a janela termina no segundo turno das eleições de 2026, e 17 perfis estão em ``Subindo'', seis em ``Estável'' e um em ``Caindo''. As taxas são altas porque o crescimento se concentra em outubro, e a reta ajustada em escala logarítmica traduz um salto em taxa: Rafael Fonteles (PI), por exemplo, passa de uma mediana de 1,2 mil interações por publicação em agosto para 11,8 mil em outubro, o que a regressão resume como $+279\%$ ao mês (IC de 232\% a 333\%). O mesmo movimento, em escala menor, aparece em Helder Barbalho (PA), Ratinho Júnior (PR), Tarcísio de Freitas (SP) e Jerônimo Rodrigues (BA), todos acima de $+120\%$ ao mês.
+
+A leitura útil para a decisão não é a taxa absoluta, que é própria do período, mas a comparação entre perfis expostos ao mesmo calendário. Seis perfis não cresceram enquanto quase todos os demais cresciam: Clécio Luís (AP), Romeu Zema (MG), Eduardo Riedel (MS) e Mauro Mendes (MT) têm taxas entre $-7\%$ e $-2\%$ ao mês com intervalos que incluem zero; Antonio Denarium (RR) e Wanderlei Barbosa (TO) têm estimativas positivas mas imprecisas (intervalos de $-9\%$ a $+52\%$ e de $-8\%$ a $+156\%$), e por isso ``Estável''. Wilson Lima (AM) é o único perfil em queda com significância: $-21\%$ ao mês, com intervalo de $-33\%$ a $-7\%$, o que corresponde a uma mediana de interações por publicação que cai de 1,7 mil em agosto para 0,9 mil em outubro. O intervalo de confiança cumpre aqui a sua função: perfis com poucas publicações, como Eduardo Leite (RS), com 61 publicações e taxa de $+75\%$, carregam intervalos largos (de $+17\%$ a $+161\%$), e o selo distingue o que é crescimento demonstrado do que é apenas sugerido.
+
+\begin{table}[htb]
+\centering
+\caption{Consistência: taxa mensal de variação do engajamento por publicação e Tendência}
+\label{tab:consistencia}
+\scriptsize\setlength{\tabcolsep}{3pt}
+\begin{tabular}{llrrrrrl}
+\toprule
+\textbf{Perfil} & \textbf{UF} & \textbf{Taxa/mês} & \textbf{IC 95\% inf.} & \textbf{IC 95\% sup.} & \textbf{Publ.} & \textbf{Dias} & \textbf{Tendência} \\
+\midrule
+Rafael Fonteles & PI & $+279{,}3\%$ & $+232{,}0\%$ & $+333{,}4\%$ & 859 & 71 & Subindo \\
+Helder Barbalho & PA & $+236{,}7\%$ & $+150{,}0\%$ & $+353{,}5\%$ & 362 & 67 & Subindo \\
+Ratinho Júnior & PR & $+196{,}4\%$ & $+157{,}2\%$ & $+241{,}7\%$ & 615 & 70 & Subindo \\
+Tarcísio de Freitas & SP & $+126{,}2\%$ & $+84{,}3\%$ & $+177{,}5\%$ & 234 & 69 & Subindo \\
+Jerônimo Rodrigues & BA & $+125{,}2\%$ & $+95{,}3\%$ & $+159{,}7\%$ & 479 & 71 & Subindo \\
+Fátima Bezerra & RN & $+90{,}7\%$ & $+52{,}1\%$ & $+139{,}1\%$ & 212 & 70 & Subindo \\
+Elmano de Freitas & CE & $+82{,}8\%$ & $+61{,}3\%$ & $+107{,}2\%$ & 646 & 71 & Subindo \\
+Eduardo Leite & RS & $+74{,}5\%$ & $+16{,}6\%$ & $+161{,}2\%$ & 61 & 40 & Subindo \\
+Fábio Mitidieri & SE & $+74{,}2\%$ & $+56{,}8\%$ & $+93{,}6\%$ & 657 & 71 & Subindo \\
+Gladson Cameli & AC & $+66{,}6\%$ & $+39{,}9\%$ & $+98{,}4\%$ & 276 & 61 & Subindo \\
+Ricardo Ferraço & ES & $+60{,}1\%$ & $+45{,}0\%$ & $+76{,}9\%$ & 354 & 66 & Subindo \\
+Jorginho Mello & SC & $+58{,}0\%$ & $+24{,}0\%$ & $+101{,}3\%$ & 112 & 68 & Subindo \\
+Wanderlei Barbosa & TO & $+53{,}9\%$ & $-7{,}5\%$ & $+156{,}1\%$ & 48 & 39 & Estável \\
+Paulo Dantas & AL & $+43{,}8\%$ & $+18{,}8\%$ & $+74{,}0\%$ & 161 & 65 & Subindo \\
+Ronaldo Caiado & GO & $+39{,}8\%$ & $+2{,}7\%$ & $+90{,}2\%$ & 315 & 59 & Subindo \\
+Raquel Lyra & PE & $+37{,}0\%$ & $+17{,}8\%$ & $+59{,}3\%$ & 721 & 71 & Subindo \\
+João Azevêdo & PB & $+24{,}5\%$ & $+8{,}2\%$ & $+43{,}3\%$ & 465 & 69 & Subindo \\
+Carlos Brandão & MA & $+21{,}6\%$ & $+3{,}7\%$ & $+42{,}7\%$ & 252 & 70 & Subindo \\
+Antonio Denarium & RR & $+17{,}9\%$ & $-8{,}7\%$ & $+52{,}3\%$ & 226 & 67 & Estável \\
+Mauro Mendes & MT & $-2{,}1\%$ & $-31{,}0\%$ & $+39{,}0\%$ & 204 & 56 & Estável \\
+Clécio Luís & AP & $-3{,}0\%$ & $-13{,}7\%$ & $+9{,}0\%$ & 501 & 68 & Estável \\
+Eduardo Riedel & MS & $-5{,}5\%$ & $-20{,}8\%$ & $+12{,}6\%$ & 167 & 66 & Estável \\
+Romeu Zema & MG & $-6{,}8\%$ & $-36{,}3\%$ & $+36{,}3\%$ & 336 & 56 & Estável \\
+Wilson Lima & AM & $-21{,}3\%$ & $-33{,}2\%$ & $-7{,}4\%$ & 223 & 55 & Caindo \\
+Ibaneis Rocha & DF & --- & --- & --- & 2 & 2 & Dados insuficientes \\
+Marcos Rocha & RO & --- & --- & --- & 3 & 3 & Dados insuficientes \\
+\bottomrule
+\end{tabular}
+\par\smallskip
+\raggedright\footnotesize Fonte: Gold \texttt{governor\_scorecard}. ``Publ.'' e ``Dias'' são as publicações e os dias distintos usados na regressão; ``Estável'' indica intervalo que inclui zero ou efeito abaixo de 5\% ao mês.
+\end{table}
+
+\begin{figure}[htb]
+\centering
+\caption{Taxa mensal de variação do engajamento por publicação, com intervalo de confiança de 95\%}
+\label{fig:consistencia}
+\includegraphics[width=0.95\textwidth]{Figuras/consistencia_tendencia.png}
+\par\smallskip
+\raggedright\footnotesize Fonte: Gold \texttt{governor\_scorecard}.
+\end{figure}
+
 
 \subsection{Priorização de Temas e Pautas (Score ICE)}\label{sec:ice}
 
 O que produzir é a decisão mais frequente de uma assessoria, e o Score ICE a ordena. Para cada \textbf{pauta}, isto é, cada assunto do discurso identificado nas legendas, o escore combina três fatores: o \emph{impacto}, produto do alcance normalizado da pauta (soma de curtidas e respostas dos comentários recebidos pelas publicações daquela pauta, comprimida para o intervalo de zero a um) pela proporção de comentários positivos; a \emph{confiança}, confiança média do classificador de sentimento nesses comentários; e a \emph{facilidade}, fixada em 1 nesta versão por não haver, na Coleta, dado sobre custo de produção. O mesmo cálculo é aplicado aos \textbf{grupos de comentários}, temas levantados pelo público, o que permite comparar a fila do que a assessoria pauta com a fila do que o público pede. Como o alcance normalizado satura rapidamente, o escore é dominado, na prática, pela proporção de aprovação de pautas com volume suficiente, o que é a intenção: priorizar o que converte, entre o que já tem audiência. A prioridade é apresentada em três faixas (Alta, Média e Cuidado), definidas pelos tercis do escore no conjunto de todos os perfis.
 
-%%TODO-ICE: tabela top pautas e piores; top temas de comentário
+A Tabela~\ref{tab:ice} apresenta as pautas de maior e de menor Score ICE e os temas de comentário de maior escore. No topo da fila de pautas estão assuntos de serviço e de proximidade com aprovação alta: empreendedorismo e pequenos negócios (0,68), homenagens a familiares e vida pessoal (0,61), desenvolvimento econômico e infraestrutura do Piauí (0,58), realizações de governo no Piauí (0,56), cultura e política do Rio Grande do Sul (0,56), apoio a candidatos a deputado (0,55), economia, emprego e renda (0,55), debates e entrevistas (0,55) e educação pública (0,54). A única pauta de grande volume entre as dez primeiras é ``campanha eleitoral e realizações de governo'' de Rafael Fonteles (251 publicações, 2.450 comentários, 79,1\% de positivos), o que confirma que campanha e aprovação não são incompatíveis quando a campanha é feita de entregas. Na base da fila, com dez ou mais publicações, estão ``campanha eleitoral e pedido de votos'' (8,8\% de positivos), ``campanha e contato direto com a população'' (10,8\%), ``críticas a adversários políticos e instituições'' (31,2\%), ``realizações e propostas de governo para Mato Grosso do Sul'' (18,3\%, a pauta atingida pela mobilização indígena) e ``apoio político à eleição presidencial nacional'' (23,6\%).
+
+Entre os temas de comentário, o escore ordena o que o público mais aprova quando fala: elogios e manifestações de afeto (0,75), manifestações de apoio com emojis (0,65), apoio eleitoral e carinho (0,60), elogios ao governador (0,60), mensagens religiosas (0,59) e saudações (0,53). A fila de temas é menos informativa do que a de pautas, porque os temas de cobrança, que são os que pedem ação, têm por construção aprovação baixa e escore próximo de zero. Duas limitações do escore devem ser registradas. O alcance de uma pauta é medido pelas curtidas e respostas que os comentários recebem; pautas cujos comentários não receberam nenhuma curtida ficam com alcance normalizado zero e escore zero mesmo com aprovação alta (é o caso de ``Círio de Nazaré e fé paraense'', com 81,8\% de positivos em 88 comentários), e a facilidade, fixada em um, não discrimina nada nesta versão. O escore é, portanto, um ordenador de primeira passagem, que a assessoria deve ler junto com o volume e a aprovação brutos, ambos exibidos na Tela \textbf{O que produzir} do painel.
+
+\begin{table}[htb]
+\centering
+\caption{Score ICE: pautas de maior e de menor escore e temas de comentário de maior escore}
+\label{tab:ice}
+\scriptsize\setlength{\tabcolsep}{3pt}
+\begin{tabular}{p{6.4cm}rrrrr}
+\toprule
+\textbf{Pauta / tema} & \textbf{Publ.} & \textbf{Coment.} & \textbf{Positivos} & \textbf{Impacto} & \textbf{Score} \\
+\midrule
+\multicolumn{6}{l}{\emph{Pautas de maior escore}} \\
+Apoio ao empreendedorismo e pequenos negócios & 6 & 60 & 100,0\% & 0,98 & 0,68 \\
+Homenagens a familiares e vida pessoal & 60 & 546 & 83,2\% & 0,82 & 0,61 \\
+Desenvolvimento econômico e infraestrutura do Piauí & 11 & 107 & 86,0\% & 0,85 & 0,58 \\
+Realizações e propostas de governo no Piauí & 35 & 339 & 84,4\% & 0,84 & 0,56 \\
+Cultura e política do Rio Grande do Sul & 16 & 132 & 80,3\% & 0,77 & 0,56 \\
+Apoio a candidatos a deputado nas eleições & 10 & 100 & 87,0\% & 0,86 & 0,55 \\
+Propostas e ações para economia, emprego e renda & 8 & 78 & 84,6\% & 0,83 & 0,55 \\
+Participação em debates e entrevistas eleitorais & 15 & 148 & 81,1\% & 0,80 & 0,55 \\
+Investimentos e oportunidades na educação pública & 14 & 127 & 78,7\% & 0,77 & 0,54 \\
+Campanha eleitoral e realizações de governo (PI) & 251 & 2.450 & 79,1\% & 0,79 & 0,53 \\
+\midrule
+\multicolumn{6}{l}{\emph{Pautas de menor escore (ao menos dez publicações)}} \\
+Campanha eleitoral e pedido de votos & 21 & 161 & 46,6\% & 0,00 & 0,00 \\
+Círio de Nazaré e fé paraense$^{*}$ & 10 & 88 & 81,8\% & 0,00 & 0,00 \\
+Campanha eleitoral e pedido de votos & 17 & 159 & 8,8\% & 0,05 & 0,05 \\
+Campanha e contato direto com a população & 19 & 185 & 10,8\% & 0,05 & 0,05 \\
+Críticas a adversários políticos e instituições & 19 & 125 & 31,2\% & 0,10 & 0,10 \\
+Realizações e propostas de governo para Mato Grosso do Sul & 84 & 810 & 18,3\% & 0,11 & 0,11 \\
+Apoio político à eleição presidencial nacional & 45 & 267 & 23,6\% & 0,13 & 0,13 \\
+\midrule
+\multicolumn{6}{l}{\emph{Temas de comentário de maior escore}} \\
+Elogios e manifestações de apoio ou afeto & --- & 270 & 95,9\% & 0,93 & 0,75 \\
+Manifestações de apoio e emojis afetivos & --- & 3.196 & 92,6\% & 0,92 & 0,65 \\
+Apoio eleitoral e demonstrações de carinho & --- & 1.730 & 95,0\% & 0,93 & 0,60 \\
+Elogios e apoio político ao governador & --- & 1.467 & 79,3\% & 0,79 & 0,60 \\
+Elogios e apoio político ao governador & --- & 28.147 & 91,4\% & 0,91 & 0,60 \\
+Mensagens de cunho religioso e bênçãos & --- & 323 & 83,6\% & 0,82 & 0,59 \\
+\bottomrule
+\end{tabular}
+\par\smallskip
+\raggedright\footnotesize Fonte: Gold \texttt{content\_topic\_priority\_score} e \texttt{topic\_priority\_score}. Facilidade fixada em 1. $^{*}$Alcance normalizado zero (comentários sem curtidas), ver texto.
+\end{table}
+
 
 \subsection{Painel Composto de Desempenho por Perfil}\label{sec:scorecard}
 
@@ -107,13 +266,98 @@ S_i = \sum_{j=1}^{5} w_j \cdot \tilde{x}_{ij},
 
 \noindent onde $\tilde{x}_{ij}$ é o valor normalizado do indicador $j$ para o perfil $i$ e $w_j$ é o peso da dimensão $j$, com $\sum_j w_j = 1$.
 
-%%TODO-SCORECARD: tabela ranking e decomposição; leitura dos 3 primeiros e 3 últimos
+A Tabela~\ref{tab:scorecard} apresenta o escore composto e a sua decomposição normalizada; a Figura~\ref{fig:scorecard} empilha as contribuições de cada dimensão. O escore varia de 9,6 a 58,9, com média de 31,3 e mediana de 30,8, e os três primeiros colocados ilustram três caminhos distintos para o topo. Rafael Fonteles (PI), em primeiro com 58,9, tem o máximo em Profundidade e em Consistência e 75,9 em Qualidade, mas apenas 4,6 em Alcance: é o perfil que mais converte e mais cresce, com repercussão modesta. Tarcísio de Freitas (SP), com 52,5, é o oposto: 100 em Alcance e 45,8 em Ativação, mas 46,3 em Qualidade e 21,3 em Profundidade, um perfil que alcança muito e converte pouco. Helder Barbalho (PA), com 52,0, está mais perto do primeiro, com 85,8 em Consistência, 77,2 em Profundidade e 68,7 em Qualidade. Na base, Eduardo Riedel (MS), com 9,6, tem zero em Qualidade (15,2\% de aprovação) e quase zero em Profundidade e Consistência, apesar de Alcance e Ativação medianos: o problema não é ser visto, é a reação de quem vê. Wilson Lima (AM), com 14,6, tem zero em Consistência (o único em queda) e 2,6 em Ativação; Mauro Mendes (MT), com 16,6, é baixo em todas as dimensões sem ser o pior em nenhuma. Os casos da Seção~\ref{sec:estudo-caso} mostram como essa decomposição se converte em recomendação.
+
+\begin{table}[htb]
+\centering
+\caption{Escore composto e decomposição normalizada (0 a 100) por perfil}
+\label{tab:scorecard}
+\footnotesize\setlength{\tabcolsep}{4pt}
+\begin{tabular}{rllrrrrrr}
+\toprule
+\textbf{Pos.} & \textbf{Perfil} & \textbf{UF} & \textbf{Alcance} & \textbf{Ativação} & \textbf{Qualidade} & \textbf{Profund.} & \textbf{Consist.} & \textbf{Escore} \\
+\midrule
+1 & Rafael Fonteles & PI & 4,6 & 14,3 & 75,9 & 100,0 & 100,0 & 58,9 \\
+2 & Tarcísio de Freitas & SP & 100,0 & 45,8 & 46,3 & 21,3 & 49,1 & 52,5 \\
+3 & Helder Barbalho & PA & 7,5 & 20,6 & 68,7 & 77,2 & 85,8 & 52,0 \\
+4 & Fátima Bezerra & RN & 10,1 & 100,0 & 57,5 & 32,0 & 37,3 & 47,4 \\
+5 & Jorginho Mello & SC & 30,2 & 81,0 & 44,7 & 17,7 & 26,4 & 40,0 \\
+6 & Jerônimo Rodrigues & BA & 12,4 & 37,1 & 48,7 & 49,1 & 48,7 & 39,2 \\
+7 & Raquel Lyra & PE & 20,7 & 22,1 & 78,0 & 33,3 & 19,4 & 34,7 \\
+8 & Clécio Luís & AP & 1,6 & 37,0 & 57,9 & 63,3 & 6,1 & 33,2 \\
+9 & Elmano de Freitas & CE & 5,5 & 24,7 & 59,5 & 41,1 & 34,6 & 33,1 \\
+10 & Ibaneis Rocha$^{*}$ & DF & 6,0 & 54,5 & 22,7 & 48,6 & --- & 32,9 \\
+11 & Wanderlei Barbosa & TO & 2,2 & 36,0 & 52,8 & 41,6 & 25,0 & 31,5 \\
+12 & Antonio Denarium & RR & 0,4 & 27,7 & 61,0 & 54,1 & 13,1 & 31,2 \\
+13 & Fábio Mitidieri & SE & 1,9 & 25,5 & 50,8 & 45,5 & 31,8 & 31,1 \\
+14 & Ratinho Júnior & PR & 2,0 & 0,0 & 52,7 & 25,7 & 72,4 & 30,6 \\
+15 & Eduardo Leite & RS & 4,7 & 5,7 & 81,5 & 22,7 & 31,9 & 29,3 \\
+16 & Paulo Dantas & AL & 14,7 & 26,0 & 68,0 & 10,2 & 21,7 & 28,1 \\
+17 & Ricardo Ferraço & ES & 5,2 & 49,8 & 38,9 & 16,7 & 27,1 & 27,5 \\
+18 & Carlos Brandão & MA & 17,2 & 33,4 & 48,0 & 20,9 & 14,3 & 26,7 \\
+19 & Marcos Rocha$^{*}$ & RO & 0,0 & 3,6 & 100,0 & 0,0 & --- & 25,9 \\
+20 & Gladson Cameli & AC & 0,7 & 6,8 & 60,3 & 14,7 & 29,3 & 22,3 \\
+21 & Romeu Zema & MG & 14,6 & 17,8 & 26,6 & 46,2 & 4,8 & 22,0 \\
+22 & Ronaldo Caiado & GO & 11,3 & 5,0 & 47,5 & 25,2 & 20,3 & 21,9 \\
+23 & João Azevêdo & PB & 5,2 & 13,8 & 65,1 & 8,1 & 15,3 & 21,5 \\
+24 & Mauro Mendes & MT & 6,4 & 8,5 & 52,6 & 9,0 & 6,4 & 16,6 \\
+25 & Wilson Lima & AM & 1,5 & 2,6 & 31,7 & 37,3 & 0,0 & 14,6 \\
+26 & Eduardo Riedel & MS & 12,9 & 26,3 & 0,0 & 3,6 & 5,3 & 9,6 \\
+\bottomrule
+\end{tabular}
+\par\smallskip
+\raggedright\footnotesize Fonte: Gold \texttt{governor\_scorecard}. $^{*}$Consistência indisponível (menos de 15 publicações); escore calculado sobre as quatro dimensões restantes, com pesos renormalizados.
+\end{table}
+
+\begin{figure}[htb]
+\centering
+\caption{Escore composto por perfil, decomposto por dimensão}
+\label{fig:scorecard}
+\includegraphics[width=0.95\textwidth]{Figuras/scorecard_decomposto.png}
+\par\smallskip
+\raggedright\footnotesize Fonte: Gold \texttt{governor\_scorecard}.
+\end{figure}
+
 
 A virtude do painel não é o ordenamento final, mas a \textbf{decomposição}: diferentemente de uma métrica isolada, o índice mostra não só \emph{quão} bem um perfil se posiciona, mas \emph{em quais} estágios do funil ele se destaca ou fica aquém. É essa decomposição que converte o \emph{ranking} em diagnóstico e indica, para cada perfil, o estágio que demanda intervenção.
 
 \section{Estudo de Caso Aplicado: Recomendações por Perfil}\label{sec:estudo-caso}
 
-%%TODO-CASOS: regra de escolha (maior subida NSM vs bruto, maior queda, mediano do escore); para cada: funil, lacuna discurso x reação, NSM, Tendência; 3 a 5 recomendações
+Os três perfis foram escolhidos por regra, antes de qualquer leitura, para evitar a seleção de casos convenientes: a maior subida de posição da NSM em relação ao engajamento bruto, a maior queda e o perfil mediano do escore composto, excluídos os perfis com menos de cem comentários. A regra indica Eduardo Leite (RS), que sobe nove posições; Elmano de Freitas (CE), que cai seis, empatado com Ratinho Júnior (PR) e Fábio Mitidieri (SE), e escolhido por ser o mais bem posicionado no engajamento bruto entre os três; e Fábio Mitidieri (SE), 13º no escore composto, que é a mediana dos 26. A Tabela~\ref{tab:casos} resume o diagnóstico dos três e a mediana dos perfis em cada medida; em seguida, cada caso é lido pelo funil, pela lacuna entre discurso e reação e pela Tendência, e recebe recomendações.
+
+\begin{table}[htb]
+\centering
+\caption{Diagnóstico dos três perfis do estudo de caso}
+\label{tab:casos}
+\scriptsize\setlength{\tabcolsep}{3pt}
+\begin{tabular}{p{3.6cm}>{\raggedleft\arraybackslash}p{2.6cm}>{\raggedleft\arraybackslash}p{2.6cm}>{\raggedleft\arraybackslash}p{2.6cm}>{\raggedleft\arraybackslash}p{1.6cm}}
+\toprule
+\textbf{Medida} & \textbf{Eduardo Leite (RS)} & \textbf{Elmano de Freitas (CE)} & \textbf{Fábio Mitidieri (SE)} & \textbf{Mediana (26)} \\
+\midrule
+Publicações na janela (por dia) & 61 (0,9) & 645 (9,2) & 655 (9,4) & 264 (3,8) \\
+Reproduções dos \emph{Reels} (alcançar) & 7,4 mi$^{a}$ & 86,9 mi$^{a}$ & 38,4 mi$^{a}$ & 48,4 mi \\
+Curtidas no \emph{feed} (ativar) & 552,7 mil & 4,8 mi & 2,2 mi & 2,0 mi \\
+Comentários positivos (converter) & 390 & 3.383 & 3.499 & 1.210 \\
+Marcações de terceiros (engajar) & 798 & 8 & 3.223 & 8,5 \\
+Positivos / negativos (\%) & 80,2 / 10,7 & 64,1 / 4,1 & 56,2 / 3,1 & 61,2 / 7,8 \\
+Posição bruto $\rightarrow$ NSM & 18 $\rightarrow$ 9 & 6 $\rightarrow$ 12 & 13 $\rightarrow$ 19 & --- \\
+Escore composto (posição) & 29,3 (15) & 33,1 (9) & 31,1 (13) & 30,8 \\
+Alcance / Ativação / Qualidade & 4,7 / 5,7 / 81,5 & 5,5 / 24,7 / 59,5 & 1,9 / 25,5 / 50,8 & --- \\
+Profundidade / Consistência & 22,7 / 31,9 & 41,1 / 34,6 & 45,5 / 31,8 & --- \\
+Taxa mensal (IC 95\%) & $+75\%$ ($+17$ a $+161$) & $+83\%$ ($+61$ a $+107$) & $+74\%$ ($+57$ a $+94$) & $+56\%$ \\
+Tendência & Subindo & Subindo & Subindo & --- \\
+\bottomrule
+\end{tabular}
+\par\smallskip
+\raggedright\footnotesize Fonte: Silver e Gold da Coleta. $^{a}$Soma das reproduções dos \emph{Reels} do perfil na janela. As dimensões do escore estão na escala normalizada de 0 a 100.
+\end{table}
+
+\paragraph*{Eduardo Leite (RS): aprovação alta, oferta escassa.} O perfil publica menos do que qualquer outro governador ativo, 61 publicações em 70 dias, e por isso é o 18º em engajamento bruto; quando se mede o que cada publicação produz e quem aprova, sobe para 9º. É o perfil mais aprovado da amostra entre os de amostra suficiente (80,2\% de positivos), e a aprovação não é de militância: os comentários de elogio (43\% do total) e de apoio afetivo dominam, e as cobranças são 2\%. O funil mostra onde está o gargalo: alcance e ativação estão perto do mínimo (4,7 e 5,7 na escala do escore), a qualidade está no topo (81,5) e a profundidade é mediana. O estágio de criação, porém, é forte: 798 marcações de terceiros por 314 autores, o sétimo maior volume da amostra, para um perfil que publica pouco. As pautas são de serviço e de identidade regional, com aprovação uniformemente alta (cultura e política do Rio Grande do Sul, 94\% de positivos; moradias, 97\%; obras e entregas, 83\%), com duas exceções informativas: respostas a desastres (36\% de negativos) e homenagem aos professores (23\%). Os três \emph{Reels} de maior alcance são mensagens institucionais sobre a democracia e o resultado eleitoral (2,3 milhões de reproduções) e um aviso sobre o 13º salário dos servidores. A Tendência é ``Subindo'' ($+75\%$ ao mês), mas com o intervalo mais largo entre os perfis em alta, consequência direta das poucas publicações. Recomendações: (1) aumentar a frequência, porque cada publicação adicional é recebida com aprovação alta e o perfil está abaixo de uma publicação por dia; (2) priorizar as pautas de serviço que já funcionam (moradia, obras, cultura regional) e tratar as de desastres e de servidores com resposta direta nos comentários, onde a crítica se concentra; (3) explorar o estágio de criação, estimulando e repercutindo as marcações de terceiros, que são o ponto forte do funil; (4) reavaliar a Tendência após um mês de frequência maior, quando o intervalo de confiança permitir distinguir crescimento de ruído.
+
+\paragraph*{Elmano de Freitas (CE): volume de campanha, repercussão diluída.} O perfil é o oposto: 645 publicações (9,2 por dia), sexto em engajamento bruto e 12º na NSM, porque o engajamento total é uma soma sobre muitas peças de repercussão modesta (8.151 interações por publicação, contra 25.751 de Raquel Lyra, por exemplo). A aprovação é boa (64,1\% de positivos) e a negatividade é baixa (4,1\%), mas 31,8\% dos comentários são neutros, em grande parte números de candidato em emojis, que a NSM não conta como aprovação. O discurso é quase monotemático: 433 das 645 publicações caem em uma única pauta de campanha e propostas, e outras 27 em quatro pautas de apoio à candidatura presidencial de Lula; a pauta de exaltação ao presidente é a que tem mais negativos (14,1\%). Os três \emph{Reels} de maior alcance, porém, não são de campanha: segurança pública (``Quadrante Seguro'', 7,0 milhões de reproduções; Companhia de Pronta Resposta, 4,1 milhões) e segurança hídrica no Cariri (3,4 milhões). O estágio de criação está vazio: oito marcações de terceiros em 70 dias, abaixo da mediana dos 26. A Tendência é ``Subindo'' ($+83\%$ ao mês, intervalo estreito), puxada por outubro. Recomendações: (1) reduzir o volume e concentrar a produção, porque a diluição é a causa direta da queda na NSM; (2) deslocar a mistura de pautas da campanha para as entregas de segurança e de água, que são o que de fato alcança públicos fora da base; (3) dosar a associação à campanha presidencial, que é a pauta de maior rejeição relativa do perfil; (4) construir o estágio de criação, hoje inexistente, com chamadas explícitas para que apoiadores e beneficiários publiquem marcando o perfil.
+
+\paragraph*{Fábio Mitidieri (SE): militância que não conta como aprovação.} O perfil mediano do escore ilustra uma armadilha de medição. É o segundo em marcações de terceiros (3.223, por 970 autores) e tem profundidade alta (45,5), mas cai de 13º para 19º na NSM porque 35\% de seus comentários pertencem ao tema ``apoio político e mensagens de carinho'', formado por números de candidato e foguetes, que o classificador lê como neutro: a aprovação medida é de 56,2\%, com apenas 3,1\% de negativos e 40,7\% de neutros, a maior proporção de neutros da amostra. Entre os comentários que dizem algo, a aprovação é alta, e os poucos negativos concentram-se em duas cobranças concretas, salários (18 comentários, 83\% negativos) e gestão pública (89 comentários, 60\%). O discurso repete o padrão cearense: 381 publicações em uma pauta de campanha e realizações (52,8\% de positivos), e pautas de serviço menores com aprovação maior, como políticas para as mulheres (28 publicações, 58,6\%), combate à fome (14, 60,9\%), mobilidade urbana em Aracaju (75,4\%) e um evento infantil (78,4\%); a pauta de carreatas é a pior do perfil (38,0\%). Os \emph{Reels} de maior alcance são os de agradecimento e de mobilização de rua após o primeiro turno (2,1 e 1,8 milhões de reproduções). A Tendência é ``Subindo'' ($+74\%$ ao mês). Recomendações: (1) tratar a militância numérica como ativo do estágio de criação, não de conversão: o perfil já mobiliza, e o que falta é converter essa mobilização em conteúdo de terceiros com substância, que o UGC mostra ser possível; (2) ampliar as pautas de serviço (mulheres, fome, mobilidade), que recebem aprovação maior do que a campanha, e reduzir as de carreata; (3) responder às cobranças salariais, pequenas em volume e altas em negatividade, antes que cresçam; (4) enfrentar o alcance, que é a dimensão mais baixa do perfil (1,9), com menos publicações por dia e mais vídeos construídos para circular fora de Sergipe. Em termos de método, o caso mostra que a NSM deve ser lida com a decomposição do sentimento ao lado: um perfil pode cair na métrica por excesso de neutros, não por rejeição, e o painel exibe os dois números juntos exatamente por isso.
+
 
 \section{O Painel de Apoio à Decisão}\label{sec:painel}
 
@@ -125,4 +369,13 @@ Dessa forma, o painel não substitui a análise, mas a torna contínua: os resul
 
 \section{Validação: Abordagem Híbrida versus Análises Isoladas}\label{sec:validacao}
 
-%%TODO-VALIDACAO: o que cada técnica isolada não veria; achado que só o cruzamento permite; responde ao objetivo 6
+O sexto objetivo específico pedia que se verificasse se a abordagem híbrida produz algo que as técnicas isoladas não produzem. A verificação é feita aqui por contraste: para cada técnica, pergunta-se o que ela teria concluído sozinha sobre a mesma Coleta, e compara-se com o que o cruzamento concluiu.
+
+A \textbf{clusterização isolada} teria entregue a Seção~\ref{sec:segmentacao}: um corpo de publicações e uma cauda de peças excepcionais, dominada por poucos perfis. A conclusão natural, e errada, seria que os 27 \emph{Reels} virais e as publicações excepcionais do \emph{feed} representam o melhor desempenho da amostra e devem servir de modelo. A \textbf{análise de sentimentos isolada} teria entregue a Seção~\ref{sec:sentimento}: 61\% de aprovação média, com uma ordenação de perfis que vai de 80\% a 15\% de positivos. Sozinha, ela não diz a que esse sentimento responde, nem distingue o perfil pequeno e aprovado do perfil grande e contestado. Só o cruzamento das duas (Seção~\ref{sec:qualificacao}) revela que a negatividade cresce com o desempenho, de 7,9\% para 21,3\% nos \emph{Reels} e de 7,1\% para 43,5\% no \emph{feed}, e, portanto, que a cauda que a clusterização aponta como modelo é também a mais rejeitada. Essa é uma conclusão que nenhuma das duas técnicas poderia alcançar, porque uma mede a extensão da reação e a outra a sua direção.
+
+A \textbf{modelagem de tópicos isolada} teria entregue duas listas, a dos temas dos comentários e a das pautas das legendas, cada uma com sua distribuição de volume. Sozinha, ela responderia ``do que se fala'', mas não ``com que resultado''. O cruzamento com o sentimento transformou cada pauta em um par de volume e aprovação, que o Score ICE ordena (Seção~\ref{sec:ice}), e o cruzamento entre os dois modelos de tópicos, o do público e o da assessoria, permitiu a análise de lacuna da Seção~\ref{sec:discurso-reacao}, em que temas presentes nos comentários não encontram pauta correspondente nas legendas, e pautas insistentes da assessoria não geram reação distinguível.
+
+Por fim, as \textbf{métricas de engajamento isoladas}, que são o instrumento corrente das assessorias, teriam ordenado os perfis como na coluna ``posição bruto'' da Tabela~\ref{tab:nsm}. A NSM, que depende do sentimento, moveu 23 dos 26 perfis; o escore composto, que depende dos clusters (Alcance e Ativação), do sentimento (Qualidade) e da regressão por publicação (Consistência), produziu uma ordenação em que o primeiro colocado pelo volume, Tarcísio de Freitas (SP), cai para segundo, e perfis de volume médio, como Rafael Fonteles (PI) e Helder Barbalho (PA), sobem ao topo por converterem e crescerem mais. O estudo de caso mostrou que três perfis com escores diferentes recebem recomendações diferentes, o que não aconteceria se o diagnóstico fosse uma única métrica.
+
+O critério de validação adotado é, portanto, o da \emph{informação incremental}: a abordagem híbrida é justificada não por produzir números melhores em alguma métrica de ajuste, mas por sustentar decisões que as partes isoladas não sustentariam, e, em um caso central, por contradizer a decisão que a técnica isolada mais usada recomendaria. As limitações dessa validação, que é interna à Coleta e não envolve um experimento com as assessorias, são discutidas no capítulo seguinte.
+
