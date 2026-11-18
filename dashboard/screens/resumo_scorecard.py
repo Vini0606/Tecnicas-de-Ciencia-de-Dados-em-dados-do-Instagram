@@ -1,12 +1,16 @@
-"""Sub-aba Scorecard do Resumo (ADR 0030 / ADR 0031, issue #188, spec #182).
+"""Sub-aba Scorecard do Resumo (ADR 0030 / ADR 0031 / ADR 0047, issue #188,
+spec #182).
 
 Ranking dos governadores por escore composto, lendo a tabela Gold
 `governor_scorecard` -- o dashboard só lê, nada é recalculado aqui. Cada
 dimensão (Alcance, Ativação, Qualidade, Profundidade, Consistência) é uma
-barra horizontal com o escore normalizado 0-100 e o valor numérico.
+barra horizontal com o escore normalizado 0-100 e o valor numérico. A
+Consistência traz ainda um selo com o estado da Tendência do engajamento
+(Subindo / Caindo / Estável / Dados insuficientes) e a taxa mensal estimada
+com o IC de 95% em texto curto (ADR 0047).
 
-Funções puras (`montar_linhas`, `fmt_valor`, `legenda_pesos`, `html_tabela`)
-concentram a lógica testável; `render` só orquestra o Streamlit.
+Funções puras (`montar_linhas`, `fmt_valor`, `fmt_taxa`, `legenda_pesos`,
+`html_tabela`) concentram a lógica testável; `render` só orquestra o Streamlit.
 """
 
 from __future__ import annotations
@@ -31,10 +35,18 @@ TEXTO_INTRO = (
     "ou perde."
 )
 SELO_CONFIABILIDADE = (
-    "Leitura com cautela: a Consistência mede a tendência do engajamento dos "
-    "posts por mês de publicação, não crescimento de audiência. O Alcance é "
-    "medido em reproduções (plays) dos reels."
+    "Leitura com cautela: a Consistência mede a tendência do engajamento das "
+    "publicações do próprio governador ao longo do tempo (taxa mensal estimada "
+    "sobre reels e posts, com intervalo de confiança de 95%), não crescimento "
+    "de audiência. O Alcance é medido em reproduções (plays) dos reels."
 )
+LEGENDA_TENDENCIA = (
+    "Tendência do engajamento (selo ao lado da Consistência): Subindo ou Caindo "
+    "só quando o intervalo de confiança exclui zero e a variação passa de 5% ao "
+    "mês; Estável quer dizer sem evidência suficiente de variação, não que nada "
+    "mudou."
+)
+ROTULO_TENDENCIA = "Tendência do engajamento"
 AVISO_SEM_TABELA = (
     "O Scorecard ainda não foi gerado -- rode o estágio do escore composto "
     "(`uv run python scripts/run_governor_scorecard.py`) ou a pipeline de "
@@ -66,6 +78,15 @@ _TEXTO_PENDENTE = "pendente"
 _TEXTO_SEM_DADO = "sem dado"
 _PESO_5 = "0,20"
 
+# Estados da Tendência (verbete do CONTEXT.md) -> classe CSS do selo.
+_ESTADO_DADOS_INSUFICIENTES = "Dados insuficientes"
+_CLASSE_TENDENCIA: dict[str, str] = {
+    "Subindo": "sc-t-sobe",
+    "Caindo": "sc-t-cai",
+    "Estável": "sc-t-estavel",
+    _ESTADO_DADOS_INSUFICIENTES: "sc-t-insuf",
+}
+
 
 # ---------------------------------------------------------------------------
 # Funções puras
@@ -77,6 +98,34 @@ def fmt_valor(valor: float | None) -> str:
     if valor is None or pd.isna(valor):
         return _PLACEHOLDER_SEM_GOVERNADOR
     return f"{valor:.1f}".replace(".", ",")
+
+
+def fmt_taxa(taxa: float | None) -> str:
+    """Taxa mensal (fração) como percentual com sinal e 1 casa, pt-BR:
+    0,032 -> "+3,2%"; -0,01 -> "-1,0%"; `—` se ausente."""
+    if taxa is None or pd.isna(taxa):
+        return _PLACEHOLDER_SEM_GOVERNADOR
+    return f"{100 * float(taxa):+.1f}%".replace(".", ",")
+
+
+def texto_tendencia(taxa, ic_inferior, ic_superior) -> str:
+    """Texto curto da Tendência: "+3,2% ao mês, IC 95% de +1,0% a +5,4%".
+    Vazio se a taxa estiver ausente."""
+    if taxa is None or pd.isna(taxa):
+        return ""
+    texto = f"{fmt_taxa(taxa)} ao mês"
+    if not (pd.isna(ic_inferior) or pd.isna(ic_superior)):
+        texto += f", IC 95% de {fmt_taxa(ic_inferior)} a {fmt_taxa(ic_superior)}"
+    return texto
+
+
+def _estado_tendencia(linha: pd.Series, pendente: bool) -> str | None:
+    """Estado gravado em `tendencia_engajamento`; sem a coluna, deduz
+    "Dados insuficientes" para pendente e nada para os demais."""
+    estado = linha.get("tendencia_engajamento")
+    if isinstance(estado, str) and estado.strip():
+        return estado.strip()
+    return _ESTADO_DADOS_INSUFICIENTES if pendente else None
 
 
 def _fmt_peso(n_dimensoes: int) -> str:
@@ -102,23 +151,41 @@ def legenda_pesos(df: pd.DataFrame) -> str:
 
 
 def _celula(linha: pd.Series, chave: str) -> dict:
+    """Célula de uma dimensão. Para a Consistência, `tendencia` traz o estado
+    da Tendência do engajamento e `detalhe` a taxa mensal com o IC em texto
+    (ADR 0047); nas demais dimensões ambos ficam `None`/vazios."""
     valor = linha.get(f"{chave}_norm")
+    tendencia = None
+    detalhe = ""
     if valor is None or pd.isna(valor):
         pendente = chave == "consistencia" and bool(
             linha.get("consistencia_pendente", True)
         )
+        if chave == "consistencia":
+            tendencia = _estado_tendencia(linha, pendente)
         return {
             "chave": chave,
             "pendente": pendente,
             "texto": _TEXTO_PENDENTE if pendente else _TEXTO_SEM_DADO,
             "largura": None,
+            "tendencia": tendencia,
+            "detalhe": detalhe,
         }
+    if chave == "consistencia":
+        tendencia = _estado_tendencia(linha, False)
+        detalhe = texto_tendencia(
+            linha.get("consistencia_taxa_mensal", linha.get("consistencia")),
+            linha.get("consistencia_ic_inferior"),
+            linha.get("consistencia_ic_superior"),
+        )
     largura = min(100.0, max(0.0, float(valor)))
     return {
         "chave": chave,
         "pendente": False,
         "texto": fmt_valor(valor),
         "largura": largura,
+        "tendencia": tendencia,
+        "detalhe": detalhe,
     }
 
 
@@ -234,18 +301,47 @@ _CSS = (
 .sc-viz .sc-escore { text-align: right; font-weight: 600; font-size: 15px;
   font-variant-numeric: tabular-nums; }
 .sc-viz th.sc-escore { font-size: 13px; }
+.sc-viz .sc-tend { display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  margin-top: 3px; font-size: 11px; }
+.sc-viz .sc-selo { display: inline-block; padding: 1px 7px; border-radius: 999px;
+  border: 1px solid currentColor; font-weight: 500; white-space: nowrap; }
+.sc-viz .sc-t-sobe { color: var(--sc-qualidade); }
+.sc-viz .sc-t-cai { color: var(--sc-ativacao); }
+.sc-viz .sc-t-estavel { opacity: .75; }
+.sc-viz .sc-t-insuf { opacity: .6; font-style: italic; }
+.sc-viz .sc-detalhe { opacity: .7; white-space: nowrap; }
 </style>"""
 )
 
 
+def _html_tendencia(cel: dict) -> str:
+    """Selo do estado da Tendência + texto da taxa/IC; vazio sem estado."""
+    estado = cel.get("tendencia")
+    if not estado:
+        return ""
+    classe = _CLASSE_TENDENCIA.get(estado, "sc-t-estavel")
+    selo = (
+        f'<span class="sc-selo {classe}" title="{html.escape(ROTULO_TENDENCIA)}">'
+        f"{html.escape(estado)}</span>"
+    )
+    detalhe = cel.get("detalhe") or ""
+    if detalhe:
+        detalhe = f'<span class="sc-detalhe">{html.escape(detalhe)}</span>'
+    return f'<div class="sc-tend">{selo}{detalhe}</div>'
+
+
 def _html_celula(cel: dict) -> str:
     if cel["largura"] is None:
-        return f'<td><span class="sc-pend">{html.escape(cel["texto"])}</span></td>'
+        return (
+            f'<td><span class="sc-pend">{html.escape(cel["texto"])}</span>'
+            f"{_html_tendencia(cel)}</td>"
+        )
     return (
         '<td><div class="sc-cel"><div class="sc-track">'
         f'<div class="sc-bar" style="width:{cel["largura"]:.1f}%;'
         f'background:var(--sc-{cel["chave"]});"></div></div>'
-        f'<span class="sc-val">{html.escape(cel["texto"])}</span></div></td>'
+        f'<span class="sc-val">{html.escape(cel["texto"])}</span></div>'
+        f"{_html_tendencia(cel)}</td>"
     )
 
 
@@ -289,5 +385,6 @@ def render(governor_url: str) -> None:
         return
 
     st.caption(legenda_pesos(df))
+    st.caption(LEGENDA_TENDENCIA)
     st.warning(SELO_CONFIABILIDADE, icon="⚠️")
     st.markdown(html_tabela(linhas), unsafe_allow_html=True)

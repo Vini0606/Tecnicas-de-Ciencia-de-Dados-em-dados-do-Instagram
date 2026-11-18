@@ -209,8 +209,9 @@ def load_nsm() -> pd.DataFrame:
 
 @st.cache_data(ttl=_TTL_SECONDS)
 def load_governor_scorecard() -> pd.DataFrame:
-    """`governor_scorecard` -- 1 linha por perfil (ADR 0030 / issue #188);
-    o dashboard só lê, o ranking vem gravado."""
+    """`governor_scorecard` -- 1 linha por perfil (ADR 0030 / ADR 0047, issue
+    #188); o dashboard só lê: ranking, Consistência (taxa mensal + IC) e o
+    estado da Tendência do engajamento vêm gravados."""
     try:
         return get_repository().load_governor_scorecard()
     except FileNotFoundError:
