@@ -295,11 +295,13 @@ Fora do `run_deterministic_modeling`, duas etapas separadas:
 ### 2.6 Contratos de schema e leitura
 
 - **[`src/schemas_delta.py`](src/schemas_delta.py)** declara um schema PyArrow por tabela, com `nullable=False` nas camadas Silver e Gold. **[`src/delta_io.py`](src/delta_io.py)** (`write_delta`) conforma o DataFrame ao contrato antes de gravar: descarta colunas extras, cria as anuláveis ausentes e **falha** se um campo obrigatório vier vazio. É por isso que os cleaners rejeitam linha sem `id` ou sem `data_hora` antes da escrita, com warning, em vez de deixar a escrita inteira quebrar.
-- **[`src/repositories/delta_repository.py`](src/repositories/delta_repository.py)** é a única porta de leitura dos dashboards e notebooks, local ou S3 via `storage_options`. É **read-only por design** (`save()` levanta `NotImplementedError`); a escrita pertence aos writers de cada camada. `DeltaRepository(as_of_version=N)` faz time travel numa tabela Delta local.
+- **[`src/repositories/delta_repository.py`](src/repositories/delta_repository.py)** é a única porta de leitura dos dashboards e notebooks e cobre as três camadas (`bronze_dir`, `silver_dir`, `gold_dir`), local ou S3 via `storage_options`. É **read-only por design** (`save()` levanta `NotImplementedError`); a escrita pertence aos writers de cada camada. `DeltaRepository(as_of_version=N)` faz time travel numa tabela Delta local. Acessores novos levam a camada no nome (`load_bronze_*`, `load_silver_*`); os antigos sem prefixo continuam, e três deles enganam pelo nome: `load_profiles()` lê a Gold `governor_engagement`, `load_comments()` prefere a Gold `governor_sentiment` e `load_ugc_mentions()` lê a Gold `governor_ugc_mentions`.
 
 ```python
-repo = DeltaRepository(gold_dir=settings.GOLD_DIR, silver_dir=settings.SILVER_DIR)
-df = repo.load_profiles()          # lê a Gold governor_engagement
+repo = DeltaRepository(gold_dir=settings.GOLD_DIR, silver_dir=settings.SILVER_DIR, bronze_dir=settings.BRONZE_DIR)
+df = repo.load_profiles()          # Gold governor_engagement (nome legado)
+df = repo.load_silver_profiles()   # Silver profiles_clean
+df = repo.load_bronze_reels()      # Bronze instagram_reels, com _raw
 repo_v3 = DeltaRepository(settings.GOLD_DIR, as_of_version=3)
 ```
 
@@ -355,7 +357,7 @@ Limites: a reconstrução precisa caber em 15 minutos; não há retry nem DLQ (a
 │   ├── features/silver/   # Um cleaner por tabela Silver + parsing compartilhado
 │   ├── features/gold/     # Agregador de engajamento, UGC, NSM, Scores ICE, ModelEnricher
 │   ├── modeling/          # PCA, AutoClusterHPO, sentimento, BERTopic, Scorecard, growth, refino Gemini, orquestração
-│   ├── repositories/      # DeltaRepository: única porta de leitura, local ou S3
+│   ├── repositories/      # DeltaRepository: única porta de leitura das três camadas, local ou S3
 │   ├── schemas_delta.py   # Contratos PyArrow das três camadas
 │   └── delta_io.py        # write_delta com validação de schema
 ├── dashboard/             # Streamlit "por decisão" (ADR 0021): app.py + core/ + screens/
