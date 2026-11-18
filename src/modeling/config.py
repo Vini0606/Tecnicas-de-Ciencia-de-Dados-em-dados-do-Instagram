@@ -244,7 +244,9 @@ class ModelingConfig:
 @dataclass
 class GeminiRefinerConfig:
     api_key: str
-    model: str = "gemini-2.0-flash"
+    # `gemini-2.0-flash` foi desligado pela API em 2026 (404 "no longer
+    # available"); `gemini-2.5-flash` e o nome estavel equivalente.
+    model: str = "gemini-2.5-flash"
     prompt_template: str | None = None
     sleep_seconds: int = 60
     sleep_every_n_topics: int = 10
