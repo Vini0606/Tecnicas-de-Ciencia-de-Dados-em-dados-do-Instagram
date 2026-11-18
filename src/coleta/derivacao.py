@@ -5,6 +5,9 @@ Etapa unica, reutilizada por `coletar()` (Coleta local) e pela Lambda de
 reconstrucao (S3): le a Bronze e grava Silver e Gold, sem rede, sem Apify e
 sem modelagem pesada. O `destino` pode ser uma pasta local ou uma URI
 (`s3://bucket/prefixo`); a escrita Delta usa as credenciais do ambiente.
+
+A Bronze e lida pelo `DeltaRepository` (ADR 0046): o `BronzeWriter` so
+escreve, e a derivacao recebe o repositorio ja apontado para a Bronze a ler.
 """
 
 from __future__ import annotations
@@ -15,13 +18,13 @@ from pathlib import Path
 
 import pandas as pd
 
-from src.data_extract.bronze_writer import BronzeWriter
 from src.features.gold.engagement_aggregator import EngagementAggregator
 from src.features.gold.ugc_mentions_aggregator import GovernorUGCAggregator
 from src.features.silver.comment_cleaner import CommentCleaner
 from src.features.silver.post_cleaner import PostCleaner
 from src.features.silver.profile_cleaner import ProfileCleaner
 from src.features.silver.ugc_mention_cleaner import UGCMentionCleaner
+from src.repositories.delta_repository import DeltaRepository
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +39,9 @@ def caminhos_do_destino(destino: Path | str) -> dict[str, Path | str]:
     """Layout de `config.settings` (`bronze/instagram_*`, `silver/*_clean`,
     `gold/governor_*`) sob `destino`, local ou URI."""
     return {
+        "bronze_dir": _juntar(destino, "bronze"),
+        "silver_dir": _juntar(destino, "silver"),
+        "gold_dir": _juntar(destino, "gold"),
         "bronze_profiles": _juntar(destino, "bronze", "instagram_profiles"),
         "bronze_posts": _juntar(destino, "bronze", "instagram_posts"),
         "bronze_reels": _juntar(destino, "bronze", "instagram_reels"),
@@ -53,8 +59,17 @@ def caminhos_do_destino(destino: Path | str) -> dict[str, Path | str]:
     }
 
 
+def repositorio_do_destino(p: dict[str, Path | str]) -> DeltaRepository:
+    """Porta de leitura das tres camadas sob os caminhos `p`
+    (`caminhos_do_destino`). E assim que `coletar()` e a reconstrucao
+    entregam a Bronze a `derivar_silver_gold` (ADR 0046)."""
+    return DeltaRepository(
+        gold_dir=p["gold_dir"], silver_dir=p["silver_dir"], bronze_dir=p["bronze_dir"]
+    )
+
+
 def derivar_silver_gold(
-    bronze: BronzeWriter,
+    repo: DeltaRepository,
     p: dict[str, Path | str],
     governor_usernames: list[str],
     run_id: str,
@@ -62,15 +77,18 @@ def derivar_silver_gold(
     modo_historico: str = "append",
     modelar: Callable[[dict[str, pd.DataFrame]], None] | None = None,
 ) -> pd.DataFrame:
-    """Le a Bronze (`bronze`) e grava Silver/Gold nos caminhos `p`
-    (`caminhos_do_destino`). A Silver de governadores nao entra aqui: vem da
-    planilha, nao da Bronze. Devolve o Gold de engajamento.
+    """Le a Bronze por `repo` (um `DeltaRepository` com `bronze_dir`, ver
+    `repositorio_do_destino`) e grava Silver/Gold nos caminhos `p`
+    (`caminhos_do_destino`). Leitura e escrita podem apontar para lugares
+    diferentes: a reconstrucao le o Snapshot local e grava no S3. A Silver de
+    governadores nao entra aqui: vem da planilha, nao da Bronze. Devolve o
+    Gold de engajamento.
 
     `modo_historico` e o modo de escrita do historico de engajamento
     (`append` na Coleta; `overwrite` ao reconstruir, para ser idempotente)."""
-    df_profiles = bronze.get_latest_profiles()
-    df_posts = bronze.get_latest_posts()
-    df_reels = bronze.get_latest_reels()
+    df_profiles = repo.load_bronze_profiles()
+    df_posts = repo.load_bronze_posts()
+    df_reels = repo.load_bronze_reels()
 
     profile_cleaner, post_cleaner = ProfileCleaner(), PostCleaner()
     comment_cleaner, post_comment_cleaner = CommentCleaner(), CommentCleaner(origem="post")
@@ -87,7 +105,7 @@ def derivar_silver_gold(
     if not silver_post_comments.empty:
         post_comment_cleaner.write(silver_post_comments, p["silver_post_comments"])
 
-    silver_ugc = _silver_ugc(bronze, governor_usernames, p["silver_ugc"])
+    silver_ugc = _silver_ugc(repo, governor_usernames, p["silver_ugc"])
 
     aggregator = EngagementAggregator()
     gold = aggregator.aggregate(silver_profiles, silver_posts, silver_reels, run_id)
@@ -111,12 +129,12 @@ def derivar_silver_gold(
 
 
 def _silver_ugc(
-    bronze: BronzeWriter, governor_usernames: list[str], caminho: Path | str
+    repo: DeltaRepository, governor_usernames: list[str], caminho: Path | str
 ) -> pd.DataFrame | None:
     """UGC nunca derruba a Coleta (issue #211): sem Bronze de UGC ou com falha
     na limpeza, a etapa e pulada com aviso."""
     try:
-        df_bronze_ugc = bronze.get_latest_ugc_mentions()
+        df_bronze_ugc = repo.load_bronze_ugc_mentions()
     except FileNotFoundError:
         logger.warning("[SILVER] Bronze de UGC inexistente -- etapa de UGC pulada.")
         return None

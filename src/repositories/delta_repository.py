@@ -202,10 +202,14 @@ class DeltaRepository(DataRepository):
             "DeltaRepository é somente leitura. Use os writers para escrever."
         )
 
-    def get_table_history(self, table_name: str) -> pd.DataFrame:
-        dt = DeltaTable(
-            _join(self._gold_dir, table_name), storage_options=self._storage_options
-        )
+    def get_table_history(self, table_name: str, layer: str = "gold") -> pd.DataFrame:
+        """Histórico de commits Delta de uma tabela de `layer` (`gold`, padrão
+        histórico deste método; `silver`; ou `bronze`, ADR 0046)."""
+        base = {"gold": self._gold_dir, "silver": self._silver, "bronze": self._bronze}
+        if layer not in base:
+            raise ValueError(f"layer desconhecida: {layer!r} (use 'bronze', 'silver' ou 'gold')")
+        raiz = base[layer]() if callable(base[layer]) else base[layer]
+        dt = DeltaTable(_join(raiz, table_name), storage_options=self._storage_options)
         return pd.DataFrame(dt.history())
 
     def _silver(self) -> str:
