@@ -21,21 +21,74 @@ def _join(base: str, name: str) -> str:
 
 
 class DeltaRepository(DataRepository):
+    """Única porta de leitura das tabelas Delta das três camadas (Bronze,
+    Silver e Gold), local ou S3 via `storage_options`. Somente leitura: a
+    escrita pertence aos writers de cada camada.
+
+    Convenção de nomes (issue #313): acessores novos levam a camada no nome
+    (`load_bronze_*`, `load_silver_*`). Os acessores antigos sem prefixo
+    (`load_profiles`, `load_comments`, `load_ugc_mentions`, ...) continuam
+    como estão porque o dashboard depende deles; cada docstring diz qual
+    tabela e camada lê."""
+
     def __init__(
         self,
         gold_dir: Path | str,
         silver_dir: Path | str | None = None,
+        bronze_dir: Path | str | None = None,
         as_of_version: int | None = None,
         as_of_timestamp: str | None = None,
         storage_options: dict | None = None,
     ):
         self._gold_dir = str(gold_dir)
         self._silver_dir = str(silver_dir) if silver_dir is not None else None
+        self._bronze_dir = str(bronze_dir) if bronze_dir is not None else None
         self._as_of_version = as_of_version
         self._as_of_timestamp = as_of_timestamp
         self._storage_options = storage_options or {}
 
+    # --- Bronze (issue #313) -------------------------------------------------
+
+    def load_bronze_profiles(self) -> pd.DataFrame:
+        """Bronze `instagram_profiles`, o item da Apify como chegou (`_raw`)."""
+        return self._load(_join(self._bronze(), "instagram_profiles"))
+
+    def load_bronze_posts(self) -> pd.DataFrame:
+        """Bronze `instagram_posts` (posts do feed, com `latestComments`)."""
+        return self._load(_join(self._bronze(), "instagram_posts"))
+
+    def load_bronze_reels(self) -> pd.DataFrame:
+        """Bronze `instagram_reels` (com `latestComments`)."""
+        return self._load(_join(self._bronze(), "instagram_reels"))
+
+    def load_bronze_ugc_mentions(self) -> pd.DataFrame:
+        """Bronze `ugc_mentions` (posts de terceiros que marcam o governador)."""
+        return self._load(_join(self._bronze(), "ugc_mentions"))
+
+    # --- Silver sem acessor próprio até a issue #313 --------------------------
+
+    def load_silver_profiles(self) -> pd.DataFrame:
+        """Silver `profiles_clean` (um perfil por linha). Não confundir com
+        `load_profiles()`, que lê a Gold `governor_engagement`."""
+        return self._load(_join(self._silver(), "profiles_clean"))
+
+    def load_silver_comments(self) -> pd.DataFrame:
+        """Silver `comments_clean` (comentários de reels, um por linha), sempre
+        a Silver -- ao contrário de `load_comments()`, que prefere a Gold
+        `governor_sentiment`."""
+        return self._load(_join(self._silver(), "comments_clean"))
+
+    def load_silver_ugc_mentions(self) -> pd.DataFrame:
+        """Silver `ugc_mentions` (UGC limpo, com `governor_username`
+        resolvido). `load_ugc_mentions()` lê a Gold `governor_ugc_mentions`."""
+        return self._load(_join(self._silver(), "ugc_mentions"))
+
+    # --- Gold / Silver (acessores originais) ---------------------------------
+
     def load_profiles(self) -> pd.DataFrame:
+        """Gold `governor_engagement` (um perfil por linha, já com os agregados
+        de engajamento) -- apesar do nome, não é a Silver `profiles_clean`;
+        para essa, use `load_silver_profiles()`."""
         return self._load(_join(self._gold_dir, "governor_engagement"))
 
     def load_engagement_history(self) -> pd.DataFrame:
@@ -46,16 +99,18 @@ class DeltaRepository(DataRepository):
         return self._load(_join(self._gold_dir, "governor_engagement_history"))
 
     def load_posts(self) -> pd.DataFrame:
-        if self._silver_dir is None:
-            raise ValueError("silver_dir não foi configurado neste repositório.")
-        return self._load(_join(self._silver_dir, "posts_clean"))
+        """Silver `posts_clean`."""
+        return self._load(_join(self._silver(), "posts_clean"))
 
     def load_reels(self) -> pd.DataFrame:
-        if self._silver_dir is None:
-            raise ValueError("silver_dir não foi configurado neste repositório.")
-        return self._load(_join(self._silver_dir, "reels_clean"))
+        """Silver `reels_clean`."""
+        return self._load(_join(self._silver(), "reels_clean"))
 
     def load_comments(self) -> pd.DataFrame:
+        """Gold `governor_sentiment` (comentário/legenda/transcrição já com
+        sentimento e tópico); só cai para a Silver `comments_clean` se a Gold
+        não existir. Para ler a Silver de propósito, use
+        `load_silver_comments()`."""
         try:
             return self._load(_join(self._gold_dir, "governor_sentiment"))
         except FileNotFoundError:
@@ -66,9 +121,7 @@ class DeltaRepository(DataRepository):
     def load_post_comments(self) -> pd.DataFrame:
         """`post_comments_clean` (Silver) -- comentários de posts de feed,
         separados dos de reels (issue #212)."""
-        if self._silver_dir is None:
-            raise ValueError("silver_dir não foi configurado neste repositório.")
-        return self._load(_join(self._silver_dir, "post_comments_clean"))
+        return self._load(_join(self._silver(), "post_comments_clean"))
 
     def load_sentiment_history(self) -> pd.DataFrame:
         """Histórico de sentimento (mode append, uma linha por comentário por
@@ -127,9 +180,11 @@ class DeltaRepository(DataRepository):
         return self._load(_join(self._gold_dir, "governor_growth_metrics"))
 
     def load_ugc_mentions(self) -> pd.DataFrame:
-        """UGC de criação ("Creating" do COBRA) -- ADR 0020 (Ficha 8) / issue
-        #93. Uma linha por post de UGC; agregação por governador é uma view
-        (`GovernorUGCAggregator.aggregate_by_governor`), não persistida."""
+        """Gold `governor_ugc_mentions` -- UGC de criação ("Creating" do
+        COBRA), ADR 0020 (Ficha 8) / issue #93. Uma linha por post de UGC;
+        agregação por governador é uma view
+        (`GovernorUGCAggregator.aggregate_by_governor`), não persistida. A
+        Silver equivalente é `load_silver_ugc_mentions()`."""
         return self._load(_join(self._gold_dir, "governor_ugc_mentions"))
 
     def load_post_performance_coefficients(self) -> pd.DataFrame:
@@ -139,9 +194,8 @@ class DeltaRepository(DataRepository):
         return self._load(_join(self._gold_dir, "post_performance_predictions"))
 
     def load_governors_metadata(self) -> pd.DataFrame:
-        if self._silver_dir is None:
-            raise ValueError("silver_dir não foi configurado neste repositório.")
-        return self._load(_join(self._silver_dir, "governors_metadata"))
+        """Silver `governors_metadata` (dimensão vinda de `governadores.xlsx`)."""
+        return self._load(_join(self._silver(), "governors_metadata"))
 
     def save(self, dataframes: dict[str, pd.DataFrame]) -> None:
         raise NotImplementedError(
@@ -154,13 +208,27 @@ class DeltaRepository(DataRepository):
         )
         return pd.DataFrame(dt.history())
 
+    def _silver(self) -> str:
+        if self._silver_dir is None:
+            raise ValueError("silver_dir não foi configurado neste repositório.")
+        return self._silver_dir
+
+    def _bronze(self) -> str:
+        if self._bronze_dir is None:
+            raise ValueError("bronze_dir não foi configurado neste repositório.")
+        return self._bronze_dir
+
     def _load(self, path: str) -> pd.DataFrame:
         try:
             dt = DeltaTable(path, storage_options=self._storage_options)
+            # `load_as_version`/`load_with_datetime` mudam a tabela NO LUGAR e
+            # devolvem None (deltalake >= 1.x) -- encadear `.to_pandas()` no
+            # retorno quebrava o time travel em toda tabela (achado do teste
+            # `test_load_bronze_respeita_as_of_version`, issue #313).
             if self._as_of_version is not None:
-                return dt.load_as_version(self._as_of_version).to_pandas()
-            if self._as_of_timestamp is not None:
-                return dt.load_with_datetime(self._as_of_timestamp).to_pandas()
+                dt.load_as_version(self._as_of_version)
+            elif self._as_of_timestamp is not None:
+                dt.load_with_datetime(self._as_of_timestamp)
             return dt.to_pandas()
         except Exception as e:
             raise FileNotFoundError(
