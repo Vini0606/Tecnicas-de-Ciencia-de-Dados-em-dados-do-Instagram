@@ -30,7 +30,7 @@ from src.modeling.post_performance import run_post_performance_stage
 from src.modeling.preprocessing import preprocess_comments
 from src.modeling.profile_clustering import cluster_governor_profiles
 from src.modeling.sentiment import analyze_sentiment
-from src.modeling.topics import classify_post_topics, model_topics
+from src.modeling.topics import classify_post_topics, deduplicate_docs, model_topics
 from src.run_id import build_run_id
 
 logger = logging.getLogger(__name__)
@@ -285,6 +285,19 @@ def run_deterministic_modeling(
         df_fonte_source = _build_text_sentiment_source(
             df_origem, id_col="id", text_col=text_col
         )
+        # Linhas sem texto não entram: uma fonte não coletada (ex.: transcrição
+        # com `includeTranscript` desligado) gerava um documento vazio por
+        # reel no sentimento (rótulo nulo) e no BERTopic de discurso, onde os
+        # 5,9 mil vazios da Coleta do TCC viravam uma "pauta" própria.
+        texto = df_fonte_source["text"]
+        df_fonte_source = df_fonte_source[
+            texto.notna() & (texto.astype(str).str.strip() != "")
+        ].reset_index(drop=True)
+        if df_fonte_source.empty:
+            logger.info(
+                "[SENTIMENTO] Fonte %s sem nenhum texto -- etapa pulada.", rotulo_log
+            )
+            continue
         df_fonte_sentiment = analyze_sentiment(df_fonte_source, config.sentiment)
         for path in (config.gold_sentiment_path, config.gold_sentiment_history_path):
             enricher.write_sentiment(
@@ -499,8 +512,15 @@ def refine_discourse_topics_with_gemini(
         if topic_id != -1 and is_degenerate_topic(keywords)
     }
 
-    apply_gemini_refinement(topic_model, docs, config, prompt_template=DISCOURSE_PROMPT_TEMPLATE)
-    refreshed_info = topic_model.get_document_info(docs).reset_index(drop=True)
+    # O modelo foi ajustado sobre os documentos únicos (ver `model_topics`):
+    # refino e consulta usam a mesma lista única, expandida por `inverse`.
+    unique_docs, inverse = deduplicate_docs(docs)
+    apply_gemini_refinement(
+        topic_model, unique_docs, config, prompt_template=DISCOURSE_PROMPT_TEMPLATE
+    )
+    refreshed_info = (
+        topic_model.get_document_info(unique_docs).iloc[inverse].reset_index(drop=True)
+    )
 
     df_refined = df_discourse.reset_index(drop=True).copy()
     topics = refreshed_info["Topic"].values
@@ -560,8 +580,12 @@ def refine_topics_with_gemini(
     `governor_sentiment` acima."""
     run_id = build_run_id(run_id)
 
-    apply_gemini_refinement(topic_model, docs, config)
-    refreshed_info = topic_model.get_document_info(docs).reset_index(drop=True)
+    # Mesma deduplicação do ajuste (ver `model_topics`).
+    unique_docs, inverse = deduplicate_docs(docs)
+    apply_gemini_refinement(topic_model, unique_docs, config)
+    refreshed_info = (
+        topic_model.get_document_info(unique_docs).iloc[inverse].reset_index(drop=True)
+    )
 
     df_comments_refined = df_comments.reset_index(drop=True).copy()
     df_comments_refined["Topic"] = refreshed_info["Topic"].values

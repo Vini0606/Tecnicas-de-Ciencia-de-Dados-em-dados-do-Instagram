@@ -24,6 +24,22 @@ from src.modeling.preprocessing import preprocess_comments
 logger = logging.getLogger(__name__)
 
 
+def deduplicate_docs(docs: list[str]) -> tuple[list[str], np.ndarray]:
+    """Documentos únicos (ordenados) e o vetor `inverse` que reconstrói a
+    lista original por posição (`unique[inverse]`). Toda chamada ao BERTopic
+    ajustado por `model_topics` (ajuste, `update_topics`, `get_document_info`)
+    deve passar a lista única, e expandir o resultado com `inverse`."""
+    docs_array = np.asarray(docs, dtype=object)
+    unique_docs, inverse = np.unique(docs_array, return_inverse=True)
+    unique_docs_list = [str(doc) for doc in unique_docs]
+    logger.info(
+        "BERTopic: %d documentos, %d únicos após deduplicação exata.",
+        len(docs_array),
+        len(unique_docs_list),
+    )
+    return unique_docs_list, np.asarray(inverse).ravel()
+
+
 def model_topics(
     docs: list[str],
     config: TopicModelConfig,
@@ -65,14 +81,7 @@ def model_topics(
     # modelo e só inflariam os tópicos de aplauso. A contagem por tópico nas
     # tabelas Gold continua sendo por comentário (uma linha por documento
     # original), porque `document_info` é expandido de volta abaixo.
-    docs_array = np.asarray(docs, dtype=object)
-    unique_docs, inverse = np.unique(docs_array, return_inverse=True)
-    unique_docs_list = [str(doc) for doc in unique_docs]
-    logger.info(
-        "BERTopic: %d documentos, %d únicos após deduplicação exata.",
-        len(docs_array),
-        len(unique_docs_list),
-    )
+    unique_docs_list, inverse = deduplicate_docs(docs)
 
     _topics, probs_unique = topic_model.fit_transform(unique_docs_list)
     probs = probs_unique[inverse] if probs_unique is not None else None

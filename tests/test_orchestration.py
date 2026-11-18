@@ -376,9 +376,10 @@ def test_run_deterministic_modeling_grava_sentimento_de_legenda_e_transcricao(
     assert legenda_out.iloc[0]["text"] == "texto qualquer"
 
     transcricao_out = sentiment_out[sentiment_out["fonte"] == "transcricao"]
-    assert len(transcricao_out) == len(df_reels)
-    # A linha com transcrição real carrega o texto original -- as demais
-    # (sem fala) não quebram o pipeline, só ficam com `text` nulo.
+    # Só a linha com transcrição real vira documento: reels sem fala não
+    # geram linha (nem no sentimento nem no BERTopic de discurso), em vez
+    # de entrarem como texto vazio com rótulo nulo.
+    assert len(transcricao_out) == 1
     linha_com_fala = transcricao_out[transcricao_out["text"].notna()]
     assert len(linha_com_fala) == 1
     assert (
@@ -433,7 +434,8 @@ def test_run_deterministic_modeling_grava_topicos_de_discurso_separados_de_comen
 
     # Uma linha por documento de cada fonte -- legenda (posts) + transcrição
     # (reels), nunca por comentário.
-    assert len(discourse_out) == len(df_posts) + len(df_reels)
+    # 12 legendas + 1 reel com transcrição: reels sem fala não viram documento.
+    assert len(discourse_out) == len(df_posts) + 1
     assert set(discourse_out["fonte"]) == {"legenda", "transcricao"}
     # Tópicos vieram do `model_topics` fake (mesmo usado para comentários,
     # mas chamado de novo sobre o corpus de discurso) -- rótulo provisório,
