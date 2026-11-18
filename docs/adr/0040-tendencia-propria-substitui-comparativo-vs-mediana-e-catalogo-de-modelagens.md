@@ -2,6 +2,14 @@
 status: proposed
 ---
 
+> **Nota (avanço parcial):** a ADR
+> [0047](0047-consistencia-por-regressao-por-publicacao-e-tendencia-no-scorecard.md) colocou em produção o
+> estimador de **contagem** desta ADR ("OLS com controles": log do engajamento por publicação no tempo, com o
+> formato como controle) como dimensão Consistência do Escore composto, e o estado da Tendência (Subindo /
+> Caindo / Estável / Dados insuficientes) passou a aparecer na sub-aba Scorecard. O Comparativo vs. mediana
+> em NSM, Funil e "Todos", o estimador de proporção e a regra de agregação do conjunto continuam em avaliação;
+> esta ADR segue proposta para eles.
+
 # Tendência própria substitui o Comparativo vs. mediana, e as modelagens passam a ter catálogo e avaliação por simulação
 
 ## Contexto

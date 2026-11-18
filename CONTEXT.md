@@ -122,12 +122,14 @@ pesos iguais renormalizados.
 _Avoid_: Índice (genérico), ranking (o ranking é a ordenação pelo escore, não o escore).
 
 **CMGR de engajamento** / **CMGR de audiência**:
-Duas taxas compostas mensais distintas. A de engajamento mede a tendência do engajamento médio por post
-ao longo dos meses de publicação (base da dimensão Consistência do Escore composto). A de audiência mede o
-crescimento de seguidores entre coletas e hoje está pendente por histórico insuficiente. Nunca chamar a de
-engajamento de "crescimento de audiência" (ver ADR 0030). Enquanto o histórico de publicação for curto, o CMGR
-de engajamento fica "pendente" e a Consistência não entra no escore.
-_Avoid_: CMGR sozinho (ambíguo entre os dois).
+Duas taxas mensais distintas. A de engajamento é a taxa mensal de variação do engajamento por publicação,
+estimada por regressão sobre as publicações do próprio governador, com intervalo de confiança (base da
+dimensão Consistência do Escore composto e do estado da Tendência do engajamento no Scorecard, ADR 0047). A de
+audiência mede o crescimento de seguidores entre coletas e hoje está pendente por histórico insuficiente. Nunca
+chamar a de engajamento de "crescimento de audiência" (ver ADR 0030). Com poucas publicações ou poucos dias
+distintos, a taxa de engajamento fica "pendente" e a Consistência não entra no escore.
+_Avoid_: CMGR sozinho (ambíguo entre os dois); "CMGR" e "OLS" na interface (lá é "Consistência" e "Tendência do
+engajamento").
 
 **Engajamento qualificado** (rótulo de usuário para NSM/North Star Metric):
 Nome exibido ao analista de assessoria para a NSM — comentários positivos sobre comentários totais,
