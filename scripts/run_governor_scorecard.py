@@ -43,9 +43,13 @@ def run(run_id: str | None = None) -> str:
     n_pendentes = int(df_scorecard["consistencia_pendente"].sum())
     escores = df_scorecard["escore"].dropna()
     faixa = f"{escores.min():.1f} a {escores.max():.1f}" if len(escores) else "n/d"
+    # ADR 0047: contagem por estado da Tendencia do engajamento.
+    estados = df_scorecard["tendencia_engajamento"].value_counts()
+    tendencia = ", ".join(f"{estado}: {int(n)}" for estado, n in estados.items())
     print(
         f"[OK] {len(df_scorecard)} perfis processados "
-        f"({n_pendentes} com Consistencia pendente; faixa de escores: {faixa})"
+        f"({n_pendentes} com Consistencia pendente; faixa de escores: {faixa}; "
+        f"Tendencia do engajamento -> {tendencia or 'n/d'})"
     )
     return run_id
 
