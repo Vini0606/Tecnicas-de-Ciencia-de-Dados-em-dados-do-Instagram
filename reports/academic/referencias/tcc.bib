@@ -1,0 +1,785 @@
+% =====================================================================
+% referencias-corrigidas.bib
+% Entradas do TCC reescritas segundo a NBR 6023:2018, para abntex2cite.
+% Gerado em 18 nov. 2026 a partir da lista impressa nas p. 86-89 do PDF.
+%
+% CONFERENCIA (19/11/2026, PR docs-tcc-referencias): toda marca [OK] abaixo foi
+% re-verificada em fonte primaria (Crossref pelo DOI, ACL Anthology, arXiv, SciELO,
+% anais ou PDF oficial) antes de entrar; marcas [CONFERIR]/[SUGESTAO] remanescentes
+% ainda aguardam validacao com o autor.
+%
+% COMO USAR
+% 1. As chaves (ex.: barbera2020) foram criadas aqui, porque o .bib
+%    original nao foi enviado. Renomeie cada chave para a que voce ja
+%    usa nos \cite do texto, ou ajuste os \cite.
+% 2. Marcas nos comentarios:
+%      [OK]        dados conferidos em fonte externa em 18/11/2026
+%      [PDF]       dados copiados da sua lista; so a forma foi corrigida
+%      [CONFERIR]  ha um campo que nao consegui confirmar
+%      [NAO LOCALIZADA] nao encontrei a obra; confira o original ou troque
+%      [SUGESTAO]  entrada nova, proposta para preencher lacuna; os dados
+%                  vem do meu conhecimento e precisam ser conferidos no
+%                  original antes de citar
+% 3. Acentos em nomes de autores estao em macros LaTeX ({\'a}) para que
+%    a caixa alta das citacoes saia correta (BARBERA com acento).
+% 4. Chaves duplas em titulos ({{BERT}}) preservam maiusculas.
+% 5. Em documentos online, preencha urlaccessdate com a data em que
+%    VOCE acessou.
+% =====================================================================
+
+
+% ---------------------------------------------------------------------
+% A. REMOVER (referencias ficticias, p. 87 e 89)
+% ---------------------------------------------------------------------
+% GOWDA, S. et al. Paradigm Shifts in NLP... 2025.            -> apagar
+% VEEN, E. Van der; BLEICH, J. A Review of Lexicon-Based... 2025. -> apagar
+% Substitutas sugeridas: vaswani2017 (ja existe), liu2019roberta,
+% liu2012sentiment e barbieri2022xlmt (secao E deste arquivo).
+
+
+% ---------------------------------------------------------------------
+% B. CORRIGIDAS COM DADOS CONFERIDOS
+% ---------------------------------------------------------------------
+
+% [OK] Substitui silveira2020 na frase sobre polarizacao afetiva (p. 27).
+% Conferido na SciELO/Crossref (DOI 10.1590/1807-01912022283560): resumo fala em
+% polarizacao "predominantemente afetiva e mais intensa em relacao aos candidatos".
+@article{fuks2022,
+  author  = {Fuks, Mario and Marques, Pedro Henrique},
+  title   = {Polariza{\c{c}}{\~a}o e contexto: medindo e explicando a polariza{\c{c}}{\~a}o pol{\'\i}tica no {Brasil}},
+  journal = {Opini{\~a}o P{\'u}blica},
+  address = {Campinas},
+  volume  = {28},
+  number  = {3},
+  pages   = {560--593},
+  year    = {2022},
+  month   = {set./dez.},
+  doi     = {10.1590/1807-01912022283560}
+}
+
+
+% [OK] Substitui "CASADO, M.; GARCIA, A." - os autores estavam errados. Crossref 10.1016/j.joi.2022.101323.
+% No texto (p. 29): Mu\~noz, Rojas-de-Gracia e Navas-Sarasola (2022).
+@article{munoz2022,
+  author  = {Mu{\~n}oz, Mar{\'\i}a M. and Rojas-de-Gracia, Mar{\'\i}a-Mercedes and Navas-Sarasola, Carlos},
+  title   = {Measuring engagement on {Twitter} using a composite index: an application to social media influencers},
+  journal = {Journal of Informetrics},
+  volume  = {16},
+  number  = {4},
+  pages   = {101323},
+  year    = {2022},
+  doi     = {10.1016/j.joi.2022.101323}
+}
+
+% [OK] Evento corrigido: IEEE BigData 2017 (nao "ENIC"). Paginas 2720-2729
+% conferidas no Crossref (DOI 10.1109/BigData.2017.8258236) em 19/11/2026.
+@inproceedings{flesch2017,
+  author       = {Flesch, Benjamin and Vatrapu, Ravi and Mukkamala, Raghava Rao},
+  title        = {A big social media data study of the 2017 {German} federal election based on social set analysis of political party {Facebook} pages with {SoSeVi}},
+  booktitle    = {2017 IEEE International Conference on Big Data (Big Data)},
+  address      = {Boston},
+  publisher    = {IEEE},
+  pages        = {2720--2729},
+  year         = {2017},
+  doi          = {10.1109/BigData.2017.8258236}
+}
+
+% [OK] Titulo e veiculo corrigidos (antes: "Role of social media in
+% text mining", ICICT 2015). Crossref 10.1017/S0269888914000277, 15 autores.
+@article{irfan2015,
+  author  = {Irfan, Rizwana and King, Christine K. and Grages, Daniel and Ewen, Sam and Khan, Samee U. and Madani, Sajjad A. and Kolodziej, Joanna and Wang, Lizhe and Chen, Dan and Rayes, Ammar and Tziritas, Nikolaos and Xu, Cheng-Zhong and Zomaya, Albert Y. and Alzahrani, Ahmed Saeed and Li, Hongxiang},
+  title   = {A survey on text mining in social networks},
+  journal = {The Knowledge Engineering Review},
+  volume  = {30},
+  number  = {2},
+  pages   = {157--170},
+  year    = {2015},
+  doi     = {10.1017/S0269888914000277}
+}
+
+% [OK] Faltava na lista (citada na p. 27 como "DataSenado (2019)").
+% No texto: (BRASIL, 2019) ou "pesquisa do DataSenado (BRASIL, 2019)".
+% Atencao: a pesquisa NAO fala em "voto para presidente em 2018". Conferido no PDF
+% oficial (Senado, nov. 2019, p. 6): "45% afirmaram ter decidido voto em periodo de
+% eleicoes levando em consideracao informacoes vistas em alguma rede social".
+@manual{datasenado2019,
+  organization  = {Brasil. Senado Federal. Instituto de Pesquisa DataSenado},
+  org-short     = {Brasil},
+  title         = {Redes sociais, not{\'\i}cias falsas e privacidade de dados na internet},
+  address       = {Bras{\'\i}lia},
+  year          = {2019},
+  month         = {nov.},
+  url           = {https://legis.senado.leg.br/sdleg-getter/documento/download/c51b441b-03a8-46ce-8c27-529633fac7ce},
+  urlaccessdate = {19 nov. 2026}
+}
+
+% [OK] Sobrenome correto: SOLON NETO (antes: "NETO, L. de F. S.").
+% Titulo saia como "influEncia ... regulaCAo".
+@article{solonneto2024,
+  author  = {{Solon Neto}, Luiz de Fran{\c{c}}a and Freitas, Juliana Rodrigues},
+  title   = {A influ{\^e}ncia das redes sociais no processo eleitoral brasileiro: desafios, regula{\c{c}}{\~a}o e perspectivas para a democracia},
+  journal = {Revista FT},
+  volume  = {29},
+  number  = {140},
+  year    = {2024},
+  month   = {nov.},
+  issn    = {1678-0817},
+  doi     = {10.69849/revistaft/ch10202411182001},
+  url     = {https://revistaft.com.br/a-influencia-das-redes-sociais-no-processo-eleitoral-brasileiro-desafios-regulacao-e-perspectivas-para-a-democracia/},
+  urlaccessdate = {PREENCHER}
+}
+
+% [OK] autores e instituicao; sobrenome correto: SANTOS NETO.
+% [CONFERIR] ano (2021) e nome exato do curso de especializacao.
+% Titulo deixou de estar todo em caixa alta.
+@monography{freitas2021,
+  author  = {Freitas, Matheus Pinto and {Santos Neto}, Manuel Bandeira dos},
+  title   = {Comunica{\c{c}}{\~a}o e marketing pol{\'\i}tico em tempos de m{\'\i}dias digitais},
+  type    = {Trabalho de Conclus{\~a}o de Curso (Especializa{\c{c}}{\~a}o em Gest{\~a}o P{\'u}blica)},
+  school  = {Escola Superior do Parlamento Cearense},
+  address = {Fortaleza},
+  year    = {2021},
+  url     = {https://unipacealece.al.ce.gov.br/repositorio/downloads/pelo-id/59},
+  urlaccessdate = {PREENCHER}
+}
+
+% [OK] volume, numero, paginas e ano conferidos; acento em Fernandez.
+@article{castrogonzalez2025,
+  author  = {Castro-Gonz{\'a}lez, Sandra and Bande, Bel{\'e}n and Fern{\'a}ndez-Ferr{\'\i}n, Pilar},
+  title   = {``{I} love your brand! {I} engage with you, and {I} do online brand-related activities ({COBRAs})'': the role of brand value},
+  journal = {European Journal of Management and Business Economics},
+  volume  = {34},
+  number  = {3},
+  pages   = {359--383},
+  year    = {2025},
+  doi     = {10.1108/EJMBE-10-2023-0331}
+}
+
+% [OK] autores, periodico, volume, ano e DOI.
+% [CONFERIR] numero do artigo (sua lista traz "n. 315").
+@article{dinh2024,
+  author  = {Dinh, Thi Cam Tu and Lee, Yoonjae},
+  title   = {{COBRAs} and virality: viral campaign values on consumer behaviour},
+  journal = {Humanities and Social Sciences Communications},
+  volume  = {11},
+  number  = {315},
+  year    = {2024},
+  doi     = {10.1057/s41599-024-02819-7}
+}
+
+
+% [OK] oito autores conferidos.
+@article{fahad2014,
+  author  = {Fahad, Adil and Alshatri, Najlaa and Tari, Zahir and Alamri, Abdullah and Khalil, Ibrahim and Zomaya, Albert Y. and Foufou, Sebti and Bouras, Abdelaziz},
+  title   = {A survey of clustering algorithms for big data: taxonomy and empirical analysis},
+  journal = {IEEE Transactions on Emerging Topics in Computing},
+  volume  = {2},
+  number  = {3},
+  pages   = {267--279},
+  year    = {2014}
+}
+
+% [OK] Volume corrigido: 59, n. 236 (antes: v. 49). Crossref 10.1093/mind/LIX.236.433.
+@article{turing1950,
+  author  = {Turing, Alan M.},
+  title   = {Computing machinery and intelligence},
+  journal = {Mind},
+  volume  = {59},
+  number  = {236},
+  pages   = {433--460},
+  year    = {1950},
+  month   = {out.}
+}
+
+% [OK] Sobrenome corrigido: WUNSCH II. Crossref 10.1109/TNN.2005.845141.
+@article{xu2005,
+  author  = {Xu, Rui and {Wunsch II}, Donald C.},
+  title   = {Survey of clustering algorithms},
+  journal = {IEEE Transactions on Neural Networks},
+  volume  = {16},
+  number  = {3},
+  pages   = {645--678},
+  year    = {2005}
+}
+
+
+% ---------------------------------------------------------------------
+% C. NAO LOCALIZADAS - removidas em 19/11/2026 (lote 1): gkollori2023,
+%    stathopoulou2019 e prasanthi2023 nao foram localizadas em nenhuma base e as
+%    citacoes foram trocadas por jain1999, xu2005 e liu2019roberta; silveira2020
+%    (secao B) saiu porque a unica citacao passou a fuks2022.
+% ---------------------------------------------------------------------
+
+
+
+
+
+% ---------------------------------------------------------------------
+% D. DEMAIS ENTRADAS DA LISTA - forma corrigida
+% ---------------------------------------------------------------------
+
+% Titulo completo do livro e local; acento do autor.
+@incollection{barbera2020,
+  author    = {Barber{\'a}, Pablo},
+  title     = {Social media, echo chambers, and political polarization},
+  editor    = {Persily, Nathaniel and Tucker, Joshua A.},
+  booktitle = {Social media and democracy: the state of the field, prospects for reform},
+  address   = {Cambridge},
+  publisher = {Cambridge University Press},
+  year      = {2020},
+  pages     = {34--55}
+}
+
+@incollection{guess2020,
+  author    = {Guess, Andrew M. and Lyons, Benjamin A.},
+  title     = {Misinformation, disinformation, and online propaganda},
+  editor    = {Persily, Nathaniel and Tucker, Joshua A.},
+  booktitle = {Social media and democracy: the state of the field, prospects for reform},
+  address   = {Cambridge},
+  publisher = {Cambridge University Press},
+  year      = {2020},
+  pages     = {10--33}
+}
+
+% "Dirichlet" com maiuscula.
+@article{blei2003,
+  author  = {Blei, David M. and Ng, Andrew Y. and Jordan, Michael I.},
+  title   = {Latent {Dirichlet} allocation},
+  journal = {Journal of Machine Learning Research},
+  volume  = {3},
+  pages   = {993--1022},
+  year    = {2003}
+}
+
+% Mes no padrao ABNT ("jun." em vez de "jun").
+@article{brown1990,
+  author  = {Brown, Peter F. and Cocke, John and {Della Pietra}, Stephen A. and {Della Pietra}, Vincent J. and Jelinek, Fredrick and Lafferty, John D. and Mercer, Robert L. and Roossin, Paul S.},
+  title   = {A statistical approach to machine translation},
+  journal = {Computational Linguistics},
+  volume  = {16},
+  number  = {2},
+  pages   = {79--85},
+  year    = {1990},
+  month   = {jun.}
+}
+
+% [PDF] Sem "[S.l.: s.n.]": editora informada.
+% [CONFERIR] lista completa de autores (a sua traz "et al.").
+@inproceedings{brown2020,
+  author    = {Brown, Tom B. and others},
+  title     = {Language models are few-shot learners},
+  booktitle = {Advances in Neural Information Processing Systems 33 (NeurIPS 2020)},
+  publisher = {Curran Associates},
+  pages     = {1877--1901},
+  year      = {2020}
+}
+
+@book{chomsky1957,
+  author    = {Chomsky, Noam},
+  title     = {Syntactic structures},
+  address   = {The Hague},
+  publisher = {Mouton},
+  year      = {1957}
+}
+
+% Edicao no campo proprio, fora do titulo.
+@book{cook2005,
+  author    = {Cook, Timothy E.},
+  title     = {Governing with the news: the news media as a political institution},
+  edition   = {2},
+  address   = {Chicago},
+  publisher = {University of Chicago Press},
+  year      = {2005}
+}
+
+% Versao publicada (NAACL 2019) no lugar do preprint do arXiv.
+% No texto a citacao passa a (DEVLIN et al., 2019).
+@inproceedings{devlin2019,
+  author    = {Devlin, Jacob and Chang, Ming-Wei and Lee, Kenton and Toutanova, Kristina},
+  title     = {{BERT}: pre-training of deep bidirectional transformers for language understanding},
+  booktitle = {Proceedings of the 2019 Conference of the North American Chapter of the Association for Computational Linguistics: Human Language Technologies},
+  address   = {Minneapolis},
+  publisher = {Association for Computational Linguistics},
+  pages     = {4171--4186},
+  year      = {2019}
+}
+
+@article{driver1932,
+  author  = {Driver, Harold E. and Kroeber, Alfred L.},
+  title   = {Quantitative expression of cultural relationships},
+  journal = {University of California Publications in American Archaeology and Ethnology},
+  volume  = {31},
+  number  = {4},
+  pages   = {211--256},
+  year    = {1932}
+}
+
+% Nomes proprios com maiuscula; data completa; faltava "Acesso em".
+@article{fernandes2018,
+  author  = {Fernandes, Leonardo},
+  title   = {{Bolsonaro} repete m{\'e}todos de {Donald Trump} em sua campanha},
+  journal = {Brasil de Fato},
+  address = {S{\~a}o Paulo},
+  year    = {2018},
+  month   = {4 out.},
+  url     = {https://www.brasildefato.com.br/2018/10/04/bolsonaro-repete-metodos-de-donald-trump-em-sua-campanha/},
+  urlaccessdate = {PREENCHER},
+  note    = {CONFERIR: prenome do autor}
+}
+
+% Citada 11 vezes sem pagina: indique capitulo ou pagina no texto.
+@book{feroz2024,
+  author    = {Feroz, A. Karim and Khan, Gohar F. and Sponder, Marshall},
+  title     = {Digital analytics for marketing},
+  edition   = {2},
+  address   = {New York},
+  publisher = {Routledge},
+  year      = {2024},
+  series    = {Mastering Business Analytics}
+}
+
+% [PDF] Acento do autor; mes por extenso abreviado ("nov.").
+% [CONFERIR] paginas ou numero do artigo.
+@article{goulart2022,
+  author  = {Goulart, A. H. and Mu{\~n}oz, I. K.},
+  title   = {O sujeito informacional e as redes sociais online: reflexos da polariza{\c{c}}{\~a}o pol{\'\i}tica nas pr{\'a}ticas informacionais relacionadas {\`a} pandemia de {Covid-19}},
+  journal = {Liinc em Revista},
+  address = {Rio de Janeiro},
+  volume  = {18},
+  number  = {2},
+  year    = {2022},
+  month   = {nov.}
+}
+
+% [PDF] Preprint: referenciar como documento eletronico.
+@misc{grootendorst2022,
+  author = {Grootendorst, Maarten},
+  title  = {{BERTopic}: neural topic modeling with a class-based {TF-IDF} procedure},
+  howpublished = {arXiv:2203.05794},
+  year   = {2022},
+  url    = {https://arxiv.org/abs/2203.05794},
+  urlaccessdate = {PREENCHER}
+}
+
+@article{henry2005,
+  author  = {Henry, David B. and Tolan, Patrick H. and Gorman-Smith, Deborah},
+  title   = {Cluster analysis in family psychology research},
+  journal = {Journal of Family Psychology},
+  volume  = {19},
+  number  = {1},
+  pages   = {121--132},
+  year    = {2005}
+}
+
+@article{hochreiter1997,
+  author  = {Hochreiter, Sepp and Schmidhuber, J{\"u}rgen},
+  title   = {Long short-term memory},
+  journal = {Neural Computation},
+  volume  = {9},
+  number  = {8},
+  pages   = {1735--1780},
+  year    = {1997}
+}
+
+% [PDF] Nomes proprios com maiuscula; "maio/ago." em vez de "May-Aug".
+@article{iasulaitis2022,
+  author  = {Iasulaitis, Sylvia and Vieira, A. O.},
+  title   = {Quando o ataque {\'e} o programa: as estrat{\'e}gias de campanha de {Donald Trump} e de {Jair Bolsonaro} no {Twitter}},
+  journal = {Comunica{\c{c}}{\~a}o \& Sociedade},
+  address = {S{\~a}o Bernardo do Campo},
+  volume  = {44},
+  number  = {2},
+  pages   = {5--45},
+  year    = {2022},
+  month   = {maio/ago.}
+}
+
+% [PDF] "Brasil" com maiuscula; nome do periodico como no original.
+% [CONFERIR] lista de autores.
+@article{ituassu2023,
+  author  = {Ituassu, Arthur and others},
+  title   = {M{\'\i}dias digitais, elei{\c{c}}{\~o}es e democracia no {Brasil}: uma abordagem qualitativa para o estudo de percep{\c{c}}{\~o}es de profissionais de campanha},
+  journal = {Dados},
+  address = {Rio de Janeiro},
+  volume  = {66},
+  number  = {2},
+  pages   = {1--30},
+  year    = {2023}
+}
+
+@article{jain1999,
+  author  = {Jain, Anil K. and Murty, M. Narasimha and Flynn, Patrick J.},
+  title   = {Data clustering: a review},
+  journal = {ACM Computing Surveys},
+  volume  = {31},
+  number  = {3},
+  pages   = {264--323},
+  year    = {1999}
+}
+
+% Rascunho online, sem editora (antes: "Prentice Hall").
+% Use a data da versao que voce consultou.
+@misc{jurafsky2025,
+  author = {Jurafsky, Daniel and Martin, James H.},
+  title  = {Speech and language processing: an introduction to natural language processing, computational linguistics, and speech recognition},
+  howpublished = {3. ed. Rascunho},
+  year   = {2025},
+  url    = {https://web.stanford.edu/~jurafsky/slp3/},
+  urlaccessdate = {PREENCHER}
+}
+
+% Coletanea: o ideal e citar o capitulo usado (autor, titulo, paginas).
+@book{kaid2004,
+  editor    = {Kaid, Lynda Lee},
+  title     = {Handbook of political communication research},
+  address   = {Mahwah},
+  publisher = {Lawrence Erlbaum Associates},
+  year      = {2004}
+}
+
+@article{kaplan1992,
+  author  = {Kaplan, Robert S. and Norton, David P.},
+  title   = {The balanced scorecard: measures that drive performance},
+  journal = {Harvard Business Review},
+  volume  = {70},
+  number  = {1},
+  pages   = {71--79},
+  year    = {1992}
+}
+
+@book{lipschultz2022,
+  author    = {Lipschultz, Jeremy Harris},
+  title     = {Social media and political communication},
+  address   = {New York},
+  publisher = {Routledge},
+  year      = {2022}
+}
+
+% Acento do autor; local sem "MA, USA".
+@book{manning1999,
+  author    = {Manning, Christopher D. and Sch{\"u}tze, Hinrich},
+  title     = {Foundations of statistical natural language processing},
+  address   = {Cambridge},
+  publisher = {MIT Press},
+  year      = {1999}
+}
+
+@misc{mikolov2013,
+  author = {Mikolov, Tomas and Chen, Kai and Corrado, Greg and Dean, Jeffrey},
+  title  = {Efficient estimation of word representations in vector space},
+  howpublished = {arXiv:1301.3781},
+  year   = {2013},
+  url    = {https://arxiv.org/abs/1301.3781},
+  urlaccessdate = {PREENCHER}
+}
+
+@article{muntinga2011,
+  author  = {Muntinga, Dani{\"e}l G. and Moorman, Marjolein and Smit, Edith G.},
+  title   = {Introducing {COBRAs}: exploring motivations for brand-related social media use},
+  journal = {International Journal of Advertising},
+  volume  = {30},
+  number  = {1},
+  pages   = {13--46},
+  year    = {2011}
+}
+
+% [CONFERIR] lista completa de autores.
+@book{nardo2008,
+  author    = {Nardo, Michela and others},
+  title     = {Handbook on constructing composite indicators: methodology and user guide},
+  address   = {Paris},
+  publisher = {OECD Publishing},
+  year      = {2008}
+}
+
+% Local: so a primeira cidade.
+@book{newman2016,
+  author    = {Newman, Bruce I.},
+  title     = {The marketing revolution in politics: what recent {U.S.} presidential campaigns can teach us about effective marketing},
+  address   = {Toronto},
+  publisher = {University of Toronto Press},
+  year      = {2016}
+}
+
+@article{pang2008,
+  author  = {Pang, Bo and Lee, Lillian},
+  title   = {Opinion mining and sentiment analysis},
+  journal = {Foundations and Trends in Information Retrieval},
+  volume  = {2},
+  number  = {1--2},
+  pages   = {1--135},
+  year    = {2008}
+}
+
+% [PDF] Local sem "MG, Brasil". [CONFERIR] nome do programa de mestrado.
+@mastersthesis{pezzini2023,
+  author  = {Pezzini, Anderson A.},
+  title   = {An{\'a}lise da produ{\c{c}}{\~a}o cient{\'\i}fica sobre educa{\c{c}}{\~a}o a dist{\^a}ncia e a rela{\c{c}}{\~a}o com a pandemia de {COVID-19} por meio de minera{\c{c}}{\~a}o de textos},
+  school  = {Universidade Federal de Itajub{\'a}},
+  address = {Itajub{\'a}},
+  year    = {2023}
+}
+
+% "Markov" com maiuscula; "fev." em vez de "feb".
+@article{rabiner1989,
+  author  = {Rabiner, Lawrence R.},
+  title   = {A tutorial on hidden {Markov} models and selected applications in speech recognition},
+  journal = {Proceedings of the IEEE},
+  volume  = {77},
+  number  = {2},
+  pages   = {257--286},
+  year    = {1989},
+  month   = {fev.}
+}
+
+% [PDF] "Covid-19" e "Twitter" com maiuscula; "jan./abr.".
+% [CONFERIR] paginas.
+@article{recuero2021,
+  author  = {Recuero, Raquel and Soares, Felipe and Zago, Gabriela},
+  title   = {Polariza{\c{c}}{\~a}o, hiperpartidarismo e c{\^a}maras de eco: como circula a desinforma{\c{c}}{\~a}o sobre {Covid-19} no {Twitter}},
+  journal = {Contracampo},
+  address = {Niter{\'o}i},
+  volume  = {40},
+  number  = {1},
+  year    = {2021},
+  month   = {jan./abr.},
+  issn    = {2238-2577}
+}
+
+% Local informado no lugar de "[S.l.]".
+@book{tan2006,
+  author    = {Tan, Pang-Ning and Steinbach, Michael and Kumar, Vipin},
+  title     = {Introduction to data mining},
+  address   = {Boston},
+  publisher = {Pearson Addison Wesley},
+  year      = {2006}
+}
+
+@misc{touvron2023,
+  author = {Touvron, Hugo and others},
+  title  = {{LLaMA}: open and efficient foundation language models},
+  howpublished = {arXiv:2302.13971},
+  year   = {2023},
+  url    = {https://arxiv.org/abs/2302.13971},
+  urlaccessdate = {PREENCHER}
+}
+
+@book{tryon1939,
+  author    = {Tryon, Robert C.},
+  title     = {Cluster analysis: correlation profile and orthometric (factor) analysis for the isolation of unities in mind and personality},
+  address   = {Ann Arbor},
+  publisher = {Edwards Brothers},
+  year      = {1939}
+}
+
+% [PDF] Acento do autor; "Brasil" com maiuscula; nome do periodico.
+@article{trasel2024,
+  author  = {Tr{\"a}sel, Marcelo},
+  title   = {Panorama do combate {\`a} desinforma{\c{c}}{\~a}o atrav{\'e}s da regula{\c{c}}{\~a}o no {Brasil}},
+  journal = {E-Comp{\'o}s},
+  address = {Bras{\'\i}lia},
+  volume  = {27},
+  pages   = {1--23},
+  year    = {2024},
+  month   = {jan./dez.},
+  issn    = {1808-2599}
+}
+
+% [OK] Editora e local informados no lugar de "[S.l.: s.n.]". Conferido nos anais
+% (papers.nips.cc); paginas 5998-6008 vem do PDF dos anais, nao da pagina.
+@inproceedings{vaswani2017,
+  author    = {Vaswani, Ashish and Shazeer, Noam and Parmar, Niki and Uszkoreit, Jakob and Jones, Llion and Gomez, Aidan N. and Kaiser, {\L}ukasz and Polosukhin, Illia},
+  title     = {Attention is all you need},
+  booktitle = {Advances in Neural Information Processing Systems 30 (NIPS 2017)},
+  address   = {Long Beach},
+  publisher = {Curran Associates},
+  pages     = {5998--6008},
+  year      = {2017}
+}
+
+% "ELIZA" em maiusculas; "jan." com ponto.
+@article{weizenbaum1966,
+  author  = {Weizenbaum, Joseph},
+  title   = {{ELIZA}: a computer program for the study of natural language communication between man and machine},
+  journal = {Communications of the ACM},
+  volume  = {9},
+  number  = {1},
+  pages   = {36--45},
+  year    = {1966},
+  month   = {jan.}
+}
+
+@article{zubin1938,
+  author  = {Zubin, Joseph},
+  title   = {A technique for measuring like-mindedness},
+  journal = {The Journal of Abnormal and Social Psychology},
+  volume  = {33},
+  number  = {4},
+  pages   = {508--516},
+  year    = {1938}
+}
+
+
+% ---------------------------------------------------------------------
+% E. SUGESTOES para preencher lacunas - CONFIRA CADA UMA NO ORIGINAL
+% ---------------------------------------------------------------------
+
+% [OK] RoBERTa (p. 34-35), no lugar de GOWDA e PRASANTHI. Conferido no arXiv
+% (1907.11692, 26 jul. 2019, 10 autores).
+@misc{liu2019roberta,
+  author = {Liu, Yinhan and others},
+  title  = {{RoBERTa}: a robustly optimized {BERT} pretraining approach},
+  howpublished = {arXiv:1907.11692},
+  year   = {2019},
+  url    = {https://arxiv.org/abs/1907.11692},
+  urlaccessdate = {19 nov. 2026}
+}
+
+% [OK] Abordagens por lexico e por aprendizado (p. 34), no lugar de VEEN; BLEICH.
+% Conferido: Morgan & Claypool, Synthesis Lectures on HLT n. 16, maio 2012,
+% DOI 10.2200/S00416ED1V01Y201204HLT016.
+@book{liu2012sentiment,
+  author    = {Liu, Bing},
+  title     = {Sentiment analysis and opinion mining},
+  address   = {San Rafael},
+  publisher = {Morgan \& Claypool},
+  year      = {2012}
+}
+
+% [OK] Artigo do modelo cardiffnlp/twitter-xlm-roberta-base-sentiment (p. 21, 35 e 49).
+% Conferido na ACL Anthology (2022.lrec-1.27): LREC 2022, Marselha, ELRA, p. 258-266.
+@inproceedings{barbieri2022xlmt,
+  author    = {Barbieri, Francesco and {Espinosa Anke}, Luis and Camacho-Collados, Jose},
+  title     = {{XLM-T}: multilingual language models in {Twitter} for sentiment analysis and beyond},
+  booktitle = {Proceedings of the Thirteenth Language Resources and Evaluation Conference},
+  address   = {Marseille},
+  publisher = {European Language Resources Association},
+  pages     = {258--266},
+  year      = {2022}
+}
+
+% [SUGESTAO] DBSCAN (p. 49, 52).
+@inproceedings{ester1996,
+  author    = {Ester, Martin and Kriegel, Hans-Peter and Sander, J{\"o}rg and Xu, Xiaowei},
+  title     = {A density-based algorithm for discovering clusters in large spatial databases with noise},
+  booktitle = {Proceedings of the Second International Conference on Knowledge Discovery and Data Mining (KDD-96)},
+  address   = {Portland},
+  publisher = {AAAI Press},
+  pages     = {226--231},
+  year      = {1996}
+}
+
+% [SUGESTAO] HDBSCAN (p. 50).
+@inproceedings{campello2013,
+  author    = {Campello, Ricardo J. G. B. and Moulavi, Davoud and Sander, J{\"o}rg},
+  title     = {Density-based clustering based on hierarchical density estimates},
+  booktitle = {Advances in Knowledge Discovery and Data Mining (PAKDD 2013)},
+  address   = {Berlin},
+  publisher = {Springer},
+  pages     = {160--172},
+  year      = {2013}
+}
+
+% [SUGESTAO] UMAP (p. 35).
+@misc{mcinnes2018,
+  author = {McInnes, Leland and Healy, John and Melville, James},
+  title  = {{UMAP}: uniform manifold approximation and projection for dimension reduction},
+  howpublished = {arXiv:1802.03426},
+  year   = {2018},
+  url    = {https://arxiv.org/abs/1802.03426},
+  urlaccessdate = {PREENCHER}
+}
+
+% [SUGESTAO] K-Means (p. 49).
+@inproceedings{macqueen1967,
+  author    = {MacQueen, James},
+  title     = {Some methods for classification and analysis of multivariate observations},
+  booktitle = {Proceedings of the Fifth Berkeley Symposium on Mathematical Statistics and Probability},
+  address   = {Berkeley},
+  publisher = {University of California Press},
+  volume    = {1},
+  pages     = {281--297},
+  year      = {1967}
+}
+
+% [SUGESTAO] Silhueta (p. 49).
+@article{rousseeuw1987,
+  author  = {Rousseeuw, Peter J.},
+  title   = {Silhouettes: a graphical aid to the interpretation and validation of cluster analysis},
+  journal = {Journal of Computational and Applied Mathematics},
+  volume  = {20},
+  pages   = {53--65},
+  year    = {1987}
+}
+
+% [SUGESTAO] Indice de Calinski-Harabasz (p. 49).
+@article{calinski1974,
+  author  = {Cali{\'n}ski, Tadeusz and Harabasz, Jerzy},
+  title   = {A dendrite method for cluster analysis},
+  journal = {Communications in Statistics},
+  volume  = {3},
+  number  = {1},
+  pages   = {1--27},
+  year    = {1974}
+}
+
+% [SUGESTAO] Indice de Davies-Bouldin (p. 49).
+@article{davies1979,
+  author  = {Davies, David L. and Bouldin, Donald W.},
+  title   = {A cluster separation measure},
+  journal = {IEEE Transactions on Pattern Analysis and Machine Intelligence},
+  volume  = {PAMI-1},
+  number  = {2},
+  pages   = {224--227},
+  year    = {1979}
+}
+
+% [SUGESTAO] TPE (p. 49).
+@inproceedings{bergstra2011,
+  author    = {Bergstra, James and Bardenet, R{\'e}mi and Bengio, Yoshua and K{\'e}gl, Bal{\'a}zs},
+  title     = {Algorithms for hyper-parameter optimization},
+  booktitle = {Advances in Neural Information Processing Systems 24 (NIPS 2011)},
+  publisher = {Curran Associates},
+  pages     = {2546--2554},
+  year      = {2011}
+}
+
+% [SUGESTAO] Analise de Componentes Principais (p. 48-50).
+@book{jolliffe2002,
+  author    = {Jolliffe, Ian T.},
+  title     = {Principal component analysis},
+  edition   = {2},
+  address   = {New York},
+  publisher = {Springer},
+  year      = {2002}
+}
+
+% [SUGESTAO] Biblioteca nltk (p. 21, 49).
+@book{bird2009,
+  author    = {Bird, Steven and Klein, Ewan and Loper, Edward},
+  title     = {Natural language processing with {Python}},
+  address   = {Sebastopol},
+  publisher = {O'Reilly Media},
+  year      = {2009}
+}
+
+% [SUGESTAO] Biblioteca transformers (p. 21).
+@inproceedings{wolf2020,
+  author    = {Wolf, Thomas and others},
+  title     = {Transformers: state-of-the-art natural language processing},
+  booktitle = {Proceedings of the 2020 Conference on Empirical Methods in Natural Language Processing: System Demonstrations},
+  publisher = {Association for Computational Linguistics},
+  pages     = {38--45},
+  year      = {2020}
+}
+
+% [SUGESTAO] Delta Lake (p. 42).
+@article{armbrust2020,
+  author  = {Armbrust, Michael and others},
+  title   = {{Delta Lake}: high-performance {ACID} table storage over cloud object stores},
+  journal = {Proceedings of the VLDB Endowment},
+  volume  = {13},
+  number  = {12},
+  pages   = {3411--3424},
+  year    = {2020}
+}
