@@ -57,6 +57,7 @@
 \usepackage{pgfgantt}     %pacote do gráfico de gantt
 \usepackage{hyperref}     %pacote para adicionar links internos
 \usepackage{xurl}         % permite quebrar URLs longas em qualquer ponto (lista de referências)
+\hyphenation{COBRAs COBRA}  % a sigla não deve ser hifenizada
 
 % ----------------------------------------------------------
 % Pacotes adicionais, usados apenas no âmbito do Modelo Canônico do abnteX2
@@ -64,13 +65,13 @@
 % ----------------------------------------------------------
 % Pacotes de citações
 % ----------------------------------------------------------
-\usepackage[brazilian,hyperpageref]{backref}	 % Paginas com as citações na bibl
 %\usepackage[num]{abntex2cite}	% Citações padrão ABNT
 \usepackage[alf]{abntex2cite}	% Citações padrão ABNT
+\renewcommand{\UrlLeft}{}\renewcommand{\UrlRight}{}  % NBR 6023:2018 não usa < > em volta das URLs
 \usepackage{listings}
 
 \usepackage{seqsplit}   % permite quebra de strings longas sem espaços
-\newcommand{\code}[1]{\seqsplit{#1}}
+\newcommand{\code}[1]{{\urlstyle{tt}\path{#1}}}  % nomes de modelo: quebra só em / e -, nunca no meio da palavra
 
 
 %\usepackage{cite}
@@ -81,20 +82,6 @@
 % CONFIGURAÇÕES DE PACOTES
 % ----------------------------------------------------------
 
-% Configurações do pacote backref
-% Usado sem a opção hyperpageref de backref
-\renewcommand{\backrefpagesname}{Citado na(s) página(s):~}
-% Texto padrão antes do número das páginas
-\renewcommand{\backref}{}
-% Define os textos da citação
-\renewcommand*{\backrefalt}[4]{
-	\ifcase #1 %
-		Nenhuma citação no texto.%
-	\or
-		Citado na página #2.%
-	\else
-		Citado #1 vezes nas páginas #2.%
-	\fi}%
 % ---
 
 % ---
@@ -316,6 +303,7 @@ Agradeço a DEUS pelo dom da vida e pela oportunidade de ter a família que tenh
 % inserir o sumario
 % ----------------------------------------------------------
 \pdfbookmark[0]{\contentsname}{toc}
+\setlength{\cftbeforechapterskip}{0.5em}  % sumário em duas páginas
 \tableofcontents*
 \cleardoublepage
 

@@ -68,7 +68,7 @@
 % [OK] Substitui "CASADO, M.; GARCIA, A." - os autores estavam errados. Crossref 10.1016/j.joi.2022.101323.
 % No texto (p. 29): Mu\~noz, Rojas-de-Gracia e Navas-Sarasola (2022).
 @article{munoz2022,
-  author  = {Mu{\~n}oz, Mar{\'\i}a M. and Rojas-de-Gracia, Mar{\'\i}a-Mercedes and Navas-Sarasola, Carlos},
+  author  = {Mu{\~n}oz, Mar{\'\i}a M. and {\relax Rojas-de-Gracia}, Mar{\'\i}a-Mercedes and Navas-Sarasola, Carlos},
   title   = {Measuring engagement on {Twitter} using a composite index: an application to social media influencers},
   journal = {Journal of Informetrics},
   volume  = {16},
@@ -80,6 +80,8 @@
   urlaccessdate = {19 nov. 2026}
 }
 
+% [OK 19/11/2026, PR 3a] Paginas: o IEEE Xplore (metadados do DOI) registra 2720-2729; a copia no site do autor traz 2638-2647 no rodape.
+% Mantida a paginacao do IEEE, que e a da publicacao.
 % [OK] Evento corrigido: IEEE BigData 2017 (nao "ENIC"). Paginas 2720-2729
 % conferidas no Crossref (DOI 10.1109/BigData.2017.8258236) em 19/11/2026.
 @inproceedings{flesch2017,
@@ -126,10 +128,12 @@
   urlaccessdate = {19 nov. 2026}
 }
 
-% [OK] Sobrenome correto: SOLON NETO (antes: "NETO, L. de F. S.").
+% [OK] Sobrenome correto: SOLON NETO (antes: "NETO, L. de F. S."). Nome completo: Luiz de Franca Solon Neto.
+% [PR 3a] "{\relax Solon Neto}" mantem o sobrenome composto em caixa alta; "{\relax de F}." faz o abntex2 imprimir "L. de F."
+% (sem isso saia "L. d. F."); e um truque de formatacao, o prenome completo esta nesta nota.
 % Titulo saia como "influEncia ... regulaCAo".
 @article{solonneto2024,
-  author  = {{Solon Neto}, Luiz de Fran{\c{c}}a and Freitas, Juliana Rodrigues},
+  author  = {{\relax Solon Neto}, Luiz {\relax de F}. and Freitas, Juliana Rodrigues},
   title   = {A influ{\^e}ncia das redes sociais no processo eleitoral brasileiro: desafios, regula{\c{c}}{\~a}o e perspectivas para a democracia},
   journal = {Revista FT},
   volume  = {29},
@@ -151,7 +155,7 @@
 @monography{freitas2023,
   author  = {Freitas, Matheus Pinto and {\relax Santos Neto}, Manuel Bandeira {\relax dos}},
   title   = {Comunica{\c{c}}{\~a}o e marketing pol{\'\i}tico em tempos de m{\'\i}dias digitais},
-  type    = {Trabalho de Conclus{\~a}o de Curso (Especializa{\c{c}}{\~a}o)},
+  type    = {Especializa{\c{c}}{\~a}o},
   school  = {Escola Superior do Parlamento Cearense (Unipace)},
   address = {Fortaleza},
   year    = {2023},
@@ -220,7 +224,7 @@
 
 % [OK] Sobrenome corrigido: WUNSCH II. Crossref 10.1109/TNN.2005.845141.
 @article{xu2005,
-  author  = {Xu, Rui and {Wunsch II}, Donald C.},
+  author  = {Xu, Rui and {\relax Wunsch II}, Donald C.},
   title   = {Survey of clustering algorithms},
   journal = {IEEE Transactions on Neural Networks},
   volume  = {16},
@@ -493,24 +497,31 @@
 
 % Rascunho online, sem editora (antes: "Prentice Hall").
 % [OK 19/11/2026] A pagina do SLP3 anuncia a versao de 19 ago. 2026; ano e chave atualizados (antes 2025).
-@misc{jurafsky2026,
+@book{jurafsky2026,
   author = {Jurafsky, Daniel and Martin, James H.},
   title  = {Speech and language processing: an introduction to natural language processing, computational linguistics, and speech recognition},
-  howpublished = {3. ed. Rascunho de 19 ago. 2026},
+  edition = {3},
+  address = {[S. l.]},
+  publisher = {[s. n.]},
+  note   = {Rascunho de 19 ago. 2026},
   year   = {2026},
   url    = {https://web.stanford.edu/~jurafsky/slp3/},
   urlaccessdate = {19 nov. 2026}
 }
 
-% Coletanea: o ideal e citar o capitulo usado (autor, titulo, paginas).
-@book{kaid2004,
+% [OK 19/11/2026, PR 3a] A coletanea de Kaid (2004) foi trocada pelo capitulo que sustenta a frase sobre marketing politico
+% (Crossref 10.4324/9781410610584-9; autores confirmados no OpenAlex): Newman e Perloff, p. 35-62.
+@incollection{newman2004,
+  author    = {Newman, Bruce I. and Perloff, Richard M.},
+  title     = {Political marketing: theory, research, and applications},
   editor    = {Kaid, Lynda Lee},
-  title     = {Handbook of political communication research},
+  booktitle = {Handbook of political communication research},
   address   = {Mahwah},
   publisher = {Lawrence Erlbaum Associates},
+  pages     = {35--62},
   year      = {2004},
-  doi     = {10.4324/9781410610584},
-  url     = {https://doi.org/10.4324/9781410610584},
+  doi       = {10.4324/9781410610584-9},
+  url       = {https://doi.org/10.4324/9781410610584-9},
   urlaccessdate = {19 nov. 2026}
 }
 
@@ -761,7 +772,7 @@
 % [OK] Artigo do modelo cardiffnlp/twitter-xlm-roberta-base-sentiment (p. 21, 35 e 49).
 % Conferido na ACL Anthology (2022.lrec-1.27): LREC 2022, Marselha, ELRA, p. 258-266.
 @inproceedings{barbieri2022xlmt,
-  author    = {Barbieri, Francesco and {Espinosa Anke}, Luis and Camacho-Collados, Jose},
+  author    = {Barbieri, Francesco and {\relax Espinosa Anke}, Luis and Camacho-Collados, Jose},
   title     = {{XLM-T}: multilingual language models in {Twitter} for sentiment analysis and beyond},
   booktitle = {Proceedings of the Thirteenth Language Resources and Evaluation Conference},
   address   = {Marseille},
@@ -855,7 +866,7 @@
   author  = {Davies, David L. and Bouldin, Donald W.},
   title   = {A cluster separation measure},
   journal = {IEEE Transactions on Pattern Analysis and Machine Intelligence},
-  volume  = {PAMI-1},
+  volume  = {v. PAMI-1},
   number  = {2},
   pages   = {224--227},
   year    = {1979},
@@ -906,6 +917,7 @@
   author    = {Wolf, Thomas and others},
   title     = {Transformers: state-of-the-art natural language processing},
   booktitle = {Proceedings of the 2020 Conference on Empirical Methods in Natural Language Processing: System Demonstrations},
+  address   = {[S. l.]},
   publisher = {Association for Computational Linguistics},
   pages     = {38--45},
   year      = {2020},
@@ -925,5 +937,115 @@
   year    = {2020},
   doi     = {10.14778/3415478.3415560},
   url     = {https://doi.org/10.14778/3415478.3415560},
+  urlaccessdate = {19 nov. 2026}
+}
+
+% ---------------------------------------------------------------------
+% F. FERRAMENTAS, PLATAFORMAS E INSTITUICOES (PR 3a, 19/11/2026) - todas as paginas
+%    abertas em 19/11/2026; fonte academica onde existe, documentacao oficial onde nao.
+% ---------------------------------------------------------------------
+
+@misc{apify2026,
+  author = {Apify},
+  title  = {Apify documentation: platform},
+  year   = {2026},
+  url    = {https://docs.apify.com/platform},
+  urlaccessdate = {19 nov. 2026}
+}
+
+@misc{huggingface2026,
+  author = {{Hugging Face}},
+  title  = {Hugging {Face} {Hub} documentation},
+  year   = {2026},
+  url    = {https://huggingface.co/docs/hub/index},
+  urlaccessdate = {19 nov. 2026}
+}
+
+@misc{databricks2026,
+  author = {Databricks},
+  title  = {What is the medallion lakehouse architecture?},
+  howpublished = {Documenta{\c{c}}{\~a}o do Databricks on AWS},
+  year   = {2026},
+  url    = {https://docs.databricks.com/aws/en/lakehouse/medallion},
+  urlaccessdate = {19 nov. 2026}
+}
+
+@misc{streamlit2026,
+  author = {Streamlit},
+  title  = {Streamlit documentation},
+  year   = {2026},
+  url    = {https://docs.streamlit.io/},
+  urlaccessdate = {19 nov. 2026}
+}
+
+% Artigo da biblioteca Hyperopt (PMLR 28, ICML 2013); metadados conferidos na pagina do PMLR.
+@inproceedings{bergstra2013,
+  author    = {Bergstra, James and Yamins, Daniel and Cox, David},
+  title     = {Making a science of model search: hyperparameter optimization in hundreds of dimensions for vision architectures},
+  booktitle = {Proceedings of the 30th International Conference on Machine Learning},
+  series    = {Proceedings of Machine Learning Research, v. 28},
+  address   = {Atlanta},
+  publisher = {PMLR},
+  pages     = {115--123},
+  year      = {2013},
+  url       = {https://proceedings.mlr.press/v28/bergstra13.html},
+  urlaccessdate = {19 nov. 2026}
+}
+
+% Registro de software do KeyBERT no Zenodo (DOI resolvido em 19/11/2026).
+@misc{grootendorst2020keybert,
+  author = {Grootendorst, Maarten},
+  title  = {{KeyBERT}: minimal keyword extraction with {BERT}},
+  howpublished = {Zenodo},
+  year   = {2020},
+  doi    = {10.5281/zenodo.4461265},
+  url    = {https://doi.org/10.5281/zenodo.4461265},
+  urlaccessdate = {19 nov. 2026}
+}
+
+% Pagina oficial dos modelos da API Gemini; lista a versao gemini-3.5-flash-lite usada no refino dos rotulos.
+@misc{google2026gemini,
+  author = {Google},
+  title  = {Gemini models},
+  howpublished = {Documenta{\c{c}}{\~a}o da {Gemini} {API}},
+  year   = {2026},
+  url    = {https://ai.google.dev/gemini-api/docs/models},
+  urlaccessdate = {19 nov. 2026}
+}
+
+% Ficha do modelo no Hugging Face (criada em out. 2022, atualizada em dez. 2024, segundo a API do Hub).
+@misc{rufimelo2024,
+  author = {Rufimelo},
+  title  = {bert-large-portuguese-cased-sts: ficha do modelo},
+  howpublished = {Hugging Face Hub},
+  year   = {2024},
+  url    = {https://huggingface.co/rufimelo/bert-large-portuguese-cased-sts},
+  urlaccessdate = {19 nov. 2026}
+}
+
+@misc{brasileiraspln2026,
+  author = {{Brasileiras em PLN}},
+  title  = {Brasileiras em {PLN}},
+  year   = {2026},
+  url    = {https://brasileiraspln.com/},
+  urlaccessdate = {19 nov. 2026}
+}
+
+% [PENDENTE 19/11/2026] O site oficial do C4AI respondeu 503 em todas as tentativas do dia; sem acesso confirmado,
+% a entrada fica comentada e a mencao no Cap. 3 segue sem citacao. Reativar (e citar) quando o site voltar.
+% [entrada desativada] misc{c4ai2026,   (sem o arroba, para o BibTeX nao ler)
+%   author = {{Centro de Intelig{\^e}ncia Artificial}},
+%   title  = {{C4AI}: {Center} for {Artificial} {Intelligence}},
+%   year   = {2026},
+%   url    = {https://c4ai.inova.usp.br/},
+%   urlaccessdate = {19 nov. 2026}
+
+% }
+
+@misc{nilc2026,
+  author = {{N{\'u}cleo Interinstitucional de Lingu{\'\i}stica Computacional}},
+  title  = {{NILC}},
+  year   = {2026},
+  url    = {https://sites.google.com/view/nilc-usp/},
   urlaccessdate = {19 nov. 2026}
 }

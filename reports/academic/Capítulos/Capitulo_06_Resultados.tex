@@ -35,7 +35,7 @@ A segmentação dos \emph{Reels} (Seção~\ref{sec:clusterizacao}) produziu trê
 No \emph{feed}, a segmentação com apenas curtidas e comentários fragmentou a cauda em catorze grupos (Seção~\ref{sec:clusterizacao}), que se leem como três faixas de ativação. O corpo (7.400 publicações, 87,7\%) tem mediana de 2.230 curtidas; a faixa acima da média (921 publicações, 10,9\%) vai de 24 mil a 90 mil curtidas médias; e a faixa excepcional (116 publicações, 1,4\%) vai de 150 mil a 2,25 milhões de curtidas médias, quase sempre com um único perfil por grupo. A comparação com os \emph{Reels} é instrutiva: como 5.856 das publicações do \emph{feed} são os próprios \emph{Reels} vistos pela grade, as faixas de ativação do \emph{feed} coincidem em grande parte com os grupos de alcance dos vídeos, e as 2.584 publicações estáticas (imagens e carrosséis) concentram-se no corpo. A publicação estática é, na Coleta, um formato de manutenção da ativação, raramente de ruptura; o vídeo é o formato pelo qual as rupturas acontecem.
 
 
-A segmentação dos perfis, por sua vez, é a menos informativa das três, e a sua leitura deve ser funcional, no sentido em que \citeonline{flesch2017} nomeia grupos pelo papel que desempenham e não pela sua posição numérica. O DBSCAN separou dois núcleos e deixou 21 perfis como corpo heterogêneo (Seção~\ref{sec:clusterizacao}). O primeiro núcleo, \textbf{base grande e resposta baixa}, reúne Antonio Denarium (RR), Mauro Mendes (MT) e Wilson Lima (AM): publicam com regularidade (cerca de três publicações por dia) mas obtêm 2,7\% de engajamento por seguidor na janela, contra 9,7\% no corpo. O segundo núcleo, \textbf{perfis inativos}, reúne Ibaneis Rocha (DF) e Marcos Rocha (RO), com duas e três publicações em 71 dias, para os quais nenhuma métrica de desempenho é interpretável. O corpo heterogêneo contém desde os perfis de maior resposta relativa (Clécio Luís, AP, com 21,1\% de engajamento por seguidor; Ricardo Ferraço, ES, com 18,6\%; Fábio Mitidieri, SE, com 17,7\%) até perfis de grande base e resposta modesta (Tarcísio de Freitas, SP, com 7,3\%; Romeu Zema, MG, com 5,4\%; Ronaldo Caiado, GO, com 3,6\%). Essa dispersão é exatamente o que o escore composto da Seção~\ref{sec:scorecard} organiza, com cinco dimensões em vez de três e uma ordenação em vez de grupos.
+A segmentação dos perfis, por sua vez, é a menos informativa das três, e a sua leitura deve ser funcional, no sentido em que \citeonline{flesch2017} nomeiam grupos pelo papel que desempenham e não pela sua posição numérica. O DBSCAN separou dois núcleos e deixou 21 perfis como corpo heterogêneo (Seção~\ref{sec:clusterizacao}). O primeiro núcleo, \textbf{base grande e resposta baixa}, reúne Antonio Denarium (RR), Mauro Mendes (MT) e Wilson Lima (AM): publicam com regularidade (cerca de três publicações por dia) mas obtêm 2,7\% de engajamento por seguidor na janela, contra 9,7\% no corpo. O segundo núcleo, \textbf{perfis inativos}, reúne Ibaneis Rocha (DF) e Marcos Rocha (RO), com duas e três publicações em 71 dias, para os quais nenhuma métrica de desempenho é interpretável. O corpo heterogêneo contém desde os perfis de maior resposta relativa (Clécio Luís, AP, com 21,1\% de engajamento por seguidor; Ricardo Ferraço, ES, com 18,6\%; Fábio Mitidieri, SE, com 17,7\%) até perfis de grande base e resposta modesta (Tarcísio de Freitas, SP, com 7,3\%; Romeu Zema, MG, com 5,4\%; Ronaldo Caiado, GO, com 3,6\%). Essa dispersão é exatamente o que o escore composto da Seção~\ref{sec:scorecard} organiza, com cinco dimensões em vez de três e uma ordenação em vez de grupos.
 
 
 \section{Qualificação dos Segmentos pelo Sentimento}\label{sec:qualificacao}
@@ -56,7 +56,7 @@ Na segunda direção, a lacuna é nítida. Os temas de cobrança do público (Se
 
 \subsection{North Star Metric: Engajamento Positivo Qualificado}\label{sec:nsm}
 
-A crítica às métricas de vaidade \cite{feroz2024} exige uma métrica que una volume e aprovação. A \emph{North Star Metric} (NSM) adotada é o \textbf{engajamento positivo qualificado}: a proporção de comentários positivos do perfil, ponderada pelo alcance médio de suas publicações. Formalmente, para o perfil $i$,
+A crítica às métricas de vaidade \cite{feroz2024} exige uma métrica que una volume e aprovação. A \emph{North Star Metric} (NSM) adotada é o \textbf{engajamento positivo qualificado}: a proporção de comentários positivos do perfil, ponderada pelo engajamento médio de suas publicações. Formalmente, para o perfil $i$,
 
 \begin{equation}
 \mathrm{NSM}_i = \frac{c^{+}_i}{c_i} \times \frac{E_i}{n_i},
@@ -210,9 +210,9 @@ Investimentos e oportunidades na educação pública & 14 & 127 & 78,7\% & 0,77 
 Campanha eleitoral e realizações de governo (PI) & 251 & 2.450 & 79,1\% & 0,79 & 0,53 \\
 \midrule
 \multicolumn{6}{l}{\emph{Pautas de menor escore (ao menos dez publicações)}} \\
-Campanha eleitoral e pedido de votos & 21 & 161 & 46,6\% & 0,00 & 0,00 \\
+Campanha eleitoral e pedido de votos (pauta 51) & 21 & 161 & 46,6\% & 0,00 & 0,00 \\
 Círio de Nazaré e fé paraense$^{*}$ & 10 & 88 & 81,8\% & 0,00 & 0,00 \\
-Campanha eleitoral e pedido de votos & 17 & 159 & 8,8\% & 0,05 & 0,05 \\
+Campanha eleitoral e pedido de votos (pauta 68) & 17 & 159 & 8,8\% & 0,05 & 0,05 \\
 Campanha e contato direto com a população & 19 & 185 & 10,8\% & 0,05 & 0,05 \\
 Críticas a adversários políticos e instituições & 19 & 125 & 31,2\% & 0,10 & 0,10 \\
 Realizações e propostas de governo para Mato Grosso do Sul & 84 & 810 & 18,3\% & 0,11 & 0,11 \\
@@ -222,12 +222,12 @@ Apoio político à eleição presidencial nacional & 45 & 267 & 23,6\% & 0,13 & 
 Elogios e manifestações de apoio ou afeto & --- & 270 & 95,9\% & 0,93 & 0,75 \\
 Manifestações de apoio e emojis afetivos & --- & 3.196 & 92,6\% & 0,92 & 0,65 \\
 Apoio eleitoral e demonstrações de carinho & --- & 1.730 & 95,0\% & 0,93 & 0,60 \\
-Elogios e apoio político ao governador & --- & 1.467 & 79,3\% & 0,79 & 0,60 \\
-Elogios e apoio político ao governador & --- & 28.147 & 91,4\% & 0,91 & 0,60 \\
+Elogios e apoio político ao governador (tema 4) & --- & 1.467 & 79,3\% & 0,79 & 0,60 \\
+Elogios e apoio político ao governador (tema 0) & --- & 28.147 & 91,4\% & 0,91 & 0,60 \\
 Mensagens de cunho religioso e bênçãos & --- & 323 & 83,6\% & 0,82 & 0,59 \\
 \bottomrule
 \end{tabular}
-\fonte{Elaboração própria (2026), a partir das tabelas Gold \texttt{content\_topic\_priority\_score} e \texttt{topic\_priority\_score} da Coleta do TCC. Facilidade fixada em 1. $^{*}$Alcance normalizado zero (comentários sem curtidas), ver texto.}
+\fonte{Elaboração própria (2026), a partir das tabelas Gold \texttt{content\_topic\_priority\_score} e \texttt{topic\_priority\_score} da Coleta do TCC. O número entre parênteses distingue pautas ou temas que receberam o mesmo rótulo refinado. Facilidade fixada em 1. $^{*}$Alcance normalizado zero (comentários sem curtidas), ver texto.}
 \end{table}
 
 
@@ -355,7 +355,7 @@ Tendência & Subindo & Subindo & Subindo & --- \\
 
 \section{O Painel de Apoio à Decisão}\label{sec:painel}
 
-Os resultados discutidos até aqui, bem como as recomendações derivadas do estudo de caso, foram consolidados em um painel interativo que constitui a materialização da ferramenta de apoio à decisão proposta por este trabalho. Diferentemente de uma interface exploratória, voltada a visualizar distribuições e descrever os dados, o painel foi concebido como instrumento orientado à decisão: cada Tela organiza-se em torno de uma pergunta do analista de assessoria e abre com uma \textbf{frase de decisão}, que responde ``e agora, o que eu faço?'' antes de qualquer gráfico. O painel foi implementado em Streamlit, lê exclusivamente as camadas Silver e Gold da Coleta vigente no repositório de dados, exige senha e está publicado para acesso restrito.
+Os resultados discutidos até aqui, bem como as recomendações derivadas do estudo de caso, foram consolidados em um painel interativo que constitui a materialização da ferramenta de apoio à decisão proposta por este trabalho. Diferentemente de uma interface exploratória, voltada a visualizar distribuições e descrever os dados, o painel foi concebido como instrumento orientado à decisão: cada Tela organiza-se em torno de uma pergunta do analista de assessoria e abre com uma \textbf{frase de decisão}, que responde ``e agora, o que eu faço?'' antes de qualquer gráfico. O painel foi implementado em Streamlit \cite{streamlit2026}, lê exclusivamente as camadas Silver e Gold da Coleta vigente no repositório de dados, exige senha e está publicado para acesso restrito.
 
 As Telas refletem a estrutura argumentativa deste capítulo. O \textbf{Resumo} reúne, em três sub-abas, o engajamento qualificado (a NSM, contrastada com o engajamento bruto), o \textbf{Funil} de cada perfil, em escala logarítmica, com o estágio em que a audiência deixa de progredir e a comparação com a mediana dos demais, e o \textbf{Scorecard}, com o escore composto decomposto por dimensão, a Consistência e a Tendência do engajamento. \textbf{O que produzir} apresenta a fila de pautas ordenada pelo Score ICE, com selo de prioridade e acesso aos comentários que sustentam cada pauta, além da evidência de desempenho por publicação. \textbf{Discurso e reação} confronta as pautas da assessoria com os grupos de comentários do público, separados em positivos e negativos, explicitando as lacunas entre o que se pauta e o que se debate. \textbf{Comparar perfis} coloca lado a lado os governadores nas métricas e nos grupos de desempenho, sob o selo de agrupamento experimental. O \textbf{Radar} oferece a visão por período, com filtro de datas comum a todas as Telas e exclusão das publicações fixadas das métricas. Os termos exibidos ao analista seguem um glossário de domínio mantido no repositório, de modo que ``pauta'', ``grupo de comentários'', ``grupo de desempenho'' e ``engajamento qualificado'' significam no painel exatamente o que significam neste texto.
 
