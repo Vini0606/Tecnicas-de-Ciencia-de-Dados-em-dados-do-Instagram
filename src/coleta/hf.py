@@ -37,6 +37,7 @@ from src.coleta.recorte import Recorte, gerar_tag, tag_valida
 CAMADAS_DA_COLETA = ("bronze/", "silver/", "gold/", "landing/")  # a landing é o payload bruto (ADR 0045)
 PREFIXO_LANDING = "landing/"
 _IGNORADOS = {".gitkeep"}
+_MB = 1_000_000
 VAR_TOKEN = "HF_TOKEN"
 VAR_REPO = "HF_DATASET_REPO"
 
@@ -90,6 +91,7 @@ class Plano:
     bytes_envio: int
     bytes_em_uso: int
     limite_bytes: int | None
+    fora_do_snapshot: tuple[tuple[str, int], ...] = ()  # (entrada de 1o nivel, bytes) deixada fora do envio
 
     def descrever(self) -> str:
         linhas = [
@@ -104,6 +106,9 @@ class Plano:
         ):
             linhas.append(f"{titulo}:")
             linhas += [f"  {i}" for i in itens] or ["  (nenhum)"]
+        if self.fora_do_snapshot:
+            linhas.append("Fora do Snapshot (ficam na pasta, nao sao enviados):")
+            linhas += [f"  {nome}  ({tamanho / _MB:.0f} MB)" for nome, tamanho in self.fora_do_snapshot]
         return "\n".join(linhas)
 
 
@@ -132,16 +137,32 @@ class ColetaListada:
 # --- helpers -----------------------------------------------------------------
 
 
-def _arquivos_do_snapshot(pasta: Path) -> dict[str, int]:
+def _da_coleta(caminho: str) -> bool:
+    return caminho == NOME_ARQUIVO or caminho.startswith(CAMADAS_DA_COLETA)
+
+
+def arquivos_do_snapshot(pasta: Path) -> dict[str, int]:
+    """Caminho relativo -> bytes de tudo o que o Snapshot envia: so `bronze/`, `silver/`, `gold/`, `landing/` e o
+    manifesto. Qualquer outra coisa na pasta (checkpoints de modelo, logs, backfill...) fica de fora, por lista de
+    permissao e nao de proibicao: o que nao e Snapshot nunca sobe, mesmo que ninguem lembre que esta la."""
     return {
-        p.relative_to(pasta).as_posix(): p.stat().st_size
+        rel: p.stat().st_size
         for p in sorted(pasta.rglob("*"))
-        if p.is_file() and p.name not in _IGNORADOS
+        if p.is_file() and p.name not in _IGNORADOS and _da_coleta(rel := p.relative_to(pasta).as_posix())
     }
 
 
-def _da_coleta(caminho: str) -> bool:
-    return caminho == NOME_ARQUIVO or caminho.startswith(CAMADAS_DA_COLETA)
+def fora_do_snapshot(pasta: Path) -> tuple[tuple[str, int], ...]:
+    """Entradas de primeiro nivel da pasta que nao fazem parte do Snapshot, com o tamanho em bytes, para o plano
+    dizer o que ficou de fora. Pastas vem com `/` no fim; `.gitkeep` nao conta."""
+    fora: list[tuple[str, int]] = []
+    for p in sorted(pasta.iterdir()):
+        nome = p.name + "/" if p.is_dir() else p.name
+        if p.name in _IGNORADOS or _da_coleta(nome):
+            continue
+        tamanho = sum(f.stat().st_size for f in p.rglob("*") if f.is_file()) if p.is_dir() else p.stat().st_size
+        fora.append((nome, tamanho))
+    return tuple(fora)
 
 
 def _ler_manifesto_local(pasta: Path) -> dict[str, Any]:
@@ -224,7 +245,7 @@ def planejar(
             f"A Coleta {coleta} já foi publicada na main; use um rótulo diferente (nunca repetimos uma Coleta)"
         )
 
-    local = _arquivos_do_snapshot(pasta)
+    local = arquivos_do_snapshot(pasta)
     tem_arquivos_de_landing = any(c.startswith(PREFIXO_LANDING) for c in local)
     registrada = "landing" in manifesto
     # Coletas antigas (esquema < 6, p.ex. o Reboot) podem ter landing/ sem bloco no manifesto: restaurar precisa funcionar
@@ -244,6 +265,7 @@ def planejar(
         bytes_envio=sum(local.values()),
         bytes_em_uso=cliente.tamanho_dataset(),
         limite_bytes=limite_bytes,
+        fora_do_snapshot=fora_do_snapshot(pasta),
     )
     if limite_bytes is not None and plano.bytes_em_uso + plano.bytes_envio > limite_bytes:
         raise ErroLimiteArmazenamento(
@@ -439,7 +461,7 @@ class ClienteColetaHFReal:
 
         try:
             operacoes: list[Any] = [CommitOperationDelete(path_in_repo=p) for p in apagar]
-            for rel in _arquivos_do_snapshot(pasta):
+            for rel in arquivos_do_snapshot(pasta):
                 operacoes.append(CommitOperationAdd(path_in_repo=rel, path_or_fileobj=str(pasta / rel)))
             info = self._api.create_commit(
                 self._repo, operations=operacoes, commit_message=mensagem, repo_type="dataset"
