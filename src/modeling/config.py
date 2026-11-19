@@ -98,7 +98,11 @@ class TopicModelConfig:
     # `"auto"` (ver `DiscourseTopicModelConfig`) deixa o BERTopic mesclar só
     # tópicos redundantes, sem forçar uma contagem alvo.
     nr_topics: int | str = 50
-    calculate_probabilities: bool = True
+    # Desligado: a matriz de pertinência suave do HDBSCAN
+    # (`all_points_membership_vectors`) é descartada por todos os chamadores
+    # (`_probs` em `orchestration.py`) e custa horas sobre dezenas de milhares
+    # de documentos; os tópicos (rótulos duros) não mudam com a opção.
+    calculate_probabilities: bool = False
     verbose: bool = True
     token_pattern: str = EMOJI_TOKEN_PATTERN
 
@@ -240,7 +244,10 @@ class ModelingConfig:
 @dataclass
 class GeminiRefinerConfig:
     api_key: str
-    model: str = "gemini-2.0-flash"
+    # `gemini-2.0-flash` e `gemini-2.5-flash` foram desligados pela API em
+    # 2026 (404 "no longer available"); `gemini-3.5-flash-lite` e o nome
+    # estavel disponivel para a tarefa (rotulos curtos de topico).
+    model: str = "gemini-3.5-flash-lite"
     prompt_template: str | None = None
     sleep_seconds: int = 60
     sleep_every_n_topics: int = 10

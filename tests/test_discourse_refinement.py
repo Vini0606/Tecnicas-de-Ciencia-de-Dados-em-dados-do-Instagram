@@ -87,7 +87,8 @@ def test_modelagem_persiste_modelo_e_documentos_de_discurso_no_checkpoint(
     assert saved["discourse_topic_model"] is not None
     df_discourse = saved["df_discourse"]
     assert {"id_reel", "text", "fonte", "Topic", "Name"} <= set(df_discourse.columns)
-    assert len(df_discourse) == 12 + 12  # legendas (posts) + transcricoes (reels)
+    # 12 legendas; os reels da fixture nao tem transcricao e nao viram documento.
+    assert len(df_discourse) == 12
 
 
 def _discourse_fixture():
@@ -191,7 +192,8 @@ def test_refino_de_comentario_preserva_linhas_de_legenda_e_transcricao(
     before = DeltaTable(str(config.gold_sentiment_path)).to_pandas()
     n_legenda = (before["fonte"] == "legenda").sum()
     n_transcricao = (before["fonte"] == "transcricao").sum()
-    assert n_legenda > 0 and n_transcricao > 0
+    # Os reels da fixture nao tem transcricao: so legendas geram linha.
+    assert n_legenda > 0 and n_transcricao == 0
 
     gemini_config = GeminiRefinerConfig(
         api_key="fake-key",

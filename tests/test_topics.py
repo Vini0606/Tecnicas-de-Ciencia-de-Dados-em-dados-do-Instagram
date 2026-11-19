@@ -147,6 +147,28 @@ def test_model_topics_com_corpus_pequeno_e_nr_topics_auto_nao_trava_nem_forca_pa
     assert 0 < len(topicos_nao_ruido) < 50
 
 
+def test_model_topics_com_documentos_duplicados_mantem_alinhamento_e_mesmo_topico():
+    """Documentos idênticos entram uma vez no ajuste, mas `topics`/`document_info`
+    voltam com uma linha por documento original, na ordem de `docs`, e cópias
+    do mesmo texto recebem o mesmo tópico."""
+    base = [f"tema a palavra{i} assunto" for i in range(12)] + [
+        f"outro b termo{i} coisa" for i in range(12)
+    ]
+    docs = base + ["aplausos aplausos"] * 10 + base[:5]
+    config = TopicModelConfig(nr_topics="auto", hdbscan_min_cluster_size=3, hdbscan_min_samples=1)
+
+    _, topics, probs, document_info = model_topics(docs, config, embedding_model=_FakeEmbedder())
+
+    assert len(topics) == len(docs)
+    assert len(document_info) == len(docs)
+    assert document_info["Document"].tolist() == docs
+    assert probs is None or len(probs) == len(docs)
+    topicos_aplausos = {topics[i] for i, doc in enumerate(docs) if doc == "aplausos aplausos"}
+    assert len(topicos_aplausos) == 1
+    for i in range(5):
+        assert topics[i] == topics[len(docs) - 5 + i]
+
+
 def test_merge_topic_info_junta_por_posicao_e_descarta_document():
     df = pd.DataFrame({"caption": ["a", "b"]})
     document_info = pd.DataFrame({"Document": ["x", "y"], "Topic": [0, 1], "Name": ["t0", "t1"]})

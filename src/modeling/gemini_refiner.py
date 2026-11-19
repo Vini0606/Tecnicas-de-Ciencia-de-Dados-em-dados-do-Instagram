@@ -16,9 +16,15 @@ from scipy.sparse import csr_matrix
 from src.modeling.config import GeminiRefinerConfig
 from src.modeling.topic_labels import DEGENERATE_TOPIC_LABEL
 
+# Rótulo curto (não parágrafo): o `Name` do tópico aparece em tabelas do
+# painel e do TCC; modelos recentes (gemini-3.5) devolviam um parágrafo
+# inteiro ao pedido antigo de "descrição detalhada", inutilizável como nome.
 DEFAULT_PROMPT_TEMPLATE = (
-    "Escreva uma descrição de um parágrafo que descreva detalhadamente o que os "
-    "comentários do instagram presentes neste tópico tem em comum: {documents}"
+    "Os textos abaixo são comentários do público nos posts e reels de um "
+    "governador no Instagram, agrupados por assunto parecido. Responda "
+    "APENAS com um rótulo curto (no máximo 6 palavras, sem aspas nem "
+    "pontuação final) que nomeie o que esses comentários têm em comum: "
+    "{documents}"
 )
 
 
@@ -39,6 +45,21 @@ def is_degenerate_topic(keywords: list[tuple[str, float]]) -> bool:
     """True se nenhuma keyword do tópico contém uma palavra de verdade
     (2+ letras) -- só vazio, underscores ou dígitos."""
     return not any(_WORD_RE.search(str(word)) for word, _score in keywords)
+
+
+_MAX_LABEL_CHARS = 80
+
+
+def _normalize_label(label: str | None) -> str | None:
+    """Primeira linha da resposta, sem aspas/markdown, cortada em palavra até
+    `_MAX_LABEL_CHARS`: protege o `Name` de respostas longas do modelo."""
+    if not label:
+        return None
+    first = label.strip().splitlines()[0].strip().strip("*\"'`").rstrip(".:;,")
+    if len(first) <= _MAX_LABEL_CHARS:
+        return first or None
+    cut = first[:_MAX_LABEL_CHARS].rsplit(" ", 1)[0]
+    return cut or None
 
 
 class GeminiDocsRefiner(BaseRepresentation):
@@ -85,6 +106,7 @@ class GeminiDocsRefiner(BaseRepresentation):
                 prompt = self.prompt_template.format(documents=docs_sample)
                 response = genai.GenerativeModel(self.model).generate_content(prompt)
                 label = response.text.strip() if hasattr(response, "text") else None
+                label = _normalize_label(label)
                 if label:
                     updated_topics[topic_id] = [(label, 1.0)] + keywords
                 else:

@@ -38,6 +38,22 @@ def analyze_sentiment(
                 return pd.Series([None, None])
         return pd.Series([None, None])
 
-    df[["sentiment_label", "sentiment_score"]] = df[config.text_column].apply(_analisar)
+    # Cada texto distinto passa pelo modelo UMA vez: o classificador é
+    # determinístico por texto e, em corpora de comentários, metade das
+    # linhas repete um texto já visto (aplausos, emojis) -- na Coleta do TCC,
+    # 75,6 mil comentários têm 38,6 mil textos únicos. O resultado por linha
+    # é idêntico ao de classificar linha a linha; só o tempo muda.
+    textos = df[config.text_column]
+    resultados_por_texto = {
+        texto: _analisar(texto) for texto in pd.unique(textos.dropna())
+    }
+    vazio = pd.Series([None, None])
+
+    def _consultar(texto):
+        if pd.isna(texto):
+            return vazio
+        return resultados_por_texto.get(texto, vazio)
+
+    df[["sentiment_label", "sentiment_score"]] = textos.apply(_consultar)
 
     return df
