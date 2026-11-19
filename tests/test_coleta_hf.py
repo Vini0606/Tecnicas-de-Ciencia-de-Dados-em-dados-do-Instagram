@@ -13,11 +13,13 @@ import pytest
 
 from src.coleta.hf import (
     CommitHF,
-    ErroColetaHF,
     ErroColetaExistente,
+    ErroColetaHF,
     ErroLimiteArmazenamento,
     Plano,
+    arquivos_do_snapshot,
     baixar,
+    fora_do_snapshot,
     listar,
     planejar,
     publicar,
@@ -111,9 +113,8 @@ class ClienteFake:
         nova = dict(self.commits[-1])
         for rel in apagar:
             nova.pop(rel, None)
-        for arq in Path(pasta).rglob("*"):
-            if arq.is_file():
-                nova[arq.relative_to(pasta).as_posix()] = arq.read_bytes()
+        for rel in arquivos_do_snapshot(Path(pasta)):
+            nova[rel] = (Path(pasta) / rel).read_bytes()
         self.commits.append(nova)
         self.mensagens.append(mensagem)
         return str(len(self.commits) - 1)
@@ -426,3 +427,48 @@ def test_listar_marca_a_coleta_sem_teto_pelo_manifesto_v5(tmp_path):
 
     assert com_teto.sem_teto is False  # manifesto antigo (v2) com teto
     assert sem_teto.sem_teto is True
+
+
+# ------------------------------------------------------ so o Snapshot sobe
+
+
+def test_publicar_envia_so_o_snapshot_e_o_plano_lista_o_que_ficou_de_fora(tmp_path):
+    """Publicar direto de `data/`: checkpoints, logs e qualquer pasta estranha ficam de fora por lista de
+    permissao, mesmo que ninguem lembre que estao la; o plano diz o que ficou e quanto pesa."""
+    snap = _snapshot(tmp_path / "snap")
+    (snap / "model_checkpoints" / "run_1").mkdir(parents=True)
+    (snap / "model_checkpoints" / "run_1" / "topic_model").write_bytes(b"m" * 3_000_000)
+    (snap / "logs").mkdir()
+    (snap / "logs" / "pipeline.log").write_bytes(b"l" * 1_000)
+    (snap / "backfill").mkdir()
+    (snap / "backfill" / ".gitkeep").write_bytes(b"")
+    (snap / "notas.txt").write_bytes(b"n" * 10)
+
+    enviados = arquivos_do_snapshot(snap)
+    assert set(enviados) == {
+        "bronze/instagram_posts/_delta_log/00000000000000000000.json",
+        "bronze/instagram_posts/part-1.parquet",
+        "silver/posts/part-1.parquet",
+        "gold/governor_engagement/part-1.parquet",
+        "manifesto.json",
+    }
+    assert fora_do_snapshot(snap) == (("backfill/", 0), ("logs/", 1_000), ("model_checkpoints/", 3_000_000), ("notas.txt", 10))
+
+    cliente = ClienteFake()
+    plano = planejar(snap, cliente=cliente)
+    assert not any(a.startswith(("model_checkpoints/", "logs/", "backfill/", "notas")) for a in plano.adicionar)
+    assert plano.bytes_envio == sum(enviados.values())
+    texto = plano.descrever()
+    assert "Fora do Snapshot" in texto and "model_checkpoints/  (3 MB)" in texto and "logs/  (0 MB)" in texto
+
+    resultado = publicar(snap, cliente=cliente, confirmar=_sim)
+    publicados = cliente.commits[-1]
+    assert resultado.publicado is True
+    assert "gold/governor_engagement/part-1.parquet" in publicados
+    assert not any(p.startswith(("model_checkpoints/", "logs/", "backfill/")) or p == "notas.txt" for p in publicados)
+
+
+def test_plano_sem_nada_fora_do_snapshot_nao_menciona_a_secao(tmp_path):
+    plano = planejar(_snapshot(tmp_path / "snap"), cliente=ClienteFake())
+    assert plano.fora_do_snapshot == ()
+    assert "Fora do Snapshot" not in plano.descrever()

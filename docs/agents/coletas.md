@@ -56,7 +56,10 @@ Exemplos:
 
 ## Versionamento no Hugging Face
 
-- O Snapshot de uma Coleta contém **Bronze, Silver e Gold**, a **landing** e um manifesto. A Bronze é fiel à Apify (guarda o
+- O Snapshot de uma Coleta contém **Bronze, Silver e Gold**, a **landing** e um manifesto. `publicar` envia **só isso**
+  (`bronze/`, `silver/`, `gold/`, `landing/` e `manifesto.json`, por lista de permissão): qualquer outra coisa na pasta
+  (`model_checkpoints/`, `logs/`, `backfill/`...) fica de fora e o plano lista o que ficou, com o tamanho. Pode-se
+  publicar direto de `data/` sem mover nada antes. A Bronze é fiel à Apify (guarda o
   item completo numa coluna bruta, `_raw`) mas é filtrada pelo Recorte; a validação e o parsing ficam na Silver. A
   **landing** (ADR 0045) é o payload bruto completo e sem filtro de toda Coleta, gravado pelo `coletar` assim que cada actor
   devolve, em `landing/<run_id>/{profiles,posts,reels,ugc_mentions}.json` (uma lista JSON por fonte, inclusive registros de
