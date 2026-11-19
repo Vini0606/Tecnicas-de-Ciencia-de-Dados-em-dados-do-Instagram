@@ -26,7 +26,7 @@ A `main` guarda **só a Coleta vigente**. Cada Coleta é um commit, identificado
 | **Extração** | 2026-11-08, a partir das 23:19 UTC |
 | **Recorte** | de 2026-08-16 a 2026-10-25, **sem teto** |
 | **Perfis** | 26 governadores |
-| **Tags de uso** | `tcc`, a Coleta do TCC (aponta para `c2aef6f0`, a primeira publicação desta extração) |
+| **Tags de uso** | `tcc`, a Coleta do TCC (movida em 2026-11-19 de `c2aef6f0`, a primeira publicação desta extração, para `c7039668`) |
 
 A mesma extração foi publicada três vezes, cada vez como um commit novo: `_tcc` (`c2aef6f0`, Bronze, Silver e as 3 Gold da própria Coleta), `_landing` (`d2d4c5dd`, acrescenta o payload bruto) e `_tcc-modelada` (`c7039668`, acrescenta as 13 tabelas Gold da modelagem do TCC). Os dados extraídos são idênticos nas três.
 
@@ -53,7 +53,7 @@ Cinco governadores concentram a maior parte do UGC, cada um com mais de 2.000 it
 bronze/   dado da Apify, uma tabela Delta por fonte
 silver/   dado limpo e conformado
 gold/     métricas e modelagem consumidas pelo dashboard
-landing/  payload bruto completo da Apify, sem filtro do Recorte (toda Coleta, ADR 0045; o commit `c2aef6f0` da tag `tcc`, publicado antes dela, não a tem)
+landing/  payload bruto completo da Apify, sem filtro do Recorte (toda Coleta, ADR 0045; o commit `c2aef6f0`, primeira publicação da Coleta do TCC, não a tem)
 manifesto.json
 ```
 
