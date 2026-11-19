@@ -102,7 +102,7 @@ Além dos textos, cada publicação traz as \textbf{métricas de engajamento} qu
 
 \section{Arquitetura Medallion: da Coleta às tabelas de análise}
 
-Um resultado acadêmico precisa ser reproduzível meses depois de escrito. Um pipeline que sobrescreve planilhas a cada execução não oferece essa garantia, e por isso o projeto adota uma arquitetura em camadas, conhecida como Medallion, sobre tabelas no formato Delta Lake, com contratos de esquema declarados em código e validados em tempo de execução. As camadas são:
+Um resultado acadêmico precisa ser reproduzível meses depois de escrito. Um pipeline que sobrescreve planilhas a cada execução não oferece essa garantia, e por isso o projeto adota uma arquitetura em camadas, conhecida como Medallion, sobre tabelas no formato Delta Lake \cite{armbrust2020}, com contratos de esquema declarados em código e validados em tempo de execução. As camadas são:
 
 \begin{description}
     \item[Landing] o \emph{payload} completo devolvido por cada \emph{actor}, gravado antes de qualquer filtro, como registro fiel do que foi pago. Não é lida pela análise.
