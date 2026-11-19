@@ -126,21 +126,24 @@
   issn    = {1678-0817},
   doi     = {10.69849/revistaft/ch10202411182001},
   url     = {https://revistaft.com.br/a-influencia-das-redes-sociais-no-processo-eleitoral-brasileiro-desafios-regulacao-e-perspectivas-para-a-democracia/},
-  urlaccessdate = {PREENCHER}
+  urlaccessdate = {19 nov. 2026}
 }
 
-% [OK] autores e instituicao; sobrenome correto: SANTOS NETO.
-% [CONFERIR] ano (2021) e nome exato do curso de especializacao.
-% Titulo deixou de estar todo em caixa alta.
-@monography{freitas2021,
-  author  = {Freitas, Matheus Pinto and {Santos Neto}, Manuel Bandeira dos},
+% [OK] autores e instituicao; sobrenome correto: SANTOS NETO. Titulo deixou de estar todo em caixa alta.
+% [OK 19/11/2026] Ano corrigido de 2021 para 2023: o PDF do repositorio da Unipace cita o 1. turno
+% das eleicoes de outubro de 2022 e traz acessos datados de fev. 2023. O nome do curso nao consta
+% no PDF nem no repositorio; mantido so o tipo generico.
+% Grafia do nome: "{\relax Santos Neto}" impede o abntex2 de tratar "Neto" como sufixo (sairia "NETO, M. B. d. S.")
+% sem bloquear a caixa alta; "{\relax dos}" mantem a particula por extenso ("SANTOS NETO, M. B. dos").
+@monography{freitas2023,
+  author  = {Freitas, Matheus Pinto and {\relax Santos Neto}, Manuel Bandeira {\relax dos}},
   title   = {Comunica{\c{c}}{\~a}o e marketing pol{\'\i}tico em tempos de m{\'\i}dias digitais},
-  type    = {Trabalho de Conclus{\~a}o de Curso (Especializa{\c{c}}{\~a}o em Gest{\~a}o P{\'u}blica)},
-  school  = {Escola Superior do Parlamento Cearense},
+  type    = {Trabalho de Conclus{\~a}o de Curso (Especializa{\c{c}}{\~a}o)},
+  school  = {Escola Superior do Parlamento Cearense (Unipace)},
   address = {Fortaleza},
-  year    = {2021},
+  year    = {2023},
   url     = {https://unipacealece.al.ce.gov.br/repositorio/downloads/pelo-id/59},
-  urlaccessdate = {PREENCHER}
+  urlaccessdate = {19 nov. 2026}
 }
 
 % [OK] volume, numero, paginas e ano conferidos; acento em Fernandez.
@@ -156,14 +159,15 @@
 }
 
 % [OK] autores, periodico, volume, ano e DOI.
-% [CONFERIR] numero do artigo (sua lista traz "n. 315").
+% [OK 19/11/2026] Crossref: v. 11, n. 1, artigo 315, fev. 2024. O "315" e o numero do artigo, nao do fasciculo.
 @article{dinh2024,
   author  = {Dinh, Thi Cam Tu and Lee, Yoonjae},
   title   = {{COBRAs} and virality: viral campaign values on consumer behaviour},
   journal = {Humanities and Social Sciences Communications},
   volume  = {11},
-  number  = {315},
+  number  = {1, art. 315},
   year    = {2024},
+  month   = {fev.},
   doi     = {10.1057/s41599-024-02819-7}
 }
 
@@ -264,9 +268,9 @@
 }
 
 % [PDF] Sem "[S.l.: s.n.]": editora informada.
-% [CONFERIR] lista completa de autores (a sua traz "et al.").
+% [OK 19/11/2026] 31 autores conferidos nos anais do NeurIPS 33 (papers.nips.cc), na ordem; paginas do PDF dos anais.
 @inproceedings{brown2020,
-  author    = {Brown, Tom B. and others},
+  author    = {Brown, Tom B. and Mann, Benjamin and Ryder, Nick and Subbiah, Melanie and Kaplan, Jared and Dhariwal, Prafulla and Neelakantan, Arvind and Shyam, Pranav and Sastry, Girish and Askell, Amanda and Agarwal, Sandhini and Herbert-Voss, Ariel and Krueger, Gretchen and Henighan, Tom and Child, Rewon and Ramesh, Aditya and Ziegler, Daniel M. and Wu, Jeffrey and Winter, Clemens and Hesse, Christopher and Chen, Mark and Sigler, Eric and Litwin, Mateusz and Gray, Scott and Chess, Benjamin and Clark, Jack and Berner, Christopher and McCandlish, Sam and Radford, Alec and Sutskever, Ilya and Amodei, Dario},
   title     = {Language models are few-shot learners},
   booktitle = {Advances in Neural Information Processing Systems 33 (NeurIPS 2020)},
   publisher = {Curran Associates},
@@ -315,6 +319,7 @@
 }
 
 % Nomes proprios com maiuscula; data completa; faltava "Acesso em".
+% [OK 19/11/2026] Assinatura "Leonardo Fernandes" confirmada na pagina.
 @article{fernandes2018,
   author  = {Fernandes, Leonardo},
   title   = {{Bolsonaro} repete m{\'e}todos de {Donald Trump} em sua campanha},
@@ -323,8 +328,7 @@
   year    = {2018},
   month   = {4 out.},
   url     = {https://www.brasildefato.com.br/2018/10/04/bolsonaro-repete-metodos-de-donald-trump-em-sua-campanha/},
-  urlaccessdate = {PREENCHER},
-  note    = {CONFERIR: prenome do autor}
+  urlaccessdate = {19 nov. 2026}
 }
 
 % Citada 11 vezes sem pagina: indique capitulo ou pagina no texto.
@@ -339,16 +343,17 @@
 }
 
 % [PDF] Acento do autor; mes por extenso abreviado ("nov.").
-% [CONFERIR] paginas ou numero do artigo.
+% [OK 19/11/2026] Crossref: v. 18, n. 2, e6081, nov. 2022; nomes por extenso; DOI incluido.
 @article{goulart2022,
-  author  = {Goulart, A. H. and Mu{\~n}oz, I. K.},
+  author  = {Goulart, Andrea Heloiza and Mu{\~n}oz, Ivette Kafure},
   title   = {O sujeito informacional e as redes sociais online: reflexos da polariza{\c{c}}{\~a}o pol{\'\i}tica nas pr{\'a}ticas informacionais relacionadas {\`a} pandemia de {Covid-19}},
   journal = {Liinc em Revista},
   address = {Rio de Janeiro},
   volume  = {18},
-  number  = {2},
+  number  = {2, e6081},
   year    = {2022},
-  month   = {nov.}
+  month   = {nov.},
+  doi     = {10.18617/liinc.v18i2.6081}
 }
 
 % [PDF] Preprint: referenciar como documento eletronico.
@@ -358,7 +363,7 @@
   howpublished = {arXiv:2203.05794},
   year   = {2022},
   url    = {https://arxiv.org/abs/2203.05794},
-  urlaccessdate = {PREENCHER}
+  urlaccessdate = {19 nov. 2026}
 }
 
 @article{henry2005,
@@ -395,16 +400,16 @@
 }
 
 % [PDF] "Brasil" com maiuscula; nome do periodico como no original.
-% [CONFERIR] lista de autores.
+% [OK 19/11/2026] Crossref: cinco autores nominais; localizador e20210063 no lugar de "p. 1-30"; DOI incluido.
 @article{ituassu2023,
-  author  = {Ituassu, Arthur and others},
+  author  = {Ituassu, Arthur and Pecoraro, Caroline and Capone, Leticia and Leo, Luiz and Mannheimer, Vivian},
   title   = {M{\'\i}dias digitais, elei{\c{c}}{\~o}es e democracia no {Brasil}: uma abordagem qualitativa para o estudo de percep{\c{c}}{\~o}es de profissionais de campanha},
   journal = {Dados},
   address = {Rio de Janeiro},
   volume  = {66},
-  number  = {2},
-  pages   = {1--30},
-  year    = {2023}
+  number  = {2, e20210063},
+  year    = {2023},
+  doi     = {10.1590/dados.2023.66.2.294}
 }
 
 @article{jain1999,
@@ -418,14 +423,14 @@
 }
 
 % Rascunho online, sem editora (antes: "Prentice Hall").
-% Use a data da versao que voce consultou.
-@misc{jurafsky2025,
+% [OK 19/11/2026] A pagina do SLP3 anuncia a versao de 19 ago. 2026; ano e chave atualizados (antes 2025).
+@misc{jurafsky2026,
   author = {Jurafsky, Daniel and Martin, James H.},
   title  = {Speech and language processing: an introduction to natural language processing, computational linguistics, and speech recognition},
-  howpublished = {3. ed. Rascunho},
-  year   = {2025},
+  howpublished = {3. ed. Rascunho de 19 ago. 2026},
+  year   = {2026},
   url    = {https://web.stanford.edu/~jurafsky/slp3/},
-  urlaccessdate = {PREENCHER}
+  urlaccessdate = {19 nov. 2026}
 }
 
 % Coletanea: o ideal e citar o capitulo usado (autor, titulo, paginas).
@@ -470,7 +475,7 @@
   howpublished = {arXiv:1301.3781},
   year   = {2013},
   url    = {https://arxiv.org/abs/1301.3781},
-  urlaccessdate = {PREENCHER}
+  urlaccessdate = {19 nov. 2026}
 }
 
 @article{muntinga2011,
@@ -483,13 +488,15 @@
   year    = {2011}
 }
 
-% [CONFERIR] lista completa de autores.
+% [OK 19/11/2026] Registro JRC47008 (Comissao Europeia): seis autores nominais, "Hoffmann" com dois n;
+% OECD Publishing, Paris, 2008; ISBN 978-92-64-04345-9. No texto a citacao passa de (OECD, 2008) para (NARDO et al., 2008).
 @book{nardo2008,
-  author    = {Nardo, Michela and others},
+  author    = {Nardo, Michela and Saisana, Michaela and Saltelli, Andrea and Tarantola, Stefano and Hoffmann, Anders and Giovannini, Enrico},
   title     = {Handbook on constructing composite indicators: methodology and user guide},
   address   = {Paris},
   publisher = {OECD Publishing},
-  year      = {2008}
+  year      = {2008},
+  doi       = {10.1787/9789264043466-en}
 }
 
 % Local: so a primeira cidade.
@@ -511,15 +518,6 @@
   year    = {2008}
 }
 
-% [PDF] Local sem "MG, Brasil". [CONFERIR] nome do programa de mestrado.
-@mastersthesis{pezzini2023,
-  author  = {Pezzini, Anderson A.},
-  title   = {An{\'a}lise da produ{\c{c}}{\~a}o cient{\'\i}fica sobre educa{\c{c}}{\~a}o a dist{\^a}ncia e a rela{\c{c}}{\~a}o com a pandemia de {COVID-19} por meio de minera{\c{c}}{\~a}o de textos},
-  school  = {Universidade Federal de Itajub{\'a}},
-  address = {Itajub{\'a}},
-  year    = {2023}
-}
-
 % "Markov" com maiuscula; "fev." em vez de "feb".
 @article{rabiner1989,
   author  = {Rabiner, Lawrence R.},
@@ -533,7 +531,7 @@
 }
 
 % [PDF] "Covid-19" e "Twitter" com maiuscula; "jan./abr.".
-% [CONFERIR] paginas.
+% [OK 19/11/2026] PDF do periodico (17 p.) nao traz paginacao impressa: sem paginas, com DOI.
 @article{recuero2021,
   author  = {Recuero, Raquel and Soares, Felipe and Zago, Gabriela},
   title   = {Polariza{\c{c}}{\~a}o, hiperpartidarismo e c{\^a}maras de eco: como circula a desinforma{\c{c}}{\~a}o sobre {Covid-19} no {Twitter}},
@@ -543,7 +541,8 @@
   number  = {1},
   year    = {2021},
   month   = {jan./abr.},
-  issn    = {2238-2577}
+  issn    = {2238-2577},
+  doi     = {10.22409/contracampo.v40i1.45611}
 }
 
 % Local informado no lugar de "[S.l.]".
@@ -561,7 +560,7 @@
   howpublished = {arXiv:2302.13971},
   year   = {2023},
   url    = {https://arxiv.org/abs/2302.13971},
-  urlaccessdate = {PREENCHER}
+  urlaccessdate = {19 nov. 2026}
 }
 
 @book{tryon1939,
@@ -658,7 +657,7 @@
   year      = {2022}
 }
 
-% [SUGESTAO] DBSCAN (p. 49, 52).
+% [OK 19/11/2026] DBSCAN. PDF oficial do KDD-96 (cdn.aaai.org): 4 autores, 6 paginas a partir da 226. Citado no Cap. 5.
 @inproceedings{ester1996,
   author    = {Ester, Martin and Kriegel, Hans-Peter and Sander, J{\"o}rg and Xu, Xiaowei},
   title     = {A density-based algorithm for discovering clusters in large spatial databases with noise},
@@ -669,7 +668,7 @@
   year      = {1996}
 }
 
-% [SUGESTAO] HDBSCAN (p. 50).
+% [OK 19/11/2026] HDBSCAN. Crossref: PAKDD 2013, LNCS, p. 160-172, Springer. Citado no Cap. 5.
 @inproceedings{campello2013,
   author    = {Campello, Ricardo J. G. B. and Moulavi, Davoud and Sander, J{\"o}rg},
   title     = {Density-based clustering based on hierarchical density estimates},
@@ -677,20 +676,21 @@
   address   = {Berlin},
   publisher = {Springer},
   pages     = {160--172},
-  year      = {2013}
+  year      = {2013},
+  doi       = {10.1007/978-3-642-37456-2_14}
 }
 
-% [SUGESTAO] UMAP (p. 35).
+% [OK 19/11/2026] UMAP. API do arXiv: 1802.03426, 3 autores, 9 fev. 2018. Citado no Cap. 5 (o BERTopic usa o UMAP padrao).
 @misc{mcinnes2018,
   author = {McInnes, Leland and Healy, John and Melville, James},
   title  = {{UMAP}: uniform manifold approximation and projection for dimension reduction},
   howpublished = {arXiv:1802.03426},
   year   = {2018},
   url    = {https://arxiv.org/abs/1802.03426},
-  urlaccessdate = {PREENCHER}
+  urlaccessdate = {19 nov. 2026}
 }
 
-% [SUGESTAO] K-Means (p. 49).
+% [OK 19/11/2026] K-Means. Sem DOI; dados canonicos do 5th Berkeley Symposium (v. 1, p. 281-297). Citado no Cap. 5.
 @inproceedings{macqueen1967,
   author    = {MacQueen, James},
   title     = {Some methods for classification and analysis of multivariate observations},
@@ -702,17 +702,18 @@
   year      = {1967}
 }
 
-% [SUGESTAO] Silhueta (p. 49).
+% [OK 19/11/2026] Silhueta. Crossref: JCAM v. 20, p. 53-65. Citado no Cap. 5.
 @article{rousseeuw1987,
   author  = {Rousseeuw, Peter J.},
   title   = {Silhouettes: a graphical aid to the interpretation and validation of cluster analysis},
   journal = {Journal of Computational and Applied Mathematics},
   volume  = {20},
   pages   = {53--65},
-  year    = {1987}
+  year    = {1987},
+  doi     = {10.1016/0377-0427(87)90125-7}
 }
 
-% [SUGESTAO] Indice de Calinski-Harabasz (p. 49).
+% [OK 19/11/2026] Indice de Calinski-Harabasz. Crossref: Communications in Statistics v. 3, n. 1, p. 1-27. Citado no Cap. 5.
 @article{calinski1974,
   author  = {Cali{\'n}ski, Tadeusz and Harabasz, Jerzy},
   title   = {A dendrite method for cluster analysis},
@@ -720,10 +721,11 @@
   volume  = {3},
   number  = {1},
   pages   = {1--27},
-  year    = {1974}
+  year    = {1974},
+  doi     = {10.1080/03610927408827101}
 }
 
-% [SUGESTAO] Indice de Davies-Bouldin (p. 49).
+% [OK 19/11/2026] Indice de Davies-Bouldin. Crossref: IEEE TPAMI v. PAMI-1, n. 2, p. 224-227. Citado no Cap. 5.
 @article{davies1979,
   author  = {Davies, David L. and Bouldin, Donald W.},
   title   = {A cluster separation measure},
@@ -731,10 +733,11 @@
   volume  = {PAMI-1},
   number  = {2},
   pages   = {224--227},
-  year    = {1979}
+  year    = {1979},
+  doi     = {10.1109/TPAMI.1979.4766909}
 }
 
-% [SUGESTAO] TPE (p. 49).
+% [OK 19/11/2026] TPE. Anais do NeurIPS 24 (proceedings.neurips.cc): Bergstra, Bardenet, Bengio, Kegl; paginas do PDF. Citado no Cap. 5.
 @inproceedings{bergstra2011,
   author    = {Bergstra, James and Bardenet, R{\'e}mi and Bengio, Yoshua and K{\'e}gl, Bal{\'a}zs},
   title     = {Algorithms for hyper-parameter optimization},
@@ -744,17 +747,18 @@
   year      = {2011}
 }
 
-% [SUGESTAO] Analise de Componentes Principais (p. 48-50).
+% [OK 19/11/2026] ACP. Crossref: Springer-Verlag, New York, 2002, 2. ed. Citado no Cap. 5.
 @book{jolliffe2002,
   author    = {Jolliffe, Ian T.},
   title     = {Principal component analysis},
   edition   = {2},
   address   = {New York},
   publisher = {Springer},
-  year      = {2002}
+  year      = {2002},
+  doi       = {10.1007/b98835}
 }
 
-% [SUGESTAO] Biblioteca nltk (p. 21, 49).
+% [OK 19/11/2026] NLTK. Sem DOI; autoria e editora confirmadas pelas resenhas em Natural Language Engineering e LRE (2010). Citado no Cap. 5.
 @book{bird2009,
   author    = {Bird, Steven and Klein, Ewan and Loper, Edward},
   title     = {Natural language processing with {Python}},
@@ -763,17 +767,18 @@
   year      = {2009}
 }
 
-% [SUGESTAO] Biblioteca transformers (p. 21).
+% [OK 19/11/2026] transformers. Crossref/ACL: EMNLP 2020 System Demonstrations, p. 38-45, 22 autores. Citado no Cap. 5.
 @inproceedings{wolf2020,
   author    = {Wolf, Thomas and others},
   title     = {Transformers: state-of-the-art natural language processing},
   booktitle = {Proceedings of the 2020 Conference on Empirical Methods in Natural Language Processing: System Demonstrations},
   publisher = {Association for Computational Linguistics},
   pages     = {38--45},
-  year      = {2020}
+  year      = {2020},
+  doi       = {10.18653/v1/2020.emnlp-demos.6}
 }
 
-% [SUGESTAO] Delta Lake (p. 42).
+% [OK 19/11/2026] Delta Lake. Crossref: PVLDB v. 13, n. 12, p. 3411-3424, 21 autores. Citado no Cap. 4.
 @article{armbrust2020,
   author  = {Armbrust, Michael and others},
   title   = {{Delta Lake}: high-performance {ACID} table storage over cloud object stores},
@@ -781,5 +786,6 @@
   volume  = {13},
   number  = {12},
   pages   = {3411--3424},
-  year    = {2020}
+  year    = {2020},
+  doi     = {10.14778/3415478.3415560}
 }
