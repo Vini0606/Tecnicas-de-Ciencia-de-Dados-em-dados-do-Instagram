@@ -22,11 +22,13 @@ A `main` guarda **só a Coleta vigente**. Cada Coleta é um commit, identificado
 
 | | |
 |---|---|
-| **Identificador** | `coleta_2026-11-08_de-2026-08-16_ate-2026-10-25_tcc` (mensagem do commit `c2aef6f0`) |
+| **Identificador** | `coleta_2026-11-08_de-2026-08-16_ate-2026-10-25_tcc-modelada` (mensagem do commit `c7039668`, publicado em 2026-11-19) |
 | **Extração** | 2026-11-08, a partir das 23:19 UTC |
 | **Recorte** | de 2026-08-16 a 2026-10-25, **sem teto** |
 | **Perfis** | 26 governadores |
-| **Tags de uso** | `tcc`, a Coleta do TCC |
+| **Tags de uso** | `tcc`, a Coleta do TCC (aponta para `c2aef6f0`, a primeira publicação desta extração) |
+
+A mesma extração foi publicada três vezes, cada vez como um commit novo: `_tcc` (`c2aef6f0`, Bronze, Silver e as 3 Gold da própria Coleta), `_landing` (`d2d4c5dd`, acrescenta o payload bruto) e `_tcc-modelada` (`c7039668`, acrescenta as 13 tabelas Gold da modelagem do TCC). Os dados extraídos são idênticos nas três.
 
 **O período.** Do início da propaganda eleitoral (2026-08-16) ao 2º turno (2026-10-25), passando pelo 1º turno (2026-10-04). A pré-campanha ficou de fora de propósito, por custo. O actor da Apify só filtra o início da janela ("mais novo que N dias", aqui 84), então a extração foi até 2026-11-08 e a Coleta descartou depois os itens posteriores a 2026-10-25.
 
@@ -51,13 +53,13 @@ Cinco governadores concentram a maior parte do UGC, cada um com mais de 2.000 it
 bronze/   dado da Apify, uma tabela Delta por fonte
 silver/   dado limpo e conformado
 gold/     métricas e modelagem consumidas pelo dashboard
-landing/  payload bruto completo da Apify, sem filtro do Recorte (toda Coleta, ADR 0045; a Coleta `tcc` publicada antes dela não a tem)
+landing/  payload bruto completo da Apify, sem filtro do Recorte (toda Coleta, ADR 0045; o commit `c2aef6f0` da tag `tcc`, publicado antes dela, não a tem)
 manifesto.json
 ```
 
 - **Bronze:** `instagram_posts`, `instagram_profiles`, `instagram_reels`, `ugc_mentions`. Coletas novas (como a `tcc`) guardam o item completo da Apify na Bronze; a Coleta do Reboot não tem a coluna `_raw` e o payload completo dela está em `landing/`.
 - **Silver:** `posts_clean`, `reels_clean`, `profiles_clean`, `comments_clean` (comentários de reels), `post_comments_clean`, `ugc_mentions` e `governors_metadata`.
-- **Gold da Coleta `tcc`:** `governor_engagement`, `governor_engagement_history` e `governor_ugc_mentions` (gravadas pela própria Coleta) e, desde a publicação `tcc-modelada` (2026-11-18), as tabelas de **modelagem**: `governor_clusters_reels`, `governor_clusters_posts`, `governor_profile_clusters_engagement`, `governor_sentiment`, `governor_sentiment_history`, `governor_discourse_topics`, `governor_nsm`, `topic_priority_score`, `content_topic_priority_score`, `post_performance_coefficients`, `post_performance_predictions`, `governor_growth_metrics` e `governor_scorecard` (com a Consistência por regressão por publicação e a Tendência da ADR 0047). Todas foram geradas a partir da Silver desta Coleta; o dashboard completo depende delas. A Coleta do Reboot (tag `reboot-iesb`) tem as tabelas de modelagem da versão anterior.
+- **Gold da Coleta `tcc`:** `governor_engagement`, `governor_engagement_history` e `governor_ugc_mentions` (gravadas pela própria Coleta) e, desde a publicação `tcc-modelada` (commit `c7039668`, 2026-11-19), as tabelas de **modelagem**: `governor_clusters_reels`, `governor_clusters_posts`, `governor_profile_clusters_engagement`, `governor_sentiment`, `governor_sentiment_history`, `governor_discourse_topics`, `governor_nsm`, `topic_priority_score`, `content_topic_priority_score`, `post_performance_coefficients`, `post_performance_predictions`, `governor_growth_metrics` e `governor_scorecard` (com a Consistência por regressão por publicação e a Tendência da ADR 0047). Todas foram geradas a partir da Silver desta Coleta; o dashboard completo depende delas. A Coleta do Reboot (tag `reboot-iesb`) tem as tabelas de modelagem da versão anterior.
 
 O manifesto (esquema v6) traz a identidade da Coleta, o Recorte pedido e a janela efetiva em datas, a cobertura por fonte e por perfil, o custo e a contagem de linhas de cada tabela. Nenhum campo é nulo: o que não se aplica simplesmente não aparece. Na cobertura, posts, reels e UGC usam a data de **publicação** (UTC); perfis não têm publicação, então usam a data da **captura**.
 
