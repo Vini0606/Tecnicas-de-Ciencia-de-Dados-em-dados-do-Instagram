@@ -11,7 +11,7 @@
 	a4paper,			% tamanho do papel
                     	% opções do pacote babel
     openany,            % As três classes de documentos padrão mais comumente usadas em LaTeX incluem: artigo, relatório e livro.
-    twoside,            % oneside: impressão só frente - twoside: impressão em frente e verso. Controle das marges do documento (O LATEX oferece a possibilidade de declarar o documento como unilateral ou bilateral, isto irá organizar vários elementos para que fiquem bem no formato escolhido. - twoside)
+    oneside,            % oneside: impressão só frente - twoside: impressão em frente e verso. Controle das marges do documento (O LATEX oferece a possibilidade de declarar o documento como unilateral ou bilateral, isto irá organizar vários elementos para que fiquem bem no formato escolhido. - twoside)
 	english,			% idioma adicional para hifenização
 %	french,				% idioma adicional para hifenização
 	spanish,			% idioma adicional para hifenização
@@ -56,6 +56,7 @@
 \usepackage{multirow}
 \usepackage{pgfgantt}     %pacote do gráfico de gantt
 \usepackage{hyperref}     %pacote para adicionar links internos
+\usepackage{xurl}         % permite quebrar URLs longas em qualquer ponto (lista de referências)
 
 % ----------------------------------------------------------
 % Pacotes adicionais, usados apenas no âmbito do Modelo Canônico do abnteX2
@@ -102,23 +103,31 @@
 % alterando o aspecto da cor azul
 \definecolor{blue}{RGB}{41,5,195}
 
+% ---
+% Dados do trabalho (alimentam a capa, a folha de rosto, a folha de aprovação e os metadados do PDF)
+% ---
+\titulo{Uma abordagem híbrida de mineração de texto e aprendizado não supervisionado como ferramenta de \textit{growth} para assessorias políticas: análise de engajamento no Instagram dos governadores brasileiros}
+\autor{Vinícius de Paula R Carvalho}
+\local{Brasília}
+\data{2026}
+\orientador{Prof. Dr. Sérgio da Costa Côrtes}
+\instituicao{Centro Universitário Instituto de Educação Superior de Brasília}
+\tipotrabalho{Trabalho de Conclusão de Curso}
+\preambulo{Trabalho de Conclusão de Curso (TCC) apresentado como pré-requisito para obtenção de Bacharelado em Ciência de Dados e Inteligência Artificial pelo Instituto de Educação Superior de Brasília -- IESB.}
+
+% Fonte de figuras e tabelas (o abntex2 1.9.7 não define \fonte)
+\providecommand{\fonte}[1]{\par\smallskip{\raggedright\footnotesize Fonte: #1\par}}
+
 % informações do PDF
-\makeatletter
 \hypersetup{
-     	%pagebackref=true,
-		pdftitle={\@title}, 
-		pdfauthor={\@author},
-    	pdfsubject={\imprimirpreambulo},
-	    pdfcreator={LaTeX with abnTeX2},
-		pdfkeywords={marketing político digital}{análise de sentimentos}{modelagem de tópicos}{engajamento}{growth}{ciência de dados}, 
-		colorlinks=true,       		% false: boxed links; true: colored links
-    	linkcolor=blue,          	% color of internal links
-    	citecolor=blue,        		% color of links to bibliography
-    	filecolor=magenta,      		% color of file links
-		urlcolor=blue,
+		pdftitle={Uma abordagem híbrida de mineração de texto e aprendizado não supervisionado como ferramenta de growth para assessorias políticas: análise de engajamento no Instagram dos governadores brasileiros},
+		pdfauthor={Vinícius de Paula R Carvalho},
+		pdfsubject={Trabalho de Conclusão de Curso em Ciência de Dados e Inteligência Artificial, IESB, 2026},
+		pdfcreator={LaTeX with abnTeX2},
+		pdfkeywords={marketing político digital}{análise de sentimentos}{modelagem de tópicos}{engajamento}{growth}{ciência de dados},
+		hidelinks,               	% links sem caixa e sem cor (entrega digital)
 		bookmarksdepth=4
 }
-\makeatother
 % --- 
 
 % --- 
@@ -172,10 +181,10 @@
    \begin{minipage}[b]{0.9\linewidth}
      \begin{center}
        \vspace{1cm}
-       {\textbf{\Large {CENTRO UNIVERSITÁRIO INSTITUTO DE EDUCAÇÃO SUPERIOR DE BRASÍLIA}}} 
+       {\textbf{\Large \MakeUppercase{\imprimirinstituicao}}}
        {\textbf{\Large Bacharelado em \\ Ciência de Dados e Inteligência Artificial}}\\
         \vspace{1cm}
-       {\textbf{\Large \textit{Trabalho de Conclusão de Curso}}}
+       {\textbf{\Large \textit{\imprimirtipotrabalho}}}
      \end{center}
    \end{minipage}
 \end{center}
@@ -183,77 +192,66 @@
 \vspace{8 mm}
 
 \begin{center}
-   {\textbf{\Large  \textbf{Vinícius de Paula R Carvalho}}}\\[2 cm]
-      {\textbf{\Large Uma abordagem híbrida de mineração de texto e aprendizado não supervisionado como ferramenta de \textit{growth} para assessorias políticas: análise de engajamento no Instagram dos governadores brasileiros. }}\\[2cm]
-   {\textbf{\Large Brasília \\  2026}}\\[5cm]
+   {\textbf{\Large \imprimirautor}}\\[2 cm]
+   {\textbf{\Large \imprimirtitulo}}\\[2cm]
+   {\textbf{\Large \imprimirlocal \\ \imprimirdata}}\\[5cm]
    \vfill
 \end{center}
 
 % ---------------------------------------------------------------------------- %
-% Página de rosto (SÓ PARA A VERSÃO DEPOSITADA - ANTES DA DEFESA)
-% Resolução CoPGr 5890 (20/12/2010)
-%
-% IMPORTANTE:
-%   Coloque um '%' em todas as linhas
-%   desta página antes de compilar a versão
-%   final, corrigida, do trabalho
-%
-%
+% Folha de rosto
+% ---------------------------------------------------------------------------- %
 \clearpage
 \thispagestyle{empty}
-    \begin{center}
-        \vspace{1.5 cm}
-           {\textbf{\Large Uma abordagem híbrida de mineração de texto e aprendizado não supervisionado como ferramenta de \textit{growth} para assessorias políticas: análise de engajamento no Instagram dos governadores brasileiros. }}\\[2cm]
-        \vspace{1.5 cm}
-    \end{center}
-
-   
-     \noindent\hspace{.42\textwidth}
-     \begin{minipage}{.52\textwidth}\raggedright
-Trabalho de Conclusão de Curso (TCC) apresentado como pré-requisito para obtenção de Bacharelado em Ciência de Dados e Inteligência Artificial pelo Instituto de Educação Superior de Brasília - IESB. \\ 
-\textbf{Orientador:} Professor Sérgio da Costa Côrtes
-    \end{minipage}
-
-\clearpage
-
-% ---------------------------------------------------------------------------- %
-%
-% IMPORTANTE:
-%   Coloque um '%' em todas as linhas
-%   desta página antes de compilar a versão
-%   final, corrigida, do trabalho
-%
-%
-\clearpage
-\begin{center} 
-    \textbf{\LARGE{Uma abordagem híbrida de mineração de texto e aprendizado não supervisionado como ferramenta de \textit{growth} para assessorias políticas: análise de engajamento no Instagram dos governadores brasileiros.}}\\ [3cm]
-    \textbf{{\large Vinícius de Paula R Carvalho}}\\[1.5cm]
+\begin{center}
+   {\textbf{\Large \imprimirautor}}\\[2.5cm]
+   {\textbf{\Large \imprimirtitulo}}\\[2.5cm]
 \end{center}
 
-\hspace{0.85cm}Trabalho de Conclusão de Curso (TCC) apresentado como pré-requisito para obtenção de Bacharelado em Ciência de Dados e Inteligência Artificial
-pelo Instituto de Educação Superior de Brasília - IESB 
+\noindent\hspace{.42\textwidth}
+\begin{minipage}{.52\textwidth}\raggedright
+\imprimirpreambulo\\[0.6em]
+\textbf{Orientador:} \imprimirorientador
+\end{minipage}
+
+\vfill
+\begin{center}
+   {\textbf{\Large \imprimirlocal \\ \imprimirdata}}
+\end{center}
+
+% ---------------------------------------------------------------------------- %
+% Folha de aprovação (banca a definir)
+% ---------------------------------------------------------------------------- %
+\clearpage
+\thispagestyle{empty}
+\begin{center}
+    {\textbf{\large \imprimirautor}}\\[1.5cm]
+    {\textbf{\LARGE \imprimirtitulo}}\\[3cm]
+\end{center}
+
+\hspace{0.85cm}\imprimirpreambulo
 
 \vspace{1cm}
 
-\hspace{0.85cm} Brasília – Distrito Federal, em \rule{1.5cm}{0.005cm} de \rule{3cm}{0.005cm} de \rule{1.5cm}{0.005cm}
+\hspace{0.85cm}\imprimirlocal{} -- Distrito Federal, em \rule{1.5cm}{0.005cm} de \rule{3cm}{0.005cm} de \rule{1.5cm}{0.005cm}
 
 \vspace{3cm}
 
 \hspace{0.85cm}Banca Examinadora constituída pelos Professores:
 
 \vspace{1cm}
-\begin{center}\rule{10cm}{0.005cm}\
-    {\textbf {Prof. Dr. Sérgio da Costa Côrtes - Orientador\
-    Professor no IESB}}
+\begin{center}
+    \rule{10cm}{0.005cm}\\
+    \textbf{\imprimirorientador}\\
+    Orientador
 
     \vspace{1cm}
-    \rule{10cm}{0.005cm}\
-    {\textbf {Membro da Banca Examinadora}}
+    \rule{10cm}{0.005cm}\\
+    \textbf{Membro da Banca Examinadora}
 
     \vspace{1cm}
-    \rule{10cm}{0.005cm}\
-    {\textbf {Membro da Banca Examinadora}}
-
+    \rule{10cm}{0.005cm}\\
+    \textbf{Membro da Banca Examinadora}
 \end{center}
 
 % ----------------------------------------------------------
@@ -261,7 +259,7 @@ pelo Instituto de Educação Superior de Brasília - IESB
 % ----------------------------------------------------------
 
 \begin{agradecimentos}
-Agradeço a DEUS pelo dom da vida e pela oportunidade de ter a família que tenho. Aos meus pais que sempre me proporcionaram um ensino de excelência, dentro de suas possibilidades. Agradeço, também, a todos os Professores do IESB que com seus conhecimentos, competências e habilidades me ensinaram e me prepararam para ser um profissional de excelência e um ser humano melhor.
+Agradeço a DEUS pelo dom da vida e pela oportunidade de ter a família que tenho. Aos meus pais, que sempre me proporcionaram um ensino de excelência, dentro de suas possibilidades. Agradeço, também, a todos os Professores do IESB que, com seus conhecimentos, competências e habilidades, me ensinaram e me prepararam para ser um profissional de excelência e um ser humano melhor.
 \end{agradecimentos}
 % ---
 
@@ -271,9 +269,9 @@ Agradeço a DEUS pelo dom da vida e pela oportunidade de ter a família que tenh
 \begin{epigrafe}
     \vspace*{\fill}
 	\begin{flushright}
-		\textit{``Dados são iguais dentes,    \\
+		\textit{``Dados são iguais a dentes: \\
 		só se joga fora em último caso. \\
-        Mas, ao usá-los a ética deve \\
+        Mas, ao usá-los, a ética deve \\
         vir em primeiro lugar.''\\
 		(Sérgio Côrtes)}
 	\end{flushright}
