@@ -1,413 +1,410 @@
 % !TEX root = ../TCC - CD e IA.tex
 \chapter{Modelagem Híbrida}\label{Desenvolvimento}
 
-A fim de se cumprir o objetivo principal de desenvolver e validar uma metodologia de modelagem híbrida baseada em Processamento de Linguagem Natural (PLN) \textemdash{} que combine análise de sentimentos, modelagem de tópicos e técnicas de clusterização e sirva de motor a uma ferramenta de apoio à decisão para assessorias políticas \textemdash{}, este projeto, aplicado em dados do Instagram, inicia-se com um pipeline de Extração, Transformação e Carga (ETL) automatizado, que utiliza a API da Apify para coletar dados de perfis, postagens e reels de governadores. Na fase de transformação, os dados brutos são enriquecidos com métricas de engajamento, como recência e frequência, e os textos das publicações passam por um pré-processamento que inclui a remoção de stopwords e a conversão de emojis em texto. A análise exploratória de dados subsequente permitiu a visualização das distribuições das métricas chave e a identificação de padrões iniciais. Já o processo de Análise de Componentes Principais permitiu ao projeto diminuir a multicolinearidade, reduzindo a dimensionalidade dos dados.  O núcleo do projeto reside na modelagem de Processamento de Linguagem Natural (PLN), onde é realizada uma análise de sentimentos com o modelo pré-treinado \code{twitter-xlm-roberta-base-sentiment} para classificar os comentários como positivos, negativos ou neutros, e uma modelagem de tópicos com BERTopic para identificar os principais temas discutidos, sendo estes últimos refinados por um modelo de representação customizado que utiliza a API do Gemini para gerar descrições mais detalhadas e precisas para cada tópico.
+Este capítulo apresenta o motor analítico do trabalho: a aplicação integrada de redução de dimensionalidade, clusterização automática, análise de sentimentos e modelagem de tópicos à Coleta descrita no Capítulo~\ref{FontesDados}. Sua função é descritiva e técnica. Ele caracteriza os dados (Seção~\ref{sec:eda}), descreve o pipeline e suas escolhas (Seção~\ref{sec:pipeline-modelagem}) e apresenta, para cada técnica, o que foi obtido sobre os 26 perfis, as 8.488 publicações e os 75.634 comentários da janela eleitoral de 2026: os grupos de desempenho de \emph{Reels}, de publicações do \emph{feed} e de perfis (Seção~\ref{sec:clusterizacao}), a polaridade dos comentários e das legendas e sua distribuição por perfil e por grupo (Seção~\ref{sec:sentimento}) e a estrutura temática dos comentários e do discurso (Seção~\ref{sec:topicos}). A leitura desses resultados como instrumento de decisão, organizada no funil de engajamento, fica para o Capítulo~\ref{Resultados}.
 
-\section{Análise Exploratória dos Dados}
+\section{Análise Exploratória dos Dados}\label{sec:eda}
 
-Após a conclusão bem-sucedida do pipeline de Extração, Transformação e Carga (ETL), o projeto entra em sua primeira fase analítica, a Análise Exploratória de Dados (AED). A Análise Exploratória nos permitirá visualizar as distribuições de métricas chave, como as taxas de engajamento, a frequência e a recência das publicações, permitindo-nos identificar padrões iniciais, outliers e possíveis correlações entre as estratégias de comunicação dos diferentes governadores. É nesta fase que que será validada a qualidade dos dados, que serão investigadas as características das métrica e serão formuladas as hipóteses iniciais que guiarão a modelagem subsequente, garantindo que todas as perguntas sejam relevantes e que os modelos sejam aplicados sobre uma base de dados sólida e bem compreendida.
+A análise exploratória tem três finalidades neste trabalho: verificar a qualidade da Coleta descrita no Capítulo~\ref{FontesDados}, caracterizar a escala e a forma das distribuições das métricas que alimentam a modelagem e levantar as primeiras hipóteses sobre a relação entre estratégia de publicação e desempenho. Ela é feita em dois níveis, o dos perfis e o das publicações, e em duas etapas, univariada e bivariada.
 
 \subsection{Análise Univariada}
 
-A análise descritiva univariada representa o primeiro pilar da  fase de exploração de dados. Ao analisar individualmente as métricas, será possível identificar suas características centrais, como média, mediana e desvio padrão. Este passo é crucial para validar a qualidade dos dados, detectar anomalias ou outliers que poderiam distorcer modelos futuros, e compreender a escala e a distribuição de cada indicador.
+\paragraph*{Perfis.} A Tabela~\ref{tab:estatisticas_perfis} resume as métricas dos 26 perfis. A audiência é fortemente concentrada: a média de 1,14 milhão de seguidores é o dobro da mediana de 563,7 mil, e o desvio-padrão supera a média (coeficiente de variação de 138\%). O perfil mais seguido, o de São Paulo, tem 7,7 milhões de seguidores, 65 vezes o menos seguido, o do Espírito Santo. O número de contas seguidas (mediana de 2.930) e o total acumulado de publicações do perfil (mediana de 6.759) são métricas de histórico e não entram na modelagem; registram apenas que todos os perfis são contas maduras e ativas.
 
-\begin{table}[h]
+As métricas de engajamento da janela são as que interessam ao funil. O engajamento total (curtidas mais comentários nas publicações dos 70 dias) tem média de 4,8 milhões e mediana de 2,2 milhões, com máximo de 37,6 milhões em São Paulo. O \textbf{engajamento por seguidor}, razão entre o engajamento total da janela e o número de seguidores, é a métrica de eficiência do perfil: sua mediana é 6,6, isto é, o perfil típico acumulou na campanha um volume de interações equivalente a seis vezes e meia a sua base de seguidores, com extremos de 21,2 (Amapá) e de praticamente zero nos dois perfis quase inativos. A \textbf{frequência} de publicação (publicações por dia de atividade) tem mediana de 3,8 e máximo de 12,3 (Piauí): a campanha impôs um ritmo de várias publicações diárias. A \textbf{recência}, definida como $1/(\text{dias desde a última publicação}+1)$, vale 1,0 para pelo menos três quartos dos perfis, o que indica presença diária; os valores baixos pertencem aos perfis do Distrito Federal e de Rondônia, cuja última publicação na janela é anterior em semanas ao fim dela.
+
+\begin{table}[htb]
 \centering
-\caption{Estatísticas Descritivas dos Perfis dos Governadores}
-\label{tab:estatisticas_ajustada}
-% Diminui o espaço entre as colunas (o padrão é 6pt)
-\setlength{\tabcolsep}{3pt}
-% Diminui o tamanho da fonte apenas para esta tabela
-\small 
+\caption{Estatísticas descritivas dos 26 perfis e de seu engajamento na janela da Coleta}
+\label{tab:estatisticas_perfis}
+\footnotesize\setlength{\tabcolsep}{3pt}
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{lrrrrrrr}
+\toprule
+\textbf{Métrica} & \textbf{Média} & \textbf{Desvio} & \textbf{Mín.} & \textbf{Q1} & \textbf{Mediana} & \textbf{Q3} & \textbf{Máx.} \\
+\midrule
+Seguidores & 1.143.496 & 1.580.617 & 118.270 & 245.573 & 563.659 & 1.427.309 & 7.736.945 \\
+Contas seguidas & 3.713 & 2.536 & 461 & 1.346 & 2.930 & 6.526 & 7.636 \\
+Publicações acumuladas & 7.785 & 3.857 & 1.239 & 4.785 & 6.759 & 10.993 & 15.308 \\
+\midrule
+Publicações na janela & 326 & 231 & 2 & 176 & 264 & 475 & 859 \\
+Curtidas na janela & 4.506.182 & 7.700.119 & 9.015 & 355.659 & 1.967.889 & 3.756.396 & 36.145.146 \\
+Comentários na janela & 318.752 & 421.197 & 20 & 43.981 & 142.599 & 413.684 & 1.451.108 \\
+Engajamento por seguidor & 8,18 & 6,57 & 0,01 & 2,66 & 6,57 & 14,86 & 21,15 \\
+Frequência (publ./dia) & 4,69 & 3,30 & 0,06 & 2,57 & 3,77 & 6,78 & 12,27 \\
+Recência & 0,86 & 0,30 & 0,04 & 1,00 & 1,00 & 1,00 & 1,00 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph*{\emph{Reels}.} A Tabela~\ref{tab:estatisticas_reels} descreve os 5.904 \emph{Reels}. Todas as métricas de desempenho têm assimetria positiva extrema: a média de curtidas (15.619) é cinco vezes a mediana (3.092) e o coeficiente de variação passa de 440\%; a média de comentários (1.151) é quatro vezes a mediana (275); as reproduções têm média de 357,7 mil e mediana de 87,5 mil, com um máximo de 39,3 milhões. Em cada métrica, o décimo percentil superior começa longe da mediana (29,1 mil curtidas, 2,1 mil comentários, 784,5 mil reproduções), o que indica que uma minoria de vídeos concentra a maior parte do engajamento e do alcance. É essa cauda que a clusterização da Seção~\ref{sec:clusterizacao} precisa isolar, e é por ela que as etapas seguintes trabalham com escalas logarítmicas ou com métodos robustos a valores extremos. A duração tem mediana de 50,6 segundos e metade dos vídeos entre 33 e 70 segundos, o formato curto consolidado na plataforma; 12,9\% passam de 90 segundos e 2,1\% de três minutos, com um máximo de 69 minutos, correspondente a transmissões e discursos publicados como vídeo. Quarenta e sete \emph{Reels} e 63 publicações do \emph{feed} têm contagem de curtidas igual a $-1$, código da plataforma para contagem oculta pelo autor; são tratados como ausentes.
+
+\begin{table}[htb]
+\centering
+\caption{Estatísticas descritivas dos 5.904 \emph{Reels}}
+\label{tab:estatisticas_reels}
+\small
+\setlength{\tabcolsep}{4pt}
 \begin{tabular}{lrrrrrrrr}
 \toprule
- & \textbf{followers} & \textbf{follows} & \textbf{posts} & \textbf{comments} & \textbf{likes} & \textbf{\% Engaj.} & \textbf{Recencia} & \textbf{Freq.} \\
+\textbf{Métrica} & \textbf{Média} & \textbf{Desvio} & \textbf{Q1} & \textbf{Mediana} & \textbf{Q3} & \textbf{P90} & \textbf{Máx.} & \textbf{CV} \\
 \midrule
-\textbf{count} & 27.00 & 27.00 & 27.00 & 27.00 & 27.00 & 27.00 & 27.00 & 27.00 \\
-\textbf{mean} & 719097.22 & 3417.04 & 6393.44 & 25928.63 & 388642.74 & 0.62 & 0.96 & 2.70 \\
-\textbf{std} & 996003.72 & 2581.80 & 2930.29 & 25834.61 & 546539.04 & 0.43 & 0.13 & 1.95 \\
-\textbf{min} & 78366.00 & 248.00 & 1164.00 & 3123.00 & 40906.00 & 0.18 & 0.50 & 0.10 \\
-\textbf{25\%} & 242701.50 & 965.00 & 4174.00 & 10906.50 & 101375.50 & 0.43 & 1.00 & 1.34 \\
-\textbf{50\%} & 361205.00 & 2814.00 & 6339.00 & 14898.00 & 162450.00 & 0.54 & 1.00 & 2.32 \\
-\textbf{75\%} & 849765.50 & 6138.50 & 7985.00 & 30698.50 & 390911.50 & 0.62 & 1.00 & 4.00 \\
-\textbf{max} & 5169532.00 & 7489.00 & 12981.00 & 107891.00 & 2591722.00 & 2.51 & 1.00 & 7.38 \\
+Curtidas & 15.619 & 69.079 & 1.149 & 3.092 & 8.818 & 29.140 & 2.306.454 & 4,42 \\
+Comentários & 1.151 & 4.421 & 105 & 275 & 717 & 2.143 & 131.032 & 3,84 \\
+Reproduções & 357.652 & 1.134.055 & 34.647 & 87.509 & 258.466 & 784.545 & 39.269.272 & 3,17 \\
+Duração (s) & 60,5 & 91,2 & 33,1 & 50,6 & 69,9 & 97,6 & 4.151,4 & 1,51 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-A análise do número de seguidores (followers), realizada sobre a totalidade dos 27 governadores, revela um cenário de desigualdade. A média de seguidores de 719.097 é influenciada por outliers, fato que se torna evidente ao compará-la com a mediana de 361.205, que representa o ponto central do grupo. Essa disparidade, com a média sendo quase o dobro da mediana, quantifica uma assimetria positiva na distribuição. A heterogeneidade é confirmada pelo alto desvio padrão de 996.003, que, por ser maior que a própria média, resulta em um Coeficiente de Variação de 138\%, indicando inconsistência. Além disso, pode-se notar que a faixa de desempenho é vasta, indo de um mínimo de 78.366 a um pico de 5.169.532 seguidores. Mesmo o "miolo" da distribuição, que contém 50\% dos governadores, apresenta grande variação, situando-se entre 242.701 (primeiro quartil) e 849.765 (terceiro quartil).
+\paragraph*{Publicações do \emph{feed}.} As 8.437 publicações da grade do \emph{feed} dividem-se em 5.856 vídeos (em sua quase totalidade os mesmos \emph{Reels}), 1.591 carrosséis e 990 imagens. Como o extrator do \emph{feed} não devolve reproduções nem duração, a análise dessa fonte usa curtidas e comentários (Tabela~\ref{tab:estatisticas_feed}). A comparação entre formatos é direta quando se isolam as 2.584 publicações estáticas (imagens e carrosséis que não são \emph{Reels}): sua mediana de curtidas é de 2.276, contra 3.092 nos \emph{Reels}, e a de comentários é de 162, contra 275. O vídeo curto rende, no perfil típico, cerca de um terço a mais de interações por publicação que o conteúdo estático, e é também o formato dominante em volume: 69\% das publicações da janela.
 
-Para a variável de contas seguidas (follows), a análise dos 27 perfis mostra uma média de 3.417 e uma mediana de 2.814. A média superior à mediana indica uma leve assimetria positiva, sugerindo que alguns governadores adotam uma estratégia de seguir um número de contas acima do padrão. A variabilidade desta métrica também apresentou índices elevados, quantificada por um desvio padrão de 2.581 e um Coeficiente de Variação de aproximadamente 75\%. O comportamento dos governadores varia drasticamente, de um mínimo de seguir apenas 248 contas a um máximo de 7.489. O intervalo interquartil, entre 965 (Q1) e 6.138 (Q3) contas, revela que não existe um consenso no número de contas a se seguir, com grande dispersão mesmo no comportamento central do grupo. Uma possível hipótese que pode ser testada é a de que "contas que seguem mais pessoas tendem a ter menos engajamento em relação as que seguem menos pessoas".
-
-A análise do total de publicações nos perfis revela-se a métrica de perfil mais consistente. Os valores da média (6.393) e da mediana (6.339) são extremamente próximos, o que aponta para uma distribuição de dados quase simétrica e um comportamento notavelmente homogêneo entre os governadores. O desvio padrão de 2.930 é o mais baixo em termos relativos, com um Coeficiente de Variação de 46\%, confirmando que o volume de conteúdo produzido ao longo do tempo é a prática mais padronizada. Ainda assim, existe uma faixa de atuação que vai de um mínimo de 1.164 posts a um máximo de 12.981. O corpo central da amostra (50\%) situa-se entre 4.174 (Q1) e 7.985 (Q3) publicações, mostrando um compromisso geral com a produção de conteúdo em volume.
-
-A soma de comentários das publicações, analisada para os 27 governadores, demonstra um padrão de forte concentração. A média de 25.928 comentários é significativamente elevada pela performance de poucos, um fato evidenciado pela mediana de 14.898, que representa melhor o desempenho típico. Essa assimetria positiva é corroborada por um desvio padrão de 25.834, quase idêntico à média (CV de aprox. 100\%), o que quantifica uma variabilidade extrema na capacidade de gerar debate. O desempenho varia de um mínimo de 3.123 a um máximo de 107.891 comentários. O intervalo onde se encontram 50\% dos governadores vai de 10.906 (Q1) a 30.698 (Q3), mostrando que mesmo o desempenho mediano varia consideravelmente.
-
-O volume total de curtidas nos perfis segue um padrão de concentração ainda mais extremo que o dos comentários. A média de 388.642 curtidas é mais que o dobro da mediana de 162.450, indicando que o volume massivo de curtidas é um feito para uma elite de perfis. O desvio padrão de 546.539, com um Coeficiente de Variação de 141\%, quantifica uma volatilidade e concentração de sucesso ainda maiores. A faixa de desempenho é imensa, partindo de um mínimo de 40.906 e chegando a um pico de 2.591.722 curtidas em posts recentes. O desempenho típico para 50\% do grupo fica entre 101.375 (Q1) e 390.911 (Q3) curtidas.
-
-Considerando sua fórmula (commentsSum + likesSum) / followersCount, a variável com o percentual de engajamento mede o volume de interações por seguidor. A análise dos 27 perfis mostra uma taxa média de 0.62 e uma mediana de 0.54, significando que, tipicamente, o volume de interações de um governador equivale a 54\% a 62\% de sua base de seguidores. A leve assimetria positiva, com a média acima da mediana, sugere que alguns perfis são supereficientes. A variabilidade na eficiência é notável, com um desvio padrão de 0.43 (CV de 69\%). A faixa de desempenho é ampla, com um mínimo de 0.18 e um máximo viral de 2.51, onde um perfil gerou 2,5 vezes mais interações do que seu número de seguidores. O desempenho dos 50\% centrais fica entre 0.43 (Q1) e 0.62 (Q3), com o terceiro quartil coincidindo com a média, o que reforça que a maioria tem uma taxa de engajamento abaixo da média geral.
-
-Calculada pela fórmula (1 / (dias desde o último post + 1)), a métrica de recência funciona como um score de 0 a 1, onde 1 é o mais recente. Os dados dos 27 governadores revelam uma atividade diária quase universal. A mediana, o primeiro quartil (Q1) e o terceiro quartil (Q3) são todos iguais a 1.00, o que significa que no mínimo 75\% dos governadores postaram conteúdo no último dia da coleta. A média de 0.96 é apenas marginalmente menor devido a uma minoria menos ativa. O comportamento é extremamente homogêneo, com um desvio padrão baixíssimo de 0.13. A faixa de valores vai de um mínimo de 0.50 (correspondente a um último post feito 1 dia antes) a um máximo de 1.00, confirmando que a presença diária é a estratégia dominante e padrão.
-
-Já o indicador de frequência mede a média de posts por dia (count / dias de atividade). Esta estatística nos mostra grande diversidade estratégica entre os 27 governadores. A frequência média é de 2.70 posts diários, enquanto a mediana é de 2.32. A assimetria positiva é explicada por alguns perfis com um ritmo de postagem muito intenso que elevam a média. A grande variabilidade é confirmada por um desvio padrão de 1.95 (CV de 72\%). A estratégia de publicação vai de um extremo de 0.10 posts/dia (um a cada 10 dias) a outro de 7.38 posts/dia. O comportamento padrão para 50\% do grupo é manter uma frequência que varia entre 1.34 (Q1) e 4.00 (Q3) posts por dia.
-
-\begin{table}[h]
+\begin{table}[htb]
 \centering
-\caption{Estatísticas Descritivas de Publicações do Reels dos Governadores}
-\label{tab:estatisticas_videos}
-\small
-\setlength{\tabcolsep}{3pt}
-\begin{tabular}{lrrrrr}
+\caption{Estatísticas descritivas das publicações do \emph{feed} e do subconjunto estático}
+\label{tab:estatisticas_feed}
+\footnotesize\setlength{\tabcolsep}{1.5pt}
+\setlength{\tabcolsep}{2.5pt}
+\begin{tabular}{llrrrrrrr}
 \toprule
- & \textbf{commentsCount} & \textbf{likesCount} & \textbf{videoPlayCount} & \textbf{videoViewCount} & \textbf{videoDuration} \\
+\textbf{Conjunto} & \textbf{Métrica} & \textbf{n} & \textbf{Média} & \textbf{Q1} & \textbf{Mediana} & \textbf{Q3} & \textbf{P90} & \textbf{Máx.} \\
 \midrule
-\textbf{count} & 810.00 & 810.00 & 810.00 & 810.00 & 810.00 \\
-\textbf{mean} & 472.97 & 6763.40 & 132131.90 & 3255.30 & 72.74 \\
-\textbf{std} & 997.79 & 17063.28 & 232754.24 & 51843.27 & 78.79 \\
-\textbf{min} & 0.00 & -1.00 & 1021.00 & 0.00 & 4.00 \\
-\textbf{25\%} & 90.25 & 1014.25 & 30060.25 & 0.00 & 43.52 \\
-\textbf{50\%} & 211.50 & 2208.50 & 67658.00 & 0.00 & 59.16 \\
-\textbf{75\%} & 470.75 & 5868.25 & 136340.00 & 0.00 & 81.08 \\
-\textbf{max} & 12664.00 & 246870.00 & 2779910.00 & 1380735.00 & 900.03 \\
+\emph{Feed} completo & Curtidas & 8.437 & 13.838 & 1.071 & 2.818 & 8.140 & 25.656 & 2.306.451 \\
+ & Comentários & 8.437 & 977 & 88 & 237 & 625 & 1.864 & 131.030 \\
+Estáticas & Curtidas & 2.584 & 9.652 & 909 & 2.276 & 6.825 & 21.054 & 477.420 \\
+ & Comentários & 2.584 & 577 & 61 & 162 & 452 & 1.266 & 46.004 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-As métricas de engajamento dos Reels demonstram um padrão de desempenho extremamente assimétrico. Para as curtidas (likesCount), a média é de 6.763, enquanto a mediana é de apenas 2.208. De forma semelhante, a média de comentários (commentsCount) é de 473, e a mediana é 211. Em ambos os casos, a média é significativamente superior à mediana, indicando uma forte assimetria positiva. Isso significa que a performance da maioria dos Reels é modesta, situando-se abaixo da média geral. O valor médio é inflacionado por um pequeno número de vídeos "virais" que alcançam um engajamento massivo (com picos de até 246.870 curtidas e 12.664 comentários), distorcendo a percepção de desempenho típico.
-
-A análise do alcance dos vídeos mostra que videoPlayCount (reproduções) é a métrica mais confiável. Com uma média de 132.131 e mediana de 67.658 reproduções, a mesma assimetria positiva observada no engajamento se repete aqui. A maioria dos vídeos não atinge a média, mas alguns conteúdos específicos chegam a números extraordinários, ultrapassando 2,7 milhões de reproduções. A métrica videoViewCount, por sua vez, apresenta uma anomalia estatística: sua mediana e seus quartis (Q1 e Q3) são zero. Isso indica que mais de 75\% dos 810 vídeos registraram zero "views" sob este critério específico, que pode ser uma métrica legada ou referente a um tipo de visualização que raramente ocorre. Portanto, videoPlayCount deve ser considerada a principal medida de alcance, revelando uma distribuição de performance onde poucos vídeos concentram a maior parte da visibilidade.
-
-A duração dos Reels também exibe uma variabilidade considerável, sem um padrão de tempo estritamente definido. A duração média é de 73 segundos, enquanto a mediana é de 59 segundos. O fato de 50\% dos vídeos estarem concentrados entre 43 e 81 segundos (o intervalo interquartil) mostra uma preferência por vídeos de aproximadamente um minuto, um formato consolidado na plataforma. Contudo, a presença de vídeos muito longos, com duração máxima de 900 segundos (15 minutos), eleva a média. Esses outliers provavelmente representam vídeos mais longos que são compartilhados no feed e, por consequência, no Reels, uma funcionalidade permitida pelo Instagram. A falta de um padrão rígido sugere que os produtores de conteúdo testam diferentes formatos, desde vídeos curtos e rápidos até conteúdos mais aprofundados.
-
-\begin{table}[h]
-\centering
-\caption{Estatísticas Descritivas de Vídeos (Nova Tabela)}
-\label{tab:estatisticas_videos_nova}
-\setlength{\tabcolsep}{4pt} % Reduz o espaço lateral nas colunas
-\small % Diminui o tamanho da fonte
-\setlength{\tabcolsep}{3pt}
-\begin{tabular}{lrrrrr}
-\toprule
- & \textbf{commentsCount} & \textbf{likesCount} & \textbf{videoViewCount} & \textbf{videoPlayCount} & \textbf{videoDuration} \\
-\midrule
-\textbf{count} & 810.00 & 810.00 & 564.00 & 564.00 & 564.00 \\
-\textbf{mean} & 452.31 & 7061.26 & 3077.52 & 142084.42 & 71.39 \\
-\textbf{std} & 975.88 & 18525.06 & 34161.43 & 270803.90 & 78.41 \\
-\textbf{min} & 0.00 & -1.00 & 0.00 & 1849.00 & 4.00 \\
-\textbf{25\%} & 73.25 & 890.50 & 0.00 & 29611.00 & 42.85 \\
-\textbf{50\%} & 175.50 & 1961.00 & 0.00 & 67316.50 & 57.53 \\
-\textbf{75\%} & 453.75 & 5846.50 & 0.00 & 139274.75 & 79.10 \\
-\textbf{max} & 11135.00 & 246802.00 & 727411.00 & 2645399.00 & 840.94 \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-A análise da contagem de comentários, realizada sobre a totalidade dos 810 posts do feed dos governadores, revela uma capacidade de gerar debate altamente concentrada. A média de 452 comentários por post é mais que o dobro da mediana de 176, que representa o valor central do conjunto de dados. Essa grande diferença aponta para uma forte assimetria positiva, onde um número restrito de publicações com altíssimo poder de engajamento eleva a média geral. A extrema variabilidade é quantificada pelo desvio padrão de 976, que resulta em um Coeficiente de Variação de aproximadamente 216\%. A faixa de desempenho é vasta, indo de posts sem nenhum comentário (mínimo de 0) a um com 11.135 interações. O comportamento típico para 50\% dos posts é receber entre 73 (primeiro quartil) e 454 (terceiro quartil) comentários.
-
-A contagem de curtidas, também analisada para todos os 810 posts, exibe um padrão de concentração de sucesso ainda mais acentuado. A média de 7.061 curtidas por post é drasticamente superior à mediana de 1.961. Esta enorme disparidade confirma que a performance, em termos de curtidas, é dominada por uma pequena elite de posts "virais". O desvio padrão de 18.525 (Coeficiente de Variação de 262\%) ilustra uma volatilidade e inconsistência de resultados ainda maior que a dos comentários. O desempenho se estende de um mínimo de 0 (o valor de -1 é uma anomalia de dados) a um máximo de 246.802 curtidas. A maior parte das publicações (50\% central) se situa em uma faixa de desempenho entre 890 (Q1) e 5.846 (Q3) curtidas, valores muito mais modestos que a média geral.
-
-Aplicável apenas aos 564 posts de vídeo, esta métrica de alcance também demonstra uma performance assimétrica. A média de reproduções por vídeo é de 142.084, enquanto a mediana é de 67.316. A média ser mais que o dobro da mediana indica que o alcance massivo é um privilégio de poucos vídeos. O desvio padrão de 270.803 (CV de 190\%) quantifica a extrema variabilidade no alcance dos vídeos, mostrando que não há um resultado garantido. A faixa de alcance vai de um mínimo de 1.849 a um pico extraordinário de 2.645.399 de reproduções. O desempenho mediano, representado pelo intervalo interquartil, mostra que 50\% dos vídeos obtêm entre 29.611 (Q1) e 139.274 (Q3) reproduções.
-
-A métrica videoViewCount, referente aos 564 vídeos, apresenta uma anomalia estatística que a torna pouco confiável para análise. Embora a média seja de 3.077, a mediana, o primeiro quartil (Q1) e o terceiro quartil (Q3) são todos iguais a 0.00. Isso significa que pelo menos 75\% dos vídeos da amostra registraram zero visualizações sob este critério específico. A média, portanto, é gerada exclusivamente pelos 25\% de vídeos que tiveram alguma visualização, sendo um valor que não representa o comportamento do conjunto. Esta métrica provavelmente é um campo legado da API ou um erro na coleta de dados, devendo ser desconsiderada em favor da videoPlayCount como o indicador primário de alcance.
-
-A análise da duração dos 564 vídeos do feed mostra que não há um padrão rígido de tempo para o conteúdo. A duração média é de 71 segundos, enquanto a mediana é de 58 segundos. A leve assimetria positiva é causada por alguns vídeos muito longos, que podem chegar a até 841 segundos (aproximadamente 14 minutos). A variabilidade é alta, com um desvio padrão de 78 segundos (CV de 110\%). O mínimo registrado é de 4 segundos. O corpo central dos vídeos (50\%) tem duração entre 43 segundos (Q1) e 79 segundos (Q3), sugerindo que, embora exista flexibilidade, a maioria dos produtores de conteúdo trabalha com vídeos de aproximadamente um minuto.
+\paragraph*{Distribuição no tempo.} O volume de publicações acompanha o calendário eleitoral: 1.328 \emph{Reels} na segunda quinzena de agosto, 3.189 em setembro e 1.387 nos 25 dias de outubro (o \emph{feed} segue a mesma forma, com 1.899, 4.422 e 2.116). As reproduções médias por \emph{Reel}, porém, crescem ao longo da janela, de 278 mil em agosto para 318 mil em setembro e 524 mil em outubro, quando a quantidade de publicações cai após o primeiro turno e o alcance de cada uma sobe. Essa variação temporal é a razão de a Consistência do escore composto (Seção~\ref{sec:consistencia}) ser estimada por data de publicação, e não por médias mensais.
 
 \subsection{Análise Bivariada}
 
-Uma vez estabelecida a compreensão de cada variável individualmente, a análise descritiva bivariada torna-se o próximo passo lógico e de vital importância. É nesta fase que começa a se conectar os pontos e a investigar as relações entre pares de variáveis, através de ferramentas como as matrizes de correlação.
+A Tabela~\ref{tab:correlacao_perfis} apresenta as correlações entre as métricas dos perfis. O volume absoluto de curtidas e de comentários da janela acompanha de perto o tamanho da audiência (correlações de Pearson de 0,92 e 0,74 com o número de seguidores), o que era esperado e é a razão de o volume bruto ser uma medida pobre de desempenho relativo. O engajamento por seguidor, em contrapartida, é independente do tamanho da base (correlação de $-0{,}03$) e associa-se à frequência de publicação (0,72) e à recência (0,44): na campanha, publicar mais vezes por dia andou junto com extrair mais interações de cada seguidor. É uma associação, não uma causa, mas é a primeira evidência de que a disciplina de publicação é uma alavanca disponível a perfis de qualquer tamanho.
 
-\begin{table}[h]
+\begin{table}[htb]
 \centering
-\caption{Matriz de Correlação de Métricas dos Perfis dos Governadores}
-\label{tab:matriz_correlacao}
-\setlength{\tabcolsep}{3pt} % Um pouco mais de espaço para não ficar apertado
-\small 
-\begin{tabular}{lrrrrrrrr}
+\caption{Matriz de correlação de Pearson entre as métricas dos 26 perfis}
+\label{tab:correlacao_perfis}
+\footnotesize\setlength{\tabcolsep}{3pt}
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{lrrrrrr}
 \toprule
- & \textbf{Seguid.} & \textbf{Seguin.} & \textbf{Posts} & \textbf{Coment.} & \textbf{Curtidas} & \textbf{\% Engaj.} & \textbf{Recência} & \textbf{Freq.} \\
+ & \textbf{Seguidores} & \textbf{Coment.} & \textbf{Curtidas} & \textbf{Eng./seg.} & \textbf{Recência} & \textbf{Frequência} \\
 \midrule
-\textbf{Seguidores} & 1.00 & -0.29 & -0.13 & 0.78 & 0.90 & -0.07 & 0.05 & -0.01 \\
-\textbf{Seguindo} & -0.29 & 1.00 & 0.33 & -0.37 & -0.35 & -0.19 & -0.01 & 0.05 \\
-\textbf{Posts} & -0.13 & 0.33 & 1.00 & -0.16 & -0.24 & -0.29 & 0.14 & 0.19 \\
-\textbf{Comentários} & 0.78 & -0.37 & -0.16 & 1.00 & 0.88 & 0.39 & 0.19 & -0.13 \\
-\textbf{Curtidas} & 0.90 & -0.35 & -0.24 & 0.88 & 1.00 & 0.35 & -0.05 & -0.13 \\
-\textbf{Engaj. (\%)} & -0.07 & -0.19 & -0.29 & 0.39 & 0.35 & 1.00 & -0.08 & -0.23 \\
-\textbf{Recência} & 0.05 & -0.01 & 0.14 & 0.19 & -0.05 & -0.08 & 1.00 & 0.27 \\
-\textbf{Frequência} & -0.01 & 0.05 & 0.19 & -0.13 & -0.13 & -0.23 & 0.27 & 1.00 \\
+Seguidores & 1,00 & 0,74 & 0,92 & $-0{,}03$ & 0,18 & 0,07 \\
+Comentários & 0,74 & 1,00 & 0,89 & 0,45 & 0,33 & 0,54 \\
+Curtidas & 0,92 & 0,89 & 1,00 & 0,24 & 0,25 & 0,26 \\
+Engajamento por seguidor & $-0{,}03$ & 0,45 & 0,24 & 1,00 & 0,44 & 0,72 \\
+Recência & 0,18 & 0,33 & 0,25 & 0,44 & 1,00 & 0,41 \\
+Frequência & 0,07 & 0,54 & 0,26 & 0,72 & 0,41 & 1,00 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-A análise revela uma dicotomia crucial no papel do followersCount. Há uma correlação muito forte e positiva entre o número de seguidores e o volume absoluto de interações, com r = 0.90 para a soma de curtidas (likesSum) e r = 0.78 para a de comentários (commentsSum). Isso confirma que, em termos de volume bruto, contas maiores geram um número proporcionalmente maior de interações. Contudo, a relação entre followersCount e a taxa de engajamento (\% ENGAJAMENTO) é inexistente (r = -0.07). Este é um insight fundamental: ter mais seguidores não garante um público mais engajado percentualmente. O crescimento da base aumenta o alcance absoluto, mas não melhora, e por vezes até dilui, a taxa de interação por seguidor.
+No nível dos \emph{Reels} (Tabela~\ref{tab:correlacao_reels}), as três métricas de desempenho são fortemente correlacionadas entre si: curtidas e comentários (0,83 de Pearson, 0,91 de Spearman), curtidas e reproduções (0,82 e 0,85) e comentários e reproduções (0,62 e 0,74). A duração, por sua vez, é praticamente independente das três (correlações entre $-0{,}05$ e 0,03). Esse padrão tem duas consequências para a modelagem. A multicolinearidade entre curtidas, comentários e reproduções justifica a redução de dimensionalidade por Análise de Componentes Principais antes da clusterização, que resume as três em um único eixo de desempenho; e a independência da duração antecipa que ela formará um eixo próprio, de modo que o espaço de agrupamento terá, na prática, duas dimensões interpretáveis: quanto o vídeo rendeu e quanto tempo ele dura.
 
-As métricas de volume de conteúdo apresentam uma relação negativa com a taxa de engajamento. A correlação entre a taxa de engajamento (\% ENGAJAMENTO) e o número total de posts (postsCount) é de r = -0.29, e com a frequência de postagem (FREQUENCIA) é de r = -0.23. Ambos os valores, embora representem uma correlação fraca, sugerem uma tendência: postar em excesso pode levar a uma leve queda na taxa de engajamento por publicação. Isso reforça a hipótese de que a qualidade e a ressonância do conteúdo são mais importantes do que o volume, e que uma frequência muito alta pode saturar a audiência, diluindo a atenção dada a cada post individual.
-
-Internamente, as métricas de engajamento mostram altíssima sinergia, com uma correlação de r = 0.88 entre likesSum e commentsSum, indicando que conteúdos que geram muitas curtidas também tendem a gerar muitos comentários. Adicionalmente, a análise reforça um padrão estratégico: o número de contas seguidas (followsCount) tem uma correlação negativa moderada com o volume de curtidas e comentários (ambos em torno de r = -0.36). Isso sugere que a tática de seguir muitas pessoas está associada a contas com menor volume de interação, provavelmente perfis menores que ainda não atingiram uma massa crítica de seguidores. Como sempre, é vital lembrar que estas correlações apontam tendências e associações, mas não estabelecem relações de causa e efeito.
-
-\begin{table}[h]
+\begin{table}[htb]
 \centering
-\caption{Matriz de Correlação das Métricas dos Reels dos Governadores}
-\label{tab:matriz_correlacao_video}
-\begin{tabular}{lrrrrr}
+\caption{Correlações entre as métricas dos \emph{Reels} (Pearson abaixo da diagonal, Spearman acima)}
+\label{tab:correlacao_reels}
+\small
+\begin{tabular}{lrrrr}
 \toprule
- & \textbf{Coment.} & \textbf{Curtidas} & \textbf{Reproduç.} & \textbf{Visualiz.} & \textbf{Duração} \\
+ & \textbf{Curtidas} & \textbf{Comentários} & \textbf{Reproduções} & \textbf{Duração} \\
 \midrule
-\textbf{Comentários} & 1.00 & 0.86 & 0.76 & 0.04 & -0.01 \\
-\textbf{Curtidas} & 0.86 & 1.00 & 0.90 & 0.33 & -0.04 \\
-\textbf{Reproduções} & 0.76 & 0.90 & 1.00 & 0.43 & -0.06 \\
-\textbf{Visualizações} & 0.04 & 0.33 & 0.43 & 1.00 & -0.02 \\
-\textbf{Duração (s)} & -0.01 & -0.04 & -0.06 & -0.02 & 1.00 \\
+Curtidas & 1,00 & 0,91 & 0,85 & $-0{,}04$ \\
+Comentários & 0,83 & 1,00 & 0,74 & $-0{,}02$ \\
+Reproduções & 0,82 & 0,62 & 1,00 & $-0{,}05$ \\
+Duração & 0,02 & 0,03 & 0,02 & 1,00 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-A análise revela uma sinergia extremamente forte e positiva entre as principais métricas de desempenho. A correlação entre o número de reproduções (videoPlayCount) e o de curtidas (likesCount) é de r = 0.90, indicando uma relação linear quase perfeita. De forma similar, a correlação entre reproduções e comentários (commentsCount) é de r = 0.76 (forte e positiva), e entre curtidas e comentários é de r = 0.86 (muito forte e positiva). Em termos práticos, estas três métricas se movem em conjunto: um Reel que alcança muitas pessoas (reproduções) invariavelmente gera alto engajamento (curtidas e comentários). Isso sugere um ciclo de feedback positivo, onde o algoritmo do Instagram provavelmente impulsiona o alcance de vídeos que demonstram alto potencial de engajamento inicial. Graficamente, um diagrama de dispersão entre videoPlayCount e likesCount mostraria os pontos densamente agrupados em torno de uma linha ascendente. É crucial lembrar, contudo, que correlação não implica causalidade.
+\section{O Pipeline de Modelagem}\label{sec:pipeline-modelagem}
 
-Um dos insights mais significativos da análise é a completa ausência de correlação entre a duração do vídeo (videoDuration) e qualquer outra métrica de desempenho. Os coeficientes de correlação entre a duração e as reproduções (r = -0.06), curtidas (r = -0.04) e comentários (r = -0.01) são todos próximos de zero. Isso demonstra que não há uma relação linear entre o tamanho de um Reel e o seu sucesso. Vídeos mais longos não tendem a performar nem melhor nem pior do que vídeos mais curtos. A conclusão estratégica é clara: o foco para o sucesso de um Reel deve estar na qualidade e no poder de atração do conteúdo, e não em uma suposta "duração ideal". Essa descoberta oferece liberdade criativa aos produtores de conteúdo, que não precisam se prender a um formato de tempo específico.
+A modelagem é executada por um único estágio determinístico, que lê a Silver e a Gold de engajamento da Coleta e grava as tabelas Gold de modelagem, seguido de uma etapa manual de refinamento de rótulos. O estágio determinístico encadeia, nesta ordem: o pré-processamento dos textos; a Análise de Componentes Principais e a clusterização automática dos \emph{Reels} e, separadamente, das publicações do \emph{feed}; a análise de sentimentos dos comentários e das legendas; a modelagem de tópicos dos comentários e, com modelo próprio, das legendas; o cálculo da \emph{North Star Metric} e dos escores de prioridade; a regressão de desempenho por publicação; e a clusterização dos perfis. Toda a aleatoriedade é controlada por uma semente fixa, e o estado final (modelos de ACP e de agrupamento, modelos de tópicos, quadros intermediários) é persistido em um \emph{checkpoint} identificado pelo \texttt{run\_id} da execução, de modo que o refinamento de rótulos e os notebooks de análise leiam exatamente o que foi ajustado, sem recomputar.
 
-Conforme apontado na análise univariada, a métrica videoViewCount se comporta de maneira anômala também na análise de correlação. Ela possui uma correlação positiva moderada com videoPlayCount (r = 0.43) e fraca com likesCount (r = 0.33), mas quase nenhuma com commentsCount (r = 0.04). Essa inconsistência e a fraqueza das suas correlações em comparação com as outras métricas de desempenho reforçam a conclusão de que videoViewCount não é um indicador confiável do sucesso geral de um Reel neste conjunto de dados, devendo ser interpretado com máxima cautela.
+\paragraph*{Pré-processamento textual.} Comentários e legendas passam pelo mesmo tratamento: normalização de espaços e caixa, remoção das \emph{stopwords} do português do recurso correspondente da biblioteca \texttt{nltk} e conversão dos emojis em descrições textuais (\emph{demojize}), para que um coração ou um par de mãos aplaudindo participem da representação como \emph{tokens} e não sejam descartados. Os comentários de \emph{Reels} e de publicações do \emph{feed} são unidos antes da modelagem e deduplicados pelo identificador do comentário, preferindo-se a linha de \emph{Reel}, que preserva a ligação com reproduções e duração.
 
-\begin{table}[h]
+\paragraph*{Redução de dimensionalidade e clusterização automática.} As métricas de desempenho de cada \emph{Reel} (curtidas, comentários, reproduções e duração) são padronizadas e reduzidas a dois componentes principais. Sobre esses dois componentes atua o procedimento \texttt{AutoClusterHPO}, desenvolvido neste trabalho: em vez de fixar de antemão o algoritmo e o número de grupos, ele avalia três famílias de algoritmos, K-Means, DBSCAN e agrupamento hierárquico aglomerativo, cada uma com seu espaço de hiperparâmetros (número de grupos a partir de três; raio e vizinhança mínima do DBSCAN; critério de ligação do hierárquico), e busca a melhor configuração por otimização bayesiana com o estimador de Parzen em árvore (TPE, biblioteca Hyperopt), com cem avaliações por algoritmo. O critério é um índice de validação interna combinado, média de três medidas em escala comparável: a silhueta, o índice de Calinski-Harabasz comprimido por $\tanh(\mathrm{CH}/10^{4})$ e o inverso do índice de Davies-Bouldin comprimido por $\tanh(1/\mathrm{DB})$. Os pontos de ruído do DBSCAN são excluídos do cálculo dos índices, para que a comparação entre algoritmos não seja distorcida. O mesmo procedimento é aplicado às publicações do \emph{feed}, com uma ACP própria sobre curtidas e comentários, as únicas métricas que esse extrator devolve, e aos 26 perfis, sobre engajamento por seguidor, recência e frequência, com o número máximo de grupos limitado a seis em razão do tamanho da amostra.
+
+\paragraph*{Análise de sentimentos.} Cada comentário e cada legenda é classificado pelo modelo \code{cardiffnlp/twitter-xlm-roberta-base-sentiment}, um XLM-RoBERTa ajustado para sentimento em mensagens curtas de redes sociais em vários idiomas, inclusive o português, que devolve um rótulo (positivo, neutro ou negativo) e a probabilidade associada, aqui chamada de confiança. O modelo é usado sem ajuste fino; a escolha prioriza a reprodutibilidade e a adequação ao gênero textual, e suas limitações para ironia e sarcasmo são discutidas no Capítulo~\ref{Conclusões}. O resultado grava-se por comentário, com a fonte (comentário ou legenda) e a origem (\emph{Reel} ou \emph{feed}), de modo que toda agregação posterior possa separar a reação do público do discurso da assessoria.
+
+\paragraph*{Modelagem de tópicos.} A estrutura temática é extraída com BERTopic. Os textos são representados por \emph{embeddings} de sentenças do modelo \code{rufimelo/bert-large-portuguese-cased-sts}, pré-treinado em português; os \emph{embeddings} são reduzidos e agrupados por HDBSCAN, e cada grupo recebe uma representação por palavras-chave (\emph{KeyBERT-inspired}) a partir de um vetorizador que preserva os emojis como \emph{tokens}. Para os comentários, o número de tópicos é reduzido a cinquenta, com tamanho mínimo de grupo de quinze documentos; para as legendas, que formam um corpus menor e mais homogêneo, o número de tópicos é deixado em aberto (apenas tópicos redundantes são fundidos) e o tamanho mínimo é de cinco documentos. São dois modelos distintos, com espaços de tópicos independentes: um descreve do que o público fala (os \textbf{grupos de comentários}) e o outro, do que a assessoria fala (as \textbf{pautas}). Na etapa manual subsequente, uma amostra de documentos de cada tópico é submetida a um modelo de linguagem de grande porte (Gemini), que produz um rótulo curto e legível; o ruído (documentos sem tópico) não é rotulado, e o refinamento altera apenas os nomes, nunca a atribuição dos documentos aos tópicos.
+
+\paragraph*{Métricas derivadas.} A partir dessas tabelas calculam-se, ainda no estágio determinístico, a \emph{North Star Metric} por perfil, os escores de prioridade de temas e de pautas e a regressão de desempenho por publicação; o escore composto, com a Consistência e a Tendência, é calculado em um estágio próprio sobre as tabelas prontas. Suas definições e resultados são apresentados no Capítulo~\ref{Resultados}, onde adquirem sentido como instrumentos de decisão.
+
+\section{Redução de Dimensionalidade e Clusterização}\label{sec:clusterizacao}
+
+As quatro métricas de desempenho dos 5.904 \emph{Reels} (curtidas, comentários, reproduções e duração) foram padronizadas e reduzidas por Análise de Componentes Principais. Dois componentes retêm 87,9\% da variância total: o primeiro, com 62,9\%, carrega quase igualmente curtidas (0,61), comentários (0,56) e reproduções (0,56) e nada de duração (0,03); o segundo, com 25,0\%, é a duração sozinha (1,00). A ACP confirma, portanto, o que a análise bivariada já sugeria: as três métricas de resposta do público formam um único eixo de desempenho, e a duração do vídeo é uma dimensão ortogonal, sem relação com esse desempenho. A Figura~\ref{fig:boxplot_pca} mostra a distribuição dos dois componentes: o primeiro é extremamente assimétrico, com a massa dos vídeos concentrada perto de zero e uma cauda longa de valores altos; o segundo tem a mesma forma, puxado por um punhado de transmissões muito longas.
+
+\begin{figure}[htb]
 \centering
-\caption{Matriz de Correlação das Métricas de Publicações do Feed}
-\label{tab:matriz_correlacao_video_2}
-\begin{tabular}{lrrrrr}
+\caption{Distribuição dos dois componentes principais dos \emph{Reels}}
+\label{fig:boxplot_pca}
+\includegraphics[width=0.85\textwidth]{Figuras/boxplot_pca.png}
+\par\smallskip
+\raggedright\footnotesize Fonte: elaboração própria a partir do \emph{checkpoint} da modelagem (5.904 \emph{Reels}, métricas padronizadas).
+\end{figure}
+
+
+\subsection{Grupos de Desempenho dos \emph{Reels}}
+
+Sobre os dois componentes, o \texttt{AutoClusterHPO} avaliou K-Means, DBSCAN e agrupamento hierárquico e elegeu o K-Means com três grupos, com índice combinado de validação interna de 0,778. A Tabela~\ref{tab:clusters_reels} resume o perfil dos grupos e a Figura~\ref{fig:clusters_reels} os projeta no plano dos componentes.
+
+\begin{table}[htb]
+\centering
+\caption{Grupos de desempenho dos \emph{Reels} (K-Means, $k=3$)}
+\label{tab:clusters_reels}
+\scriptsize\setlength{\tabcolsep}{3pt}
+\begin{tabular}{lrrrrrrr}
 \toprule
- & \textbf{Coment.} & \textbf{Curtidas} & \textbf{Visualiz.} & \textbf{Reproduç.} & \textbf{Duração} \\
+\textbf{Grupo} & \textbf{n} & \textbf{\%} & \textbf{Curtidas} & \textbf{Coment.} & \textbf{Repr. média} & \textbf{Repr. mediana} & \textbf{Dur. (s)} \\
 \midrule
-\textbf{Comentários} & 1.00 & 0.83 & 0.37 & 0.83 & -0.04 \\
-\textbf{Curtidas} & 0.83 & 1.00 & 0.28 & 0.85 & -0.04 \\
-\textbf{Visualizações} & 0.37 & 0.28 & 1.00 & 0.48 & -0.01 \\
-\textbf{Reproduções} & 0.83 & 0.85 & 0.48 & 1.00 & -0.07 \\
-\textbf{Duração (s)} & -0.04 & -0.04 & -0.01 & -0.07 & 1.00 \\
+0 -- corpo & 5.875 & 99,5 & 12.178 & 935 & 313.157 & 86.876 & 59 \\
+2 -- virais & 27 & 0,5 & 763.431 & 47.912 & 10.045.000 & 6.414.745 & 69 \\
+1 -- transmissões longas & 2 & 0,0 & 28.519 & 2.828 & 284.047 & 284.047 & 4.023 \\
 \bottomrule
 \end{tabular}
+\par\smallskip
+\raggedright\footnotesize Fonte: Gold \texttt{governor\_clusters\_reels}. Curtidas e comentários são médias por vídeo; a numeração dos grupos é a atribuída pelo algoritmo.
 \end{table}
 
-A análise da matriz de correlação revela uma sinergia quase perfeita entre o alcance de um vídeo e o engajamento que ele gera. A correlação entre o número de reproduções (videoPlayCount) e o de curtidas (likesCount) é de r = 0.85, e entre reproduções e comentários (commentsCount) é de r = 0.83. Ambos os coeficientes indicam uma relação positiva muito forte. Em termos práticos, isso significa que o alcance é um poderoso preditor do volume de interações: vídeos que são vistos por mais pessoas, linearmente, recebem mais curtidas e comentários. Adicionalmente, a forte correlação entre curtidas e comentários (r = 0.83) confirma que o conteúdo que ressoa com o público o faz de forma holística, gerando ambos os tipos de interação. Este ecossistema de métricas interdependentes sugere um ciclo de feedback algorítmico, onde o engajamento inicial impulsiona um maior alcance, que por sua vez gera mais engajamento. É fundamental notar, contudo, que correlação não implica causalidade.
-
-Um dos insights estratégicos mais claros desta análise é a ausência total de uma relação linear entre a duração de um vídeo (videoDuration) e seu desempenho. Os coeficientes de correlação entre a duração e as métricas de sucesso — como reproduções (r = -0.07), curtidas (r = -0.04) e comentários (r = -0.04) — são todos extremamente próximos de zero. Isso demonstra de forma conclusiva que a duração do vídeo, seja ela curta ou longa, não é um fator que determina seu sucesso. A recomendação para as equipes de conteúdo é, portanto, não se prender a um suposto "tempo ideal" de vídeo. O foco deve ser exclusivamente na produção de um conteúdo cativante e de alta qualidade, com a duração sendo ditada pela necessidade da mensagem, e não por uma métrica de vaidade.
-
-A análise de correlação também reforça a natureza anômala da métrica videoViewCount. Suas correlações com engajamento são consistentemente mais fracas do que as de videoPlayCount (ex: videoViewCount vs. likesCount é de apenas r = 0.28, enquanto videoPlayCount vs. likesCount é r = 0.85). Essa discrepância, somada aos problemas de distribuição vistos na análise univariada (onde 75\% dos vídeos tinham zero "views"), confirma que videoViewCount não deve ser usado como um indicador confiável de alcance ou desempenho. A métrica videoPlayCount é, sem dúvida, o indicador mais robusto e representativo do verdadeiro alcance dos vídeos no feed.
-
-\section{Análise de Componentes Principais (ACP)}
-
-A ACP foi utilizada para reduzir a dimensionalidade das métricas de engajamento e vizualização dos dos Reels, que durante a AED demonstraram estar altamente correlacionadas. Para isso as variáveis correlacionadas foram transformadas em um conjunto menor de variáveis não correlacionadas (componentes principais), facilitando a interpretação e a subsequente clusterização. As variáveis analisadas foram: \texttt{commentsCount}, \texttt{likesCount}, \texttt{videoPlayCount}, e \texttt{videoDuration}. A análise resultou em dois componentes principais que, juntos, explicam aproximadamente 92\% da variância total dos dados, conforme detalhado na tabela abaixo.
-
-\begin{table}[h!]
+\begin{figure}[htb]
 \centering
-\caption{Variância Explicada pelos Componentes Principais}
-\label{tab:pca_variance}
-\begin{tabular}{@{}lrr@{}}
-\toprule
-\textbf{Componente} & \textbf{Variância Explicada} & \textbf{Variância Acumulada} \\ \midrule
-PC1                 & 0.67                         & 0.67                         \\
-PC2                 & 0.25                         & 0.92                         \\ \bottomrule
-\end{tabular}
-\end{table}
+\caption{\emph{Reels} no plano dos componentes principais, coloridos por grupo}
+\label{fig:clusters_reels}
+\includegraphics[width=0.85\textwidth]{Figuras/clusters_reels_pca.png}
+\par\smallskip
+\raggedright\footnotesize Fonte: elaboração própria a partir do \emph{checkpoint} da modelagem.
+\end{figure}
+
+A estrutura é a de um corpo e duas exceções. O grupo 0 contém 99,5\% dos vídeos, de todos os 26 perfis, com mediana de 87 mil reproduções e cerca de 12 mil curtidas por vídeo: é o \emph{Reel} típico de governador, que o algoritmo não consegue (nem deve) subdividir, porque a variação dentro dele é contínua. O grupo 2 isola 27 vídeos virais, com média de 10 milhões de reproduções, 763 mil curtidas e 48 mil comentários, concentrados em sete perfis e dominados por um deles: 15 dos 27 são de Tarcísio de Freitas (SP), seguidos de Rafael Fonteles (PI) com três, e Helder Barbalho (PA), Jerônimo Rodrigues (BA) e Fátima Bezerra (RN) com dois cada. O grupo 1 é um artefato útil: duas transmissões de mais de uma hora de duração (média de 4.023 segundos), uma de Ronaldo Caiado (GO) e outra de Raquel Lyra (PE), que o segundo componente separa do resto apenas pela duração, sem desempenho fora do comum. A leitura de \emph{growth} é imediata: o alcance excepcional de um perfil não vem de uma produção excepcional em média, e sim de pouquíssimas peças que saem da curva, e a identificação dessas peças, não do perfil, é o que a segmentação entrega.
 
 
-A análise da variância explicada pelos componentes principais, detalhada na Tabela 7, demonstra a eficácia da redução de dimensionalidade aplicada aos dados. O primeiro componente principal (PC1) é, de longe, o mais significativo, sendo responsável por capturar 67\% da variância total presente no conjunto de dados original. O segundo componente principal (PC2), por sua vez, contribui com mais 25\% da explicação da variância. Em conjunto, os dois componentes alcançam uma variância acumulada de 92\%, indicando que a conversão das múltiplas variáveis originais em apenas duas dimensões foi bem-sucedida, retendo a grande maioria da informação relevante (92\%) com uma perda mínima de dados (8\%). Este resultado robusto valida a utilização de PC1 e PC2 como representantes fiéis do dataset para as etapas subsequentes de análise, como a clusterização.
+\subsection{Grupos de Desempenho das Publicações do \emph{Feed}}
 
-As cargas (loadings) de cada variável nos componentes (Tabela \ref{tab:pca_loadings}) permitem a interpretação de cada um:
+Para as 8.437 publicações do \emph{feed}, com apenas curtidas e comentários como insumo, o procedimento elegeu o K-Means com catorze grupos (índice combinado de 0,816). O resultado, na Figura~\ref{fig:clusters_feed}, tem a mesma anatomia dos \emph{Reels}, mas com a cauda muito mais fragmentada: o grupo 0 reúne 7.400 publicações (87,7\%), com mediana de 2.230 curtidas e presença dos 26 perfis; três grupos intermediários somam 921 publicações (10,9\%) com médias de 24 mil, 72 mil e 90 mil curtidas; e os dez grupos restantes contêm, juntos, 116 publicações (1,4\%), cada um com médias entre 150 mil e 2,25 milhões de curtidas e quase sempre um único perfil. Essa fragmentação é consequência direta de só haver duas métricas: sem reproduções e duração para dar forma à nuvem, o índice de validação premia a separação de pequenos conjuntos de publicações extremas em grupos próprios. Para a decisão, os catorze grupos se leem como três faixas, o corpo, as publicações acima da média e as excepcionais, e é assim que o Capítulo~\ref{Resultados} os utiliza.
 
-\begin{table}[h!]
+\begin{figure}[htb]
 \centering
-\caption{Cargas dos Componentes Principais}
-\label{tab:pca_loadings}
-\begin{tabular}{@{}lrr@{}}
+\caption{Publicações do \emph{feed} por grupo de desempenho (curtidas e comentários, escala logarítmica)}
+\label{fig:clusters_feed}
+\includegraphics[width=0.85\textwidth]{Figuras/clusters_feed.png}
+\par\smallskip
+\raggedright\footnotesize Fonte: Gold \texttt{governor\_clusters\_posts}.
+\end{figure}
+
+
+\subsection{Grupos de Perfis}
+
+A clusterização dos 26 perfis, sobre engajamento por seguidor, recência e frequência, elegeu o DBSCAN ($\varepsilon = 0{,}101$, vizinhança mínima de 2) com índice combinado de 0,777, e o resultado exige leitura crítica (Figura~\ref{fig:clusters_perfis}). O algoritmo formou dois grupos densos e classificou os outros 21 perfis como ruído. O grupo 0 reúne Antonio Denarium (RR), Mauro Mendes (MT) e Wilson Lima (AM): perfis ativos (recência 1), com frequência moderada (3,1 publicações por dia) e engajamento por seguidor baixo (2,7\%), isto é, bases grandes para a resposta que obtêm. O grupo 1 reúne Ibaneis Rocha (DF) e Marcos Rocha (RO), os dois perfis praticamente inativos na janela (duas e três publicações, recência próxima de zero). Os 21 restantes, do Piauí com 16,8\% de engajamento por seguidor e 12 publicações por dia ao Rio Grande do Sul com 0,6\% e menos de uma publicação por dia, formam um contínuo sem fronteiras naturais, e é honesto dizer que o índice de validação, calculado sem os pontos de ruído, favoreceu o algoritmo que isolou dois pequenos núcleos homogêneos e deixou a heterogeneidade de fora. Com 26 observações, a segmentação por agrupamento não supervisionado é um instrumento fraco; a ordenação por escore composto, no Capítulo~\ref{Resultados}, cumpre melhor o papel de posicionar cada perfil em relação aos demais.
+
+\begin{figure}[htb]
+\centering
+\caption{Perfis por frequência de publicação e engajamento por seguidor, coloridos pelo grupo do DBSCAN}
+\label{fig:clusters_perfis}
+\includegraphics[width=0.85\textwidth]{Figuras/clusters_perfis.png}
+\par\smallskip
+\raggedright\footnotesize Fonte: Gold \texttt{governor\_profile\_clusters\_engagement}. O grupo $-1$ é o ruído do DBSCAN.
+\end{figure}
+
+
+\section{Análise de Sentimentos}\label{sec:sentimento}
+
+Dos 75.634 comentários classificados, 61,2\% são positivos, 31,0\% neutros e 7,8\% negativos (Figura~\ref{fig:sentiment_plots}). A distribuição é idêntica nas duas origens: 61,4\% de positivos e 7,7\% de negativos nos comentários de publicações do \emph{feed}, contra 61,1\% e 7,9\% nos de \emph{Reels}, o que indica que o formato não altera o tom da reação. A confiança média do classificador é maior nos negativos (0,71, mediana 0,73) do que nos positivos (0,69, mediana 0,63) e nos neutros (0,62): a negatividade, quando existe, é expressa sem ambiguidade, enquanto o elogio é frequentemente curto ou só de emojis. As 8.437 legendas, classificadas pelo mesmo modelo, são ainda mais positivas, 63,5\% de positivas, 30,8\% de neutras e 5,7\% de negativas, o que é esperado de um discurso institucional. O contraste relevante não está na média, e sim na dispersão entre perfis, examinada a seguir.
+
+\begin{figure}[htb]
+\centering
+\caption{Distribuição do sentimento dos comentários e confiança do classificador por rótulo}
+\label{fig:sentiment_plots}
+\includegraphics[width=0.95\textwidth]{Figuras/sentiment_plots.png}
+\par\smallskip
+\raggedright\footnotesize Fonte: Gold \texttt{governor\_sentiment}, fonte comentário.
+\end{figure}
+
+
+\subsection{Sentimento por Perfil}
+
+A Figura~\ref{fig:sentimento_por_governador} ordena os 26 perfis pela proporção de comentários positivos. Entre os perfis com amostra suficiente (ao menos cem comentários), a aprovação vai de 80,2\% para Eduardo Leite (RS), seguido de Raquel Lyra (PE) com 78,1\% e Rafael Fonteles (PI) com 76,4\%, até 15,3\% para Eduardo Riedel (MS), cujo perfil concentra 39,1\% de comentários negativos, a maior proporção da amostra, em grande parte por uma mobilização de cobrança pela proteção dos indígenas Guarani Kaiowá, identificada na Seção~
+ef{sec:topicos}. No extremo baixo estão também Romeu Zema (MG), com 37,0\% de positivos e 27,8\% de negativos, Wilson Lima (AM), com 40,9\% de positivos, e Ricardo Ferraço (ES), com 47,1\%, neste caso por excesso de neutros (47,8\%) e não de críticas. Marcos Rocha (RO), com 95\% de positivos em 20 comentários, e Ibaneis Rocha (DF), com 15 comentários, têm amostra insuficiente para qualquer leitura, e são tratados como tal nos instrumentos do capítulo seguinte. Dois casos ilustram por que a proporção importa mais do que o volume: Tarcísio de Freitas (SP), o perfil de maior alcance, tem apenas 53,8\% de positivos e 14,3\% de negativos; Wanderlei Barbosa (TO), com a menor frequência de publicação entre os ativos, acumula 20,7\% de negativos em 406 comentários.
+
+\begin{figure}[htb]
+\centering
+\caption{Sentimento dos comentários por perfil, ordenado pela proporção de positivos}
+\label{fig:sentimento_por_governador}
+\includegraphics[width=0.95\textwidth]{Figuras/sentimento_por_governador.png}
+\par\smallskip
+\raggedright\footnotesize Fonte: Gold \texttt{governor\_sentiment}. O número entre parênteses é o total de comentários classificados do perfil.
+\end{figure}
+
+
+\subsection{Sentimento por Grupo de Desempenho}
+
+O cruzamento do sentimento com os grupos de desempenho é o achado que organiza o restante do trabalho (Tabela~\ref{tab:sentimento_cluster} e Figura~\ref{fig:sentimento_por_cluster_reels}). Nos \emph{Reels}, o corpo (grupo 0) tem 61,1\% de comentários positivos e 7,9\% de negativos; os 27 vídeos virais (grupo 2) têm 51,1\% de positivos e 21,3\% de negativos, quase o triplo da negatividade. No \emph{feed}, a relação é monotônica ao longo das faixas de desempenho: o corpo tem 7,1\% de negativos; os três grupos intermediários, 12,0\%, 15,2\% e 16,6\%; e os grupos de publicações excepcionais chegam a 27,4\% e 43,5\% de negativos. Quanto mais longe uma publicação chega, menor a proporção de aprovação entre os que reagem a ela, porque o alcance leva a peça para fora da base de apoiadores que comenta por hábito. O engajamento bruto, portanto, mede exposição, não adesão, e um instrumento de decisão que trate os dois como sinônimos recomendará exatamente o conteúdo que mais atrai crítica.
+
+\begin{table}[htb]
+\centering
+\caption{Sentimento dos comentários por grupo de desempenho}
+\label{tab:sentimento_cluster}
+\footnotesize
+\begin{tabular}{llrrrr}
 \toprule
-\textbf{Variável} & \textbf{PC1} & \textbf{PC2} \\ \midrule
-commentsCount     & 0.56         & 0.06         \\
-likesCount        & 0.59         & 0.02         \\
-videoPlayCount    & 0.57         & -0.02        \\
-videoDuration     & -0.04        & 1.00         \\ \bottomrule
+\textbf{Conjunto} & \textbf{Grupo} & \textbf{Coment.} & \textbf{Positivo (\%)} & \textbf{Neutro (\%)} & \textbf{Negativo (\%)} \\
+\midrule
+\emph{Reels} & 0 -- corpo & 52.437 & 61,1 & 31,0 & 7,9 \\
+ & 2 -- virais & 225 & 51,1 & 27,6 & 21,3 \\
+\midrule
+\emph{Feed} & 0 -- corpo & 66.529 & 61,5 & 31,4 & 7,1 \\
+ & 7 -- acima da média & 4.475 & 59,0 & 29,0 & 12,0 \\
+ & 6 -- acima da média & 2.312 & 56,1 & 28,7 & 15,2 \\
+ & 10 -- acima da média & 1.055 & 57,9 & 25,5 & 16,6 \\
+ & 5 -- excepcionais & 339 & 53,9 & 28,1 & 18,0 \\
+ & 8 -- excepcionais & 75 & 38,4 & 34,2 & 27,4 \\
+ & 13 -- excepcionais & 25 & 30,4 & 26,1 & 43,5 \\
+\bottomrule
 \end{tabular}
+\par\smallskip
+\raggedright\footnotesize Fonte: Gold \texttt{governor\_sentiment} cruzada com \texttt{governor\_clusters\_reels} e \texttt{governor\_clusters\_posts}. Os comentários disponíveis por publicação são os 10 a 12 mais recentes, o que explica o número baixo de comentários dos grupos pequenos. Grupos do \emph{feed} com menos de 25 comentários foram omitidos.
 \end{table}
 
-A Tabela 8 detalha as cargas de cada variável original nos dois componentes principais, sendo crucial para a interpretação do significado de cada um. Observa-se que o Componente Principal 1 (PC1) é fortemente influenciado pelas métricas de interação, exibindo cargas positivas e elevadas para \texttt{likesCount} (0.59), \texttt{videoPlayCount} (0.57) e \texttt{commentsCount} (0.56). A carga da \texttt{videoDuration} (-0.04) neste componente é praticamente nula, o que permite interpretar o PC1 como um "Índice de Engajamento", onde valores mais altos representam publicações com maior repercussão. Em contrapartida, o Componente Principal 2 (PC2) é quase exclusivamente definido pela \texttt{videoDuration}, que possui uma carga perfeita de 1.00, enquanto as demais variáveis de engajamento têm cargas insignificantes. Desta forma, o PC2 pode ser entendido como um "Fator de Duração", isolando o tempo do vídeo das métricas de interação e validando o uso destes dois componentes para analisar os Reels sob as perspectivas distintas de engajamento e duração.
-
-A figura abaixo apresenta os boxplots dos dois componentes principais obtidos na análise, permitindo uma visualização clara de suas distribuições e da presença de outliers.
-
-\begin{figure}[h!]
-    \centering
-    \includegraphics[width=1\textwidth]{Figuras/boxplot_do_dataframe.png}
-    \caption{Boxplot dos Componentes Principais PC1 (Engajamento) e PC2 (Duração).}
-    \label{fig:boxplot_pca}
+\begin{figure}[htb]
+\centering
+\caption{Sentimento dos comentários por grupo de desempenho dos \emph{Reels}}
+\label{fig:sentimento_por_cluster_reels}
+\includegraphics[width=0.85\textwidth]{Figuras/sentimento_por_cluster_reels.png}
+\par\smallskip
+\raggedright\footnotesize Fonte: Gold \texttt{governor\_sentiment} e \texttt{governor\_clusters\_reels}.
 \end{figure}
 
- O gráfico à direita, representando o PC1 (Engajamento\_videoPlay), revela que a grande maioria dos Reels possui um nível de engajamento concentrado em torno da mediana, que está próxima de zero. No entanto, a presença de uma longa cauda de outliers positivos, com valores que ultrapassam 20, é notável e característica de dados de engajamento, indicando que um número restrito de vídeos alcançou uma viralidade significativamente superior à média. De forma análoga, o gráfico à esquerda para o PC2 (videoDuration) mostra que a maioria dos vídeos tem uma duração padronizada e curta, também com uma cauda de outliers positivos que representam vídeos excepcionalmente mais longos. A existência proeminente de outliers em ambos os componentes sugere que tanto o engajamento viral quanto os vídeos de longa duração são eventos atípicos no conjunto de dados, o que justifica a utilização de algoritmos de clusterização robustos a outliers, como o DBSCAN, na etapa subsequente da análise.
 
-\section{Clusterização}
+\section{Modelagem de Tópicos}\label{sec:topicos}
 
-Com base nos dois componentes principais, foi utilizada a ferramenta \texttt{AutoClusterHPO} para determinar o algoritmo de clusterização mais adequado. A ferramenta identificou o \textbf{DBSCAN} como o melhor algoritmo, com os parâmetros \texttt{eps=1.40} e \texttt{min\_samples=5}. O DBSCAN é um algoritmo baseado em densidade que é eficaz na identificação de clusters de formas arbitrárias e na detecção de outliers. A clusterização resultou em três grupos principais, como visualizado na Figura \ref{fig:clusters_pca}. A maioria dos Reels (792) foi agrupada no Cluster 0, enquanto 12 foram classificados como outliers (Cluster -1) e um pequeno grupo de 6 Reels formou o Cluster 1.
+\subsection{Grupos de Comentários}
 
-\begin{figure}[h!]
-    \centering
-    \includegraphics[width=1\textwidth]{Figuras/avaliacaoAutoCluster.png}
-    \caption{Visualização dos Clusters com base nos Componentes Principais.}
-    \label{fig:clusters_pca}
+O modelo de tópicos dos comentários foi ajustado sobre os 38.581 textos distintos dos 75.634 comentários: 49\% dos comentários repetem exatamente um texto já visto (sequências de palmas, corações e números de campanha), e documentos idênticos entram uma única vez no ajuste, recebendo todos o mesmo tópico ao final. O HDBSCAN encontrou 485 grupos brutos, reduzidos a 49 tópicos; 15.614 comentários (20,6\%) ficaram sem tópico (ruído), em geral mensagens curtas que misturam bandeira, aplauso e o nome do governador sem conteúdo distintivo. Os rótulos da Tabela~\ref{tab:topicos_comentarios} foram produzidos pelo modelo de linguagem a partir de uma amostra de dez comentários de cada tópico e preservam as palavras-chave originais para conferência; a Figura~\ref{fig:comentarios_mapa} mostra a distância entre os tópicos e a Figura~\ref{fig:comentarios_hierarquia} a sua hierarquia.
+
+\begin{table}[htb]
+\centering
+\caption{Maiores grupos de comentários e grupos mais negativos (rótulo refinado, palavras-chave e sentimento)}
+\label{tab:topicos_comentarios}
+\scriptsize\setlength{\tabcolsep}{3pt}
+\begin{tabular}{rp{5.0cm}p{3.9cm}rrr}
+\toprule
+\textbf{Tópico} & \textbf{Rótulo} & \textbf{Palavras-chave} & \textbf{Coment.} & \textbf{Pos. (\%)} & \textbf{Neg. (\%)} \\
+\midrule
+\multicolumn{6}{l}{\emph{Os doze maiores grupos}} \\
+0 & Elogios e apoio político ao governador & mãos aplaudindo, rosto com olhos de coração & 28.147 & 91,4 & 2,3 \\
+1 & Apoio político e mensagens de carinho & foguete, tecla 5, tecla 4 & 11.605 & 29,0 & 0,6 \\
+3 & Manifestações de apoio e emojis afetivos & coração vermelho, 13, onda & 3.196 & 92,6 & 0,6 \\
+7 & Apoio eleitoral e demonstrações de carinho & coração roxo, tecla 5, foguete & 1.730 & 95,0 & 0,2 \\
+2 & Cobranças e críticas à gestão pública & água, hospital, pra & 1.721 & 9,8 & 55,4 \\
+4 & Elogios e apoio político ao governador & governador, parabéns, governadora & 1.467 & 79,3 & 5,2 \\
+8 & Apoio político ao candidato número 13 & 13, lula, rafael & 1.163 & 12,1 & 0,8 \\
+25 & Comentários sem sentido ou \emph{spam} & massa, sequências de dígitos & 1.142 & 0,4 & 2,2 \\
+30 & Cobrança por proteção aos indígenas Guarani Kaiowá & guarani, kaiowá, povos & 1.095 & 0,5 & 48,9 \\
+5 & Apoio político e eleitoral a candidatos & naipe de copas, bandeira do Brasil, tecla 2 & 1.009 & 25,1 & 3,9 \\
+6 & Apoio político e elogios a gestões & senador, mauro, mendes & 783 & 56,6 & 5,5 \\
+10 & Apoio político a Lula e aliados & presidente, 2030, lula & 708 & 19,2 & 12,3 \\
+\midrule
+\multicolumn{6}{l}{\emph{Grupos com maior proporção de negativos (ao menos 50 comentários)}} \\
+43 & Rejeição ao turismo \emph{halal} no Paraná & londres, halal, promover & 51 & 0,0 & 98,0 \\
+29 & Previsão de derrota eleitoral e zombaria & perdeu, faltou, perder & 82 & 3,7 & 84,1 \\
+27 & Condolências e saudades por falecimentos & sentimentos, saudades, triste & 111 & 15,3 & 73,9 \\
+32 & Críticas e opiniões sobre o ICMS e impostos & minas, icms, mg & 81 & 13,6 & 59,3 \\
+2 & Cobranças e críticas à gestão pública & água, hospital, pra & 1.721 & 9,8 & 55,4 \\
+23 & Discussão sobre a veracidade dos fatos & mentira, verdade, mente & 163 & 4,3 & 53,4 \\
+30 & Cobrança por proteção aos indígenas Guarani Kaiowá & guarani, kaiowá, povos & 1.095 & 0,5 & 48,9 \\
+34 & Comida, fome e críticas à gestão & fome, cartão, churrasco & 62 & 14,5 & 43,5 \\
+15 & Cobrança sobre pagamento e aumento salarial & pagamento, salário, aposentados & 262 & 7,6 & 34,0 \\
+\bottomrule
+\end{tabular}
+\par\smallskip
+\raggedright\footnotesize Fonte: Gold \texttt{governor\_sentiment}, fonte comentário, após o refinamento de rótulos. O tópico $-1$ (ruído) tem 15.614 comentários, 49,8\% positivos e 14,7\% negativos. Grupos de números em formato de tecla são números de candidatos, lidos pelo classificador como neutros.
+\end{table}
+
+Lidos em conjunto, os 49 tópicos se organizam em quatro famílias. A primeira, e de longe a maior, é a do \textbf{apoio e afeto}: 25 tópicos que somam 53.123 comentários (70,2\% do total), com 69,8\% de positivos e 2,3\% de negativos, e que vão do elogio genérico ao governador até as manifestações de campanha, com números de candidatos em emojis de tecla, foguetes e corações nas cores partidárias. A segunda família é a das \textbf{cobranças e críticas}: onze tópicos com 2.651 comentários (3,5\%), mas com 52,2\% de negativos; é nela que está o conteúdo informativo para a assessoria, porque nomeia o que o público reclama: água e hospitais, salários e aposentadorias, impostos, fome, a proteção aos Guarani Kaiowá (um tópico de 1.095 comentários, dos quais 1.081 no perfil de Eduardo Riedel, MS, concentrados na última semana de outubro, o que caracteriza uma mobilização organizada e não uma reação difusa), a veracidade do que é dito e a antecipação da derrota eleitoral. A terceira família é o \textbf{ruído e \emph{spam}}: cinco tópicos com 1.921 comentários (2,5\%), de sequências de dígitos a telefones e \emph{links}. A quarta reúne \textbf{outros registros} (1,6\%): mensagens religiosas, condolências, orgulho regional, pedidos para conhecer o governador e a declaração explícita de voto. O retrato é o de uma seção de comentários dominada pela torcida, em que a crítica é minoritária em volume, mas é o único lugar em que o público formula um pedido; e é essa assimetria, não a média, que o Score ICE do Capítulo~\ref{Resultados} explora.
+
+\begin{figure}[htb]
+\centering
+\caption{Mapa de distância entre os tópicos de comentários}
+\label{fig:comentarios_mapa}
+\includegraphics[width=0.9\textwidth]{Figuras/comentarios_intertopic_map.png}
+\par\smallskip
+\raggedright\footnotesize Fonte: elaboração própria a partir do \emph{checkpoint} da modelagem (BERTopic, \emph{embeddings} dos tópicos projetados em duas dimensões; a área do círculo é proporcional ao número de comentários).
 \end{figure}
 
-A aplica\c{c}\~ao do framework \textit{AutoClusterHPO} para a an\'alise de dados dos Reels do Instagram, conforme visualizado na Figura 2, culminou na sele\c{c}\~ao autom\'atica do algoritmo DBSCAN como o modelo \'otimo, alcan\c{c}ando uma pontua\c{c}\~ao CVI combinada de 0.6594. A distribui\c{c}\~ao dos dados com base nos componentes principais revela uma segmenta\c{c}\~ao coesa, onde o modelo identificou dois clusters principais e um conjunto de outliers (r\'otulo -1). O cluster majorit\'ario (r\'otulo 0) agrupa os v\'ideos com menor dura\c{c}\~ao e engajamento, representando o comportamento padr\~ao na plataforma. De forma not\'avel, os pontos classificados como ru\'ido (-1) podem ser dividios em dois grupos, aqueles com valores elevados no componente principal associado ao engajamento (PC1) com baixa duração e aqueles com baixo engajamento e alta duração, indicando que o m\'etodo foi eficaz em isolar automaticamente os Reels de performance an\^omala.
-
-O Cluster -1, embora contenha apenas 12 observações, contém os Reels de maior impacto. Uma de suas característica mais proeminente são a presença de vídeos com as métricas de engajamento elevadas, com uma média de 4.843 comentários e quase 90.000 curtidas, apesar de 25\% das publicações com menor engajamento apresentarem menos do que 103 comentários. O número de visualizações acompanha essa tendência, com uma média de 1,12 milhão. A duração dos vídeos neste cluster é bastante variada, com os vídeos variando desde 26 até 900 segundos. Mesmo com essa variação, foi possível analisar que os vídeos que contém mais do que 10 de PC1 apresentarem 83.44 segundos de média, variando de 26.32 até 180.03.
-
-Representando a esmagadora maioria dos dados com 792 Reels, o Cluster 0 pode ser definido como o comportamento padrão da plataforma. Sua principal característica é a curta duração dos vídeos, com uma média de apenas 64,5 segundos. O engajamento é moderado e consistente com o que se esperaria de um conteúdo comum: uma média de 408 comentários, 5.543 curtidas e 117.883 visualizações. A baixa variabilidade na duração indica que este grupo é composto majoritariamente por vídeos curtos e rápidos.
-
-O Cluster 1 é o menor grupo, com apenas 6 vídeos, e possui um perfil muito distinto. Sua característica definidora é a duração extremamente longa, com uma média de 721 segundos (aproximadamente 12 minutos). Em contrapartida, este cluster apresenta as piores métricas de desempenho. O engajamento é mínimo, com médias de 184 comentários e 1.554 curtidas, e o número de visualizações é o mais baixo de todos, com uma média de 29.323, sugerindo que vídeos muito longos no formato Reels não conseguem reter a atenção do público.
-
-A principal diferença entre os clusters reside na aparente relação entre a duração do vídeo e o engajamento. O Cluster 0, de vídeos curtos, estabelece uma base de desempenho moderado, enquanto o Cluster 1 demonstra que estender excessivamente a duração leva a uma queda drástica no desempenho. Em contraste, o Cluster -1 mostra que o conteúdo de alto impacto pode performar excepcionalmente bem, com métricas de engajamento que são de 10 a 20 vezes maiores que as do Cluster 0.
-
-Apesar das diferenças marcantes, uma semelhança notável pode ser encontrada na distribuição dos dados de engajamento dentro de cada cluster. Em todos os três grupos, a média de comentários e curtidas é consistentemente superior à mediana. Isso indica uma assimetria positiva em todos os segmentos, sugerindo que, mesmo dentro de um mesmo perfil de cluster, uma pequena parcela de vídeos tende a performar significativamente melhor que a maioria, criando uma "cauda longa" de popularidade.
-
-\section{Análise de Sentimentos}
-
-Para a classificação de sentimentos, foi utilizado um modelo pré-treinado robusto, o \texttt{cardiffnlp/twitter-xlm-roberta-base-sentiment}, através da biblioteca Transformers. Este modelo é especializado em textos de redes sociais e classifica cada comentário em uma de três categorias: \texttt{positive}, \texttt{neutral} ou \texttt{negative}. Além do rótulo, o modelo fornece um \textbf{score de confiança} (de 0 a 1), que indica o grau de certeza da classificação. 
-
-A análise de sentimentos realizada neste projeto revelou uma predominância massiva de comentários positivos. As distribuições foram as seguintes:
-
-\begin{figure}[h!]
-    \centering
-    \includegraphics[width=\textwidth]{Figuras/sentiment_plots.png} 
-    \caption{Visualizações da Análise de Sentimento: (a) Distribuição de Rótulos, (b) Distribuição dos Scores de Confiança, (c) Boxplot de Scores por Sentimento.}
-    \label{fig:sentiment-geral}
+\begin{figure}[htb]
+\centering
+\caption{Hierarquia dos tópicos de comentários}
+\label{fig:comentarios_hierarquia}
+\includegraphics[width=0.9\textwidth]{Figuras/comentarios_hierarchy.png}
+\par\smallskip
+\raggedright\footnotesize Fonte: elaboração própria a partir do \emph{checkpoint} da modelagem (agrupamento hierárquico dos \emph{embeddings} de tópico).
 \end{figure}
 
-Acima, é possível analisar que o Histograma de Scores de Confiança mostra que o modelo realizou a maioria de suas classificações com alta confiança (scores próximos de 1.0), indicando robustez. O Boxplot detalha essa confiança por categoria, mostrando que as classificações \texttt{positive} e \texttt{negative} possuem scores consistentemente mais altos do que a categoria \texttt{neutral}, o que é esperado, já que a neutralidade é semanticamente mais ambígua.
 
-\subsection{Análise de Sentimentos por Perfis}
+\subsection{Pautas do Discurso (Legendas)}
 
-Após estabelecer o perfil de sentimento agregado do dataset e analisar a recepção qualitativa dentro dos clusters de performance, esta subseção avança a análise para o nível individual de cada perfil. O objetivo é dissecar a distribuição dos dados e identificar os outliers de performance qualitativa, movendo-se da análise de clusters para a de casos específicos. Ao isolar e examinar os cinco governadores com os maiores percentuais de comentários positivos e, em contrapartida, os cinco com os maiores percentuais de comentários negativos, esta análise busca validar empiricamente a tese central da Análise Exploratória de Dados (AED): a de que o desempenho digital é marcado por uma heterogeneidade extrema. Esta abordagem permite identificar quais figuras públicas específicas estão nas pontas da distribuição, ilustrando os perfis de comunicação que geram maior aprovação ou maior atrito público.
+O modelo de discurso foi ajustado sobre as 8.416 legendas com texto (21 publicações não têm legenda); como a transcrição das falas não foi coletada, a fonte ``transcrição'' não contribuiu com documentos, e o modelo descreve exclusivamente o que a assessoria escreve. Sem número alvo de tópicos, o HDBSCAN encontrou 390 grupos, fundidos em 198 \textbf{pautas}; 1.915 legendas (22,8\%) ficaram como ruído. As pautas são pequenas e específicas: a mediana é de 12 publicações, apenas 23 pautas têm 50 ou mais, e 60 das 198 pertencem a um único perfil, contra 61 compartilhadas por cinco ou mais. A Tabela~\ref{tab:pautas} lista as maiores e as mais transversais; as Figuras~\ref{fig:discurso_mapa} e~\ref{fig:discurso_hierarquia} mostram o espaço e a hierarquia das pautas.
 
-\begin{figure}[h!]
-    \centering
-    \includegraphics[width=0.5\textwidth]{Figuras/top_5_governadores_positivo.png} 
-    \caption{Visualizações da Análise de Sentimento: 5 governadores com Maior percentual de comentários Positivos}
-    \label{fig:sentiment-top5-positivo}
+\begin{table}[htb]
+\centering
+\caption{Pautas do discurso: as doze maiores e as seis mais compartilhadas entre perfis}
+\label{tab:pautas}
+\scriptsize\setlength{\tabcolsep}{3pt}
+\begin{tabular}{rp{5.4cm}rrl}
+\toprule
+\textbf{Pauta} & \textbf{Rótulo} & \textbf{Publ.} & \textbf{Perfis} & \textbf{Perfil predominante} \\
+\midrule
+\multicolumn{5}{l}{\emph{As doze maiores}} \\
+0 & Campanha eleitoral e propostas de governo & 433 & 1 & Elmano de Freitas (CE) \\
+1 & Campanha eleitoral e realizações do governo & 384 & 3 & Fábio Mitidieri (SE) \\
+2 & Campanha eleitoral e engajamento político & 346 & 5 & Clécio Luís (AP) \\
+3 & Campanha eleitoral e propostas políticas & 287 & 3 & Ronaldo Caiado (GO) \\
+4 & Campanha eleitoral para o Senado Federal & 280 & 4 & João Azevêdo (PB) \\
+5 & Campanha eleitoral, pedidos de voto e apoios & 275 & 5 & Ricardo Ferraço (ES) \\
+6 & Campanha eleitoral e realizações de governo & 251 & 1 & Rafael Fonteles (PI) \\
+7 & Realizações de governo e obras públicas & 244 & 20 & Raquel Lyra (PE) \\
+8 & Campanha eleitoral e propostas de governo & 237 & 4 & Raquel Lyra (PE) \\
+9 & Campanha eleitoral e pedidos de votos & 231 & 5 & Ratinho Júnior (PR) \\
+10 & Campanha eleitoral e comícios políticos & 199 & 1 & Jerônimo Rodrigues (BA) \\
+11 & Campanha eleitoral e pedidos de votos & 176 & 3 & Gladson Cameli (AC) \\
+\midrule
+\multicolumn{5}{l}{\emph{As mais compartilhadas (número de perfis)}} \\
+7 & Realizações de governo e obras públicas & 244 & 20 & Raquel Lyra (PE) \\
+27 & Incentivo ao voto e cidadania nas eleições & 41 & 20 & Rafael Fonteles (PI) \\
+18 & Homenagens a familiares e vida pessoal & 60 & 19 & Antonio Denarium (RR) \\
+19 & Balanço político e agradecimento por conquistas & 59 & 15 & Rafael Fonteles (PI) \\
+15 & Críticas ao STF e a Alexandre de Moraes & 73 & 10 & Romeu Zema (MG) \\
+26 & Políticas públicas e protagonismo das mulheres & 43 & 10 & Raquel Lyra (PE) \\
+\bottomrule
+\end{tabular}
+\par\smallskip
+\raggedright\footnotesize Fonte: Gold \texttt{governor\_discourse\_topics}, após o refinamento de rótulos. ``Perfis'' é o número de governadores com ao menos uma publicação na pauta.
+\end{table}
+
+Dois traços do resultado precisam ser ditos antes de qualquer uso. Primeiro, o modelo separa o discurso tanto por assunto quanto por \emph{identidade}: as doze maiores pautas são, cada uma, a campanha de um governador ou de um pequeno grupo, porque as legendas carregam nomes de estado, gentílicos, números de candidato e \emph{slogans} que os \emph{embeddings} capturam com força. Segundo, a janela é eleitoral, e isso domina a oferta: 74 pautas, com 67,1\% das publicações classificadas, são de campanha (pedidos de voto, comícios, caminhadas, apoios a candidatos), contra 12,1\% de pautas de realizações, obras e políticas públicas que não mencionam a campanha. As pautas transversais, presentes em dez ou mais perfis, são as que descrevem o repertório comum do cargo: obras e entregas, incentivo ao voto, homenagens pessoais, balanço de conquistas, a pauta feminina e, no campo oposicionista, a crítica ao Supremo Tribunal Federal. É sobre esse repertório, mais do que sobre as pautas identitárias, que a comparação entre perfis do Capítulo~\ref{Resultados} faz sentido.
+
+\begin{figure}[htb]
+\centering
+\caption{Mapa de distância entre as pautas do discurso}
+\label{fig:discurso_mapa}
+\includegraphics[width=0.9\textwidth]{Figuras/discurso_intertopic_map.png}
+\par\smallskip
+\raggedright\footnotesize Fonte: elaboração própria a partir do \emph{checkpoint} da modelagem; a área do círculo é proporcional ao número de legendas.
 \end{figure}
 
-A análise do gráfico de barras horizontais, que ilustra os cinco governadores com maior percentual de comentários positivos, revela um desempenho de recepção qualitativa notavelmente elevado para este grupo de elite. Clécio Luís lidera o ranking de forma destacada, com 92,01\% dos comentários em suas publicações classificados como positivos, estabelecendo uma vantagem de mais de 3,2 pontos percentuais sobre o segundo colocado, Antonio Denarium (88,72\%). O grupo dos cinco primeiros é completado por Eduardo Riedel (87,18\%), Raquel Lyra (84,86\%) e Rafael Fonteles (84,67\%). É notável que todos os governadores neste top 5 mantêm um índice de positividade acima de 84\%, um patamar extremamente alto. Este resultado dialoga diretamente com a Análise Exploratória de Dados (AED) apresentada anteriormente na TCC (seção 5.1.1). A AED já havia estabelecido a presença de heterogeneidade extrema e assimetria positiva em todas as métricas quantitativas, como número de seguidores , soma de comentários e taxa de engajamento. Este novo gráfico de sentimento comprova que a mesma variabilidade se aplica à recepção qualitativa: assim como a AED identificou outliers quantitativos que distorcem a média (perfis com desempenho muito acima do padrão), o desempenho de Clécio Luís (92,01\%) representa um outlier qualitativo, validando a conclusão do TCC de que o desempenho dos governadores no Instagram não é uniforme, mas sim caracterizado por picos de performance excepcionais que se distanciam significativamente da mediana.
-
-\begin{figure}[h!]
-    \centering
-    \includegraphics[width=0.5\textwidth]{Figuras/top_5_governadores_negativo.png} 
-    \caption{Visualizações da Análise de Sentimento: Visualizações da Análise de Sentimento: 5 governadores com Maior percentual de comentários Negativos}
-    \label{fig:sentiment-top5-negativo}
+\begin{figure}[htb]
+\centering
+\caption{Hierarquia das pautas do discurso}
+\label{fig:discurso_hierarquia}
+\includegraphics[width=0.9\textwidth]{Figuras/discurso_hierarchy.png}
+\par\smallskip
+\raggedright\footnotesize Fonte: elaboração própria a partir do \emph{checkpoint} da modelagem.
 \end{figure}
 
-Em contrapartida, a análise dos cinco governadores com maior percentual de comentários negativos expõe o outro extremo da recepção pública. O governador Ibaneis apresenta-se como um outlier negativo proeminente, com 51,89\% de seus comentários classificados como negativos, indicando que mais da metade das interações em seu perfil são críticas. Este resultado é drasticamente superior aos demais, com Cláudio Castro (31,67\%) e Romeu Zema (31,02\%) formando um segundo patamar, seguidos por Jorginho Mello (24,10\%) e Tino Rodrigues (23,69\%). A existência de um perfil cuja recepção negativa supera os 50\% é uma ilustração clara da heterogeneidade extrema e da distribuição assimétrica que a Análise Exploratória de Dados (AED) do TCC (seção 5.1.1) já havia identificado. Assim como a AED revelou outliers de performance quantitativa (perfis com engajamento muito acima da média), este gráfico valida que também existem outliers qualitativos, onde a recepção do público é significativamente mais hostil do que a do restante do grupo, reforçando a conclusão de que o desempenho digital dos governadores é marcado por extremos em ambas as pontas.
 
-A análise dos extremos da recepção qualitativa oferece uma conclusão contundente: a performance de sentimento dos governadores é tão ou mais assimétrica do que suas métricas de engajamento. A existência de um perfil como o de Clécio Luís, que alcança uma aprovação quase universal (92,01\% positiva), em conjunto com um perfil como o de Ibaneis, onde a hostilidade é majoritária (51,89\% negativa), invalida a noção de um "desempenho médio". Estes resultados reforçam de maneira inequívoca os achados da AED, demonstrando que o cenário digital não é um ambiente homogêneo, mas sim um conjunto de "microclimas" de recepção altamente polarizados. Fica evidente que o sucesso ou o fracasso na comunicação digital não se mede apenas pela quantidade de interações, mas pela qualidade drasticamente distinta dessa recepção, que varia de aprovação esmagadora a uma rejeição majoritária.
-
-\subsection{Análise de Sentimentos por Clusters}
-
-Para aprofundar a compreensão dos padrões de desempenho identificados, esta seção avança da segmentação métrica para a qualificação emocional, integrando os resultados da clusterização (seção 5.3) com os da análise de sentimentos (seção 5.4). Não basta identificar os clusters "Padrão" (Cluster 0), "Viral" (Cluster -1) e "Longo/Baixa Performance" (Cluster 1); é crucial dissecar a natureza da recepção do público dentro de cada um desses grupos. O objetivo desta análise cruzada é, portanto, mapear a distribuição percentual de comentários positivos, neutros e negativos para cada cluster. Esta abordagem sinérgica permite validar as características de cada grupo, revelando se a performance viral está associada à aclamação ou à controvérsia, e se a baixa performance está ligada à indiferença ou à rejeição
-
-\begin{figure}[h!]
-    \centering
-    \includegraphics[width=0.4\textwidth]{Figuras/grafico_sentimentos_cluster-1.png} 
-    \caption{Visualizações da Análise de Sentimento: Distribuição de Rótulos (Cluster -1)}
-    \label{fig:sentiment-cluster-m1}
-\end{figure}
-
-A análise de sentimentos para o Cluster -1, que o TCC identificou como o grupo de 12 Reels "outliers" de alto impacto e viralidade, revela uma dinâmica de recepção muito mais polarizada em comparação ao Cluster 0. Embora os comentários positivos ainda sejam majoritários (53,5\%), essa proporção é substancialmente menor (em comparação aos 72,3\% do Cluster 0). O insight mais relevante é o crescimento expressivo das reações não-positivas: os comentários negativos (20,8\%) e neutros (25,7\%) somam 46,5\% do total. Isso sugere que o conteúdo viral, caracterizado por um "Índice de Engajamento" (PC1) anômalo, não gera apenas aprovação, mas também atrai um volume significativamente maior de debate, críticas e reações ambíguas, refletindo a natureza muitas vezes controversa ou divisiva que impulsiona a própria viralidade.
-
-
-\begin{figure}[h!]
-    \centering
-    \includegraphics[width=0.4\textwidth]{Figuras/grafico_sentimentos_cluster0.png} 
-    \caption{Visualizações da Análise de Sentimento: Distribuição de Rótulos (Cluster 0)}
-    \label{fig:sentiment-cluster-0}
-\end{figure}
-
-A análise de sentimentos detalhada para o Cluster 0, o grupo mais representativo com 792 Reels, revela que o conteúdo "padrão" da plataforma é recebido de forma esmagadoramente positiva. Conforme o gráfico de pizza, 72,3\% dos comentários associados a este cluster foram classificados como positivos, indicando uma forte aprovação. Os sentimentos neutros (14,1\%) e negativos (13,7\%) são minoritários e apresentam proporções quase idênticas. Este resultado complementa e enriquece a definição anterior do Cluster 0: que os vídeos definidos pelo seu desempenho métrico "padrão" (curta duração, com média de 64,5 segundos, e engajamento moderado)  geram, de forma consistente, uma resposta emocional majoritariamente favorável do público.
-
-\begin{figure}[h!]
-    \centering
-    \includegraphics[width=0.4\textwidth]{Figuras/grafico_sentimentos_cluster1.png} 
-    \caption{Visualizações da Análise de Sentimento: Distribuição de Rótulos (Cluster 1)}
-    \label{fig:sentiment-cluster-1}
-\end{figure}
-
-A análise de sentimentos para o Cluster 1, o grupo de 6 Reels definido por sua duração extrema (média de 721 segundos) e desempenho de engajamento muito baixo, apresenta um perfil de recepção peculiar. Embora os comentários positivos ainda sejam a maioria (60,4\%), o dado mais distintivo é a alta proporção de comentários neutros (27,1\%), a maior entre todos os clusters. Combinado com o menor índice de comentários negativos (12,5\%), isso sugere um padrão claro: esses vídeos longos, que o TCC já havia identificado como de baixa performance, parecem falhar em gerar reações fortes. Eles não geram o alto engajamento do Cluster -1, mas também não atraem a negatividade; em vez disso, a audiência que interage é ou levemente positiva ou, mais significativamente, neutra, o que reforça a conclusão de que o conteúdo não consegue reter a atenção ou provocar um debate engajado, alinhando-se perfeitamente com suas métricas de desempenho fracas.
-
-Com isso, conclui-se que a integração da análise de sentimentos com a clusterização é fundamental para desmistificar o real significado da performance métrica. Os resultados demonstram que "alto engajamento" não é sinônimo de "alta aprovação". O Cluster 0 (Padrão) estabelece a linha de base com uma recepção esmagadoramente positiva (72,3\%). Em nítido contraste, o Cluster -1 (Viral), dono das métricas mais fortes, revela-se o mais polarizado, com uma maioria positiva reduzida (53,5\%) e as maiores taxas de comentários negativos (20,8\%) e neutros (25,7\%), indicando que a viralidade foi impulsionada tanto pela aclamação quanto pela controvérsia. Por fim, o Cluster 1 (Longo/Baixa Performance) confirma sua ineficácia  ao apresentar a maior taxa de indiferença (27,1\% de comentários neutros), falhando em gerar reações emocionais fortes. A análise híbrida, portanto, qualifica os clusters, provando que o conteúdo padrão é aprovado, o viral é debatido, e o longo é ignorado.
-
-\subsection{Clusterização das Publicações do Feed}
-
-% ROTEIRO (PENDENTE DE EXECUÇÃO):
-% - Rodar AutoClusterHPO sobre as métricas de engajamento dos posts do FEED
-%   (análogo ao que foi feito para os Reels).
-% - Preencher: algoritmo eleito, hiperparâmetros, score CVI combinado,
-%   número de clusters e o perfil de cada um (nº de posts, métricas médias).
-% - Inserir figura de projeção dos clusters (análoga à \ref{fig:clusters_pca}).
-% - Descrição APENAS: caracterizar os grupos. A leitura de growth fica no cap.6.
-% - Comparar brevemente com os clusters de Reels: os padrões se repetem?
-
-\subsection{Clusterização dos Perfis dos Governadores}
-
-% ROTEIRO (PENDENTE DE EXECUÇÃO):
-% - Rodar clusterização sobre as métricas AGREGADAS por perfil
-%   (base da tabela \ref{tab:matriz_correlacao}).
-% - Preencher: quantos grupos de governadores emergem, o que caracteriza
-%   cada grupo (ex: alto alcance/baixa conversão), e quais governadores em cada.
-% - Inserir figura/tabela dos grupos de perfis.
-% - Descrição APENAS. A interpretação (segmentos à la Flesch) fica no cap.6.
-
-\section{Modelagem de Tópicos com BERTopic}
-
-A modelagem de tópicos identificou 50 temas distintos no corpus. As visualizações interativas fornecem insights profundos sobre a estrutura desses temas. O mapa da Figura~\ref{fig:intertopic} (Intertopic Distance Map) abaixo posiciona os tópicos em um espaço 2D com base em sua similaridade semântica. Cada círculo representa um tópico, e seu tamanho é proporcional à sua frequência.
-
-\begin{figure}[h!]
-    \centering
-    % Substitua 'intertopic_map.png' pelo nome do arquivo de imagem salvo do seu notebook.
-    \includegraphics[width=0.9\textwidth]{Figuras/intertopic_map.png}
-    \caption{Mapa de Distância Intertópica. Círculos próximos são semanticamente similares.}
-    \label{fig:intertopic}
-\end{figure}
-
-A análise do mapa revela um \textbf{tópico dominante} (círculo grande), que representa a maioria dos comentários e é composto principalmente por expressões de apoio e emojis positivos (ex: aplausos, corações). Os demais tópicos, menores e mais dispersos, formam clusters que abordam assuntos mais específicos, como política, críticas a serviços públicos e pedidos de justiça.
-
-Já o dendrograma de clusterização hierárquica (Figura~\ref{fig:hierarchy}) e o mapa de calor de similaridade (Figura~\ref{fig:heatmap}) complementam a análise, mostrando como os tópicos se relacionam e podem ser agregados em meta-tópicos. Por exemplo, tópicos relacionados a críticas sobre concursos públicos e serviços de saúde, embora distintos, mostram-se semanticamente próximos e poderiam ser agrupados sob um tema maior de "Reivindicações de Serviços Públicos".
-
-\begin{figure}[h!]
-    \centering
-    % Substitua 'hierarchy.png' pelo nome do arquivo de imagem salvo do seu notebook.
-    \includegraphics[width=\textwidth]{Figuras/hierarchy.png}
-    \caption{Dendrograma da Clusterização Hierárquica dos Tópicos.}
-    \label{fig:hierarchy}
-\end{figure}
-
-Com base na análise do dendrograma de clusterização hierárquica, a modelagem de tópicos mais coesa e distinta agruparia os comentários em quatro clusters principais. A justificativa para essa escolha reside em observar as distâncias horizontais em que os agrupamentos são formados. Ao traçar uma linha de corte vertical imaginária no eixo de distância em aproximadamente 1.1, identificamos quatro agrupamentos distintos que são fundidos em etapas posteriores com uma distância (dissimilaridade) significativamente maior, indicado pelas longas linhas horizontais que os conectam. O primeiro tópico hierárquico (topo, em tons de verde e vermelho) representa um tópico coeso. O segundo (meio-superior, em ciano, amarelo e preto) é o maior e mais diverso grupo, mas ainda assim claramente distinto dos demais. O terceiro (meio-inferior, em marrom e roxo) e o quarto (base do gráfico, em amarelo, cinza e vermelho) formam os dois últimos tópicos. Esta divisão em quatro grupos otimiza a modelagem, pois maximiza a similaridade dos comentários dentro de cada grupo, ao mesmo tempo que garante que os tópicos sejam significativamente diferentes entre si.
-
-Os itens do primeiro tópico hierárquico (tópicos: 2, 3, 9, 29, 33, 36, 38, 41), têm em comum a descrição de comentários que expressam um forte sentimento de apoio, concordância e aprovação. A análise foca em reações positivas, como elogios a iniciativas e concordância com o conteúdo postado. Além disso, muitos itens descrevem ações que os usuários desejam realizar ou estão com dificuldade para fazer, como encontrar um link para inscrição ou cadastro, o que os une pelo tema de "ação do usuário". Quanto aos itens do segundo tópico hierárquico (tópicos: 1, 17, 21, 23, 25, 26, 28, 34, 35, 37, 39, 40, 42, 43, 45, 46), a principal característica deste grupo é a contextualização. As análises aqui presentes se concentram em identificar a origem dos comentários (plataforma, tipo de postagem) e frequentemente mencionam figuras de autoridade, como governadores, políticos ou outras personalidades públicas. O tema central é descrever a quem os comentários se dirigem e de onde vêm. Já os itens do terceiro tópico hierárquico (tópicos: 7, 11, 12, 14, 18, 19, 22, 24, 30, 31, 44, 47) agrupa as análises que se aprofundam nas qualidades e sentimentos dos comentários. Os textos descrevem o tom (irônico, crítico, de apoio), o estilo da linguagem, e as emoções predominantes, como admiração, insatisfação ou preocupação. O elo comum é a qualificação do discurso, indo além do tema para capturar a nuance e a subjetividade das mensagens. Por fim, os itens do quarto tópico hierárquico (tópicos: 4, 5, 6, 8, 10, 16, 20, 27, 32) são unidos por um forte viés de crítica, insatisfação e debate. As análises descrevem comentários que abordam problemas sociais, fazem reclamações, apontam divergências e expressam descontentamento com temas como gestão pública, segurança, educação e corrupção. É o cluster que representa a análise do discurso de oposição e conflito.
-
-Abaixo pode-se analisar a matriz de similaridade entre os tópicos, que de forma semelhante ao dendograma, permitirá ao projeto agrupar tópicos semelhantes entre si. 
-
-\begin{figure}[h!]
-    \centering
-    % Substitua 'heatmap.png' pelo nome do arquivo de imagem salvo do seu notebook.
-    \includegraphics[width=\textwidth]{Figuras/heatmap.png}
-    \caption{Matriz de Similaridade (Heatmap) entre os Tópicos.}
-    \label{fig:heatmap}
-\end{figure}
-
-Analisando a matriz de similaridade, a modelagem de tópicos agruparia os comentários em aproximadamente quatro clusters principais, que são visualmente identificáveis como "quadrados" de cores mais escuras (tons de azul) ao longo da diagonal. A lógica para essa divisão é que os itens dentro de cada um desses quadrados demonstram uma alta pontuação de similaridade mútua, indicando que compartilham o mesmo tema central. O primeiro agrupamento pode ser visto no canto superior esquerdo (itens 0 a 8). Um segundo grupo coeso é observável no meio da matriz (aproximadamente itens 20 a 26). Um terceiro cluster é notado logo abaixo (itens 30 a 36). Finalmente, o agrupamento mais forte e coeso parece ser o do canto inferior direito (itens 40 a 48), que exibe os tons de azul mais escuros e consistentes, sugerindo uma altíssima similaridade interna. As áreas de cores mais claras (verdes/amarelas) entre esses blocos azuis representam a baixa similaridade entre os diferentes tópicos, justificando a sua separação em grupos distintos.
-
-A aplicação do pipeline híbrido de NLP revelou com sucesso as principais características do corpus de comentários do Instagram. A análise de sentimentos indicou uma recepção majoritariamente positiva ao conteúdo dos Reels, com alta confiança do modelo classificador.
-
-A modelagem de tópicos híbrida, combinando BERTopic e Gemini, provou ser excepcionalmente eficaz. Ela não apenas identificou a estrutura temática dos dados—com um tópico principal de reações positivas e diversos subtópicos específicos—mas também forneceu descrições contextuais e de fácil interpretação para cada tema. Esta abordagem representa um avanço significativo em relação aos métodos tradicionais, permitindo uma análise qualitativa mais profunda e a extração de insights acionáveis com maior facilidade. Os resultados demonstram o potencial da integração de modelos de embedding e modelos generativos para análises de texto complexas.
-
-\subsection{Modelagem de Tópicos do Discurso Oficial (Legendas e Transcrições)}
-
-% ROTEIRO (PENDENTE DE EXECUÇÃO — legendas e transcrições vêm da API):
-% - Rodar BERTopic (mesmo pipeline) sobre o texto produzido pelas assessorias:
-%   legendas (captions) e transcrições da fala dos vídeos.
-% - Preencher: nº de tópicos, temas dominantes, e as visualizações análogas
-%   (mapa intertópico, dendrograma) para o discurso oficial.
-% - Descrição APENAS dos temas do discurso. O CONTRASTE com os temas dos
-%   comentários (o gap discurso x reação) é analisado no cap.6.
-
-Os resultados apresentados neste capítulo \textemdash{} a segmentação das publicações por desempenho, a qualificação dos clusters pelo sentimento e a estrutura temática revelada pela modelagem de tópicos \textemdash{} constituem o diagnóstico bruto sobre o qual se assenta a etapa seguinte. No próximo capítulo, essas evidências deixam de ser descritas isoladamente e passam a ser organizadas segundo o funil de engajamento COBRA-RACE, traduzindo-se em métricas de crescimento e em recomendações práticas por perfil, de modo a converter a modelagem aqui desenvolvida em um instrumento efetivo de apoio à decisão para assessorias políticas.
-
+Os resultados deste capítulo, a segmentação das publicações e dos perfis por desempenho, a qualificação dos grupos pelo sentimento e a estrutura temática dos comentários e do discurso, constituem o diagnóstico bruto sobre o qual se assenta a etapa seguinte. No próximo capítulo, essas evidências deixam de ser descritas isoladamente e passam a ser organizadas segundo o funil de engajamento COBRA-RACE, traduzindo-se em métricas de crescimento e em recomendações práticas por perfil.

@@ -1,44 +1,126 @@
 % !TEX root = ../TCC - CD e IA.tex
 \chapter{Fontes de Dados}\label{FontesDados}
 
-Esta seção detalha o processo sistemático de aquisição dos dados e oferece uma caracterização do corpus que constitui a base empírica deste estudo, abordando a fonte, a estrutura e a escala. O corpus de dados foi extraído da rede social Instagram, plataforma selecionada por sua elevada taxa de engajamento de usuários e sua crescente relevância como arena para a comunicação política no Brasil. A coleta foi realizada de forma programática por meio da plataforma APIFY, Uma ferramenta especializada na extração automatizada de dados públicos via interface de programação de aplicações (API). Desta ferramenta, foram utilizados 4 atores diferentes, mais especificamente os atores: "Instagram Profile Scraper", “Instagram Reels Scraper” e “Instagram Posts Scraper”. Os scripts, bem como todas as configurações de requisições estão disponíveis no repositório do projeto no github, disponível \href{https://github.com/Vini0606/Tecnicas-de-Ciencia-de-Dados-em-dados-do-Instagram}{neste link}. Os dados referentes a links dos perfis foram coletados a mão e salvos na planilha “governadores.xlsx” também em anexo. A plataforma APIFY garantiu um processo de coleta sistemático, padronizado e replicável. Ao final do processo, o escopo da coleta abrangeu os perfis públicos oficiais de todos os 27 governadores das unidades federativas brasileiras em exercício durante o período de coleta, bem como dados das 30 últimas publicações de feed e reels destes, assegurando uma cobertura nacional do fenômeno em estudo.
-Os dados brutos foram extraídos e organizados em três arquivos distintos no formato JSON, cada um correspondendo a saída de um ator específico, sendo o nome do arquivo o indentificador deste. Assim, os arquivos foram:
+Este capítulo descreve a base empírica do estudo: de onde vêm os dados, como foram coletados, o que contêm e quais são seus limites conhecidos. O vocabulário adotado é o do próprio projeto. Uma \textbf{Coleta} é uma extração completa do Instagram feita segundo um \textbf{Recorte} (janela de datas e, opcionalmente, um teto de itens por perfil), guardada e versionada como um todo. Um \textbf{Snapshot} é a Coleta acompanhada das tabelas derivadas dela, publicadas no mesmo commit do repositório de dados. Toda a análise dos Capítulos~\ref{Desenvolvimento} e~\ref{Resultados} usa uma única Coleta, descrita na Seção~\ref{sec:coleta-tcc}; os números citados no texto podem ser recuperados a partir dela, exatamente como estavam, porque a Coleta é imutável depois de publicada.
+
+\section{A plataforma e o universo de perfis}
+
+O Instagram foi escolhido por sua natureza visual, por sua elevada taxa de interação e por ser hoje o principal canal de comunicação direta dos governadores brasileiros com o público. O universo de estudo são os perfis públicos e verificados dos governadores das 26 unidades federativas e do Distrito Federal em exercício na data da extração. Desses 27 governadores, 26 mantinham um perfil ativo na plataforma; o governador do Rio de Janeiro não possuía perfil no Instagram no período e foi retirado do universo antes de qualquer etapa de processamento, de modo que todas as tabelas de análise têm 26 perfis. A lista de perfis, com unidade da federação, nome e partido, é curada manualmente em uma planilha de referência do repositório e carregada na camada de dados limpos como tabela de metadados.
+
+A Tabela~\ref{tab:perfis} apresenta os 26 perfis com o número de seguidores na data da extração e a cobertura obtida na Coleta: quantidade de \emph{Reels}, de publicações do \emph{feed}, de publicações únicas (um \emph{Reel} também aparece na grade do \emph{feed}, por isso as duas contagens se sobrepõem), de comentários coletados e de publicações de terceiros que marcam o governador (UGC). A audiência somada dos 26 perfis ultrapassa 29,7 milhões de seguidores, com forte concentração: o perfil mais seguido tem 65 vezes a audiência do menos seguido.
+
+\begin{table}[htb]
+\centering
+\caption{Perfis dos governadores e cobertura da Coleta do TCC (16/08 a 25/10/2026)}
+\label{tab:perfis}
+\footnotesize\setlength{\tabcolsep}{4pt}
+\begin{tabular}{llrrrrrr}
+\toprule
+\textbf{UF} & \textbf{Governador (partido)} & \textbf{Seguidores} & \textbf{Reels} & \textbf{Feed} & \textbf{Únicas} & \textbf{Coment.} & \textbf{UGC} \\
+\midrule
+AC & Gladson Cameli (PP) & 202.177 & 150 & 276 & 276 & 2.597 & 0 \\
+AL & Paulo Dantas (MDB) & 419.873 & 115 & 161 & 161 & 1.402 & 0 \\
+AP & Clécio Luís (Solidariedade) & 225.053 & 359 & 501 & 501 & 4.845 & 104 \\
+AM & Wilson Lima (União) & 463.420 & 170 & 222 & 223 & 2.093 & 0 \\
+BA & Jerônimo Rodrigues (PT) & 1.346.056 & 345 & 477 & 478 & 4.292 & 13 \\
+CE & Elmano de Freitas (PT) & 663.310 & 456 & 645 & 645 & 5.395 & 8 \\
+DF & Ibaneis Rocha (MDB) & 201.049 & 1 & 2 & 2 & 15 & 0 \\
+ES & Ricardo Ferraço (MDB) & 118.270 & 190 & 352 & 354 & 3.369 & 2.215 \\
+GO & Ronaldo Caiado (União) & 2.315.664 & 233 & 315 & 315 & 1.917 & 67 \\
+MA & Carlos Brandão (PSB) & 717.719 & 157 & 252 & 252 & 2.288 & 2.455 \\
+MT & Mauro Mendes (União) & 382.908 & 139 & 204 & 204 & 1.786 & 2 \\
+MS & Eduardo Riedel (PSDB) & 121.188 & 157 & 167 & 167 & 1.581 & 0 \\
+MG & Romeu Zema (Novo) & 3.517.662 & 247 & 333 & 336 & 2.452 & 0 \\
+PA & Helder Barbalho (MDB) & 1.099.735 & 258 & 348 & 362 & 3.019 & 0 \\
+PB & João Azevêdo (PSB) & 378.740 & 324 & 465 & 465 & 4.561 & 3.019 \\
+PR & Ratinho Júnior (PSD) & 1.454.393 & 342 & 615 & 615 & 4.862 & 0 \\
+PE & Raquel Lyra (PSDB) & 2.259.731 & 521 & 696 & 721 & 6.893 & 7 \\
+PI & Rafael Fonteles (PT) & 1.521.580 & 710 & 858 & 859 & 8.384 & 3.654 \\
+RN & Fátima Bezerra (PT) & 464.008 & 132 & 211 & 211 & 1.958 & 9 \\
+RS & Eduardo Leite (PSDB) & 1.476.721 & 44 & 61 & 61 & 486 & 798 \\
+RO & Marcos Rocha (União) & 917.747 & 1 & 3 & 3 & 20 & 0 \\
+RR & Antonio Denarium (PP) & 156.406 & 55 & 226 & 226 & 2.026 & 75 \\
+SC & Jorginho Mello (PL) & 1.051.316 & 82 & 112 & 112 & 953 & 243 \\
+SE & Fábio Mitidieri (PSD) & 287.682 & 462 & 655 & 657 & 6.277 & 3.223 \\
+SP & Tarcísio de Freitas (Republicanos) & 7.736.945 & 206 & 232 & 234 & 1.757 & 1 \\
+TO & Wanderlei Barbosa (Republicanos) & 231.537 & 48 & 48 & 48 & 406 & 920 \\
+\midrule
+\multicolumn{2}{l}{\textbf{Total (26 perfis)}} & 29.730.890 & 5.904 & 8.437 & 8.488 & 75.634 & 16.813 \\
+\bottomrule
+\end{tabular}
+\par\smallskip
+\raggedright\footnotesize Fonte: camada Silver da Coleta do TCC. ``Únicas'' desconta os \emph{Reels} que também aparecem como publicação do \emph{feed}. ``Coment.'' são comentários únicos, de \emph{Reels} e de publicações do \emph{feed}. UGC são publicações de terceiros que marcam o perfil do governador.
+\end{table}
+
+Dois perfis merecem nota já aqui. Os governadores do Distrito Federal e de Rondônia publicaram, respectivamente, 2 e 3 vezes na janela de 70 dias, volumes insuficientes para qualquer estimativa por perfil. Nas análises que exigem amostra mínima (sentimento por perfil, \emph{North Star Metric}, escore composto), esses perfis são sinalizados como ``amostra insuficiente'' em vez de receberem um valor pouco confiável. O mesmo se aplica, com menos intensidade, ao Rio Grande do Sul e ao Tocantins.
+
+\section{A Coleta do TCC: Recorte e cobertura}\label{sec:coleta-tcc}
+
+A Coleta que sustenta este trabalho foi extraída em 8 de novembro de 2026 e cobre as publicações feitas entre \textbf{16 de agosto e 25 de outubro de 2026}, sem teto de itens por perfil. A janela foi escolhida de forma deliberada: vai do início da propaganda eleitoral ao segundo turno das eleições gerais de 2026, passando pelo primeiro turno em 4 de outubro. É o período de maior intensidade de comunicação política do ciclo, em que vários dos governadores eram candidatos à reeleição ou a outros cargos, e portanto o período em que as decisões de uma assessoria têm maior consequência. A pré-campanha ficou de fora por custo. A Coleta recebeu o identificador \texttt{coleta\_2026-11-08\_de-2026-08-16\_ate-2026-10-25} e a etiqueta de uso \texttt{tcc} no repositório de dados.
+
+\subsection{Extração via Apify}
+
+A extração foi feita de forma programática pela plataforma Apify, que oferece extratores (\emph{actors}) especializados para dados públicos do Instagram, acionados por API. Foram usados quatro \emph{actors}, um por fonte:
 
 \begin{itemize}
-    \item \textbf{profiles.json}: Contém metadados de nível de perfil para cada um dos 27 governadores, incluindo identificador do usuário (ID), nome de usuário, nome completo, texto da biografia, número de seguidores, número de perfis seguidos e contagem total de publicações.
-
-    \item \textbf{posts.json}: Agrega os dados referentes a cada postagem individual (formato de imagem ou vídeo no feed) realizada pelos governadores no período de coleta. Os campos-chave incluem ID da postagem, URL, texto da legenda (caption), número de curtidas, número de comentários e data e hora da publicação (timestamp).
-
-    \item \textbf{reels.json}: Contém dados específicos do formato \textit{Reels}, incluindo ID do Reel, legenda, número de visualizações, número de curtidas e número de comentários.
+    \item \textbf{Perfis}: o extrator genérico de Instagram da Apify, no modo de detalhes de perfil, que devolve identificador, nome de usuário, nome completo, biografia, contagens de seguidores, de seguidos e de publicações e a categoria de negócio da conta.
+    \item \textbf{Publicações do \emph{feed}}: \texttt{apify/instagram-post-scraper}, que devolve, para cada publicação da grade do perfil, identificador, tipo, legenda, \emph{hashtags}, curtidas, comentários, data e hora de publicação, se é fixada, e os comentários mais recentes.
+    \item \textbf{\emph{Reels}}: \texttt{apify/instagram-reel-scraper}, que devolve, para cada vídeo curto, os mesmos campos e ainda o número de reproduções e a duração do vídeo. O \emph{actor} oferece a transcrição da fala como opção paga adicional; ela não foi ativada nesta Coleta (ver Seção~\ref{sec:limites-dado}).
+    \item \textbf{UGC}: \texttt{apify/instagram-tagged-scraper}, que devolve as publicações de terceiros em que o perfil do governador foi marcado, com autor, legenda, métricas e indicação de parceria paga.
 \end{itemize}
 
-Para dimensionar a base empírica da pesquisa, foi realizada uma análise descritiva do volume de dados coletados. No anexo deste trabalho contém o arquivo “Dicionário de variáveis.xlsx” com as informações referentes a fonte, nome e descrição de todos os atributos coletados e utilizados pela API, separados por arquivo-fonte juntamente com os códigos desenvolvidos, bem como os arquivos extraídos da API para as análises.
+Os \emph{actors} de publicações aceitam apenas o início da janela (``mais novo que N dias''), então a extração trouxe itens até a data da execução e o processamento descartou localmente tudo o que foi publicado depois de 25 de outubro. O \emph{actor} de UGC não filtra por data e devolve as marcações da mais recente para a mais antiga; como a Coleta foi feita sem teto, nenhum governador teve a janela cortada. A Tabela~\ref{tab:cobertura} resume a cobertura por fonte antes e depois da limpeza. A Coleta custou US\$ 85,62, dos quais US\$ 44,50 correspondem ao UGC, cuja estimativa prévia havia sido calibrada em uma coleta-piloto de cinco dias e não antecipou que cinco governadores somariam mais de duas mil marcações cada um durante a campanha.
 
-\section{Detalhamento do Processo de ETL (Extract, Tranform and Load)}
+\begin{table}[htb]
+\centering
+\caption{Cobertura da Coleta do TCC por fonte}
+\label{tab:cobertura}
+\footnotesize
+\begin{tabular}{lrrp{5.1cm}}
+\toprule
+\textbf{Fonte} & \textbf{Brutos (Bronze)} & \textbf{Limpos (Silver)} & \textbf{Observação} \\
+\midrule
+Perfis & 26 & 26 & estado do perfil em 08/11/2026 \\
+Publicações do \emph{feed} & 9.637 & 8.437 & inclui os \emph{Reels} exibidos na grade \\
+\emph{Reels} & 7.202 & 5.904 & 5.853 também estão no \emph{feed} \\
+Publicações únicas & --- & 8.488 & \emph{feed} e \emph{Reels}, sem duplicidade \\
+Comentários de \emph{Reels} & --- & 52.464 & até os 10 a 12 mais recentes por vídeo \\
+Comentários do \emph{feed} & --- & 75.120 & idem; 51.950 coincidem com os de \emph{Reels} \\
+Comentários únicos & --- & 75.634 & 8.466 publicações com ao menos um comentário \\
+UGC (marcações) & 16.849 & 16.824 & 17 governadores com marcações, 9 sem nenhuma \\
+\bottomrule
+\end{tabular}
+\end{table}
 
-Para que se cumprisse com o objetivo específico de "Estruturar um pipeline de processamento de dados textuais extraídos de comentários do Instagram, incluindo limpeza, normalização e preparação textual, foi realizado um processo de ETL (Extract, Tranform, load), para que se pudesse Extrair, Tratar e Carregar, ou salvar, os dados tratados. O processo de extração e uso dos atores da APIFY foi automatizado através de um pipeline, garantindo que os dados brutos sejam coletados, processados e armazenados de forma eficiente e estruturada. Esta fase foi encapsulada na classe ‘Extract‘ do script ‘ETL.py‘, disponível no repositório do projeto no github. Basicamente, esta classe utiliza a biblioteca ‘apify\_client‘ disponível pela plataforma APIFY na linguagem Python para realizar a extração dos dados. Para isso, ela é inicializada com 3 parâmetros, o 'apify\_api\_key', que é a chave de API para autenticação na plataforma Apify; 'links', que é uma lista de URLs de perfis do Instagram dos quais os dados serão extraídos; 'resultsLimit', que corresponde ao limite de resultados extraídos. Após a inicialização, 3 metodos são chamados, os metodos extractProfiles, extractPosts e extractReels. Ambos os metodos utilizam o ator ‘shu8hvrXbJbY3Eb9W‘ da Apify para buscar detalhes dos perfis especificados. Os resultados foram salvos nos arquivos JSONs citados anteriormente. Após extraídos os dados brutos em formato JSON s˜ao lidos e processados. Esta fase foi gerenciada pela classe ‘Transform‘, que, incicialmente, os trˆes arquivos JSON (‘profiles.json‘, ‘posts.json‘, ‘reels.json‘) s˜ao lidos e
-carregados em DataFrames do Pandas, uma poderosa biblioteca para manipula¸c˜ao de
-dados em Python. Cada DataFrame passa por um processo de limpeza e transforma¸c˜ao específico
+A diferença entre itens brutos e limpos vem de duas operações da camada Silver: a exclusão de registros fora do Recorte que o \emph{actor} ainda devolveu e a eliminação de duplicatas do mesmo identificador. A sobreposição entre \emph{Reels} e \emph{feed} é estrutural, não um erro: o Instagram exibe os \emph{Reels} na grade do perfil, logo o extrator de publicações também os captura. O projeto mantém as duas tabelas separadas, porque só o extrator de \emph{Reels} devolve reproduções e duração, e deduplica por identificador sempre que as duas são combinadas.
 
-\begin{itemize}
-    \item \textbf{Perfis (\texttt{df\_profiles})}: Colunas desnecessárias são removidas e os tipos de dados são ajustados.
-    
-    \item \textbf{Posts (\texttt{df\_posts})}: Tratamento semelhante ao dos perfis, com foco em manter apenas as colunas relevantes para a análise das postagens.
-    
-    \item \textbf{Reels (\texttt{df\_reels})}: Além da limpeza de colunas, os comentários mais recentes (\texttt{latestComments}) são extraídos e armazenados em um DataFrame separado (\texttt{df\_latest\_comments}). As duas fontes de postagens (posts e reels) são então unificadas em um único DataFrame (\texttt{df\_reels\_posts}) para facilitar a análise consolidada.
-\end{itemize}
+\section{Fontes textuais e métricas}
 
-A etapa final do processo foi a carga dos DataFrames transformados em um destino final.
-A classe ‘Load‘ ´e respons´avel por esta tarefa. Os dados processados foram salvos em um unico arquivo Excel (‘all data.xlsx‘), onde cada DataFrame está armazenado em uma planilha separada. Isso facilita a consulta e a análise exploratória dos dados. O fluxo completo do ETL foi orquestrado pela função ‘ELT‘. Esta função verifica se os arquivos JSON já existem. Se não existirem, ela executa a etapa de extração. Em seguida, prossegue com as etapas de transformação e carga.
+A metodologia distingue dois lados da comunicação. De um lado, o \textbf{discurso da assessoria}, materializado nas \textbf{legendas} das publicações (\emph{captions}), das quais todas as 8.437 publicações do \emph{feed} dispõem. De outro, a \textbf{reação do público}, expressa nos \textbf{comentários}. Os comentários disponibilizados pela plataforma são uma amostra: cada publicação devolve seus comentários mais recentes, com mediana de 10 e máximo de 12 por publicação, e não o total declarado pelo contador. A análise de sentimento e de tópicos dos comentários trata, portanto, a reação mais recente a cada publicação, não a totalidade da conversa; a contagem total de comentários continua disponível como métrica. Cada comentário tem registrada a sua \textbf{origem}, \emph{Reel} ou publicação do \emph{feed}, e um comentário capturado pelas duas rotas conta uma única vez.
 
-O sistema de ETL descrito neste relatório automatiza com sucesso a coleta, limpeza
-e armazenamento de dados do Instagram. A arquitetura modular, dividida em classes
-para cada fase do processo, garante a manutenibilidade e escalabilidade do c´odigo. O
-resultado final ´e um conjunto de dados estruturado e pronto para ser utilizado em análises
-aprofundadas, como modelagem de linguagem natural e visualização de dados, conforme
-planejado nas próximas etapas do projeto.
+Além dos textos, cada publicação traz as \textbf{métricas de engajamento} que alimentam a clusterização e o funil: curtidas e contagem de comentários em todas as publicações e, nos \emph{Reels}, reproduções (\emph{plays}, que contam repetições e não espectadores únicos) e duração em segundos. No nível do perfil, as métricas são seguidores, seguidos e total de publicações. Por fim, o \textbf{UGC} oferece um sinal que nenhuma das fontes anteriores contém: o volume de publicações de terceiros que marcam o governador, com autor, legenda, métricas e se há parceria paga declarada (apenas 2 das 16.824 marcações). No funil de engajamento do Capítulo~\ref{Resultados}, esse volume é a evidência do estágio mais profundo, o de criação de conteúdo pelo público.
 
+\section{Arquitetura Medallion: da Coleta às tabelas de análise}
 
+Um resultado acadêmico precisa ser reproduzível meses depois de escrito. Um pipeline que sobrescreve planilhas a cada execução não oferece essa garantia, e por isso o projeto adota uma arquitetura em camadas, conhecida como Medallion, sobre tabelas no formato Delta Lake, com contratos de esquema declarados em código e validados em tempo de execução. As camadas são:
 
+\begin{description}
+    \item[Landing] o \emph{payload} completo devolvido por cada \emph{actor}, gravado antes de qualquer filtro, como registro fiel do que foi pago. Não é lida pela análise.
+    \item[Bronze] uma tabela Delta por fonte (perfis, publicações, \emph{Reels}, UGC), já filtrada pelo Recorte, com os campos tipados, o item original completo em uma coluna bruta e metadados de ingestão (identificador da execução e instante de gravação). Nada é descartado; é a fonte a partir da qual as camadas seguintes podem ser reconstruídas.
+    \item[Silver] dados validados e conformados: \texttt{profiles\_clean}, \texttt{posts\_clean}, \texttt{reels\_clean}, \texttt{comments\_clean} (comentários de \emph{Reels}), \texttt{post\_comments\_clean} (comentários do \emph{feed}), \texttt{ugc\_mentions} e \texttt{governors\_metadata}. É aqui que ocorrem o tratamento de tipos e datas, a deduplicação, a derivação do engajamento total por publicação e a exclusão de perfis fora do universo. Os contratos da Silver não admitem valores nulos nas colunas-chave, de modo que um dado malformado interrompe o processamento em vez de se propagar.
+    \item[Gold] tabelas de consumo. Um primeiro grupo é derivado de forma determinística na própria Coleta: engajamento agregado por governador (\texttt{governor\_engagement}), seu histórico e o UGC agregado. Um segundo grupo é produzido pela modelagem do Capítulo~\ref{Desenvolvimento}: sentimento e tópicos dos comentários (\texttt{governor\_sentiment}), tópicos do discurso (\texttt{governor\_discourse\_topics}), clusters de \emph{Reels}, de publicações do \emph{feed} e de perfis, a \emph{North Star Metric}, as prioridades de pautas e de temas, o escore composto e as métricas de crescimento.
+\end{description}
 
+Todo o processo é conduzido por uma única interface de linha de comando, que estima o custo antes de extrair, exige confirmação explícita, grava as camadas e registra em um \textbf{manifesto} a identidade da Coleta, o Recorte pedido e o efetivamente obtido, a cobertura por fonte e por perfil, o custo estimado e o real e a contagem de linhas de cada tabela. O Snapshot completo é então publicado em um repositório de dados privado no Hugging Face, em que cada Coleta é um commit e a mais recente é a vigente; Coletas anteriores permanecem recuperáveis por etiquetas de uso e nunca são apagadas. O repositório é privado porque os comentários e as marcações contêm dados pessoais de terceiros. O painel de apoio à decisão descrito na Seção~\ref{sec:painel} lê exclusivamente as camadas Silver e Gold desse repositório. As decisões de arquitetura estão registradas no repositório de código como registros de decisão (ADRs), e o dicionário de todas as tabelas e colunas, gerado automaticamente a partir dos contratos de esquema, consta do Apêndice~\ref{ap:dicionario}.
 
+\section{Limites conhecidos do dado}\label{sec:limites-dado}
+
+Cinco limites condicionam a leitura dos resultados e são retomados no Capítulo~\ref{Conclusões}.
+
+\begin{enumerate}
+    \item \textbf{Comentários são uma amostra recente.} A plataforma devolve apenas os comentários mais recentes de cada publicação (mediana de 10). As proporções de sentimento e os tópicos descrevem essa amostra, aproximadamente uniforme entre publicações, e não o universo de comentários. A contagem total de comentários, usada nas métricas de engajamento, não sofre dessa limitação.
+    \item \textbf{Transcrições não foram coletadas.} O extrator de \emph{Reels} oferece a transcrição da fala como opção paga por minuto de vídeo; o código do projeto já prevê a ativação, mas ela não foi feita nesta Coleta por custo. O discurso da assessoria é, neste trabalho, o das legendas.
+    \item \textbf{Período eleitoral.} A janela cobre a campanha de 2026. Os padrões observados refletem um momento de comunicação intensa e atípica, e não devem ser generalizados sem cautela para períodos de gestão ordinária. Em contrapartida, é o período em que a ferramenta proposta tem maior utilidade.
+    \item \textbf{Perfis com pouco dado.} Dois governadores publicaram menos de cinco vezes na janela e outros dois menos de setenta. As análises por perfil sinalizam amostra insuficiente em vez de estimar sobre poucos pontos.
+    \item \textbf{Uma única Coleta.} Não há séries de várias Coletas; toda comparação temporal é feita dentro da janela, pela data de publicação. Métricas que dependem de medições repetidas do perfil, como o crescimento de seguidores, ficam declaradamente pendentes.
+\end{enumerate}

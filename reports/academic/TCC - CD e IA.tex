@@ -35,7 +35,10 @@
 \usepackage{xcolor} % Controle das cores
 \usepackage{graphicx}			% Inclusão de gráficos
 \usepackage{microtype} 			% para melhorias de justificação
-\usepackage{booktabs}			% linhas de tabela no estilo "profissional" (usado nas tabelas dos capítulos)
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{amsmath}			% equacoes e \text em modo matematico
+\usepackage{longtable}			% tabelas longas (Apendice A, dicionario de dados)			% linhas de tabela no estilo "profissional" (usado nas tabelas dos capítulos)
 % \usepackage[toc,page]{appendix} % REMOVIDO: dá "Option clash" com o appendix emulado pelo memoir (base do abntex2);
                                    % nenhum comando específico do pacote appendix é usado no documento.
 
@@ -107,7 +110,7 @@
 		pdfauthor={\@author},
     	pdfsubject={\imprimirpreambulo},
 	    pdfcreator={LaTeX with abnTeX2},
-		pdfkeywords={abnt}{latex}{abntex}{abntex2}{gestão participativa}{gênero feminino}{IFTO}, 
+		pdfkeywords={marketing político digital}{análise de sentimentos}{modelagem de tópicos}{engajamento}{growth}{ciência de dados}, 
 		colorlinks=true,       		% false: boxed links; true: colored links
     	linkcolor=blue,          	% color of internal links
     	citecolor=blue,        		% color of links to bibliography
@@ -161,7 +164,7 @@
 
 \thispagestyle{empty}
 \begin{center}
- \includegraphics[width=0.30\textwidth]{Figuras/iesb_Logo}
+ \includegraphics[width=0.30\textwidth]{Figuras/IESB_Logo.JPG}
  \vspace*{1 mm}
 \end{center}
 \begin{center}
@@ -182,7 +185,7 @@
 \begin{center}
    {\textbf{\Large  \textbf{Vinícius de Paula R Carvalho}}}\\[2 cm]
       {\textbf{\Large Uma abordagem híbrida de mineração de texto e aprendizado não supervisionado como ferramenta de \textit{growth} para assessorias políticas: análise de engajamento no Instagram dos governadores brasileiros. }}\\[2cm]
-   {\textbf{\Large Brasília \\  2025}}\\[5cm]
+   {\textbf{\Large Brasília \\  2026}}\\[5cm]
    \vfill
 \end{center}
 
@@ -205,8 +208,8 @@
     \end{center}
 
    
-     \hspace{.42\textwidth}
-     \begin{minipage}{.52\textwidth}
+     \noindent\hspace{.42\textwidth}
+     \begin{minipage}{.52\textwidth}\raggedright
 Trabalho de Conclusão de Curso (TCC) apresentado como pré-requisito para obtenção de Bacharelado em Ciência de Dados e Inteligência Artificial pelo Instituto de Educação Superior de Brasília - IESB. \\ 
 \textbf{Orientador:} Professor Sérgio da Costa Côrtes
     \end{minipage}
@@ -239,24 +242,17 @@ pelo Instituto de Educação Superior de Brasília - IESB
 \hspace{0.85cm}Banca Examinadora constituída pelos Professores:
 
 \vspace{1cm}
-\begin{center}\rule{10cm}{0.005cm}\\
-    {\textbf {Profª. Drª. Fulana de Tal - Orientadora\\
+\begin{center}\rule{10cm}{0.005cm}\
+    {\textbf {Prof. Dr. Sérgio da Costa Côrtes - Orientador\
     Professor no IESB}}
-    
+
     \vspace{1cm}
-    \rule{10cm}{0.005cm}\\
-    {\textbf {Prof. Dr. Fulano de Tal - Membro \\
-    Professor no IESB}}
-    
+    \rule{10cm}{0.005cm}\
+    {\textbf {Membro da Banca Examinadora}}
+
     \vspace{1cm}
-    \rule{10cm}{0.005cm}\\
-    {\textbf {Prof. Dr. Fulano de Tal - Membro Externo \\
-    Professor na UnB}}
-    
-    \vspace{1cm}
-    \rule{10cm}{0.005cm}\\
-    {\textbf{Prof. Dr. Fulano de Tal - Membro Externo \\
-    Professor na ENCE}}
+    \rule{10cm}{0.005cm}\
+    {\textbf {Membro da Banca Examinadora}}
 
 \end{center}
 
@@ -276,7 +272,7 @@ Agradeço a DEUS pelo dom da vida e pela oportunidade de ter a família que tenh
     \vspace*{\fill}
 	\begin{flushright}
 		\textit{``Dados são iguais dentes,    \\
-		só se joga fora em últico caso. \\
+		só se joga fora em último caso. \\
         Mas, ao usá-los a ética deve \\
         vir em primeiro lugar.''\\
 		(Sérgio Côrtes)}
@@ -357,9 +353,9 @@ Agradeço a DEUS pelo dom da vida e pela oportunidade de ter a família que tenh
 \bibliography{IESB-CDeIA-Bibliografia}
 
 % ----------------------------------------------------------
-% Anexos
+% Apêndices
 % ----------------------------------------------------------
-\include {Anexos}
+\include {Apendices}
 
 % ----------------------------------------------------------
 \end{document}

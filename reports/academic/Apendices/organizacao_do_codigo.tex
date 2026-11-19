@@ -1,0 +1,41 @@
+% !TEX root = ../TCC - CD e IA.tex
+Todo o código deste trabalho é público e está no repositório \url{https://github.com/Vini0606/Tecnicas-de-Ciencia-de-Dados-em-dados-do-Instagram}. Os dados coletados não estão no repositório de código: ficam em um \emph{dataset} privado no Hugging Face, porque contêm comentários e marcações de terceiros (Seção~\ref{sec:coleta-tcc}). Este apêndice descreve a organização do código, para que a banca e futuros leitores localizem cada etapa descrita no texto sem precisar ler o repositório inteiro. O código não é reproduzido aqui: a versão exata usada neste trabalho é a do commit marcado pela etiqueta \texttt{tcc} no repositório.
+
+\section*{Estrutura de diretórios}
+
+\begin{description}
+    \item[\texttt{coleta.py}] interface de linha de comando da Coleta: \texttt{coletar} (estima o custo, extrai via Apify e grava Landing, Bronze, Silver e Gold de engajamento), \texttt{publicar}, \texttt{baixar}, \texttt{restaurar} e \texttt{listar} (versionamento no Hugging Face).
+    \item[\texttt{src/coleta/}] implementação da Coleta: Recorte (\texttt{recorte.py}), estimativa e registro de custo (\texttt{custo.py}, \texttt{calibracao.py}), extração (\texttt{coletar.py}), derivação determinística das camadas (\texttt{derivacao.py}), manifesto (\texttt{manifesto.py}), Landing (\texttt{landing.py}) e cliente do Hugging Face (\texttt{hf.py}).
+    \item[\texttt{src/data\_\allowbreak{}extract/}] chamada dos \emph{actors} da Apify e escrita da Bronze.
+    \item[\texttt{src/schemas\_\allowbreak{}delta.py}] contratos de esquema de todas as tabelas Bronze, Silver e Gold, usados na validação em tempo de execução e na geração do dicionário de dados (Apêndice~\ref{ap:dicionario}).
+    \item[\texttt{src/features/}] limpeza para a Silver (\texttt{silver/}) e agregações de engajamento e de UGC para a Gold (\texttt{gold/}), incluindo o enriquecimento com sentimento e tópicos (\texttt{model\_\allowbreak{}enricher.py}), a \emph{North Star Metric} (\texttt{nsm\_\allowbreak{}scorer.py}) e os escores ICE de temas e de pautas (\texttt{topic\_\allowbreak{}priority\_\allowbreak{}scorer.py}, \texttt{content\_\allowbreak{}topic\_\allowbreak{}priority\_\allowbreak{}scorer.py}).
+    \item[\texttt{src/modeling/}] a modelagem do Capítulo~\ref{Desenvolvimento}: pré-processamento textual (\texttt{preprocessing.py}), ACP (\texttt{pca.py}), busca automática de agrupamentos \texttt{AutoClusterHPO} (\texttt{clustering.py}), clusterização de perfis (\texttt{profile\_\allowbreak{}clustering.py}), análise de sentimentos (\texttt{sentiment.py}), modelagem de tópicos com BERTopic (\texttt{topics.py}), refinamento de rótulos via Gemini (\texttt{gemini\_\allowbreak{}refiner.py}, \texttt{topic\_\allowbreak{}labels.py}), regressão de desempenho por publicação (\texttt{post\_\allowbreak{}performance.py}), escore composto e Consistência (\texttt{governor\_\allowbreak{}scorecard.py}), métricas de crescimento (\texttt{growth\_\allowbreak{}history.py}), orquestração e \emph{checkpoint} (\texttt{orchestration.py}, \texttt{checkpoint.py}).
+    \item[\texttt{src/repositories/}] ponto único de leitura das tabelas Delta (\texttt{delta\_\allowbreak{}repository.py}), usado pela modelagem, pelos notebooks e pelo painel.
+    \item[\texttt{scripts/}] execuções isoladas: \texttt{run\_\allowbreak{}modeling.py} (estágio determinístico), \texttt{refine\_\allowbreak{}topics.py} (refinamento manual via Gemini), \texttt{run\_\allowbreak{}governor\_\allowbreak{}scorecard.py}, \texttt{run\_\allowbreak{}growth\_\allowbreak{}metrics.py}, \texttt{run\_\allowbreak{}profile\_\allowbreak{}clustering\_\allowbreak{}engagement.py}, \texttt{generate\_\allowbreak{}data\_\allowbreak{}dictionary.py} e \texttt{inspect\_\allowbreak{}runs.py}.
+    \item[\texttt{dashboard/}] o painel de apoio à decisão em Streamlit (Seção~\ref{sec:painel}): \texttt{app.py}, núcleo de acesso a dados, período, rótulos e tema (\texttt{core/}) e as Telas (\texttt{screens/}: Resumo com as sub-abas NSM, Funil e Scorecard; O que produzir; Discurso e reação; Comparar perfis; Radar).
+    \item[\texttt{lambdas/rebuild/}] função AWS Lambda que reconstrói Bronze, Silver e Gold no S3 a partir de uma Coleta publicada; a extração e a modelagem pesada permanecem locais.
+    \item[\texttt{tests/}] 74 arquivos de teste automatizado (cerca de 1.150 casos com \texttt{pytest}), cobrindo coleta, esquemas, modelagem, métricas e Telas do painel; executados em integração contínua a cada alteração, junto com a verificação de estilo (\texttt{ruff}).
+    \item[\texttt{docs/adr/}] registros de decisão de arquitetura; \texttt{docs/modelagens/}, fichas de cada modelagem (pergunta de negócio, dados, método, alternativas, validação e limitações); \texttt{CONTEXT.md}, glossário dos termos de domínio usados no painel e neste texto.
+    \item[\texttt{notebooks/}] ver Apêndice~\ref{ap:notebooks}.
+    \item[\texttt{reports/academic/}] este documento, em \LaTeX{} (classe \texttt{abntex2}), com as figuras geradas pelos notebooks.
+\end{description}
+
+\section*{Registros de decisão relevantes para este trabalho}
+
+As decisões de arquitetura são registradas em ADRs numerados. Os mais diretamente ligados ao que este texto descreve são:
+
+\begin{itemize}
+    \item ADR 0001, separação entre a modelagem determinística e o refinamento manual dos rótulos de tópico via LLM;
+    \item ADR 0003, modelagem fora dos notebooks, por scripts com \emph{checkpoint};
+    \item ADR 0019, regressão de desempenho por publicação (vídeo e estático) com Lasso e BERTopic;
+    \item ADR 0020, alinhamento do pipeline ao funil COBRA-RACE: \emph{North Star Metric}, Score ICE, CMGR, tópicos do discurso e UGC;
+    \item ADR 0021, painel organizado por decisão do analista, com o funil como visão dedicada;
+    \item ADR 0030, escore composto (\emph{scorecard}) com a lógica de indicadores compostos;
+    \item ADR 0034, UGC e comentários de publicações do \emph{feed} na extração única;
+    \item ADR 0038, correções de auditoria: rótulos legíveis, amostra mínima e privacidade;
+    \item ADR 0039, Coleta versionada no Hugging Face, Bronze fiel e reconstrução na nuvem;
+    \item ADR 0040, Tendência própria por governador e catálogo de modelagens;
+    \item ADR 0041, exclusão de publicações fixadas das métricas de publicações;
+    \item ADR 0045, Landing como registro bruto completo de toda Coleta;
+    \item ADR 0047, Consistência estimada por regressão por publicação e Tendência do engajamento no Scorecard.
+\end{itemize}

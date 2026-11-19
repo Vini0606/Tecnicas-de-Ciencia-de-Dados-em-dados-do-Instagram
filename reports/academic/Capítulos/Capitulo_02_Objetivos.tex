@@ -1,7 +1,7 @@
 % !TEX root = ../TCC - CD e IA.tex
 \chapter{Objetivos}\label{Objetivos e Organização do Trabalho}
 
-A partir da problemática identificada \textemdash{} a distância entre o grande volume de dados de engajamento gerados nas mídias sociais e a carência de metodologias que os convertam em decisões práticas de comunicação \textemdash{} este trabalho estabelece um conjunto de objetivos que orientam o desenvolvimento e a validação de uma ferramenta de apoio à decisão para assessorias políticas. Diferentemente de abordagens que se encerram na descrição da opinião pública, aqui as técnicas de Processamento de Linguagem Natural (PLN) e de clusterização são o \emph{motor} de um instrumento orientado à ação: um funil de engajamento que permite diagnosticar a saúde da audiência de um perfil e priorizar o que produzir, o que amplificar e o que abandonar. A análise não se restringe aos comentários dos usuários; abrange as três fontes textuais disponíveis nas publicações \textemdash{} os \textbf{comentários}, as \textbf{legendas} (\emph{captions}) e as \textbf{transcrições} da fala dos vídeos \textemdash{} articuladas às \textbf{métricas de engajamento}, de modo a contrastar o discurso produzido pela assessoria (legendas e transcrições) com a reação do público (comentários). Os objetivos delineiam as etapas desse percurso, da estruturação do pipeline de dados até a tradução dos resultados em recomendações acionáveis, articulando os construtos de \emph{Consumers' Online Brand-Related Activities} (COBRAs) \cite{MUNTINGA2011} e o funil de \emph{marketing} de crescimento \cite{FEROZ2024} ao estudo de caso dos governadores do Brasil.
+A partir da problemática identificada \textemdash{} a distância entre o grande volume de dados de engajamento gerados nas mídias sociais e a carência de metodologias que os convertam em decisões práticas de comunicação \textemdash{} este trabalho estabelece um conjunto de objetivos que orientam o desenvolvimento e a validação de uma ferramenta de apoio à decisão para assessorias políticas. Diferentemente de abordagens que se encerram na descrição da opinião pública, aqui as técnicas de Processamento de Linguagem Natural (PLN) e de clusterização são o \emph{motor} de um instrumento orientado à ação: um funil de engajamento que permite diagnosticar a saúde da audiência de um perfil e priorizar o que produzir, o que amplificar e o que abandonar. A análise não se restringe aos comentários dos usuários; abrange as duas fontes textuais das publicações \textemdash{} os \textbf{comentários} e as \textbf{legendas} (\emph{captions}) \textemdash{} articuladas às \textbf{métricas de engajamento}, de modo a contrastar o discurso produzido pela assessoria (legendas) com a reação do público (comentários). Os objetivos delineiam as etapas desse percurso, da estruturação do pipeline de dados até a tradução dos resultados em recomendações acionáveis, articulando os construtos de \emph{Consumers' Online Brand-Related Activities} (COBRAs) \cite{MUNTINGA2011} e o funil de \emph{marketing} de crescimento \cite{FEROZ2024} ao estudo de caso dos governadores do Brasil.
 
 \section{Objetivo geral}
 
@@ -12,11 +12,11 @@ Desenvolver e validar uma metodologia de modelagem híbrida baseada em Processam
 Este trabalho tem os seguintes objetivos específicos:
 
 \begin{enumerate}
-    \item Estruturar um pipeline de processamento de dados textuais e quantitativos extraídos do Instagram, contemplando a coleta, limpeza, normalização e preparação das três fontes textuais das publicações \textemdash{} comentários, legendas e transcrições dos vídeos \textemdash{} bem como das respectivas métricas de engajamento.
+    \item Estruturar um pipeline de processamento de dados textuais e quantitativos extraídos do Instagram, contemplando a coleta, limpeza, normalização e preparação das duas fontes textuais das publicações \textemdash{} comentários e legendas \textemdash{} bem como das respectivas métricas de engajamento.
 
-    \item Aplicar técnicas de análise de sentimentos para identificar as polaridades expressas, distinguindo o sentimento dos comentários dos usuários \textemdash{} tanto em publicações do \emph{feed} quanto em \emph{Reels} \textemdash{} do sentimento veiculado pelas legendas e transcrições produzidas pelas assessorias.
+    \item Aplicar técnicas de análise de sentimentos para identificar as polaridades expressas, distinguindo o sentimento dos comentários dos usuários \textemdash{} tanto em publicações do \emph{feed} quanto em \emph{Reels} \textemdash{} do sentimento veiculado pelas legendas produzidas pelas assessorias.
 
-    \item Implementar a modelagem de tópicos para extrair os principais temas em discussão, contrastando os temas emergentes nos comentários dos usuários com os temas do discurso oficial presente nas legendas e transcrições dos vídeos.
+    \item Implementar a modelagem de tópicos para extrair os principais temas em discussão, contrastando os temas emergentes nos comentários dos usuários com os temas do discurso oficial presente nas legendas das publicações.
 
     \item Aplicar algoritmos de clusterização em diferentes granularidades, agrupando por semelhança tanto as publicações \textemdash{} \emph{Reels} e posts do \emph{feed} \textemdash{} quanto os perfis dos governadores, de modo a revelar padrões de desempenho e de comportamento comunicacional.
 
@@ -24,7 +24,7 @@ Este trabalho tem os seguintes objetivos específicos:
 
     \item Comparar os resultados da abordagem híbrida com os de abordagens tradicionais ou isoladas, evidenciando o ganho analítico obtido ao integrar sentimento, tópicos e clusterização sobre as múltiplas fontes textuais e níveis de agregação.
 
-    \item Mapear os resultados da modelagem em um funil de engajamento acionável, articulando os níveis de COBRAs \cite{MUNTINGA2011} aos estágios do funil de crescimento \cite{FEROZ2024} e cruzando o discurso das assessorias (legendas e transcrições) com a resposta do público (comentários e métricas).
+    \item Mapear os resultados da modelagem em um funil de engajamento acionável, articulando os níveis de COBRAs \cite{MUNTINGA2011} aos estágios do funil de crescimento \cite{FEROZ2024} e cruzando o discurso das assessorias (legendas) com a resposta do público (comentários e métricas).
 
     \item Derivar, a partir desse mapeamento, recomendações práticas de \emph{growth} por perfil e por tipo de publicação, evidenciando como a ferramenta orienta a tomada de decisão de uma assessoria política.
 \end{enumerate}

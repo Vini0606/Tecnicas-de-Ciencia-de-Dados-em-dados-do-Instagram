@@ -1,54 +1,45 @@
 % !TEX root = ../TCC - CD e IA.tex
 \chapter{Conclusões}\label{Conclusões}
 
-% ==========================================================================
-% ROTEIRO GERAL DO CAPÍTULO 7
-% Sintetizar sem repetir. Responder à pergunta de pesquisa do cap.1 de forma
-% direta. Não introduzir resultado novo aqui — só consolidar.
-% ==========================================================================
-
-% ROTEIRO (parágrafo de abertura):
-% - Retomar a pergunta de pesquisa e afirmar, em 1 parágrafo, como o trabalho
-%   a respondeu: a metodologia híbrida, organizada em funil, virou ferramenta
-%   de decisão para assessorias.
+Este trabalho partiu de uma pergunta prática: como a integração de análise de sentimentos, modelagem de tópicos e clusterização, aplicada às fontes textuais e às métricas das publicações de perfis políticos no Instagram, pode ser organizada em um funil de engajamento capaz de orientar as decisões de crescimento de uma assessoria, isto é, o que produzir, o que amplificar e o que abandonar. A resposta construída ao longo dos capítulos anteriores é que essa integração só se torna orientação de decisão quando cada técnica deixa de ser um fim em si e passa a ocupar um lugar definido em um arcabouço: a clusterização segmenta as publicações e os perfis por desempenho, o sentimento qualifica esses segmentos e distingue aprovação de controvérsia, os tópicos explicam sobre o que o público reage e o que a assessoria pauta, e o funil COBRA-RACE ordena tudo isso em estágios que apontam onde intervir. Aplicada aos 26 governadores brasileiros com perfil ativo durante a campanha eleitoral de 2026, a metodologia produziu um diagnóstico por perfil, um conjunto de métricas de crescimento e recomendações concretas, consolidados em um painel de apoio à decisão.
 
 \section{Síntese das Contribuições}
 
-% ROTEIRO:
-% - Recuperar as duas frentes (metodológica e prática) do cap.1.
-% - Metodológica: pipeline híbrido integrando 3 técnicas sobre 3 fontes
-%   textuais e múltiplos níveis de agregação; refino de tópicos via LLM.
-% - Prática: o framework COBRA-RACE, a NSM, o contraste discurso x reação,
-%   e as recomendações por perfil.
-% - Retomar o achado central: alto engajamento != alta aprovação.
-% - Amarrar cada contribuição ao objetivo específico correspondente (1 a 8).
+No plano metodológico, o trabalho entregou um pipeline único que leva os dados do Instagram da extração às tabelas de decisão, com três propriedades que o distinguem de análises isoladas. Primeiro, a integração: o cruzamento dos grupos de desempenho com o sentimento dos comentários mostrou que, na Coleta do TCC, o corpo dos \emph{Reels} tem 7,9\% de comentários negativos e os 27 vídeos virais têm 21,3\%, e que, no \emph{feed}, a proporção de negativos sobe de 7,1\% no corpo para até 43,5\% nas publicações excepcionais, um achado que nenhuma das técnicas produziria sozinha e que inverte a leitura usual das métricas de engajamento.
+Segundo, a multiplicidade de fontes e de níveis: a mesma modelagem foi aplicada aos comentários (reação do público) e às legendas (discurso da assessoria), e os agrupamentos foram feitos tanto no nível das publicações (\emph{Reels} e \emph{feed}) quanto no nível dos perfis, o que permitiu confrontar o que se pauta com aquilo a que o público reage. Terceiro, a interpretabilidade: os rótulos de tópico foram refinados por um modelo de linguagem de grande porte, transformando listas de palavras-chave em descrições legíveis por um analista de comunicação, e cada etapa ficou registrada de forma reproduzível, com a Coleta versionada, o modelo persistido em \emph{checkpoint} e as decisões documentadas.
 
-Como entrega prática, o trabalho consolidou seus achados em um painel interativo de apoio à decisão, estruturado segundo o funil COBRA-RACE, que converte a análise em recomendações acionáveis e consultáveis para equipes de comunicação política.
+No plano prático, a contribuição é a tradução desse diagnóstico em instrumento de \emph{growth}. O funil COBRA-RACE deu a cada estágio uma métrica observável e um ponto de intervenção. A \emph{North Star Metric} de engajamento positivo qualificado reordenou os perfis em relação ao engajamento bruto, com 23 dos 26 perfis mudando de posição e deslocamentos de até nove posições,
+tornando mensurável a tese de que volume não é aprovação. O Score ICE ordenou pautas e temas por impacto, confiança e facilidade, produzindo uma fila de produção. O escore composto posicionou cada perfil entre os pares de forma decomponível, com a dimensão Consistência estimada por uma regressão sobre as próprias publicações do governador, acompanhada de intervalo de confiança e de um estado de Tendência. O estudo de caso mostrou, em três perfis escolhidos por regra e não por conveniência, que o mesmo arcabouço gera recomendações distintas para situações distintas. Essas entregas correspondem, uma a uma, aos oito objetivos específicos do Capítulo~\ref{Objetivos e Organização do Trabalho}: o pipeline (objetivo 1), o sentimento por fonte e origem (2), os tópicos de comentários e de discurso (3), a clusterização em dois níveis (4), a validação no estudo de caso real (5), a comparação com as análises isoladas (6), o mapeamento no funil (7) e as recomendações por perfil (8).
+
+Como entrega material, o trabalho consolidou seus achados em um painel interativo de apoio à decisão, organizado por decisão do analista e alimentado pelas mesmas tabelas que sustentam este texto, de modo que a análise aqui apresentada de forma estática pode ser refeita a cada nova Coleta.
 
 \section{Limitações do Estudo}
 
-% ROTEIRO (ser honesto — a banca valoriza):
-% - Dados observacionais, não experimentais (sem A/B): não se estabelece causalidade.
-% - Recorte temporal da coleta / poucos pontos para série histórica de CMGR.
-% - Transposição de construtos comerciais (COBRAs) ao político — ressalva já
-%   feita no cap.3, retomar aqui.
-% - Dependência de modelo de sentimento pré-treinado (possíveis vieses em PT-BR,
-%   ironia/sarcasmo em comentários políticos).
-% - Refino de tópicos via LLM introduz etapa não-determinística.
+As limitações a seguir condicionam o alcance das conclusões e foram, sempre que possível, tratadas no próprio desenho do trabalho.
+
+\begin{enumerate}
+    \item \textbf{Dados observacionais.} Todas as relações descritas são associações observadas em uma única Coleta, sem manipulação experimental. O trabalho não estabelece que um formato ou uma pauta \emph{cause} engajamento ou aprovação; estabelece que, no período observado, eles ocorreram juntos. As recomendações são hipóteses priorizadas, a serem confirmadas por teste.
+    \item \textbf{Comentários são uma amostra recente.} A plataforma devolve apenas os comentários mais recentes de cada publicação, com mediana de dez. As proporções de sentimento e os tópicos descrevem essa amostra, não a totalidade da conversa, e publicações com muitos comentários estão sub-representadas em volume, ainda que presentes.
+    \item \textbf{Transcrições não coletadas.} O discurso da assessoria foi analisado pelas legendas. A transcrição da fala dos vídeos é uma opção paga do extrator já prevista no código, não ativada nesta Coleta por custo. É a fonte mais rica do discurso em \emph{Reels} e sua ausência limita a análise do contraste discurso-reação para o formato de maior alcance.
+    \item \textbf{Período eleitoral e janela única.} A Coleta cobre 70 dias de campanha, um contexto de comunicação atípico. Não há várias Coletas, e por isso o crescimento de audiência entre medições do perfil permanece pendente; toda comparação temporal foi feita dentro da janela, por data de publicação. A Consistência, estimada sobre essa janela, é uma tendência de curto prazo.
+    \item \textbf{Transposição de construtos comerciais.} Os COBRAs e o funil RACE foram formulados para marcas. A ressalva feita no Capítulo~\ref{Referencial Teórico} vale para os resultados: no domínio político, parte do engajamento é movida por polarização afetiva, e o estágio de criação (UGC) mistura apoio e crítica que o volume sozinho não separa.
+    \item \textbf{Modelo de sentimento pré-treinado.} O classificador multilíngue não foi ajustado ao português político brasileiro. Ironia, sarcasmo e referências locais são fontes conhecidas de erro, e o rótulo ``neutro'' concentra os casos ambíguos. A confiança do modelo foi reportada, mas não há validação humana sistemática dos rótulos nesta Coleta.
+    \item \textbf{Etapa não determinística.} O refinamento dos rótulos de tópico por um LLM melhora a legibilidade, mas não é reproduzível bit a bit. O trabalho isolou essa etapa do restante do pipeline, que é determinístico com semente fixa, e persistiu os rótulos obtidos.
+    \item \textbf{Perfis com pouco dado.} Dois governadores publicaram menos de cinco vezes na janela. As estimativas por perfil foram marcadas como amostra insuficiente nesses casos, mas isso reduz o universo efetivo de algumas comparações.
+\end{enumerate}
 
 \section{Sugestões para Trabalhos Futuros}
 
-% ROTEIRO:
-% - Teste A/B de formato/tema fechando o loop de aprendizado de growth.
-% - Modelo preditivo de engajamento (prever cluster Padrão/Viral/Longo antes de postar).
-% - Extensão a outras figuras políticas / outras plataformas (comparabilidade).
-% - Análise temporal de retenção com mais coletas.
-% - Detecção de ironia/sarcasmo para refinar a análise de sentimento política.
+As direções abaixo seguem das limitações e do que o arcabouço deixou preparado.
+
+\begin{itemize}
+    \item \textbf{Fechar o ciclo de \emph{growth} com experimentação.} As recomendações do estudo de caso são hipóteses. Um teste A/B de formato ou de pauta, conduzido pela própria assessoria com o painel como instrumento de medição, converteria a associação observada em evidência causal e calibraria o Score ICE com dados de resultado.
+    \item \textbf{Coletar transcrições e ampliar a janela.} Ativar a transcrição no extrator de \emph{Reels} completa o lado do discurso; repetir a Coleta em períodos de gestão ordinária permite separar o efeito da campanha e alimenta as métricas que dependem de medições repetidas, como o crescimento de audiência. A Tendência já validada em simulação para indicadores de contagem pode então ser estendida aos indicadores de proporção e à visão agregada, conforme planejado.
+    \item \textbf{Modelo preditivo de desempenho.} A regressão de desempenho por publicação já implementada pode evoluir para um modelo que estime, antes da publicação, o grupo de desempenho provável de um conteúdo a partir de formato, pauta e horário, dando à assessoria uma previsão em vez de um diagnóstico.
+    \item \textbf{Sentimento ajustado ao domínio.} Um conjunto anotado de comentários políticos em português, com ironia e sarcasmo marcados, permitiria ajustar ou avaliar o classificador e quantificar o erro que hoje é apenas reconhecido.
+    \item \textbf{Extensão a outros atores e plataformas.} O pipeline é parametrizado por lista de perfis; aplicá-lo a prefeitos, parlamentares ou candidatos, e a outras redes com métricas comparáveis, testa a generalidade do arcabouço e permite comparações entre arenas.
+\end{itemize}
 
 \section{Considerações Finais}
 
-% ROTEIRO:
-% - 1 parágrafo de encerramento. Voltar ao "porquê" do trabalho: dar a
-%   assessorias uma ferramenta que substitui a intuição por evidência, num
-%   ambiente digital decisivo para a democracia. Fechar com a nota de que
-%   correlação não implica causalidade — postura que o trabalho manteve.
+O ponto de partida deste trabalho foi a constatação de que as assessorias políticas dispõem de muito dado e pouca orientação: as métricas de superfície abundam, mas raramente dizem o que fazer. A metodologia aqui desenvolvida substitui a intuição por evidência organizada, sem prometer mais do que o dado permite. Ela mostra em que estágio do funil a audiência de um perfil deixa de progredir, qualifica o engajamento pelo sentimento, confronta o que se pauta com aquilo a que o público reage e ordena as alternativas por prioridade. Em um ambiente digital que se tornou decisivo para a democracia, oferecer esse tipo de instrumento é também um compromisso com a comunicação pública informada. O trabalho manteve, do início ao fim, a postura de que correlação não implica causalidade: o que entrega não são certezas, mas um mapa confiável do terreno e uma fila de hipóteses priorizadas, prontas para serem testadas por quem toma a decisão.
