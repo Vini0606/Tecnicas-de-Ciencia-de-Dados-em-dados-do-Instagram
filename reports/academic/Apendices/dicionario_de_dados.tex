@@ -1,5 +1,7 @@
 % !TEX root = ../TCC - CD e IA.tex
-% Gerado por dicionario_tex.py a partir de reference/dicionario_de_dados_medallion.xlsx (scripts/generate_data_dictionary.py). Nao editar a mao.
+% Gerado por dicionario_tex.py a partir de reference/dicionario_de_dados_medallion.xlsx (scripts/generate_data_dictionary.py).
+% O gerador nao esta versionado; em 19/11/2026 (PR docs-tcc-latex-pretextuais) as aspas retas foram trocadas por aspas tipograficas a mao.
+% Se o apendice for regenerado, trocar de novo as aspas retas pelas tipograficas (`` e '') na saida.
 Este apêndice relaciona as tabelas das camadas Bronze, Silver e Gold e suas colunas. Os metadados técnicos (tabela, coluna, tipo) são extraídos dos contratos de esquema do código, de modo que o dicionário não diverge do que o pipeline valida em execução; as descrições de negócio são curadas no mesmo script que o gera. Colunas de rastreabilidade comuns a todas as tabelas (\texttt{\_run\_id}, \texttt{\_ingested\_at}, \texttt{\_generated\_at}, \texttt{\_source}, \texttt{\_source\_layer}) foram omitidas das listas de colunas.
 
 \section*{Tabelas}
@@ -24,13 +26,13 @@ Gold & \texttt{governor\_\allowbreak{}engagement} & Uma linha por perfil de gove
 Gold & \texttt{governor\_\allowbreak{}engagement\_\allowbreak{}history} & Uma linha por perfil POR execução de derivação na mesma pasta de dados (mesmo schema de governor\_\allowbreak{}engagement). & Base de série temporal de engajamento - permite calcular tendência/\allowbreak{}crescimento sem reprocessar Bronze/\allowbreak{}Silver. \\
 Gold & \texttt{governor\_\allowbreak{}sentiment} & Uma linha por texto avaliado (comentário, legenda ou transcrição) - granularidade mista, discriminada pela coluna `fonte`. & Sentimento (cardiffnlp/\allowbreak{}twitter-xlm-roberta-base-sentiment) e tópico BERTopic por texto avaliado. \\
 Gold & \texttt{governor\_\allowbreak{}sentiment\_\allowbreak{}history} & Uma linha por comentário/\allowbreak{}legenda/\allowbreak{}transcrição POR EXECUÇÃO de modelagem (mesmo schema de governor\_\allowbreak{}sentiment, em modo append). & Base de série temporal de sentimento - alimenta a retenção de sentimento positivo do CMGR/\allowbreak{}Ficha 7. \\
-Gold & \texttt{governor\_\allowbreak{}discourse\_\allowbreak{}topics} & Uma linha por legenda/\allowbreak{}transcrição avaliada pelo BERTopic de discurso oficial. & Tópicos do que a ASSESSORIA publica (legenda de post/\allowbreak{}reel + transcrição de fala) - BERTopic próprio, não misturado ao de comentário. Cada tópico de legenda é uma PAUTA (assunto do conteúdo) na fila de "O que produzir". \\
+Gold & \texttt{governor\_\allowbreak{}discourse\_\allowbreak{}topics} & Uma linha por legenda/\allowbreak{}transcrição avaliada pelo BERTopic de discurso oficial. & Tópicos do que a ASSESSORIA publica (legenda de post/\allowbreak{}reel + transcrição de fala) - BERTopic próprio, não misturado ao de comentário. Cada tópico de legenda é uma PAUTA (assunto do conteúdo) na fila de ``O que produzir''. \\
 Gold & \texttt{governor\_\allowbreak{}clusters\_\allowbreak{}reels} & Uma linha por Reel - clusterização de CONTEÚDO, não de perfil. & Cluster de engajamento/\allowbreak{}duração por reel (PCA -> KMeans/\allowbreak{}DBSCAN/\allowbreak{}Agglomerative via AutoClusterHPO, algoritmo eleito por score CVI combinado). \\
 Gold & \texttt{governor\_\allowbreak{}clusters\_\allowbreak{}posts} & Uma linha por post de feed - clusterização de CONTEÚDO, não de perfil. & Cluster de engajamento por post de feed (PCA -> KMeans/\allowbreak{}DBSCAN/\allowbreak{}Agglomerative via AutoClusterHPO, algoritmo eleito por score CVI combinado). \\
 Gold & \texttt{governor\_\allowbreak{}profile\_\allowbreak{}clusters\_\allowbreak{}engagement} & Uma linha por GOVERNADOR (não por post) - clusterização de PERFIL por padrão de engajamento. & Agrupa governadores por semelhança de padrão de engajamento (mesma pipeline PCA->AutoClusterHPO do nível de conteúdo, mas features agregadas por perfil). \\
 Gold & \texttt{post\_\allowbreak{}performance\_\allowbreak{}coefficients} & Uma linha por preditor por grupo (vídeo/\allowbreak{}estático) por execução - formato longo. & Coeficientes e R² (treino/\allowbreak{}holdout) da regressão Lasso que explica performance-por-post, separada em grupo vídeo (Reels) e estático (posts de imagem/\allowbreak{}carrossel) por terem preditores distintos (ex.: duração de vídeo só existe no grupo vídeo). \\
 Gold & \texttt{post\_\allowbreak{}performance\_\allowbreak{}predictions} & Uma linha por post individual (treino + holdout juntos, discriminados implicitamente pelo pipeline que os gerou). & Y real, Y previsto e resíduo por post - Y = (likesCount + commentsCount × \_\allowbreak{}WC\_\allowbreak{}COMENTARIO) /\allowbreak{} followersCount, a mesma lógica de taxa ponderada de governor\_\allowbreak{}engagement.\% ENGAJAMENTO, mas por post em vez de agregada por perfil. \\
-Gold & \texttt{topic\_\allowbreak{}priority\_\allowbreak{}score} & Uma linha por tópico de COMENTÁRIO (ranking global, não por governador). & Score ICE (Impacto x Confiança x Facilidade) de priorização de tópicos de COMENTÁRIO (grupos de comentários) - não confundir com `content\_\allowbreak{}topic\_\allowbreak{}priority\_\allowbreak{}score`, o ICE por PAUTA (assunto do conteúdo) que alimenta a fila de "O que produzir". \\
+Gold & \texttt{topic\_\allowbreak{}priority\_\allowbreak{}score} & Uma linha por tópico de COMENTÁRIO (ranking global, não por governador). & Score ICE (Impacto x Confiança x Facilidade) de priorização de tópicos de COMENTÁRIO (grupos de comentários) - não confundir com `content\_\allowbreak{}topic\_\allowbreak{}priority\_\allowbreak{}score`, o ICE por PAUTA (assunto do conteúdo) que alimenta a fila de ``O que produzir''. \\
 Gold & \texttt{governor\_\allowbreak{}nsm} & Uma linha por perfil de governador. & North Star Metric: (comentários positivos /\allowbreak{} comentários totais) × alcance médio - engajamento qualificado por QUALIDADE de reação, não só volume. \\
 Gold & \texttt{governor\_\allowbreak{}ugc\_\allowbreak{}mentions} & Uma linha por post de UGC (grão fino - agregação por governador é uma view em memória, não persistida). & UGC orgânico vs. publi paga por post, com `is\_\allowbreak{}organic` derivado de `paidPartnership` - separa apoio espontâneo de publi paga ANTES de qualquer agregação. \\
 Gold & \texttt{governor\_\allowbreak{}growth\_\allowbreak{}metrics} & Uma linha por perfil de governador - snapshot recalculável a partir do histórico acumulado (sempre overwrite, nunca append). & CMGR (crescimento mensal composto de seguidores) e retenção de sentimento positivo, calculados sobre governor\_\allowbreak{}engagement\_\allowbreak{}history/\allowbreak{}governor\_\allowbreak{}sentiment\_\allowbreak{}history. \\
@@ -71,7 +73,7 @@ Gold & \texttt{content\_\allowbreak{}topic\_\allowbreak{}priority\_\allowbreak{}
 \texttt{} & \texttt{shortCode} & string & Código curto do post/\allowbreak{}reel usado na URL pública do Instagram. \\
 \texttt{} & \texttt{caption} & string & Legenda/\allowbreak{}texto do post ou reel. \\
 \texttt{} & \texttt{videoViewCount} & int64 & Número de views do vídeo (métrica bruta do Apify, distinta de videoPlayCount). \\
-\texttt{} & \texttt{videoPlayCount} & int64 & Reproduções (plays) do vídeo - Reels/\allowbreak{}vídeo de feed. Nome correto da métrica: "reproduções (plays)", nunca "visualizações únicas" nem alcance. Insumo de Alcance/\allowbreak{}Profundidade do governor\_\allowbreak{}scorecard e do estágio "Visualizações" do funil. \\
+\texttt{} & \texttt{videoPlayCount} & int64 & Reproduções (plays) do vídeo - Reels/\allowbreak{}vídeo de feed. Nome correto da métrica: ``reproduções (plays)'', nunca ``visualizações únicas'' nem alcance. Insumo de Alcance/\allowbreak{}Profundidade do governor\_\allowbreak{}scorecard e do estágio ``Visualizações'' do funil. \\
 \texttt{} & \texttt{videoDuration} & double & Duração do vídeo em segundos. \\
 \texttt{} & \texttt{locationName} & string & Nome do local marcado no post (quando presente). \\
 \texttt{} & \texttt{isPinned} & bool & Se o reel está fixado no perfil. \\
@@ -83,7 +85,7 @@ Gold & \texttt{content\_\allowbreak{}topic\_\allowbreak{}priority\_\allowbreak{}
 \texttt{} & \texttt{commentsCount} & int64 & Número de comentários. \\
 \texttt{} & \texttt{likesCount} & int64 & Número de curtidas. \\
 \texttt{} & \texttt{videoViewCount} & int64 & Número de views do vídeo (métrica bruta do Apify, distinta de videoPlayCount). \\
-\texttt{} & \texttt{videoPlayCount} & int64 & Reproduções (plays) do vídeo - Reels/\allowbreak{}vídeo de feed. Nome correto da métrica: "reproduções (plays)", nunca "visualizações únicas" nem alcance. Insumo de Alcance/\allowbreak{}Profundidade do governor\_\allowbreak{}scorecard e do estágio "Visualizações" do funil. \\
+\texttt{} & \texttt{videoPlayCount} & int64 & Reproduções (plays) do vídeo - Reels/\allowbreak{}vídeo de feed. Nome correto da métrica: ``reproduções (plays)'', nunca ``visualizações únicas'' nem alcance. Insumo de Alcance/\allowbreak{}Profundidade do governor\_\allowbreak{}scorecard e do estágio ``Visualizações'' do funil. \\
 \texttt{} & \texttt{videoDuration} & double & Duração do vídeo em segundos. \\
 \texttt{} & \texttt{timestamp} & string & Timestamp bruto do Apify, como string ISO - ver `data\_\allowbreak{}hora` para a versão já parseada/\allowbreak{}tipada (Silver). \\
 \texttt{} & \texttt{type} & string & Tipo bruto do post retornado pelo Apify (Image/\allowbreak{}Video/\allowbreak{}Sidecar/\allowbreak{}Reel). \\
@@ -101,7 +103,7 @@ Gold & \texttt{content\_\allowbreak{}topic\_\allowbreak{}priority\_\allowbreak{}
 \texttt{} & \texttt{taggedUsers} & string & Lista de objetos (um por pessoa marcada visualmente na foto/\allowbreak{}vídeo, com `username`/\allowbreak{}`full\_\allowbreak{}name`/\allowbreak{}`is\_\allowbreak{}verified`/\allowbreak{}`is\_\allowbreak{}private`) do post de UGC, serializada como JSON string - substitui o campo `matchTypes` (não existe no actor real); presente em \textasciitilde{}69\% dos posts, mais frequente que `mentions`. \\
 \texttt{} & \texttt{likesCount} & int64 & Número de curtidas. \\
 \texttt{} & \texttt{commentsCount} & int64 & Número de comentários. \\
-\texttt{} & \texttt{videoPlayCount} & int64 & Reproduções (plays) do vídeo - Reels/\allowbreak{}vídeo de feed. Nome correto da métrica: "reproduções (plays)", nunca "visualizações únicas" nem alcance. Insumo de Alcance/\allowbreak{}Profundidade do governor\_\allowbreak{}scorecard e do estágio "Visualizações" do funil. \\
+\texttt{} & \texttt{videoPlayCount} & int64 & Reproduções (plays) do vídeo - Reels/\allowbreak{}vídeo de feed. Nome correto da métrica: ``reproduções (plays)'', nunca ``visualizações únicas'' nem alcance. Insumo de Alcance/\allowbreak{}Profundidade do governor\_\allowbreak{}scorecard e do estágio ``Visualizações'' do funil. \\
 \texttt{} & \texttt{timestamp} & string & Timestamp bruto do Apify, como string ISO - ver `data\_\allowbreak{}hora` para a versão já parseada/\allowbreak{}tipada (Silver). \\
 \texttt{} & \texttt{ownerUsername} & string & Username de quem publicou o post de UGC (autor terceiro que marcou/\allowbreak{}mencionou o governador - Bronze, nome real do actor apify/\allowbreak{}instagram-tagged-scraper). Normalizado para `authorUsername` na Silver. \\
 \texttt{} & \texttt{ownerFullName} & string & Nome completo de quem publicou o post de UGC (Bronze, confirmado pelo piloto real). \\
@@ -140,7 +142,7 @@ Gold & \texttt{content\_\allowbreak{}topic\_\allowbreak{}priority\_\allowbreak{}
 \texttt{} & \texttt{shortCode} & string & Código curto do post/\allowbreak{}reel usado na URL pública do Instagram. \\
 \texttt{} & \texttt{caption} & string & Legenda/\allowbreak{}texto do post ou reel. \\
 \texttt{} & \texttt{hashtags} & string & Hashtags extraídas da legenda do post - alimenta o BERTopic de tema sobre captions (ADR 0019 parte B). \\
-\texttt{} & \texttt{videoPlayCount} & int64 & Reproduções (plays) do vídeo - Reels/\allowbreak{}vídeo de feed. Nome correto da métrica: "reproduções (plays)", nunca "visualizações únicas" nem alcance. Insumo de Alcance/\allowbreak{}Profundidade do governor\_\allowbreak{}scorecard e do estágio "Visualizações" do funil. \\
+\texttt{} & \texttt{videoPlayCount} & int64 & Reproduções (plays) do vídeo - Reels/\allowbreak{}vídeo de feed. Nome correto da métrica: ``reproduções (plays)'', nunca ``visualizações únicas'' nem alcance. Insumo de Alcance/\allowbreak{}Profundidade do governor\_\allowbreak{}scorecard e do estágio ``Visualizações'' do funil. \\
 \texttt{} & \texttt{videoDuration} & double & Duração do vídeo em segundos. \\
 \texttt{} & \texttt{isPinned} & bool & Se o reel está fixado no perfil. \\
 \texttt{reels\_\allowbreak{}clean} & \texttt{id} & string & Identificador único do registro na origem (Instagram/\allowbreak{}Apify) - semântica varia por tabela, ver coluna Grão. \\
@@ -149,7 +151,7 @@ Gold & \texttt{content\_\allowbreak{}topic\_\allowbreak{}priority\_\allowbreak{}
 \texttt{} & \texttt{inputUrl} & string & URL do perfil de Instagram do governador (chave de junção mais usada entre perfis/\allowbreak{}posts/\allowbreak{}reels/\allowbreak{}Gold). \\
 \texttt{} & \texttt{commentsCount} & int64 & Número de comentários. \\
 \texttt{} & \texttt{likesCount} & int64 & Número de curtidas. \\
-\texttt{} & \texttt{videoPlayCount} & int64 & Reproduções (plays) do vídeo - Reels/\allowbreak{}vídeo de feed. Nome correto da métrica: "reproduções (plays)", nunca "visualizações únicas" nem alcance. Insumo de Alcance/\allowbreak{}Profundidade do governor\_\allowbreak{}scorecard e do estágio "Visualizações" do funil. \\
+\texttt{} & \texttt{videoPlayCount} & int64 & Reproduções (plays) do vídeo - Reels/\allowbreak{}vídeo de feed. Nome correto da métrica: ``reproduções (plays)'', nunca ``visualizações únicas'' nem alcance. Insumo de Alcance/\allowbreak{}Profundidade do governor\_\allowbreak{}scorecard e do estágio ``Visualizações'' do funil. \\
 \texttt{} & \texttt{videoDuration} & double & Duração do vídeo em segundos. \\
 \texttt{} & \texttt{data\_\allowbreak{}hora} & timestamp[us] & Timestamp parseado e convertido para America/\allowbreak{}Sao\_\allowbreak{}Paulo (naive), a partir de `timestamp` bruto (PostCleaner.\_\allowbreak{}parse\_\allowbreak{}timestamp). \\
 \texttt{} & \texttt{Tipo} & string & Granularidade fixada pelo cleaner: 'FEED' (posts\_\allowbreak{}clean) ou 'REELS' (reels\_\allowbreak{}clean) - não confundir com `type\_\allowbreak{}raw` (bruto do Apify). \\
@@ -191,7 +193,7 @@ Gold & \texttt{content\_\allowbreak{}topic\_\allowbreak{}priority\_\allowbreak{}
 \texttt{} & \texttt{paidPartnership} & bool & Flag de parceria paga (publi) declarada pelo Instagram no post de UGC - único campo de publi que o actor real expõe (piloto 2026-09-19); `isAd`/\allowbreak{}`isAffiliate` da especificação original não existem. \\
 \texttt{} & \texttt{likesCount} & int64 & Número de curtidas. \\
 \texttt{} & \texttt{commentsCount} & int64 & Número de comentários. \\
-\texttt{} & \texttt{videoPlayCount} & int64 & Reproduções (plays) do vídeo - Reels/\allowbreak{}vídeo de feed. Nome correto da métrica: "reproduções (plays)", nunca "visualizações únicas" nem alcance. Insumo de Alcance/\allowbreak{}Profundidade do governor\_\allowbreak{}scorecard e do estágio "Visualizações" do funil. \\
+\texttt{} & \texttt{videoPlayCount} & int64 & Reproduções (plays) do vídeo - Reels/\allowbreak{}vídeo de feed. Nome correto da métrica: ``reproduções (plays)'', nunca ``visualizações únicas'' nem alcance. Insumo de Alcance/\allowbreak{}Profundidade do governor\_\allowbreak{}scorecard e do estágio ``Visualizações'' do funil. \\
 \texttt{} & \texttt{data\_\allowbreak{}hora} & timestamp[us] & Timestamp parseado e convertido para America/\allowbreak{}Sao\_\allowbreak{}Paulo (naive), a partir de `timestamp` bruto (PostCleaner.\_\allowbreak{}parse\_\allowbreak{}timestamp). \\
 \end{longtable}
 \end{footnotesize}
@@ -329,7 +331,7 @@ Gold & \texttt{content\_\allowbreak{}topic\_\allowbreak{}priority\_\allowbreak{}
 \texttt{} & \texttt{caption} & string & Legenda do post de UGC (do autor terceiro, não do governador). \\
 \texttt{} & \texttt{likesCount} & int64 & Número de curtidas. \\
 \texttt{} & \texttt{commentsCount} & int64 & Número de comentários. \\
-\texttt{} & \texttt{videoPlayCount} & int64 & Reproduções (plays) do vídeo - Reels/\allowbreak{}vídeo de feed. Nome correto da métrica: "reproduções (plays)", nunca "visualizações únicas" nem alcance. Insumo de Alcance/\allowbreak{}Profundidade do governor\_\allowbreak{}scorecard e do estágio "Visualizações" do funil. \\
+\texttt{} & \texttt{videoPlayCount} & int64 & Reproduções (plays) do vídeo - Reels/\allowbreak{}vídeo de feed. Nome correto da métrica: ``reproduções (plays)'', nunca ``visualizações únicas'' nem alcance. Insumo de Alcance/\allowbreak{}Profundidade do governor\_\allowbreak{}scorecard e do estágio ``Visualizações'' do funil. \\
 \texttt{} & \texttt{is\_\allowbreak{}organic} & bool & Derivado de `paidPartnership`: True quando ausente/\allowbreak{}False - separa apoio espontâneo de publi paga. \\
 \texttt{} & \texttt{data\_\allowbreak{}hora} & timestamp[us] & Timestamp parseado e convertido para America/\allowbreak{}Sao\_\allowbreak{}Paulo (naive), a partir de `timestamp` bruto (PostCleaner.\_\allowbreak{}parse\_\allowbreak{}timestamp). \\
 \texttt{governor\_\allowbreak{}growth\_\allowbreak{}metrics} & \texttt{inputUrl} & string & URL do perfil de Instagram do governador (chave de junção mais usada entre perfis/\allowbreak{}posts/\allowbreak{}reels/\allowbreak{}Gold). \\
@@ -348,7 +350,7 @@ Gold & \texttt{content\_\allowbreak{}topic\_\allowbreak{}priority\_\allowbreak{}
 \texttt{} & \texttt{nota} & string & Texto explicando por que o resultado é (ou não) ilustrativo, para exibição direta em dashboard/\allowbreak{}relatório sem reprocessar nada. \\
 \texttt{governor\_\allowbreak{}scorecard} & \texttt{inputUrl} & string & URL do perfil do governador (chave de junção; normalizada em minúsculas, sem espaços e sem barra final para cruzar Silver e Gold). \\
 \texttt{} & \texttt{username} & string & Username do perfil (de governor\_\allowbreak{}engagement); pode ser nulo. \\
-\texttt{} & \texttt{alcance} & double & Dimensão Alcance bruta: média de videoPlayCount (REPRODUÇÕES /\allowbreak{} plays, nunca "visualizações únicas") dos reels do perfil. Posts de feed não têm plays e não entram. Nulo sem reels com plays. \\
+\texttt{} & \texttt{alcance} & double & Dimensão Alcance bruta: média de videoPlayCount (REPRODUÇÕES /\allowbreak{} plays, nunca ``visualizações únicas'') dos reels do perfil. Posts de feed não têm plays e não entram. Nulo sem reels com plays. \\
 \texttt{} & \texttt{ativacao} & double & Dimensão Ativação bruta: média de likesCount dos reels /\allowbreak{} followersCount do perfil. Nulo sem reels ou sem seguidores. \\
 \texttt{} & \texttt{qualidade} & double & Dimensão Qualidade bruta: comentários positivos /\allowbreak{} comentários totais do perfil (só governor\_\allowbreak{}sentiment com fonte == 'comentario'). Nulo sem comentários. \\
 \texttt{} & \texttt{profundidade} & double & Dimensão Profundidade bruta: média de commentsCount /\allowbreak{} média de videoPlayCount, ambas sobre os reels com plays (mesma base do Alcance). Nulo sem reels com plays. \\
@@ -369,7 +371,7 @@ Gold & \texttt{content\_\allowbreak{}topic\_\allowbreak{}priority\_\allowbreak{}
 \texttt{} & \texttt{escore} & double & Escore composto 0-100: média simples das dimensões normalizadas disponíveis (soma ponderada com pesos iguais: 0,20 com 5 dimensões, 0,25 com 4). Nulo com < 4 dimensões. Relativo ao grupo de perfis. \\
 \texttt{} & \texttt{ranking} & int64 & Posição do perfil pelo escore (1 = maior; desempate por inputUrl). Nulo quando o perfil não tem escore. \\
 \texttt{content\_\allowbreak{}topic\_\allowbreak{}priority\_\allowbreak{}score} & \texttt{Topic} & int64 & Id numérico do tópico de DISCURSO (BERTopic de legendas) que define a pauta - espaço de ids distinto do tópico de comentário. O ruído (-1) nunca é pauta. \\
-\texttt{} & \texttt{Name} & string & Rótulo da pauta: tópico de discurso sem o prefixo de id; rótulo refinado via Gemini quando o refino do discurso rodou, palavras-chave separadas por vírgula quando provisório, ou "sem assunto definido" quando o tópico é degenerado. \\
+\texttt{} & \texttt{Name} & string & Rótulo da pauta: tópico de discurso sem o prefixo de id; rótulo refinado via Gemini quando o refino do discurso rodou, palavras-chave separadas por vírgula quando provisório, ou ``sem assunto definido'' quando o tópico é degenerado. \\
 \texttt{} & \texttt{n\_\allowbreak{}reels} & int64 & Número de reels distintos cuja legenda pertence à pauta e que receberam ao menos um comentário. \\
 \texttt{} & \texttt{n\_\allowbreak{}comentarios} & int64 & Número de comentários (fonte == 'comentario') dos reels da pauta - cada reel conta numa única pauta, então os totais somam o total real de comentários com pauta. \\
 \texttt{} & \texttt{n\_\allowbreak{}comentarios\_\allowbreak{}positivos} & int64 & Comentários da pauta com sentiment\_\allowbreak{}label == 'positive'. \\
@@ -380,6 +382,6 @@ Gold & \texttt{content\_\allowbreak{}topic\_\allowbreak{}priority\_\allowbreak{}
 \texttt{} & \texttt{confianca} & double & Média de sentiment\_\allowbreak{}score (confiança do classificador, não polaridade) dos comentários da pauta. \\
 \texttt{} & \texttt{impacto} & double & alcance\_\allowbreak{}normalizado x proporcao\_\allowbreak{}sentimento\_\allowbreak{}positivo. \\
 \texttt{} & \texttt{facilidade} & double & Fixa em 1,0 (v1) - sem dado de custo de produção real. \\
-\texttt{} & \texttt{score} & double & Impacto x Confiança x Facilidade - base do selo de prioridade (Alta/\allowbreak{}Média/\allowbreak{}Cuidado por tercis do ranking global de pautas) na fila de "O que produzir". \\
+\texttt{} & \texttt{score} & double & Impacto x Confiança x Facilidade - base do selo de prioridade (Alta/\allowbreak{}Média/\allowbreak{}Cuidado por tercis do ranking global de pautas) na fila de ``O que produzir''. \\
 \end{longtable}
 \end{footnotesize}

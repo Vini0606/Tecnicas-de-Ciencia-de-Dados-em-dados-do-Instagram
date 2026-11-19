@@ -48,11 +48,10 @@ TO & Wanderlei Barbosa (Republicanos) & 231.537 & 48 & 48 & 48 & 406 & 920 \\
 \multicolumn{2}{l}{\textbf{Total (26 perfis)}} & 29.730.890 & 5.904 & 8.437 & 8.488 & 75.634 & 16.813 \\
 \bottomrule
 \end{tabular}
-\par\smallskip
-\raggedright\footnotesize Fonte: camada Silver da Coleta do TCC. ``Únicas'' desconta os \emph{Reels} que também aparecem como publicação do \emph{feed}. ``Coment.'' são comentários únicos, de \emph{Reels} e de publicações do \emph{feed}. UGC são publicações de terceiros que marcam o perfil do governador.
+\fonte{Elaboração própria (2026), a partir da camada Silver da Coleta do TCC. ``Únicas'' desconta os \emph{Reels} que também aparecem como publicação do \emph{feed}. ``Coment.'' são comentários únicos, de \emph{Reels} e de publicações do \emph{feed}. UGC são publicações de terceiros que marcam o perfil do governador.}
 \end{table}
 
-Dois perfis merecem nota já aqui. Os governadores do Distrito Federal e de Rondônia publicaram, respectivamente, 2 e 3 vezes na janela de 70 dias, volumes insuficientes para qualquer estimativa por perfil. Nas análises que exigem amostra mínima (sentimento por perfil, \emph{North Star Metric}, escore composto), esses perfis são sinalizados como ``amostra insuficiente'' em vez de receberem um valor pouco confiável. O mesmo se aplica, com menos intensidade, ao Rio Grande do Sul e ao Tocantins.
+Dois perfis merecem nota já aqui. Os governadores do Distrito Federal e de Rondônia publicaram, respectivamente, 2 e 3 vezes na janela de 71 dias, volumes insuficientes para qualquer estimativa por perfil. Nas análises que exigem amostra mínima (sentimento por perfil, \emph{North Star Metric}, escore composto), esses perfis são sinalizados como ``amostra insuficiente'' em vez de receberem um valor pouco confiável. O mesmo se aplica, com menos intensidade, ao Rio Grande do Sul e ao Tocantins.
 
 \section{A Coleta do TCC: Recorte e cobertura}\label{sec:coleta-tcc}
 
@@ -87,9 +86,10 @@ Publicações únicas & --- & 8.488 & \emph{feed} e \emph{Reels}, sem duplicidad
 Comentários de \emph{Reels} & --- & 52.464 & até os 10 a 12 mais recentes por vídeo \\
 Comentários do \emph{feed} & --- & 75.120 & idem; 51.950 coincidem com os de \emph{Reels} \\
 Comentários únicos & --- & 75.634 & 8.466 publicações com ao menos um comentário \\
-UGC (marcações) & 16.849 & 16.824 & 17 governadores com marcações, 9 sem nenhuma \\
+UGC (marcações) & 16.849 & 16.824 & 16.824 publicações distintas (25 linhas repetidas na Bronze); 17 governadores com marcações, 9 sem nenhuma \\
 \bottomrule
 \end{tabular}
+\fonte{Elaboração própria (2026), a partir do manifesto e das camadas Bronze e Silver da Coleta do TCC.}
 \end{table}
 
 A diferença entre itens brutos e limpos vem de duas operações da camada Silver: a exclusão de registros fora do Recorte que o \emph{actor} ainda devolveu e a eliminação de duplicatas do mesmo identificador. A sobreposição entre \emph{Reels} e \emph{feed} é estrutural, não um erro: o Instagram exibe os \emph{Reels} na grade do perfil, logo o extrator de publicações também os captura. O projeto mantém as duas tabelas separadas, porque só o extrator de \emph{Reels} devolve reproduções e duração, e deduplica por identificador sempre que as duas são combinadas.

@@ -22,6 +22,7 @@ Converter (\emph{Convert}) & Contribuir & Comentários classificados como positi
 Engajar (\emph{Engage}) & Criar & Publicações de terceiros que marcam o perfil (UGC) & Volume e organicidade do UGC por perfil \\
 \bottomrule
 \end{tabular}
+\fonte{Elaboração própria (2026), com base em \citeonline{muntinga2011} e \citeonline{feroz2024}, sobre a Coleta do TCC.}
 \end{table}
 
 Duas observações delimitam a leitura. Primeiro, as reproduções existem apenas para \emph{Reels}, de modo que o estágio de alcance é medido pelo formato de vídeo, que responde por 69\% das publicações da janela; para as publicações estáticas, o alcance não é observável e o funil começa na ativação. Segundo, o estágio de criação é medido pelo volume de UGC, sem distinguir apoio de crítica; essa distinção exigiria classificar o sentimento das legendas de terceiros, o que fica como extensão. A regra de leitura do funil é identificar o estágio em que a razão de conversão de um perfil fica abaixo da mediana dos demais: esse é o ponto que demanda intervenção, e é nele que as recomendações da Seção~\ref{sec:estudo-caso} se concentram.
@@ -34,7 +35,7 @@ A segmentação dos \emph{Reels} (Seção~\ref{sec:clusterizacao}) produziu trê
 No \emph{feed}, a segmentação com apenas curtidas e comentários fragmentou a cauda em catorze grupos (Seção~\ref{sec:clusterizacao}), que se leem como três faixas de ativação. O corpo (7.400 publicações, 87,7\%) tem mediana de 2.230 curtidas; a faixa acima da média (921 publicações, 10,9\%) vai de 24 mil a 90 mil curtidas médias; e a faixa excepcional (116 publicações, 1,4\%) vai de 150 mil a 2,25 milhões de curtidas médias, quase sempre com um único perfil por grupo. A comparação com os \emph{Reels} é instrutiva: como 5.856 das publicações do \emph{feed} são os próprios \emph{Reels} vistos pela grade, as faixas de ativação do \emph{feed} coincidem em grande parte com os grupos de alcance dos vídeos, e as 2.584 publicações estáticas (imagens e carrosséis) concentram-se no corpo. A publicação estática é, na Coleta, um formato de manutenção da ativação, raramente de ruptura; o vídeo é o formato pelo qual as rupturas acontecem.
 
 
-A segmentação dos perfis, por sua vez, é a menos informativa das três, e a sua leitura deve ser funcional, no sentido em que \citeonline{flesch2017} nomeia grupos pelo papel que desempenham e não pela sua posição numérica. O DBSCAN separou dois núcleos e deixou 21 perfis como corpo heterogêneo (Seção~\ref{sec:clusterizacao}). O primeiro núcleo, \textbf{base grande e resposta baixa}, reúne Antonio Denarium (RR), Mauro Mendes (MT) e Wilson Lima (AM): publicam com regularidade (cerca de três publicações por dia) mas obtêm 2,7\% de engajamento por seguidor na janela, contra 9,7\% no corpo. O segundo núcleo, \textbf{perfis inativos}, reúne Ibaneis Rocha (DF) e Marcos Rocha (RO), com duas e três publicações em 70 dias, para os quais nenhuma métrica de desempenho é interpretável. O corpo heterogêneo contém desde os perfis de maior resposta relativa (Clécio Luís, AP, com 21,1\% de engajamento por seguidor; Ricardo Ferraço, ES, com 18,6\%; Fábio Mitidieri, SE, com 17,7\%) até perfis de grande base e resposta modesta (Tarcísio de Freitas, SP, com 7,3\%; Romeu Zema, MG, com 5,4\%; Ronaldo Caiado, GO, com 3,6\%). Essa dispersão é exatamente o que o escore composto da Seção~\ref{sec:scorecard} organiza, com cinco dimensões em vez de três e uma ordenação em vez de grupos.
+A segmentação dos perfis, por sua vez, é a menos informativa das três, e a sua leitura deve ser funcional, no sentido em que \citeonline{flesch2017} nomeia grupos pelo papel que desempenham e não pela sua posição numérica. O DBSCAN separou dois núcleos e deixou 21 perfis como corpo heterogêneo (Seção~\ref{sec:clusterizacao}). O primeiro núcleo, \textbf{base grande e resposta baixa}, reúne Antonio Denarium (RR), Mauro Mendes (MT) e Wilson Lima (AM): publicam com regularidade (cerca de três publicações por dia) mas obtêm 2,7\% de engajamento por seguidor na janela, contra 9,7\% no corpo. O segundo núcleo, \textbf{perfis inativos}, reúne Ibaneis Rocha (DF) e Marcos Rocha (RO), com duas e três publicações em 71 dias, para os quais nenhuma métrica de desempenho é interpretável. O corpo heterogêneo contém desde os perfis de maior resposta relativa (Clécio Luís, AP, com 21,1\% de engajamento por seguidor; Ricardo Ferraço, ES, com 18,6\%; Fábio Mitidieri, SE, com 17,7\%) até perfis de grande base e resposta modesta (Tarcísio de Freitas, SP, com 7,3\%; Romeu Zema, MG, com 5,4\%; Ronaldo Caiado, GO, com 3,6\%). Essa dispersão é exatamente o que o escore composto da Seção~\ref{sec:scorecard} organiza, com cinco dimensões em vez de três e uma ordenação em vez de grupos.
 
 
 \section{Qualificação dos Segmentos pelo Sentimento}\label{sec:qualificacao}
@@ -103,8 +104,7 @@ Antonio Denarium & RR & 2.026 & 63,9\% & 971 & 620 & 23 & 25 \\
 Eduardo Riedel & MS & 1.581 & 15,2\% & 1.899 & 289 & 21 & 26 \\
 \bottomrule
 \end{tabular}
-\par\smallskip
-\raggedright\footnotesize Fonte: Gold \texttt{governor\_nsm}. ``Eng. médio'' é o engajamento (curtidas e comentários) médio por publicação; a NSM é o produto da proporção de positivos pelo engajamento médio. $^{*}$Amostra de comentários insuficiente para leitura.
+\fonte{Elaboração própria (2026), a partir da tabela Gold \texttt{governor\_nsm} da Coleta do TCC. ``Eng. médio'' é o engajamento (curtidas e comentários) médio por publicação; a NSM é o produto da proporção de positivos pelo engajamento médio. $^{*}$Amostra de comentários insuficiente para leitura.}
 \end{table}
 
 \begin{figure}[htb]
@@ -112,14 +112,13 @@ Eduardo Riedel & MS & 1.581 & 15,2\% & 1.899 & 289 & 21 & 26 \\
 \caption{Posição dos perfis pelo engajamento bruto e pela \emph{North Star Metric}}
 \label{fig:nsm_vs_bruto}
 \includegraphics[width=0.95\textwidth]{Figuras/nsm_vs_bruto.png}
-\par\smallskip
-\raggedright\footnotesize Fonte: Gold \texttt{governor\_nsm}.
+\fonte{Elaboração própria (2026), a partir da tabela Gold \texttt{governor\_nsm} da Coleta do TCC.}
 \end{figure}
 
 
 \subsection{Consistência e Tendência do Engajamento}\label{sec:consistencia}
 
-O crescimento ao longo do tempo é a dimensão que distingue uma estratégia de um golpe de sorte. A formulação original do projeto media essa dimensão por uma taxa de crescimento mensal composta (CMGR) sobre médias mensais de engajamento por publicação, exigindo quatro meses válidos. A janela da Coleta tem 70 dias, portanto três meses civis, o que deixaria a dimensão indefinida para todos os perfis; e, mesmo quando disponível, uma reta por três ou quatro pontos não carrega nenhuma medida de incerteza. Adotou-se, em seu lugar, uma estimativa por \textbf{regressão sobre as próprias publicações} do perfil, que usa as 8.488 publicações como observações em vez de três agregados. Para cada perfil, ajusta-se por mínimos quadrados ordinários
+O crescimento ao longo do tempo é a dimensão que distingue uma estratégia de um golpe de sorte. A formulação original do projeto media essa dimensão por uma taxa de crescimento mensal composta (CMGR) sobre médias mensais de engajamento por publicação, exigindo quatro meses válidos. A janela da Coleta tem 71 dias, portanto três meses civis, o que deixaria a dimensão indefinida para todos os perfis; e, mesmo quando disponível, uma reta por três ou quatro pontos não carrega nenhuma medida de incerteza. Adotou-se, em seu lugar, uma estimativa por \textbf{regressão sobre as próprias publicações} do perfil, que usa as 8.488 publicações como observações em vez de três agregados. Para cada perfil, ajusta-se por mínimos quadrados ordinários
 
 \begin{equation}
 \log(y_{ij}) = \alpha_i + \beta_i\, t_{ij} + \gamma_i\, f_{ij} + \varepsilon_{ij},
@@ -169,8 +168,7 @@ Ibaneis Rocha & DF & --- & --- & --- & 2 & 2 & Dados insuficientes \\
 Marcos Rocha & RO & --- & --- & --- & 3 & 3 & Dados insuficientes \\
 \bottomrule
 \end{tabular}
-\par\smallskip
-\raggedright\footnotesize Fonte: Gold \texttt{governor\_scorecard}. ``Publ.'' e ``Dias'' são as publicações e os dias distintos usados na regressão; ``Estável'' indica intervalo que inclui zero ou efeito abaixo de 5\% ao mês.
+\fonte{Elaboração própria (2026), a partir da tabela Gold \texttt{governor\_scorecard} da Coleta do TCC. ``Publ.'' e ``Dias'' são as publicações e os dias distintos usados na regressão; ``Estável'' indica intervalo que inclui zero ou efeito abaixo de 5\% ao mês.}
 \end{table}
 
 \begin{figure}[htb]
@@ -178,8 +176,7 @@ Marcos Rocha & RO & --- & --- & --- & 3 & 3 & Dados insuficientes \\
 \caption{Taxa mensal de variação do engajamento por publicação, com intervalo de confiança de 95\%}
 \label{fig:consistencia}
 \includegraphics[width=0.95\textwidth]{Figuras/consistencia_tendencia.png}
-\par\smallskip
-\raggedright\footnotesize Fonte: Gold \texttt{governor\_scorecard}.
+\fonte{Elaboração própria (2026), a partir da tabela Gold \texttt{governor\_scorecard} da Coleta do TCC.}
 \end{figure}
 
 
@@ -230,8 +227,7 @@ Elogios e apoio político ao governador & --- & 28.147 & 91,4\% & 0,91 & 0,60 \\
 Mensagens de cunho religioso e bênçãos & --- & 323 & 83,6\% & 0,82 & 0,59 \\
 \bottomrule
 \end{tabular}
-\par\smallskip
-\raggedright\footnotesize Fonte: Gold \texttt{content\_topic\_priority\_score} e \texttt{topic\_priority\_score}. Facilidade fixada em 1. $^{*}$Alcance normalizado zero (comentários sem curtidas), ver texto.
+\fonte{Elaboração própria (2026), a partir das tabelas Gold \texttt{content\_topic\_priority\_score} e \texttt{topic\_priority\_score} da Coleta do TCC. Facilidade fixada em 1. $^{*}$Alcance normalizado zero (comentários sem curtidas), ver texto.}
 \end{table}
 
 
@@ -255,6 +251,7 @@ Profundidade & Comentários por reprodução nos \emph{Reels} & Engajar & 0,20 \
 Consistência & Taxa mensal de variação do engajamento por publicação (Seção~\ref{sec:consistencia}) & transversal & 0,20 \\
 \bottomrule
 \end{tabular}
+\fonte{Elaboração própria (2026).}
 \end{table}
 
 A construção segue as três etapas da literatura de indicadores compostos \cite{nardo2008}. Cada indicador é \textbf{normalizado} para a escala de 0 a 100 pelo mínimo e pelo máximo observados entre os perfis, o que torna o índice uma medida de posição relativa entre pares, não de desempenho absoluto. As dimensões recebem \textbf{pesos iguais}, de 0,20, por ser a opção mais transparente e a recomendada na ausência de justificativa teórica para pesos diferenciados; perfis com uma dimensão indisponível têm os pesos renormalizados entre as restantes, e perfis com menos de quatro dimensões ficam sem escore. Os valores normalizados e ponderados são combinados por \textbf{agregação aditiva}:
@@ -305,8 +302,7 @@ A Tabela~\ref{tab:scorecard} apresenta o escore composto e a sua decomposição 
 26 & Eduardo Riedel & MS & 12,9 & 26,3 & 0,0 & 3,6 & 5,3 & 9,6 \\
 \bottomrule
 \end{tabular}
-\par\smallskip
-\raggedright\footnotesize Fonte: Gold \texttt{governor\_scorecard}. $^{*}$Consistência indisponível (menos de 15 publicações); escore calculado sobre as quatro dimensões restantes, com pesos renormalizados.
+\fonte{Elaboração própria (2026), a partir da tabela Gold \texttt{governor\_scorecard} da Coleta do TCC. $^{*}$Consistência indisponível (menos de 15 publicações); escore calculado sobre as quatro dimensões restantes, com pesos renormalizados.}
 \end{table}
 
 \begin{figure}[htb]
@@ -314,8 +310,7 @@ A Tabela~\ref{tab:scorecard} apresenta o escore composto e a sua decomposição 
 \caption{Escore composto por perfil, decomposto por dimensão}
 \label{fig:scorecard}
 \includegraphics[width=0.95\textwidth]{Figuras/scorecard_decomposto.png}
-\par\smallskip
-\raggedright\footnotesize Fonte: Gold \texttt{governor\_scorecard}.
+\fonte{Elaboração própria (2026), a partir da tabela Gold \texttt{governor\_scorecard} da Coleta do TCC.}
 \end{figure}
 
 
@@ -348,13 +343,12 @@ Taxa mensal (IC 95\%) & $+75\%$ ($+17$ a $+161$) & $+83\%$ ($+61$ a $+107$) & $+
 Tendência & Subindo & Subindo & Subindo & --- \\
 \bottomrule
 \end{tabular}
-\par\smallskip
-\raggedright\footnotesize Fonte: Silver e Gold da Coleta. $^{a}$Soma das reproduções dos \emph{Reels} do perfil na janela. As dimensões do escore estão na escala normalizada de 0 a 100.
+\fonte{Elaboração própria (2026), a partir das camadas Silver e Gold da Coleta do TCC. $^{a}$Soma das reproduções dos \emph{Reels} do perfil na janela. As dimensões do escore estão na escala normalizada de 0 a 100.}
 \end{table}
 
-\paragraph*{Eduardo Leite (RS): aprovação alta, oferta escassa.} O perfil publica menos do que qualquer outro governador ativo, 61 publicações em 70 dias, e por isso é o 18º em engajamento bruto; quando se mede o que cada publicação produz e quem aprova, sobe para 9º. É o perfil mais aprovado da amostra entre os de amostra suficiente (80,2\% de positivos), e a aprovação não é de militância: os comentários de elogio (43\% do total) e de apoio afetivo dominam, e as cobranças são 2\%. O funil mostra onde está o gargalo: alcance e ativação estão perto do mínimo (4,7 e 5,7 na escala do escore), a qualidade está no topo (81,5) e a profundidade é mediana. O estágio de criação, porém, é forte: 798 marcações de terceiros por 314 autores, o sétimo maior volume da amostra, para um perfil que publica pouco. As pautas são de serviço e de identidade regional, com aprovação uniformemente alta (cultura e política do Rio Grande do Sul, 94\% de positivos; moradias, 97\%; obras e entregas, 83\%), com duas exceções informativas: respostas a desastres (36\% de negativos) e homenagem aos professores (23\%). Os três \emph{Reels} de maior alcance são mensagens institucionais sobre a democracia e o resultado eleitoral (2,3 milhões de reproduções) e um aviso sobre o 13º salário dos servidores. A Tendência é ``Subindo'' ($+75\%$ ao mês), mas com o intervalo mais largo entre os perfis em alta, consequência direta das poucas publicações. Recomendações: (1) aumentar a frequência, porque cada publicação adicional é recebida com aprovação alta e o perfil está abaixo de uma publicação por dia; (2) priorizar as pautas de serviço que já funcionam (moradia, obras, cultura regional) e tratar as de desastres e de servidores com resposta direta nos comentários, onde a crítica se concentra; (3) explorar o estágio de criação, estimulando e repercutindo as marcações de terceiros, que são o ponto forte do funil; (4) reavaliar a Tendência após um mês de frequência maior, quando o intervalo de confiança permitir distinguir crescimento de ruído.
+\paragraph*{Eduardo Leite (RS): aprovação alta, oferta escassa.} O perfil publica menos do que qualquer outro governador ativo, 61 publicações em 71 dias, e por isso é o 18º em engajamento bruto; quando se mede o que cada publicação produz e quem aprova, sobe para 9º. É o perfil mais aprovado da amostra entre os de amostra suficiente (80,2\% de positivos), e a aprovação não é de militância: os comentários de elogio (43\% do total) e de apoio afetivo dominam, e as cobranças são 2\%. O funil mostra onde está o gargalo: alcance e ativação estão perto do mínimo (4,7 e 5,7 na escala do escore), a qualidade está no topo (81,5) e a profundidade é mediana. O estágio de criação, porém, é forte: 798 marcações de terceiros por 314 autores, o sétimo maior volume da amostra, para um perfil que publica pouco. As pautas são de serviço e de identidade regional, com aprovação uniformemente alta (cultura e política do Rio Grande do Sul, 94\% de positivos; moradias, 97\%; obras e entregas, 83\%), com duas exceções informativas: respostas a desastres (36\% de negativos) e homenagem aos professores (23\%). Os três \emph{Reels} de maior alcance são mensagens institucionais sobre a democracia e o resultado eleitoral (2,3 milhões de reproduções) e um aviso sobre o 13º salário dos servidores. A Tendência é ``Subindo'' ($+75\%$ ao mês), mas com o intervalo mais largo entre os perfis em alta, consequência direta das poucas publicações. Recomendações: (1) aumentar a frequência, porque cada publicação adicional é recebida com aprovação alta e o perfil está abaixo de uma publicação por dia; (2) priorizar as pautas de serviço que já funcionam (moradia, obras, cultura regional) e tratar as de desastres e de servidores com resposta direta nos comentários, onde a crítica se concentra; (3) explorar o estágio de criação, estimulando e repercutindo as marcações de terceiros, que são o ponto forte do funil; (4) reavaliar a Tendência após um mês de frequência maior, quando o intervalo de confiança permitir distinguir crescimento de ruído.
 
-\paragraph*{Elmano de Freitas (CE): volume de campanha, repercussão diluída.} O perfil é o oposto: 645 publicações (9,2 por dia), sexto em engajamento bruto e 12º na NSM, porque o engajamento total é uma soma sobre muitas peças de repercussão modesta (8.151 interações por publicação, contra 25.751 de Raquel Lyra, por exemplo). A aprovação é boa (64,1\% de positivos) e a negatividade é baixa (4,1\%), mas 31,8\% dos comentários são neutros, em grande parte números de candidato em emojis, que a NSM não conta como aprovação. O discurso é quase monotemático: 433 das 645 publicações caem em uma única pauta de campanha e propostas, e outras 27 em quatro pautas de apoio à candidatura presidencial de Lula; a pauta de exaltação ao presidente é a que tem mais negativos (14,1\%). Os três \emph{Reels} de maior alcance, porém, não são de campanha: segurança pública (``Quadrante Seguro'', 7,0 milhões de reproduções; Companhia de Pronta Resposta, 4,1 milhões) e segurança hídrica no Cariri (3,4 milhões). O estágio de criação está vazio: oito marcações de terceiros em 70 dias, abaixo da mediana dos 26. A Tendência é ``Subindo'' ($+83\%$ ao mês, intervalo estreito), puxada por outubro. Recomendações: (1) reduzir o volume e concentrar a produção, porque a diluição é a causa direta da queda na NSM; (2) deslocar a mistura de pautas da campanha para as entregas de segurança e de água, que são o que de fato alcança públicos fora da base; (3) dosar a associação à campanha presidencial, que é a pauta de maior rejeição relativa do perfil; (4) construir o estágio de criação, hoje inexistente, com chamadas explícitas para que apoiadores e beneficiários publiquem marcando o perfil.
+\paragraph*{Elmano de Freitas (CE): volume de campanha, repercussão diluída.} O perfil é o oposto: 645 publicações (9,2 por dia), sexto em engajamento bruto e 12º na NSM, porque o engajamento total é uma soma sobre muitas peças de repercussão modesta (8.151 interações por publicação, contra 25.751 de Raquel Lyra, por exemplo). A aprovação é boa (64,1\% de positivos) e a negatividade é baixa (4,1\%), mas 31,8\% dos comentários são neutros, em grande parte números de candidato em emojis, que a NSM não conta como aprovação. O discurso é quase monotemático: 433 das 645 publicações caem em uma única pauta de campanha e propostas, e outras 27 em quatro pautas de apoio à candidatura presidencial de Lula; a pauta de exaltação ao presidente é a que tem mais negativos (14,1\%). Os três \emph{Reels} de maior alcance, porém, não são de campanha: segurança pública (``Quadrante Seguro'', 7,0 milhões de reproduções; Companhia de Pronta Resposta, 4,1 milhões) e segurança hídrica no Cariri (3,4 milhões). O estágio de criação está vazio: oito marcações de terceiros em 71 dias, abaixo da mediana dos 26. A Tendência é ``Subindo'' ($+83\%$ ao mês, intervalo estreito), puxada por outubro. Recomendações: (1) reduzir o volume e concentrar a produção, porque a diluição é a causa direta da queda na NSM; (2) deslocar a mistura de pautas da campanha para as entregas de segurança e de água, que são o que de fato alcança públicos fora da base; (3) dosar a associação à campanha presidencial, que é a pauta de maior rejeição relativa do perfil; (4) construir o estágio de criação, hoje inexistente, com chamadas explícitas para que apoiadores e beneficiários publiquem marcando o perfil.
 
 \paragraph*{Fábio Mitidieri (SE): militância que não conta como aprovação.} O perfil mediano do escore ilustra uma armadilha de medição. É o segundo em marcações de terceiros (3.223, por 970 autores) e tem profundidade alta (45,5), mas cai de 13º para 19º na NSM porque 35\% de seus comentários pertencem ao tema ``apoio político e mensagens de carinho'', formado por números de candidato e foguetes, que o classificador lê como neutro: a aprovação medida é de 56,2\%, com apenas 3,1\% de negativos e 40,7\% de neutros, a maior proporção de neutros da amostra. Entre os comentários que dizem algo, a aprovação é alta, e os poucos negativos concentram-se em duas cobranças concretas, salários (18 comentários, 83\% negativos) e gestão pública (89 comentários, 60\%). O discurso repete o padrão cearense: 381 publicações em uma pauta de campanha e realizações (52,8\% de positivos), e pautas de serviço menores com aprovação maior, como políticas para as mulheres (28 publicações, 58,6\%), combate à fome (14, 60,9\%), mobilidade urbana em Aracaju (75,4\%) e um evento infantil (78,4\%); a pauta de carreatas é a pior do perfil (38,0\%). Os \emph{Reels} de maior alcance são os de agradecimento e de mobilização de rua após o primeiro turno (2,1 e 1,8 milhões de reproduções). A Tendência é ``Subindo'' ($+74\%$ ao mês). Recomendações: (1) tratar a militância numérica como ativo do estágio de criação, não de conversão: o perfil já mobiliza, e o que falta é converter essa mobilização em conteúdo de terceiros com substância, que o UGC mostra ser possível; (2) ampliar as pautas de serviço (mulheres, fome, mobilidade), que recebem aprovação maior do que a campanha, e reduzir as de carreata; (3) responder às cobranças salariais, pequenas em volume e altas em negatividade, antes que cresçam; (4) enfrentar o alcance, que é a dimensão mais baixa do perfil (1,9), com menos publicações por dia e mais vídeos construídos para circular fora de Sergipe. Em termos de método, o caso mostra que a NSM deve ser lida com a decomposição do sentimento ao lado: um perfil pode cair na métrica por excesso de neutros, não por rejeição, e o painel exibe os dois números juntos exatamente por isso.
 

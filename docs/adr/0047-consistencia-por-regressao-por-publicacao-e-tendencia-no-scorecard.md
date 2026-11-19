@@ -11,7 +11,7 @@ A dimensão **Consistência** do Escore composto (ADR
 engajamento por data de publicação: regressão log-linear sobre a **média mensal** de engajamento por post, com mês válido só a
 partir de 3 posts maduros e um mínimo de **4 meses válidos** (`MIN_MESES_VALIDOS`), dentro de uma janela de 12 meses completos.
 
-A Coleta do TCC (ver `docs/agents/coletas.md`) cobre **70 dias**, de 16/08 a 25/10/2026. Isso dá, no máximo, **3 meses
+A Coleta do TCC (ver `docs/agents/coletas.md`) cobre **71 dias** (16/08 a 25/10/2026, inclusive). Isso dá, no máximo, **3 meses
 elegíveis** (agosto parcial, setembro, outubro parcial) para qualquer perfil, e a regra dos 4 meses deixava a Consistência
 **pendente nos 26 perfis**: o escore vigente usava só 4 dimensões, exatamente como no piloto de 2026-10-04 descrito na própria ADR
 0030. A regra não vai se resolver sozinha, porque não haverá Coleta mais longa antes da entrega.
@@ -70,7 +70,7 @@ Tendência nessas telas, assim como o estimador de proporção, segue em avalia�
   continua pendente, e os limiares (15 publicações, 10 dias, 5%) são os pontos de partida da ficha, não valores calibrados.
 - Poder baixo (ficha de tendência: ~18 a 20% para efeitos moderados): a maioria dos selos será "Estável", que deve ser lido como
   "sem evidência suficiente de variação", não como "nada mudou". A legenda da sub-aba diz isso.
-- O método devolve a melhor reta, não a história: campanha ou sazonalidade dentro dos 70 dias podem gerar seta enganosa (ADR 0040).
+- O método devolve a melhor reta, não a história: campanha ou sazonalidade dentro dos 71 dias podem gerar seta enganosa (ADR 0040).
   O escore não exibe a série; é uma limitação registrada, a rever se a Tendência for para outras telas.
 - O dicionário de dados (`scripts/generate_data_dictionary.py`) e o schema Gold (`GOLD_GOVERNOR_SCORECARD_SCHEMA`) mudam junto;
   uma tabela `governor_scorecard` gravada com o schema antigo precisa ser regerada (`scripts/run_governor_scorecard.py`).
@@ -87,3 +87,5 @@ Tendência nessas telas, assim como o estimador de proporção, segue em avalia�
   em pelo menos um cenário (ou sem IC, no caso do CUSUM). O controle de formato pesou mais do que a robustez do estimador.
 - **Levar a Tendência já para NSM, Funil e "Todos".** Exigiria o estimador de proporção e a regra de agregação do conjunto, ambos
   ainda em avaliação (ADR 0040, fase 2a); o Scorecard é o lugar onde o estimador de contagem já responde à pergunta de negócio.
+
+> Nota (2026-11-19): a janela da Coleta do TCC tem 71 dias inclusivos (16/08 a 25/10/2026); versões anteriores desta ADR diziam 70. Corrigido junto com o texto do TCC (PR `docs-tcc-latex-pretextuais`).
