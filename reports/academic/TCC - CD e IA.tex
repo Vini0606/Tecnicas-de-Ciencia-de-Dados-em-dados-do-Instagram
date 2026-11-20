@@ -71,7 +71,7 @@
 \usepackage{listings}
 
 \usepackage{seqsplit}   % permite quebra de strings longas sem espaços
-\newcommand{\code}[1]{{\urlstyle{tt}\path{#1}}}  % nomes de modelo: quebra só em / e -, nunca no meio da palavra
+\newcommand{\code}[1]{{\urlstyle{tt}\def\UrlBreaks{\do\/\do\-}\def\UrlBigBreaks{}\path{#1}}}  % nomes de modelo: quebra só em / e - (o xurl, fora daqui, quebra em qualquer letra)
 
 
 %\usepackage{cite}
