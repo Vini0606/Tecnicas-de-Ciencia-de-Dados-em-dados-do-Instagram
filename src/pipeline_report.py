@@ -100,7 +100,8 @@ def ler_ultimo_commit(caminho: Path | str) -> datetime | None:
     """Timestamp (UTC) do último commit Delta; `None` se a tabela não existe."""
     if not DeltaTable.is_deltatable(str(caminho)):
         return None
-    commit = DeltaTable(str(caminho)).history(1)[0]
+    # deltalake >= 1.7 devolve gerador; antes, lista.
+    commit = next(iter(DeltaTable(str(caminho)).history(1)))
     return datetime.fromtimestamp(commit["timestamp"] / 1000, tz=timezone.utc)
 
 
