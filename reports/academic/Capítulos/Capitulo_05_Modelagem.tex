@@ -129,15 +129,15 @@ Duração & 0,02 & 0,03 & 0,02 & 1,00 \\
 
 \section{O Pipeline de Modelagem}\label{sec:pipeline-modelagem}
 
-A modelagem é executada por um único estágio determinístico, que lê a Silver e a Gold de engajamento da Coleta e grava as tabelas Gold de modelagem, seguido de uma etapa manual de refinamento de rótulos. O estágio determinístico encadeia, nesta ordem: o pré-processamento dos textos; a Análise de Componentes Principais e a clusterização automática dos \emph{Reels} e, separadamente, das publicações do \emph{feed}; a análise de sentimentos dos comentários e das legendas; a modelagem de tópicos dos comentários e, com modelo próprio, das legendas; o cálculo da \emph{North Star Metric} e dos escores de prioridade; a regressão de desempenho por publicação; e a clusterização dos perfis. Toda a aleatoriedade é controlada por uma semente fixa, e o estado final (modelos de ACP e de agrupamento, modelos de tópicos, quadros intermediários) é persistido em um \emph{checkpoint} identificado pelo \texttt{run\_id} da execução, de modo que o refinamento de rótulos e os notebooks de análise leiam exatamente o que foi ajustado, sem recomputar.
+A modelagem é executada por um único estágio determinístico, que lê a Silver e a Gold de engajamento da Coleta e grava as tabelas Gold de modelagem, seguido de uma etapa manual de refinamento de rótulos. O estágio determinístico encadeia, nesta ordem: o pré-processamento dos textos; a Análise de Componentes Principais e a clusterização automática dos \emph{Reels} e, separadamente, das publicações do \emph{feed}; a análise de sentimentos dos comentários e das legendas; a modelagem de tópicos dos comentários e, com modelo próprio, das legendas; o cálculo da \emph{North Star Metric} e dos escores de prioridade; a regressão de desempenho por publicação; e a clusterização dos perfis. A aleatoriedade da Análise de Componentes Principais, das clusterizações e da regressão é controlada por uma semente fixa; a da modelagem de tópicos não é, porque a redução por UMAP foi executada sem semente, e uma nova execução produziria tópicos diferentes. Por isso o estado final (modelos de ACP e de agrupamento, modelos de tópicos, quadros intermediários) é persistido em um \emph{checkpoint} identificado pelo \texttt{run\_id} da execução, de modo que o refinamento de rótulos e os notebooks de análise leiam exatamente o que foi ajustado, sem recomputar.
 
-\paragraph*{Pré-processamento textual.} Comentários e legendas passam pelo mesmo tratamento: normalização de espaços e caixa, remoção das \emph{stopwords} do português do recurso correspondente da biblioteca \texttt{nltk} \cite{bird2009} e conversão dos emojis em descrições textuais (\emph{demojize}), para que um coração ou um par de mãos aplaudindo participem da representação como \emph{tokens} e não sejam descartados. Os comentários de \emph{Reels} e de publicações do \emph{feed} são unidos antes da modelagem e deduplicados pelo identificador do comentário, preferindo-se a linha de \emph{Reel}, que preserva a ligação com reproduções e duração.
+\paragraph*{Pré-processamento textual.} O tratamento do texto difere por etapa. A Análise de Sentimentos e a modelagem de tópicos das legendas recebem o texto integral, sem remoção de palavras: os modelos usados são contextuais, e termos como ``não'' e ``sem'', que constam das listas de \emph{stopwords}, invertem o sentido de uma frase. Na modelagem de tópicos dos comentários, o texto passa antes pela remoção das \emph{stopwords} do português do recurso correspondente da biblioteca \texttt{nltk} \cite{bird2009} e pela conversão dos emojis em descrições textuais (\emph{demojize}), para que um coração ou um par de mãos aplaudindo participem da representação como \emph{tokens} e não sejam descartados. Nessa etapa a remoção antecede o cálculo dos \emph{embeddings}, o que não é o recomendado para modelos contextuais; a escolha foi mantida e está registrada entre as limitações do Capítulo~\ref{Conclusões}. Os comentários de \emph{Reels} e de publicações do \emph{feed} são unidos antes da modelagem e deduplicados pelo identificador do comentário, preferindo-se a linha de \emph{Reel}, que preserva a ligação com reproduções e duração.
 
 \paragraph*{Redução de dimensionalidade e clusterização automática.} As métricas de desempenho de cada \emph{Reel} (curtidas, comentários, reproduções e duração) são padronizadas e reduzidas a dois componentes principais. Sobre esses dois componentes atua o procedimento \texttt{AutoClusterHPO}, desenvolvido neste trabalho: em vez de fixar de antemão o algoritmo e o número de grupos, ele avalia três famílias de algoritmos, K-Means \cite{macqueen1967}, DBSCAN \cite{ester1996} e agrupamento hierárquico aglomerativo \cite{tan2006}, cada uma com seu espaço de hiperparâmetros (número de grupos a partir de três; raio e vizinhança mínima do DBSCAN; critério de ligação do hierárquico), e busca a melhor configuração por otimização bayesiana com o estimador de Parzen em árvore (TPE) \cite{bergstra2011}, implementado na biblioteca Hyperopt \cite{bergstra2013}, com cem avaliações por algoritmo. O critério é um índice de validação interna combinado, média de três medidas em escala comparável: a silhueta \cite{rousseeuw1987}, o índice de Calinski-Harabasz \cite{calinski1974} comprimido por $\tanh(\mathrm{CH}/10^{4})$ e o inverso do índice de Davies-Bouldin \cite{davies1979} comprimido por $\tanh(1/\mathrm{DB})$. Os pontos de ruído do DBSCAN são excluídos do cálculo dos índices, para que a comparação entre algoritmos não seja distorcida. O mesmo procedimento é aplicado às publicações do \emph{feed}, com uma ACP própria sobre curtidas e comentários, as únicas métricas que esse extrator devolve, e aos 26 perfis, sobre engajamento ponderado por seguidor, recência e frequência, com o número máximo de grupos limitado a seis em razão do tamanho da amostra.
 
-\paragraph*{Análise de sentimentos.} Cada comentário e cada legenda é classificado, por meio da biblioteca \texttt{transformers} \cite{wolf2020}, pelo modelo \code{cardiffnlp/twitter-xlm-roberta-base-sentiment} \cite{barbieri2022xlmt}, um XLM-RoBERTa ajustado para sentimento em mensagens curtas de redes sociais em vários idiomas, inclusive o português, que devolve um rótulo (positivo, neutro ou negativo) e a probabilidade associada, aqui chamada de confiança. O modelo é usado sem ajuste fino; a escolha prioriza a reprodutibilidade e a adequação ao gênero textual, e suas limitações para ironia e sarcasmo são discutidas no Capítulo~\ref{Conclusões}. O resultado grava-se por comentário, com a fonte (comentário ou legenda) e a origem (\emph{Reel} ou \emph{feed}), de modo que toda agregação posterior possa separar a reação do público do discurso da assessoria.
+\paragraph*{Análise de sentimentos.} Cada comentário e cada legenda é classificado, por meio da biblioteca \texttt{transformers} \cite{wolf2020}, a partir do modelo \code{cardiffnlp/twitter-xlm-roberta-base-sentiment} \cite{barbieri2022xlmt}, um XLM-RoBERTa ajustado para sentimento em mensagens curtas de redes sociais em vários idiomas, inclusive o português, que devolve um rótulo (positivo, neutro ou negativo) e a probabilidade associada, aqui chamada de confiança. As legendas são classificadas pelo modelo como publicado. Para os comentários, o treino desse modelo foi continuado em comentários anotados da própria Coleta, depois que uma validação em amostra anotada mostrou que a versão pré-treinada subestimava a aprovação; o experimento que sustenta essa escolha está na Seção~\ref{sec:validacao-sentimento}, e as limitações do classificador são discutidas no Capítulo~\ref{Conclusões}. O resultado grava-se por comentário, com a fonte (comentário ou legenda) e a origem (\emph{Reel} ou \emph{feed}), de modo que toda agregação posterior possa separar a reação do público do discurso da assessoria.
 
-\paragraph*{Modelagem de tópicos.} A estrutura temática é extraída com BERTopic. Os textos são representados por \emph{embeddings} de sentenças do modelo \code{rufimelo/bert-large-portuguese-cased-sts} \cite{rufimelo2024}, pré-treinado em português; os \emph{embeddings} são reduzidos por UMAP \cite{mcinnes2018} e agrupados por HDBSCAN \cite{campello2013}, e cada grupo recebe uma representação por palavras-chave (inspirada no KeyBERT \cite{grootendorst2020keybert}) a partir de um vetorizador que preserva os emojis como \emph{tokens}. Para os comentários, o número de tópicos é reduzido a cinquenta, com tamanho mínimo de grupo de quinze documentos; para as legendas, que formam um corpus menor e mais homogêneo, o número de tópicos é deixado em aberto (apenas tópicos redundantes são fundidos) e o tamanho mínimo é de cinco documentos. São dois modelos distintos, com espaços de tópicos independentes: um descreve do que o público fala (os \textbf{grupos de comentários}) e o outro, do que a assessoria fala (as \textbf{pautas}). Na etapa manual subsequente, uma amostra de documentos de cada tópico é submetida a um modelo de linguagem de grande porte, o Gemini na versão \texttt{gemini-3.5-flash-lite} \cite{google2026gemini}, que produz um rótulo curto e legível; o ruído (documentos sem tópico) não é rotulado, e o refinamento altera apenas os nomes, nunca a atribuição dos documentos aos tópicos.
+\paragraph*{Modelagem de tópicos.} A estrutura temática é extraída com BERTopic. Os textos são representados por \emph{embeddings} de sentenças do modelo \code{rufimelo/bert-large-portuguese-cased-sts} \cite{rufimelo2024}, pré-treinado em português; os \emph{embeddings} são reduzidos por UMAP \cite{mcinnes2018} e agrupados por HDBSCAN \cite{campello2013}, e cada grupo recebe uma representação por palavras-chave (inspirada no KeyBERT \cite{grootendorst2020keybert}) a partir de um vetorizador que preserva os emojis como \emph{tokens}. Para os comentários, o número de tópicos é reduzido a cinquenta, com tamanho mínimo de grupo de quinze documentos; para as legendas, que formam um corpus menor e mais homogêneo, o número de tópicos é deixado em aberto (apenas tópicos redundantes são fundidos) e o tamanho mínimo é de cinco documentos. São dois modelos distintos, com espaços de tópicos independentes: um descreve do que o público fala (os \textbf{grupos de comentários}) e o outro, do que a assessoria fala (as \textbf{pautas}). Na etapa manual subsequente, uma amostra de documentos de cada tópico é submetida a um modelo de linguagem de grande porte, o Gemini na versão \texttt{gemini-3.5-flash-lite} \cite{google2026gemini}, que produz um rótulo curto e legível; o ruído (documentos sem tópico) não é rotulado. O refinamento não altera a atribuição dos documentos aos tópicos, mas recalcula as palavras-chave: a função de atualização da biblioteca, chamada sem o vetorizador do ajuste, adota o vetorizador e o c-TF-IDF padrão, de modo que as palavras-chave finais, as que aparecem nas tabelas deste capítulo, são as do c-TF-IDF sobre palavras de duas ou mais letras, sem a reordenação inspirada no KeyBERT e sem emojis como \emph{tokens} próprios. Nos comentários, em que os emojis já foram convertidos em descrições textuais, eles continuam representados; nas legendas, saem das palavras-chave. A avaliação dos dois modelos está na Seção~\ref{sec:avaliacao-topicos}.
 
 \paragraph*{Métricas derivadas.} A partir dessas tabelas calculam-se, ainda no estágio determinístico, a \emph{North Star Metric} por perfil, os escores de prioridade de temas e de pautas e a regressão de desempenho por publicação; o escore composto, com a Consistência e a Tendência, é calculado em um estágio próprio sobre as tabelas prontas. Suas definições e resultados são apresentados no Capítulo~\ref{Resultados}, onde adquirem sentido como instrumentos de decisão.
 
@@ -201,33 +201,78 @@ Para as 8.437 publicações do \emph{feed}, com apenas curtidas e comentários c
 
 \subsection{Grupos de Perfis}
 
-A clusterização dos 26 perfis, sobre engajamento ponderado por seguidor, recência e frequência, elegeu o DBSCAN ($\varepsilon = 0{,}101$, vizinhança mínima de 2) com índice combinado de 0,777, e o resultado exige leitura crítica (Figura~\ref{fig:clusters_perfis}). O algoritmo formou dois grupos densos e classificou os outros 21 perfis como ruído. O grupo 0 reúne Antonio Denarium (RR), Mauro Mendes (MT) e Wilson Lima (AM): perfis ativos (recência 1), com frequência moderada (3,1 publicações por dia) e engajamento ponderado por seguidor baixo (2,7), isto é, bases grandes para a resposta que obtêm. O grupo 1 reúne Ibaneis Rocha (DF) e Marcos Rocha (RO), os dois perfis praticamente inativos na janela (duas e três publicações, recência próxima de zero). Os 21 restantes, do Piauí com 16,8 de engajamento ponderado por seguidor e 12 publicações por dia ao Rio Grande do Sul com 0,6 e menos de uma publicação por dia, formam um contínuo sem fronteiras naturais, e o índice de validação, calculado sem os pontos de ruído, favoreceu o algoritmo que isolou dois pequenos núcleos homogêneos e deixou a heterogeneidade de fora. Com 26 observações, a segmentação por agrupamento não supervisionado é um instrumento fraco; a ordenação por escore composto, no Capítulo~\ref{Resultados}, cumpre melhor o papel de posicionar cada perfil em relação aos demais.
+A clusterização dos 26 perfis, sobre engajamento ponderado por seguidor, recência e frequência, elegeu o DBSCAN ($\varepsilon = 0{,}101$, vizinhança mínima de 2) com índice combinado de 0,777, e o resultado exige leitura crítica (Figura~\ref{fig:clusters_perfis}). O algoritmo formou dois grupos densos e classificou os outros 21 perfis como ruído. O grupo 0 reúne Antonio Denarium (RR), Mauro Mendes (MT) e Wilson Lima (AM): perfis ativos (recência 1), com frequência moderada (3,1 publicações por dia) e engajamento ponderado por seguidor baixo (2,7), isto é, bases grandes para a resposta que obtêm. O grupo 1 reúne Ibaneis Rocha (DF) e Marcos Rocha (RO), os dois perfis praticamente inativos na janela (duas e três publicações, recência próxima de zero). Os 21 restantes, do Piauí com 16,8 de engajamento ponderado por seguidor e 12 publicações por dia ao Rio Grande do Sul com 0,6 e menos de uma publicação por dia, formam um contínuo sem fronteiras naturais, e o índice de validação, calculado sem os pontos de ruído, favoreceu o algoritmo que isolou dois pequenos núcleos homogêneos e deixou a heterogeneidade de fora. O resultado deve ser lido como um teste diagnóstico de separabilidade, e não como uma segmentação: o mesmo procedimento de seleção de algoritmo que encontrou grupos de desempenho nos \emph{Reels} e nas publicações do \emph{feed} mostra, aplicado aos perfis, que eles não se separam em grupos densos. Com 26 observações distribuídas em um contínuo, a segmentação por agrupamento não supervisionado é um instrumento fraco, e é essa constatação que justifica a ordenação por escore composto, no Capítulo~\ref{Resultados}, para posicionar cada perfil em relação aos demais.
 
 \begin{figure}[htb]
 \centering
 \caption{Perfis por frequência de publicação e engajamento ponderado por seguidor, coloridos pelo grupo do DBSCAN}
 \label{fig:clusters_perfis}
 \includegraphics[width=0.85\textwidth]{Figuras/clusters_perfis.png}
-\fonte{Elaboração própria (2026), a partir da tabela Gold \texttt{governor\_profile\_clusters\_engagement} da Coleta do TCC. O grupo $-1$ é o ruído do DBSCAN.}
+\fonte{Elaboração própria (2026), a partir da tabela Gold \texttt{governor\_profile\_clusters\_engagement} da Coleta do TCC. O grupo $-1$ é o ruído do DBSCAN; os pontos são identificados pela sigla da UF.}
 \end{figure}
 
 
 \section{Análise de Sentimentos}\label{sec:sentimento}
 
-Dos 75.634 comentários classificados, 61,2\% são positivos, 31,0\% neutros e 7,8\% negativos (Figura~\ref{fig:sentiment_plots}). A distribuição é praticamente idêntica nas duas origens: 61,4\% de positivos e 7,7\% de negativos nos comentários de publicações do \emph{feed}, contra 61,1\% e 7,9\% nos de \emph{Reels}, o que indica que o formato não altera o tom da reação. A confiança média do classificador é maior nos negativos (0,71, mediana 0,73) do que nos positivos (0,69, mediana 0,63) e nos neutros (0,62): a negatividade, quando existe, é expressa sem ambiguidade, enquanto o elogio é frequentemente curto ou só de emojis. As 8.437 legendas, classificadas pelo mesmo modelo, são ainda mais positivas, 63,5\% de positivas, 30,8\% de neutras e 5,7\% de negativas, o que é esperado de um discurso institucional. O contraste relevante não está na média, e sim na dispersão entre perfis, examinada a seguir.
+Dos 75.634 comentários, 74.865 receberam rótulo. Pelo classificador ajustado ao domínio (Seção~\ref{sec:validacao-sentimento}), 79,2\% são positivos, 11,0\% neutros e 9,8\% negativos (Figura~\ref{fig:sentiment_plots}). A distribuição é próxima nas duas origens: 80,3\% de positivos e 9,2\% de negativos nos comentários de publicações do \emph{feed}, contra 78,7\% e 10,1\% nos de \emph{Reels}, o que indica que o formato pouco altera o tom da reação. A confiança média do classificador é de 0,99 nos positivos, 0,92 nos negativos e 0,86 nos neutros, a classe em que ele mais hesita. As 8.437 legendas, classificadas pelo modelo pré-treinado, têm 63,5\% de positivas, 30,8\% de neutras e 5,7\% de negativas; como comentários e legendas passam por modelos diferentes, as duas distribuições não são diretamente comparáveis. O contraste relevante não está na média, e sim na dispersão entre perfis, examinada adiante.
 
 \begin{figure}[htb]
 \centering
 \caption{Distribuição do sentimento dos comentários e confiança do classificador por rótulo}
 \label{fig:sentiment_plots}
 \includegraphics[width=0.95\textwidth]{Figuras/sentiment_plots.png}
-\fonte{Elaboração própria (2026), a partir da tabela Gold \texttt{governor\_sentiment} da Coleta do TCC, fonte comentário.}
+\fonte{Elaboração própria (2026), a partir da tabela Gold \texttt{governor\_sentiment} da Coleta do TCC, fonte comentário. As proporções são sobre os 74.865 comentários classificados; 769 dos 75.634 coletados têm texto vazio e não foram classificados.}
 \end{figure}
+
+
+\subsection{Validação do Classificador e Ajuste ao Domínio}\label{sec:validacao-sentimento}
+
+A proporção de comentários positivos é o insumo da \emph{North Star Metric}, da dimensão Qualidade do escore composto e do Score ICE, de modo que um erro sistemático do classificador se propaga a todos os instrumentos do Capítulo~\ref{Resultados}. Por isso o classificador foi validado em amostra anotada antes de ser usado, e a validação levou a um experimento que comparou três métodos e substituiu o modelo dos comentários. Esta subseção registra o experimento; o desenho completo, os dados e o código estão nos notebooks de validação do sentimento (Apêndice~\ref{ap:notebooks}).
+
+\paragraph*{Anotação.} Todos os rótulos de referência seguem um único critério escrito, com decisões fixas para os casos difíceis (número de candidato com e sem marcador afetivo, cobrança em forma de pergunta, ironia, alvo que não é o dono do perfil). A anotação foi feita por um modelo de linguagem de grande porte (Claude, da Anthropic), distinto do classificador avaliado e do modelo usado no refinamento dos rótulos de tópico. A anotação é cega: o anotador recebe apenas o texto do comentário, sem o perfil em que foi feito e sem a resposta de qualquer classificador. O critério, os identificadores e os rótulos ficam no repositório; os textos dos comentários, por serem de terceiros, ficam fora dele e se recuperam pelo identificador no \emph{dataset} privado da Coleta. Não há, nesta versão, um segundo anotador humano independente, e as métricas a seguir medem a concordância de cada método com esse critério.
+
+\paragraph*{Primeira validação.} Uma amostra de 360 comentários (cem por classe prevista pelo classificador, mais 60 de \emph{Reels} virais) foi anotada e as métricas foram reponderadas pelo peso de cada classe na população. As estimativas para a população usam só os 300 comentários do estrato principal, sorteados ao acaso dentro de cada classe prevista, de modo que o peso da classe corresponde à probabilidade de seleção; os 60 comentários de \emph{Reels} virais formam um suplemento analisado à parte e não entram nessas estimativas. Os 300 comentários vêm de 296 publicações distintas, o que torna desprezível a dependência entre comentários de uma mesma publicação no \emph{bootstrap} dos intervalos. O classificador pré-treinado acertou 70,6\% dos rótulos (intervalo de confiança de 95\% de 66,5\% a 74,5\%), com precisão de 94\% em positivo, 76\% em negativo e apenas 23\% em neutro. De cada cem comentários rotulados como neutros, 73 eram apoio, quase sempre escrito no código das campanhas: o número do candidato em emojis acompanhado de corações, foguetes ou marcas de confirmação, sem nenhuma palavra. O efeito era uma aprovação subestimada, 61,2\% de positivos pelo classificador contra 80,9\% pela anotação, com a proporção de negativos preservada (7,8\% nos dois). O erro era desigual entre perfis, porque depende de quanto do apoio de cada público vem nesse código, e por isso comprometia a comparação entre governadores, não só o nível médio.
+
+\paragraph*{Métodos comparados.} Três métodos foram avaliados: (i) o classificador \textbf{pré-treinado}, sem alteração; (ii) o pré-treinado seguido de uma \textbf{regra determinística}, que reclassifica de neutro para positivo o comentário que tem ao menos um emoji de apoio, nenhum emoji de reprovação e, ou nenhuma letra, ou um número e no máximo seis palavras; e (iii) o \textbf{ajuste fino} \cite{devlin2019}, em que o treino do mesmo modelo é continuado em comentários anotados da Coleta. No ajuste fino, o treino usou 1.482 comentários (827 positivos, 394 negativos e 261 neutros pela anotação), com perda ponderada por classe, lotes de 16, corte de 64 \emph{tokens} e semente fixa; a taxa de aprendizado ($3\times10^{-5}$, entre duas testadas) e o número de épocas (duas, de até quatro) foram escolhidos na amostra da primeira validação, usada como conjunto de desenvolvimento.
+
+\paragraph*{Proteção contra vazamento.} Os três métodos foram comparados em um conjunto de teste de 450 comentários, sorteado depois da primeira validação e sem repetir nenhum comentário dela, com 150 por classe prevista pelo classificador pré-treinado. Cinco cuidados separam o teste do que cada método pôde ver: (1) a regra foi congelada antes do sorteio do teste; (2) todo comentário cujo texto normalizado aparece no teste foi retirado do treino, e a normalização ignora caixa, espaços, tom de pele e repetição de caracteres, de modo que duas sequências de palmas de tamanhos diferentes contam como o mesmo texto; (3) toda publicação com comentário no teste foi retirada inteira do treino; (4) o teste foi anotado antes de qualquer treino, e o programa de treino não lê os rótulos do teste; (5) as previsões do modelo ajustado no teste foram geradas uma única vez, com a configuração já escolhida. O critério de escolha também foi fixado antes de ver o resultado: vence o método de maior F1-macro estimado para a população, desde que a diferença para o seguinte seja distinguível de zero em um intervalo de 95\% por \emph{bootstrap} \cite{efron1979} pareado e estratificado; em caso de empate fica o método mais simples; e nenhum método é escolhido se piorar, de forma distinguível, o F1 da classe negativa, que sustenta o achado da Seção~\ref{sec:sentimento-cluster}.
+
+\begin{table}[htb]
+\centering
+\caption{Comparação dos três métodos de classificação de sentimento no conjunto de teste (450 comentários)}
+\label{tab:sentimento_metodos}
+\footnotesize
+\begin{tabular}{lrrr}
+\toprule
+\textbf{Medida} & \textbf{Pré-treinado} & \textbf{Com a regra} & \textbf{Ajuste fino} \\
+\midrule
+F1-macro (\%) & 65,7 & 74,5 & 85,1 \\
+\quad IC 95\% & 61,2 a 70,1 & 69,6 a 79,4 & 80,2 a 89,6 \\
+Acurácia em relação à anotação de referência (\%) & 74,7 & 86,9 & 93,9 \\
+\midrule
+Precisão, positivo (\%) & 98,0 & 98,3 & 97,3 \\
+Precisão, neutro (\%) & 28,7 & 47,3 & 86,3 \\
+Precisão, negativo (\%) & 74,7 & 74,7 & 73,8 \\
+Revocação, positivo (\%) & 74,7 & 89,9 & 97,8 \\
+Revocação, neutro (\%) & 81,9 & 81,9 & 72,4 \\
+Revocação, negativo (\%) & 65,4 & 65,4 & 85,0 \\
+F1, negativo (\%) & 69,7 & 69,7 & 79,0 \\
+\midrule
+Positivos previstos (\%) & 61,2 & 73,4 & 80,6 \\
+Negativos previstos (\%) & 7,8 & 7,8 & 10,3 \\
+\bottomrule
+\end{tabular}
+\fonte{Elaboração própria (2026), a partir de amostra anotada da tabela Gold \texttt{governor\_sentiment} da Coleta do TCC. Métricas estimadas para a população de comentários classificados: cada estrato do teste entra com o peso da sua classe prevista pelo classificador pré-treinado. A anotação estima 80,2\% de positivos e 8,9\% de negativos.}
+\end{table}
+
+\paragraph*{Resultado.} A Tabela~\ref{tab:sentimento_metodos} mostra que o ajuste fino vence pelo critério fixado. O F1-macro é de 65,7\% no pré-treinado, 74,5\% com a regra e 85,1\% com o ajuste fino, e as diferenças são distinguíveis de zero: 8,9 pontos da regra sobre o pré-treinado (de 7,0 a 10,8) e 10,6 pontos do ajuste fino sobre a regra (de 4,6 a 16,8). A regra faz o que promete e só isso: nos 59 comentários do teste em código de campanha que o pré-treinado chamou de neutros, ela acerta os 59, e o ajuste fino, 58. O ganho do ajuste fino está no que a regra não alcança, o apoio em texto corrido (``Bora Lula'', ``Tem meu voto'') e a crítica que o pré-treinado lia como neutra. A precisão da classe neutra sobe de 28,7\% para 86,3\%, e a proporção de positivos prevista, 80,6\%, coincide com a estimada pela anotação, 80,2\%. Na classe negativa, a revocação sobe de 65,4\% para 85,0\% com a mesma precisão; a diferença de F1, de 9,3 pontos, tem intervalo de $-0{,}3$ a $+18{,}9$ e não chega a ser distinguível de zero, de modo que a salvaguarda é atendida sem que se possa afirmar melhora. O modelo ajustado prevê 10,3\% de negativos contra 8,9\% da anotação, um excesso de 1,4 ponto. O resultado não depende dos textos que se repetem entre o teste e o conjunto de desenvolvimento: nos 349 comentários do teste sem repetição, o F1-macro é de 65,9\%, 73,0\% e 82,3\%.
+
+\paragraph*{Decisão e ressalvas.} O sentimento dos comentários passou a ser o do modelo ajustado, e todos os números de sentimento deste capítulo e do seguinte foram recalculados com ele; as legendas continuam com o modelo pré-treinado, porque não fizeram parte do treino nem do teste. Três ressalvas acompanham a decisão. A primeira é a do anotador em comum: o treino e o teste foram anotados pelo mesmo modelo de linguagem, com o mesmo critério. Não há vazamento de dados, mas parte da vantagem do ajuste fino pode ser concordância com esse anotador, vantagem que a regra e o pré-treinado não têm. A segunda é que o treino foi feito com uma única semente, e a variação entre execuções não foi medida. A terceira é o período: o modelo foi ajustado em comentários de uma campanha eleitoral e deve ser revalidado antes de ser aplicado a outro contexto.
 
 
 \subsection{Sentimento por Perfil}
 
-A Figura~\ref{fig:sentimento_por_governador} ordena os 26 perfis pela proporção de comentários positivos. As proporções desta seção e da figura são calculadas sobre os comentários classificados: 769 comentários (1,0\% do total) ficaram sem rótulo por terem texto vazio após a limpeza e não entram na base; a \emph{North Star Metric} do Capítulo~\ref{Resultados} usa, por construção, o total de comentários, e por isso suas proporções diferem destas em até 1,7 ponto percentual. Entre os perfis com amostra suficiente (ao menos cem comentários), a aprovação vai de 80,2\% para Eduardo Leite (RS), seguido de Raquel Lyra (PE) com 78,1\% e Rafael Fonteles (PI) com 76,4\%, até 15,3\% para Eduardo Riedel (MS), cujo perfil concentra 39,1\% de comentários negativos, a maior proporção da amostra, em grande parte por uma mobilização de cobrança pela proteção dos indígenas Guarani Kaiowá, identificada na Seção~\ref{sec:topicos}. No extremo baixo estão também Romeu Zema (MG), com 37,0\% de positivos e 27,8\% de negativos, Wilson Lima (AM), com 40,9\% de positivos, e Ricardo Ferraço (ES), com 47,1\%, neste caso por excesso de neutros (47,8\%) e não de críticas. Marcos Rocha (RO), com 95\% de positivos em 20 comentários, e Ibaneis Rocha (DF), com 15 comentários, têm amostra insuficiente para qualquer leitura, e são tratados como tal nos instrumentos do capítulo seguinte. Dois casos ilustram por que a proporção importa mais do que o volume: Tarcísio de Freitas (SP), o perfil de maior alcance, tem apenas 53,8\% de positivos e 14,3\% de negativos; Wanderlei Barbosa (TO), com a menor frequência de publicação entre os ativos, acumula 20,7\% de negativos em 406 comentários.
+A Figura~\ref{fig:sentimento_por_governador} ordena os 26 perfis pela proporção de comentários positivos. As proporções desta seção e da figura são calculadas sobre os comentários classificados: 769 comentários (1,0\% do total) ficaram sem rótulo por terem texto vazio após a limpeza e não entram na base, a mesma da \emph{North Star Metric} do Capítulo~\ref{Resultados}. Entre os perfis com amostra suficiente (ao menos cem comentários), a aprovação vai de 88,1\% para Raquel Lyra (PE), seguida de Gladson Cameli (AC) com 87,9\% e Rafael Fonteles (PI) com 87,6\%, até 16,7\% para Eduardo Riedel (MS), cujo perfil concentra 65,8\% de comentários negativos, a maior proporção da amostra, em grande parte por uma mobilização de cobrança pela proteção dos indígenas Guarani Kaiowá, identificada na Seção~\ref{sec:topicos}. No extremo baixo estão também Romeu Zema (MG), com 44,4\% de positivos e 31,9\% de negativos, Wanderlei Barbosa (TO), com 62,6\% e 24,4\%, e Tarcísio de Freitas (SP), o perfil de maior repercussão observada por publicação, com 63,1\% e 17,6\%. A distribuição é assimétrica: doze dos 24 perfis têm mais de 80\% de aprovação, e as diferenças entre eles são pequenas; o que separa os perfis é a parcela de crítica, que vai de 3,5\% a 65,8\%. Marcos Rocha (RO), com 18 positivos em 20 comentários, e Ibaneis Rocha (DF), com 15 comentários, têm amostra insuficiente para qualquer leitura, e são tratados como tal nos instrumentos do capítulo seguinte. O ajuste do classificador pesou mais onde o apoio é escrito em código de campanha: Fábio Mitidieri (SE) passou de 56,2\% para 87,2\% de positivos e Wilson Lima (AM), de 40,9\% para 84,4\%, enquanto Eduardo Riedel passou de 15,3\% para 16,7\%.
 
 \begin{figure}[htb]
 \centering
@@ -238,32 +283,42 @@ A Figura~\ref{fig:sentimento_por_governador} ordena os 26 perfis pela proporçã
 \end{figure}
 
 
-\subsection{Sentimento por Grupo de Desempenho}
+\subsection{Sentimento por Grupo de Desempenho}\label{sec:sentimento-cluster}
 
-O cruzamento do sentimento com os grupos de desempenho é o achado que organiza o restante do trabalho (Tabela~\ref{tab:sentimento_cluster} e Figura~\ref{fig:sentimento_por_cluster_reels}). Nos \emph{Reels}, o corpo (grupo 0) tem 61,1\% de comentários positivos e 7,9\% de negativos; os 27 vídeos virais (grupo 2) têm 51,1\% de positivos e 21,3\% de negativos, quase o triplo da negatividade. No \emph{feed}, a relação é monotônica ao longo das faixas de desempenho: o corpo tem 7,1\% de negativos; os três grupos intermediários, 12,0\%, 15,2\% e 16,6\%; e os grupos de publicações excepcionais chegam a 18,0\% no grupo com amostra ampla (334 comentários) e a 27,4\% e 43,5\% nos dois grupos menores (73 e 23 comentários). Quanto mais longe uma publicação chega, menor a proporção de aprovação entre os que reagem a ela; a hipótese, não testada nesta Coleta, é que o alcance leva a peça para fora da base de apoiadores que comenta por hábito. O engajamento bruto, portanto, mede exposição, não adesão, e um instrumento de decisão que trate os dois como sinônimos recomendará exatamente o conteúdo que mais atrai crítica.
+O cruzamento do sentimento com os grupos de desempenho é o achado que organiza o restante do trabalho (Tabela~\ref{tab:sentimento_cluster} e Figura~\ref{fig:sentimento_por_cluster_reels}). Nos \emph{Reels}, o corpo (grupo 0) tem 78,7\% de comentários positivos e 10,1\% de negativos; os 27 vídeos virais (grupo 2) têm 59,7\% de positivos e 28,1\% de negativos, quase o triplo da negatividade. No \emph{feed}, a proporção de negativos cresce com a faixa de desempenho: 9,0\% no corpo, 16,0\% nos três grupos acima da média e 21,2\% nos dez grupos excepcionais (933 comentários). A ordem vale para as faixas, e não para cada grupo: entre os excepcionais, os de poucas dezenas de comentários vão de 0\% a 65,2\%, e os extremos dependem de poucas publicações de um perfil (os 65,2\% vêm de 23 comentários em quatro publicações de Tarcísio de Freitas). A diferença também não se reduz à composição de perfis: dos 19 perfis com ao menos trinta comentários acima do corpo, 17 têm mais negativos nessas publicações do que no próprio corpo, com diferença mediana de 5,7 pontos percentuais. O achado não é produto do classificador: na amostra anotada da primeira validação, a proporção de negativos nos comentários de \emph{Reels} virais estimada pela anotação foi de 31,2\%, e a diferença entre virais e corpo aparece com o modelo pré-treinado, com o ajustado e com a anotação. Nos grupos de maior repercussão observada, a proporção de aprovação entre os comentários é menor; uma hipótese, não testável com esta Coleta, que não distingue seguidores de não seguidores, é que a circulação leve a peça para fora da base de apoiadores que comenta por hábito. O engajamento bruto, portanto, mede exposição, não adesão, e um instrumento de decisão que trate os dois como sinônimos recomendará exatamente o conteúdo que mais atrai crítica.
 
 \begin{table}[htb]
 \centering
 \caption{Sentimento dos comentários por grupo de desempenho}
 \label{tab:sentimento_cluster}
-\footnotesize
+\footnotesize\setlength{\tabcolsep}{3pt}
 \begin{tabular}{llrrrr}
 \toprule
 \textbf{Conjunto} & \textbf{Grupo} & \textbf{Coment.} & \textbf{Positivo (\%)} & \textbf{Neutro (\%)} & \textbf{Negativo (\%)} \\
 \midrule
-\emph{Reels} & 0 -- corpo & 51.848 & 61,1 & 31,0 & 7,9 \\
- & 2 -- virais & 221 & 51,1 & 27,6 & 21,3 \\
+\emph{Reels} & 0 -- corpo & 51.848 & 78,7 & 11,2 & 10,1 \\
+ & 1 -- transmissões longas & 13 & 61,5 & 30,8 & 7,7 \\
+ & 2 -- virais & 221 & 59,7 & 12,2 & 28,1 \\
 \midrule
-\emph{Feed} & 0 -- corpo & 65.885 & 61,5 & 31,4 & 7,1 \\
- & 7 -- acima da média & 4.431 & 59,0 & 29,0 & 12,0 \\
- & 6 -- acima da média & 2.265 & 56,1 & 28,7 & 15,2 \\
- & 10 -- acima da média & 1.039 & 57,9 & 25,5 & 16,6 \\
- & 5 -- excepcionais & 334 & 53,9 & 28,1 & 18,0 \\
- & 8 -- excepcionais & 73 & 38,4 & 34,2 & 27,4 \\
- & 13 -- excepcionais & 23 & 30,4 & 26,1 & 43,5 \\
+\emph{Feed} & 0 -- corpo & 65.885 & 80,6 & 10,4 & 9,0 \\
+ & \textbf{acima da média (3 grupos)} & 7.735 & 68,2 & 15,7 & 16,0 \\
+ & \quad 7 & 4.431 & 69,8 & 15,8 & 14,4 \\
+ & \quad 6 & 2.265 & 66,3 & 16,0 & 17,7 \\
+ & \quad 10 & 1.039 & 65,8 & 14,9 & 19,2 \\
+ & \textbf{excepcionais (10 grupos)} & 933 & 63,1 & 15,6 & 21,2 \\
+ & \quad 5 & 334 & 60,8 & 18,0 & 21,3 \\
+ & \quad 1 & 235 & 70,6 & 14,5 & 14,9 \\
+ & \quad 2 & 108 & 56,5 & 19,4 & 24,1 \\
+ & \quad 9 & 89 & 67,4 & 12,4 & 20,2 \\
+ & \quad 8 & 73 & 50,7 & 13,7 & 35,6 \\
+ & \quad 3 & 34 & 88,2 & 5,9 & 5,9 \\
+ & \quad 13 & 23 & 30,4 & 4,3 & 65,2 \\
+ & \quad 4 & 15 & 26,7 & 40,0 & 33,3 \\
+ & \quad 12 & 12 & 91,7 & 8,3 & 0,0 \\
+ & \quad 11 & 10 & 100,0 & 0,0 & 0,0 \\
 \bottomrule
 \end{tabular}
-\fonte{Elaboração própria (2026), a partir das tabelas Gold \texttt{governor\_sentiment}, \texttt{governor\_clusters\_reels} e \texttt{governor\_clusters\_posts} da Coleta do TCC. ``Coment.'' é o número de comentários classificados do grupo, base das proporções; os comentários sem rótulo (texto vazio após a limpeza) ficam de fora. Os comentários disponíveis por publicação são os 10 a 12 mais recentes, o que explica o número baixo de comentários dos grupos pequenos. Grupos do \emph{feed} com menos de 25 comentários foram omitidos.}
+\fonte{Elaboração própria (2026), a partir das tabelas Gold \texttt{governor\_sentiment}, \texttt{governor\_clusters\_reels} e \texttt{governor\_clusters\_posts} da Coleta do TCC. ``Coment.'' é o número de comentários classificados do grupo, base das proporções; os comentários sem rótulo (texto vazio após a limpeza) ficam de fora. Os comentários disponíveis por publicação são os 10 a 12 mais recentes, o que explica o número baixo de comentários dos grupos pequenos. O grupo 1 dos \emph{Reels} reúne duas transmissões longas, e suas proporções, sobre 13 comentários, constam apenas para registro. Em negrito, o total de cada faixa do \emph{feed}; todos os grupos estão listados, e os de poucas dezenas de comentários, vários deles de um único perfil, não sustentam leitura isolada.}
 \end{table}
 
 \begin{figure}[htb]
@@ -271,7 +326,7 @@ O cruzamento do sentimento com os grupos de desempenho é o achado que organiza 
 \caption{Sentimento dos comentários por grupo de desempenho dos \emph{Reels}}
 \label{fig:sentimento_por_cluster_reels}
 \includegraphics[width=0.85\textwidth]{Figuras/sentimento_por_cluster_reels.png}
-\fonte{Elaboração própria (2026), a partir das tabelas Gold \texttt{governor\_sentiment} e \texttt{governor\_clusters\_reels} da Coleta do TCC.}
+\fonte{Elaboração própria (2026), a partir das tabelas Gold \texttt{governor\_sentiment} e \texttt{governor\_clusters\_reels} da Coleta do TCC. O $n$ de cada grupo é o de comentários classificados, como na Tabela~\ref{tab:sentimento_cluster}.}
 \end{figure}
 
 
@@ -279,54 +334,56 @@ O cruzamento do sentimento com os grupos de desempenho é o achado que organiza 
 
 \subsection{Grupos de Comentários}
 
-O modelo de tópicos dos comentários foi ajustado sobre os 38.581 textos distintos dos 75.634 comentários: 49\% dos comentários repetem exatamente um texto já visto (sequências de palmas, corações e números de campanha), e documentos idênticos entram uma única vez no ajuste, recebendo todos o mesmo tópico ao final. O HDBSCAN encontrou 485 grupos brutos, reduzidos a 49 tópicos; 15.614 comentários (20,6\%) ficaram sem tópico (ruído), em geral mensagens curtas que misturam bandeira, aplauso e o nome do governador sem conteúdo distintivo. Os rótulos da Tabela~\ref{tab:topicos_comentarios} foram produzidos pelo modelo de linguagem a partir de uma amostra de dez comentários de cada tópico e preservam as palavras-chave originais para conferência; a Figura~\ref{fig:comentarios_mapa} mostra a distância entre os tópicos e a Figura~\ref{fig:comentarios_hierarquia} a sua hierarquia.
+O modelo de tópicos dos comentários foi ajustado sobre os 38.581 textos distintos dos 75.634 comentários: 49\% dos comentários repetem exatamente um texto já visto (sequências de palmas, corações e números de campanha), e documentos idênticos entram uma única vez no ajuste, recebendo todos o mesmo tópico ao final. O HDBSCAN encontrou 485 grupos brutos, reduzidos a 49 tópicos; 15.614 comentários (20,6\%) ficaram sem tópico (ruído), em geral mensagens curtas que misturam bandeira, aplauso e o nome do governador sem conteúdo distintivo. Os rótulos da Tabela~\ref{tab:topicos_comentarios} foram produzidos pelo modelo de linguagem a partir de uma amostra de dez comentários de cada tópico e vêm acompanhados das palavras-chave do tópico, para conferência; a Figura~\ref{fig:comentarios_mapa} mostra a distância entre os tópicos e a Figura~\ref{fig:comentarios_hierarquia} a sua hierarquia.
 
 \begin{table}[htb]
 \centering
 \caption{Maiores grupos de comentários e grupos mais negativos (rótulo refinado, palavras-chave e sentimento)}
 \label{tab:topicos_comentarios}
 \scriptsize\setlength{\tabcolsep}{3pt}
-\begin{tabular}{rp{5.0cm}p{3.9cm}rrr}
+\begin{tabular}{r>{\raggedright\arraybackslash}p{5.0cm}>{\raggedright\arraybackslash}p{3.9cm}rrr}
 \toprule
 \textbf{Tópico} & \textbf{Rótulo} & \textbf{Palavras-chave} & \textbf{Coment.} & \textbf{Pos. (\%)} & \textbf{Neg. (\%)} \\
 \midrule
 \multicolumn{6}{l}{\emph{Os doze maiores grupos}} \\
-0 & Elogios e apoio político ao governador & mãos aplaudindo, rosto com olhos de coração & 28.147 & 91,4 & 2,3 \\
-1 & Apoio político e mensagens de carinho & foguete, tecla 5, tecla 4 & 11.605 & 29,0 & 0,6 \\
-3 & Manifestações de apoio e emojis afetivos & coração vermelho, 13, onda & 3.196 & 92,6 & 0,6 \\
-7 & Apoio eleitoral e demonstrações de carinho & coração roxo, tecla 5, foguete & 1.730 & 95,0 & 0,2 \\
-2 & Cobranças e críticas à gestão pública & água, hospital, pra & 1.721 & 9,8 & 55,4 \\
-4 & Elogios e apoio político ao governador & governador, parabéns, governadora & 1.467 & 79,3 & 5,2 \\
-8 & Apoio político ao candidato número 13 & 13, lula, rafael & 1.163 & 12,1 & 0,8 \\
-25 & Comentários sem sentido ou \emph{spam} & massa, sequências de dígitos & 1.142 & 0,4 & 2,2 \\
-30 & Cobrança por proteção aos indígenas Guarani Kaiowá & guarani, kaiowá, povos & 1.095 & 0,5 & 48,9 \\
-5 & Apoio político e eleitoral a candidatos & naipe de copas, bandeira do Brasil, tecla 2 & 1.009 & 25,1 & 3,9 \\
-6 & Apoio político e elogios a gestões & senador, mauro, mendes & 783 & 56,6 & 5,5 \\
-10 & Apoio político a Lula e aliados & presidente, 2030, lula & 708 & 19,2 & 12,3 \\
+0 & Elogios e apoio político ao governador & mãos aplaudindo, rosto com olhos de coração & 28.147 & 93,5 & 3,3 \\
+1 & Apoio político e mensagens de carinho & foguete, tecla 5, tecla 4 & 11.605 & 85,9 & 0,8 \\
+3 & Manifestações de apoio e emojis afetivos & coração vermelho, 13, onda & 3.196 & 99,0 & 0,6 \\
+7 & Apoio eleitoral e demonstrações de carinho & coração roxo, tecla 5, foguete & 1.730 & 99,7 & 0,2 \\
+2 & Cobranças e críticas à gestão pública & água, hospital, pra & 1.721 & 15,2 & 65,8 \\
+4 & Elogios e apoio político ao governador & governador, parabéns, governadora & 1.467 & 91,0 & 5,3 \\
+8 & Apoio político ao candidato número 13 & 13, lula, rafael & 1.163 & 54,2 & 1,1 \\
+25 & Comentários sem sentido ou \emph{spam} & massa, sequências de dígitos & 1.142 & 9,7 & 7,0 \\
+30 & Cobrança por proteção aos indígenas Guarani Kaiowá & guarani, kaiowá, povos & 1.095 & 1,3 & 75,9 \\
+5 & Apoio político e eleitoral a candidatos & naipe de copas, bandeira do Brasil, tecla 2 & 1.009 & 45,3 & 5,1 \\
+6 & Apoio político e elogios a gestões & senador, mauro, mendes & 783 & 86,1 & 6,5 \\
+10 & Apoio político a Lula e aliados & presidente, 2030, lula & 708 & 56,4 & 9,5 \\
 \midrule
 \multicolumn{6}{l}{\emph{Grupos com maior proporção de negativos (ao menos 50 comentários)}} \\
 43 & Rejeição ao turismo \emph{halal} no Paraná & londres, halal, promover & 51 & 0,0 & 98,0 \\
-29 & Previsão de derrota eleitoral e zombaria & perdeu, faltou, perder & 82 & 3,7 & 84,1 \\
-27 & Condolências e saudades por falecimentos & sentimentos, saudades, triste & 111 & 15,3 & 73,9 \\
-32 & Críticas e opiniões sobre o ICMS e impostos & minas, icms, mg & 81 & 13,6 & 59,3 \\
-2 & Cobranças e críticas à gestão pública & água, hospital, pra & 1.721 & 9,8 & 55,4 \\
-23 & Discussão sobre a veracidade dos fatos & mentira, verdade, mente & 163 & 4,3 & 53,4 \\
-30 & Cobrança por proteção aos indígenas Guarani Kaiowá & guarani, kaiowá, povos & 1.095 & 0,5 & 48,9 \\
-34 & Comida, fome e críticas à gestão & fome, cartão, churrasco & 62 & 14,5 & 43,5 \\
-15 & Cobrança sobre pagamento e aumento salarial & pagamento, salário, aposentados & 262 & 7,6 & 34,0 \\
+29 & Previsão de derrota eleitoral e zombaria & perdeu, faltou, perder & 82 & 6,1 & 90,2 \\
+27 & Condolências e saudades por falecimentos & sentimentos, saudades, triste & 111 & 10,8 & 82,0 \\
+30 & Cobrança por proteção aos indígenas Guarani Kaiowá & guarani, kaiowá, povos & 1.095 & 1,3 & 75,9 \\
+32 & Críticas e opiniões sobre o ICMS e impostos & minas, icms, mg & 81 & 13,6 & 71,6 \\
+15 & Cobrança sobre pagamento e aumento salarial & pagamento, salário, aposentados & 262 & 12,2 & 66,0 \\
+2 & Cobranças e críticas à gestão pública & água, hospital, pra & 1.721 & 15,2 & 65,8 \\
+28 & Comentários sem sentido ou \emph{spam} aleatório & kaiowá, guarani, sapo & 134 & 12,7 & 64,9 \\
+23 & Discussão sobre a veracidade dos fatos & mentira, verdade, mente & 163 & 4,3 & 58,9 \\
 \bottomrule
 \end{tabular}
-\fonte{Elaboração própria (2026), a partir da tabela Gold \texttt{governor\_sentiment} da Coleta do TCC, fonte comentário, após o refinamento de rótulos. O tópico $-1$ (ruído) tem 15.614 comentários, 49,8\% positivos e 14,7\% negativos. O tópico 27 (condolências) figura entre os mais negativos porque o classificador lê luto e pesar como sentimento negativo, não como crítica. Grupos de números em formato de tecla são números de candidatos, lidos pelo classificador como neutros.}
+\fonte{Elaboração própria (2026), a partir da tabela Gold \texttt{governor\_sentiment} da Coleta do TCC, fonte comentário, após o refinamento de rótulos. O tópico $-1$ (ruído) tem 15.614 comentários, 69,3\% positivos e 18,0\% negativos. O tópico 27 (condolências) figura entre os mais negativos porque o classificador lê luto e pesar como sentimento negativo, não como crítica. O tópico 25 inclui os 769 comentários de texto vazio, que não têm rótulo de sentimento; os outros 373 são sequências de dígitos e textos afins, e suas proporções são sobre esses 373. O tópico 28 mistura três cobranças da mobilização pelos Guarani Kaiowá com textos sem assunto, e é ruído na avaliação da Seção~\ref{sec:avaliacao-topicos}. Os tópicos 8, 5 e 10, em que predomina o número de candidato sem marcador de apoio, ficam com aprovação intermediária porque o critério de anotação trata o número isolado como neutro.}
 \end{table}
 
-Lidos em conjunto, os 49 tópicos se organizam em quatro famílias. A primeira, e de longe a maior, é a do \textbf{apoio e afeto}: 25 tópicos que somam 53.123 comentários (70,2\% do total), com 69,8\% de positivos e 2,3\% de negativos, e que vão do elogio genérico ao governador até as manifestações de campanha, com números de candidatos em emojis de tecla, foguetes e corações nas cores partidárias. A segunda família é a das \textbf{cobranças e críticas}: onze tópicos com 2.651 comentários (3,5\%), mas com 52,2\% de negativos; é nela que está o conteúdo informativo para a assessoria, porque nomeia aquilo de que o público reclama: água e hospitais, salários e aposentadorias, impostos, fome, a proteção aos Guarani Kaiowá (um tópico de 1.095 comentários, dos quais 1.081 no perfil de Eduardo Riedel, MS, concentrados na última semana de outubro, o que caracteriza uma mobilização organizada e não uma reação difusa), a veracidade do que é dito e a antecipação da derrota eleitoral. A terceira família é o \textbf{ruído e \emph{spam}}: cinco tópicos com 1.921 comentários (2,5\%), de sequências de dígitos a telefones e \emph{links}. A quarta reúne \textbf{outros registros} (1,6\%): mensagens religiosas, condolências, orgulho regional, pedidos para conhecer o governador e a declaração explícita de voto. O retrato é o de uma seção de comentários dominada pela torcida, em que a crítica é minoritária em volume, mas é o único lugar em que o público formula um pedido; e é essa assimetria, não a média, que o Score ICE do Capítulo~\ref{Resultados} explora.
+Os tópicos 0 e 4 receberam o mesmo rótulo refinado, ``Elogios e apoio político ao governador'', mas são grupos distintos: o tópico 0 reúne aplausos, corações e rostos sorridentes escritos só em emojis, e o tópico 4, elogios escritos por extenso (``parabéns, governador'', ``Deus abençoe''). Os \emph{embeddings} de sequências de emojis e de texto ocupam regiões diferentes do espaço reduzido, por isso o HDBSCAN os separa, e a redução para cinquenta tópicos, que funde os grupos de representação mais parecida, não os juntou porque as dez palavras principais de um e de outro não têm nenhuma em comum. O rótulo idêntico é um efeito do refinamento, que nomeia o ato comunicativo comum aos dois (o elogio) e não a forma que os distingue; na leitura por famílias, ambos entram na de apoio e afeto.
+
+Lidos em conjunto, os 49 tópicos se organizam em quatro famílias. A primeira, e de longe a maior, é a do \textbf{apoio e afeto}: 25 tópicos que somam 53.123 comentários (70,2\% do total), com 88,6\% de positivos e 2,8\% de negativos, e que vão do elogio genérico ao governador até as manifestações de campanha, com números de candidatos em emojis de tecla, foguetes e corações nas cores partidárias. A segunda família é a das \textbf{cobranças e críticas}: treze tópicos com 3.786 comentários (5,0\%), mas com 66,6\% de negativos; é nela que está o conteúdo informativo para a assessoria, porque nomeia aquilo de que o público reclama: água e hospitais, salários e aposentadorias, impostos, fome, a proteção aos Guarani Kaiowá (um tópico de 1.095 comentários, dos quais 1.081 no perfil de Eduardo Riedel, MS, concentrados na última semana de outubro, o que caracteriza uma mobilização organizada e não uma reação difusa), a veracidade do que é dito e a antecipação da derrota eleitoral. A terceira família é o \textbf{ruído e \emph{spam}}: cinco tópicos com 1.921 comentários (2,5\%), de sequências de dígitos a telefones e \emph{links}. A quarta reúne \textbf{outros registros} (1,6\%): mensagens religiosas, condolências, orgulho regional, pedidos para conhecer o governador e a declaração explícita de voto. O retrato é o de uma seção de comentários dominada pela torcida, em que a crítica é minoritária em volume, mas é o único lugar em que o público formula um pedido; e é essa assimetria, não a média, que o Score ICE do Capítulo~\ref{Resultados} explora. A leitura por rubrica da Seção~\ref{sec:avaliacao-topicos} restringe, porém, a conclusão sobre a segunda família: dos tópicos de cobrança, só três formam uma demanda específica (salários e aposentadorias, a proteção aos Guarani Kaiowá e a rejeição ao turismo \emph{halal}). O maior deles, o de água e hospitais (1.721 comentários), reúne cobranças difusas de vários serviços públicos (água, hospital, asfalto, trânsito, professores), e os de impostos e de fome misturam a demanda a menções genéricas. As famílias servem, portanto, como agrupamento por tema, e não como medida de quanto o público pede algo específico.
 
 \begin{figure}[htb]
 \centering
 \caption{Mapa de distância entre os tópicos de comentários}
 \label{fig:comentarios_mapa}
-\includegraphics[width=0.9\textwidth]{Figuras/comentarios_intertopic_map.png}
-\fonte{Elaboração própria (2026), a partir do \emph{checkpoint} da modelagem da Coleta do TCC (BERTopic, \emph{embeddings} dos tópicos projetados em duas dimensões; a área do círculo é proporcional ao número de comentários).}
+\includegraphics[width=\textwidth]{Figuras/comentarios_intertopic_map.png}
+\fonte{Elaboração própria (2026), a partir do \emph{checkpoint} da modelagem da Coleta do TCC (BERTopic, \emph{embeddings} dos tópicos projetados em duas dimensões; a área do círculo é proporcional ao número de comentários). Os doze maiores tópicos estão numerados no mapa e listados ao lado com o rótulo refinado e o número de comentários.}
 \end{figure}
 
 \begin{figure}[htb]
@@ -377,23 +434,71 @@ O modelo de discurso foi ajustado sobre as 8.416 legendas com texto (21 publica�
 \fonte{Elaboração própria (2026), a partir da tabela Gold \texttt{governor\_discourse\_topics} da Coleta do TCC, após o refinamento de rótulos. ``Perfis'' é o número de governadores com ao menos uma publicação na pauta.}
 \end{table}
 
-Dois traços do resultado precisam ser ditos antes de qualquer uso. Primeiro, o modelo separa o discurso tanto por assunto quanto por \emph{identidade}: as doze maiores pautas são, cada uma, a campanha de um governador ou de um pequeno grupo, porque as legendas carregam nomes de estado, gentílicos, números de candidato e \emph{slogans} que os \emph{embeddings} capturam com força. Segundo, a janela é eleitoral, e isso domina a oferta: 74 pautas, com 67,1\% das publicações classificadas, são de campanha (pedidos de voto, comícios, caminhadas, apoios a candidatos), contra 12,1\% de pautas de realizações, obras e políticas públicas que não mencionam a campanha. As pautas transversais, presentes em dez ou mais perfis, são as que descrevem o repertório comum do cargo: obras e entregas, incentivo ao voto, homenagens pessoais, balanço de conquistas, a pauta feminina e, no campo oposicionista, a crítica ao Supremo Tribunal Federal. É sobre esse repertório, mais do que sobre as pautas identitárias, que a comparação entre perfis do Capítulo~\ref{Resultados} faz sentido.
+Dois traços do resultado precisam ser ditos antes de qualquer uso. Primeiro, o modelo separa o discurso tanto por assunto quanto por \emph{identidade}: as doze maiores pautas são, cada uma, a campanha de um governador ou de um pequeno grupo, porque as legendas carregam nomes de estado, gentílicos, números de candidato e \emph{slogans} que os \emph{embeddings} capturam com força; na avaliação da Seção~\ref{sec:avaliacao-topicos}, todas as doze receberam nota intermediária de utilidade por esse motivo. Segundo, a janela é eleitoral, e isso domina a oferta: 74 pautas, com 67,1\% das publicações classificadas, são de campanha (pedidos de voto, comícios, caminhadas, apoios a candidatos), contra 12,1\% de pautas de realizações, obras e políticas públicas que não mencionam a campanha. As pautas transversais, presentes em dez ou mais perfis, são as que descrevem o repertório comum do cargo: obras e entregas, incentivo ao voto, homenagens pessoais, balanço de conquistas, a pauta feminina e, no campo oposicionista, a crítica ao Supremo Tribunal Federal. É sobre esse repertório, mais do que sobre as pautas identitárias, que a comparação entre perfis do Capítulo~\ref{Resultados} faz sentido.
 
 \begin{figure}[htb]
 \centering
 \caption{Mapa de distância entre as pautas do discurso}
 \label{fig:discurso_mapa}
-\includegraphics[width=0.9\textwidth]{Figuras/discurso_intertopic_map.png}
-\fonte{Elaboração própria (2026), a partir do \emph{checkpoint} da modelagem da Coleta do TCC; a área do círculo é proporcional ao número de legendas.}
+\includegraphics[width=\textwidth]{Figuras/discurso_intertopic_map.png}
+\fonte{Elaboração própria (2026), a partir do \emph{checkpoint} da modelagem da Coleta do TCC; a área do círculo é proporcional ao número de publicações. As doze maiores pautas estão numeradas no mapa e listadas ao lado com o rótulo refinado e o número de publicações; as que se sobrepõem no alto do mapa são as campanhas de governadores que o modelo separa por identidade.}
 \end{figure}
 
 \begin{figure}[htb]
 \centering
-\caption{Hierarquia das pautas do discurso}
+\caption{Hierarquia das quarenta maiores pautas do discurso}
 \label{fig:discurso_hierarquia}
-\includegraphics[width=0.9\textwidth,height=0.8\textheight,keepaspectratio]{Figuras/discurso_hierarchy.png}
-\fonte{Elaboração própria (2026), a partir do \emph{checkpoint} da modelagem da Coleta do TCC. A figura está reduzida para caber na página e mostra apenas a forma geral da hierarquia das 198 pautas; o arquivo em resolução completa acompanha o repositório (\texttt{reports/academic/Figuras/discurso\_hierarchy.png}).}
+\includegraphics[width=\textwidth,height=0.82\textheight,keepaspectratio]{Figuras/discurso_hierarchy.png}
+\fonte{Elaboração própria (2026), a partir do \emph{checkpoint} da modelagem da Coleta do TCC. A figura mostra as quarenta maiores pautas, com o número de publicações entre parênteses; a hierarquia completa das 198 pautas acompanha o repositório (\texttt{reports/academic/Figuras/discurso\_\allowbreak{}hierarchy\_\allowbreak{}completo.png}).}
 \end{figure}
 
+
+\subsection{Avaliação dos Tópicos}\label{sec:avaliacao-topicos}
+
+Como a literatura não oferece faixas de valor que qualifiquem um tópico como bom, e como as métricas automáticas falham justamente em textos curtos (Capítulo~\ref{Referencial Teórico}), os dois modelos foram avaliados em três camadas, na ordem de prioridade recomendada por \citeonline{quinn2010} e \citeonline{grimmer2013}: a leitura dos tópicos sob uma rubrica escrita, a validade convergente e externa e, como complemento, as métricas automáticas. A Tabela~\ref{tab:avaliacao_topicos} resume as três.
+
+\paragraph*{Leitura por rubrica.} Para cada tópico foram examinadas as dez palavras-chave finais e quinze documentos: os três representativos indicados pelo BERTopic e doze sorteados com semente fixa entre os textos distintos do tópico (118 pautas têm de 5 a 14 textos distintos, e todos foram lidos). A anotação foi feita por modelo de linguagem (Claude), às cegas quanto ao tamanho, ao sentimento, ao perfil, às métricas automáticas e ao rótulo do Gemini, sob uma rubrica escrita, e conferida pelo autor. A rubrica separa em duas notas de 1 a 3 o que a escala de \citeonline{newman2010} funde em uma: a \textbf{coerência}, se os documentos tratam de um mesmo assunto ou de um mesmo ato comunicativo, e a \textbf{utilidade}, se o tópico informa uma decisão da assessoria (um assunto, uma demanda ou uma pauta sobre os quais ela pode agir), em oposição a uma reação genérica de apoio ou a ruído. Os tópicos com coerência abaixo de 3 recebem o tipo de falha de \citeonline{mimno2011}, acrescido de duas categorias próprias do corpus: o ruído e o grupo formado pela forma de escrever (emojis, risadas, números de candidato), e não por um assunto. O anotador também propõe um rótulo próprio e conta quantos documentos não cabem nele, o que dá uma terceira medida, a \textbf{pureza}, derivada só dessa fração (nota 3 com até um quinto dos documentos fora do rótulo, nota 2 com até 7 em 15). Só depois de anotar todo o lote o anotador abre os rótulos do Gemini e os classifica em adequados, parciais ou inadequados. Os tópicos foram divididos em oito lotes, cada um lido por um anotador; a concordância entre a coerência anotada e a pureza é de 73\% nos comentários e de 89\% nas legendas (kappa ponderado de 0,64 e 0,74). Essa é uma checagem de consistência interna do anotador, entre duas medidas que ele mesmo produziu, e não uma concordância entre avaliadores independentes, que este trabalho não mediu.
+
+\begin{table}[htb]
+\centering
+\caption{Avaliação dos tópicos em três camadas}
+\label{tab:avaliacao_topicos}
+\footnotesize
+\begin{tabular}{>{\raggedright\arraybackslash}p{9.4cm}rr}
+\toprule
+\textbf{Medida} & \textbf{Comentários} & \textbf{Legendas} \\
+\midrule
+Tópicos avaliados & 49 & 198 \\
+\multicolumn{3}{l}{\emph{Camada 1: leitura por rubrica (tópicos e, entre parênteses, \% do volume)}} \\
+Pureza alta (nota 3) & 30 (82,6) & 157 (82,6) \\
+Coerência de assunto alta (nota 3) & 18 (14,1) & 140 (43,8) \\
+Falha por forma de escrever & 10 (74,6) & 10 (36,3) \\
+Utilidade alta (nota 3) & 4 (2,4) & 99 (24,6) \\
+Utilidade baixa (nota 1) & 8 (3,8) & 8 (1,3) \\
+Rótulo do Gemini adequado / parcial / inadequado & 25 / 23 / 1 & 140 / 57 / 1 \\
+Tópicos que dividem um rótulo idêntico com outro & 2 & 24 \\
+\multicolumn{3}{l}{\emph{Camada 2: validade convergente e externa}} \\
+Negativos nos tópicos de demanda ou crítica (\%) & 70,3 & --- \\
+Negativos nos de reação genérica / mobilização de apoio (\%) & 4,6 / 1,8 & --- \\
+Concentração em um perfil / em uma semana, tópicos de utilidade alta (\%) & 62 / 50 & --- \\
+Idem, demais tópicos (\%) & 20 / 19 & --- \\
+\multicolumn{3}{l}{\emph{Camada 3: métricas automáticas (dez palavras por tópico, ruído excluído)}} \\
+NPMI médio, janela do documento inteiro & $-0{,}23$ & $+0{,}13$ \\
+NPMI médio, janela deslizante de dez palavras & $-0{,}29$ & $-0{,}20$ \\
+NPMI médio, comentários agregados por publicação & $-0{,}13$ & --- \\
+Piso aleatório (dez palavras sorteadas), documento inteiro & $-0{,}94$ & $-0{,}82$ \\
+Diversidade & 0,85 & 0,75 \\
+Correlação de Spearman entre NPMI e coerência anotada & 0,38 & 0,22 \\
+Textos distintos sem tópico (ruído, \%) & 31,4 & 22,8 \\
+\bottomrule
+\end{tabular}
+\fonte{Elaboração própria (2026), a partir do \emph{checkpoint} da modelagem e da tabela Gold \texttt{governor\_sentiment} da Coleta do TCC. O volume é o de comentários (60.020, inclusive os 769 de texto vazio, todos no tópico 25) ou de publicações (6.501) com tópico. Na camada 2, a concentração é a mediana, entre os tópicos, da fração dos comentários no perfil e na semana mais frequentes. As correlações têm $p < 0{,}01$. Scripts, rubrica e anotações em \texttt{notebooks/modelagens/validacao\_\allowbreak{}topicos/}.}
+\end{table}
+
+Nos comentários, a pureza e a coerência de assunto divergem justamente onde está o volume. Os grandes grupos de emojis de aplauso, de corações e de números de candidato são puros (82,6\% dos comentários com tópico estão em tópicos de pureza alta), mas não têm assunto: o que os une é a forma de escrever, e é esse tipo de falha que responde por três quartos do volume. Por isso só 18 tópicos, com 14,1\% dos comentários, têm coerência de assunto alta, e apenas quatro, com 2,4\%, têm utilidade alta: a cobrança de salários e aposentadorias, a mobilização pelos Guarani Kaiowá, a campanha contra o turismo \emph{halal} no Paraná e os pedidos de localização por bairro. Em 93,8\% dos comentários com tópico, o modelo diz que tipo de reação o público teve (apoio, afeto, torcida), mas não a que objeto ela se refere. Nas legendas o quadro se inverte: 140 das 198 pautas têm coerência de assunto alta e 99 têm utilidade alta, mas elas são pequenas e somam 43,8\% e 24,6\% das publicações. As doze maiores pautas receberam todas utilidade 2, porque reúnem a campanha de um candidato pelo rodapé de propaganda eleitoral, pelas \emph{hashtags} e pelo número, e não por um assunto, o que confirma a leitura por identidade feita acima. Os rótulos do Gemini são adequados em 25 dos 49 tópicos de comentários e em 140 das 198 pautas; quase todos os demais são parciais, por vagueza (``Campanha eleitoral e apoios políticos''), e só dois são inadequados. A vagueza tem custo: 24 pautas dividem dez rótulos idênticos, embora a leitura dos documentos mostre que não tratam da mesma coisa.
+
+\paragraph*{Validade convergente e externa.} Duas evidências independentes da leitura confirmam a classificação dos comentários. A primeira é o sentimento, que o anotador não viu: os sete tópicos de demanda ou crítica têm 70,3\% de comentários negativos, contra 4,6\% nos de reação genérica e 1,8\% nos de mobilização de apoio. A segunda é a concentração: os quatro tópicos de utilidade alta reúnem, na mediana, 62\% dos comentários em um único perfil e 50\% em uma única semana, contra 20\% e 19\% nos demais, e cada autor escreve neles 8,7 comentários, contra 1,2. Os tópicos informativos são, portanto, acontecimentos localizados, e o caso dos Guarani Kaiowá, com 98,7\% dos comentários no perfil de Eduardo Riedel e 83,5\% em uma única semana, é o extremo. Isso define o uso adequado do modelo de comentários: ele funciona como detector de cobranças e de mobilizações pontuais, e não como mapa dos assuntos da conversa, que em sua maior parte não tem assunto.
+
+\paragraph*{Métricas automáticas.} O NPMI foi calculado sobre as dez palavras-chave finais de cada tópico, com o próprio corpus como referência e o tópico de ruído excluído, e a diversidade, como a fração de palavras distintas entre as dez principais de todos os tópicos \cite{dieng2020}. O valor absoluto depende do protocolo: o mesmo modelo de legendas tem NPMI médio de $+0{,}13$ quando a janela de coocorrência é o documento inteiro e de $-0{,}20$ com a janela deslizante de dez palavras de \citeonline{lau2014}. Nos comentários, os valores vão de $-0{,}29$ a $-0{,}13$ conforme o protocolo, porque a mediana de seis \emph{tokens} por comentário deixa 41\% dos pares de palavras sem nenhuma coocorrência. O que se mantém em todos os protocolos é a distância ao acaso: tópicos de dez palavras sorteadas do vocabulário pontuam entre $-0{,}99$ e $-0{,}82$, e os tópicos dos dois modelos ficam de 0,70 a 0,95 acima desse piso. As variantes que eliminam a penalidade dos pares nunca observados perdem a capacidade de distinguir tópicos de sorteios e foram descartadas. O NPMI acompanha a leitura, mas de forma moderada: a correlação de Spearman entre o NPMI de cada tópico e a coerência anotada é de 0,38 nos comentários e de 0,22 nas legendas, e a mediana do NPMI dos tópicos de coerência alta supera a dos demais ($+0{,}01$ contra $-0{,}28$ nos comentários; $+0{,}21$ contra $-0{,}02$ nas legendas), com ampla sobreposição. A diversidade é de 0,85 nos comentários e de 0,75 nas legendas; as repetições são em sua maior parte legítimas, como o nome de Lula em pautas de apoio, de crítica e de campanha, salvo em pares de pautas redundantes que a leitura também identificou. As métricas servem, portanto, de triagem, que indica onde ler primeiro, e não de veredito sobre a qualidade de um tópico.
 
 Os resultados deste capítulo, a segmentação das publicações e dos perfis por desempenho, a qualificação dos grupos pelo sentimento e a estrutura temática dos comentários e do discurso, constituem o diagnóstico bruto sobre o qual se assenta a etapa seguinte. No próximo capítulo, essas evidências deixam de ser descritas isoladamente e passam a ser organizadas segundo o funil de engajamento COBRA-RACE, traduzindo-se em métricas de crescimento e em recomendações práticas por perfil.

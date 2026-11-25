@@ -25,6 +25,8 @@ Os notebooks do repositório não executam a modelagem: desde a decisão registr
 \texttt{tendencia\_\allowbreak{}01\_\allowbreak{}simulacao} & Simulação com verdade conhecida dos estimadores de tendência (falso alarme, poder, cobertura do IC). \\
 \texttt{tendencia\_\allowbreak{}02\_\allowbreak{}proporcoes\_\allowbreak{}e\_\allowbreak{}agregacao} & Estimadores para indicadores de proporção e regras de agregação entre perfis. \\
 \texttt{tendencia\_\allowbreak{}03\_\allowbreak{}backtest} & Aplicação à Coleta real; base da Consistência adotada no Scorecard (ADR 0047). \\
+\texttt{sentimento\_\allowbreak{}01\_\allowbreak{}validacao\_\allowbreak{}amostra\_\allowbreak{}anotada} & Validação do classificador de sentimento pré-treinado em amostra anotada: sorteio, critério de anotação, métricas reponderadas para a população e a regra determinística avaliada como alternativa (ADR 0048). \\
+\texttt{sentimento\_\allowbreak{}02\_\allowbreak{}comparacao\_\allowbreak{}de\_\allowbreak{}metodos} & Comparação, em conjunto de teste reservado, do classificador pré-treinado, da regra e do ajuste fino; protocolo contra vazamento de dados e critério de escolha; base da Tabela~\ref{tab:sentimento_metodos} (ADR 0049). \\
 \bottomrule
 \end{tabular}
 \fonte{Elaboração própria (2026).}
@@ -37,6 +39,7 @@ Com o Python 3.10 ou superior e o gerenciador \texttt{uv} instalados, a sequênc
 \begin{enumerate}
     \item \texttt{uv sync}, para instalar as dependências declaradas em \texttt{pyproject.toml};
     \item \texttt{uv run python coleta.py baixar tcc --destino data}, para obter a Coleta do TCC do \emph{dataset} privado (exige um \emph{token} de leitura);
+    \item \texttt{uv run python notebooks/modelagens/validacao\_\allowbreak{}sentimento/ajuste\_\allowbreak{}fino.py}, para gerar o classificador de sentimento ajustado a partir dos comentários anotados (cerca de uma hora e meia em CPU); a modelagem exige esse modelo em \texttt{data/model\_\allowbreak{}checkpoints/};
     \item \texttt{uv run python scripts/run\_\allowbreak{}modeling.py --parent-run-id <run\_\allowbreak{}id da Coleta>}, para o estágio determinístico (ACP, clusterização, sentimento, tópicos, NSM, prioridades); o \texttt{run\_\allowbreak{}id} da Coleta consta do manifesto;
     \item \texttt{uv run python scripts/refine\_\allowbreak{}topics.py --run-id <run\_\allowbreak{}id da modelagem>}, para o refinamento dos rótulos via Gemini (exige chave de API; etapa não determinística, ver Capítulo~\ref{Conclusões});
     \item \texttt{uv run python scripts/run\_\allowbreak{}growth\_\allowbreak{}metrics.py} e \texttt{uv run python scripts/run\_\allowbreak{}governor\_\allowbreak{}scorecard.py}, para as métricas de crescimento e o escore composto;
@@ -44,4 +47,4 @@ Com o Python 3.10 ou superior e o gerenciador \texttt{uv} instalados, a sequênc
     \item \texttt{uv run streamlit run dashboard/app.py}, para o painel.
 \end{enumerate}
 
-As sementes de aleatoriedade são fixadas em configuração (\texttt{RANDOM\_\allowbreak{}STATE}), de modo que a ACP, a busca de hiperparâmetros e a clusterização reproduzem os mesmos resultados sobre a mesma Coleta; a exceção documentada é o refinamento de rótulos por LLM.
+As sementes de aleatoriedade são fixadas em configuração (\texttt{RANDOM\_\allowbreak{}STATE}), de modo que a ACP, a busca de hiperparâmetros e a clusterização reproduzem os mesmos resultados sobre a mesma Coleta. Há duas exceções documentadas: o refinamento de rótulos por LLM e a modelagem de tópicos, cuja redução por UMAP foi executada sem semente; para os tópicos, a reprodutibilidade vem do modelo persistido no \emph{checkpoint}, que os notebooks leem sem reajustar.
