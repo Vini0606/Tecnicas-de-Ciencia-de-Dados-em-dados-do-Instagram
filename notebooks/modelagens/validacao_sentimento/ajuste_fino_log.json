@@ -1,0 +1,82 @@
+{
+  "modelo_base": "cardiffnlp/twitter-xlm-roberta-base-sentiment",
+  "semente": 20261119,
+  "max_tokens": 64,
+  "lote": 16,
+  "epocas": 4,
+  "taxas_testadas": [
+    1e-05,
+    3e-05
+  ],
+  "n_treino": 1482,
+  "distribuicao_treino": {
+    "positive": 827,
+    "negative": 394,
+    "neutral": 261
+  },
+  "n_desenvolvimento": 360,
+  "n_teste": 450,
+  "conferencia_de_vazamento": {
+    "textos_do_treino_no_teste": 0,
+    "textos_do_treino_no_desenvolvimento": 0,
+    "publicacoes_do_treino_no_teste": 0,
+    "comentarios_do_teste_no_desenvolvimento": 0
+  },
+  "f1_macro_dev_modelo_original": 0.6539801499925845,
+  "historico": [
+    {
+      "taxa": 1e-05,
+      "epoca": 1,
+      "perda_treino": 0.5998380354014776,
+      "f1_macro_dev": 0.88928182702289
+    },
+    {
+      "taxa": 1e-05,
+      "epoca": 2,
+      "perda_treino": 0.3941830760368737,
+      "f1_macro_dev": 0.9017711279058668
+    },
+    {
+      "taxa": 1e-05,
+      "epoca": 3,
+      "perda_treino": 0.2842000668808337,
+      "f1_macro_dev": 0.9114614039489671
+    },
+    {
+      "taxa": 1e-05,
+      "epoca": 4,
+      "perda_treino": 0.2267809753576594,
+      "f1_macro_dev": 0.8960512835079172
+    },
+    {
+      "taxa": 3e-05,
+      "epoca": 1,
+      "perda_treino": 0.5696534525643113,
+      "f1_macro_dev": 0.890003502295714
+    },
+    {
+      "taxa": 3e-05,
+      "epoca": 2,
+      "perda_treino": 0.31685118168912907,
+      "f1_macro_dev": 0.914255108203347
+    },
+    {
+      "taxa": 3e-05,
+      "epoca": 3,
+      "perda_treino": 0.17702914790440633,
+      "f1_macro_dev": 0.8971092653761007
+    },
+    {
+      "taxa": 3e-05,
+      "epoca": 4,
+      "perda_treino": 0.11164434770152214,
+      "f1_macro_dev": 0.9065507824509748
+    }
+  ],
+  "escolhido": {
+    "taxa": 3e-05,
+    "epoca": 2,
+    "f1_macro_dev": 0.914255108203347
+  },
+  "minutos": 93.7
+}

@@ -1,0 +1,80 @@
+[
+ {
+  "modelo": "comentarios",
+  "doc": {
+   "n_unidades": 38581,
+   "media": -0.23231798031148035,
+   "mediana": -0.22110558990018864,
+   "positivos": 16,
+   "aleatorio": -0.9433787361229616,
+   "aleatorio_p95": -0.8287177320578051
+  },
+  "observados": {
+   "n_unidades": 38581,
+   "media": 0.33597584221966464,
+   "mediana": 0.2954801310122955,
+   "positivos": 47,
+   "aleatorio": 0.3340277082821888,
+   "aleatorio_p95": 0.5567659604620662
+  },
+  "suavizado": {
+   "n_unidades": 38581,
+   "media": 0.3976731231863396,
+   "mediana": 0.40840092409230977,
+   "positivos": 49,
+   "aleatorio": 0.48134347618215895,
+   "aleatorio_p95": 0.5759297095592889
+  },
+  "publicacao": {
+   "n_unidades": 8466,
+   "media": -0.12926790502879854,
+   "mediana": -0.0669674901613541,
+   "positivos": 20,
+   "aleatorio": -0.8830095010398273,
+   "aleatorio_p95": -0.7161380787080769
+  },
+  "janela10": {
+   "n_unidades": 126004,
+   "media": -0.28682674071523473,
+   "mediana": -0.2873804415728601,
+   "positivos": 14,
+   "aleatorio": -0.9907241130398533,
+   "aleatorio_p95": -0.9433884111623447
+  }
+ },
+ {
+  "modelo": "legendas",
+  "doc": {
+   "n_unidades": 8372,
+   "media": 0.1321115987906228,
+   "mediana": 0.16866829910737685,
+   "positivos": 131,
+   "aleatorio": -0.8217135990908445,
+   "aleatorio_p95": -0.5907944654266121
+  },
+  "observados": {
+   "n_unidades": 8372,
+   "media": 0.4232523305175474,
+   "mediana": 0.39854545749395864,
+   "positivos": 198,
+   "aleatorio": 0.1868786524314169,
+   "aleatorio_p95": 0.419097412501969
+  },
+  "suavizado": {
+   "n_unidades": 8372,
+   "media": 0.4846978546968904,
+   "mediana": 0.46282749862882255,
+   "positivos": 198,
+   "aleatorio": 0.3521494065614353,
+   "aleatorio_p95": 0.4619454377575896
+  },
+  "janela10": {
+   "n_unidades": 356922,
+   "media": -0.20071465807638586,
+   "mediana": -0.1992109909678721,
+   "positivos": 46,
+   "aleatorio": -0.9902561772726941,
+   "aleatorio_p95": -0.9499614034331839
+  }
+ }
+]

@@ -1,0 +1,239 @@
+{
+  "teste": {
+    "n": 450,
+    "sha256_rotulos": "22da5357585911c8314f770f992a3853ecf344fae996a1758fab62a82b14091a",
+    "rotulos_conferidos": 0
+  },
+  "treino": {
+    "n": 1482,
+    "distribuicao": {
+      "positive": 827,
+      "negative": 394,
+      "neutral": 261
+    }
+  },
+  "ajuste_fino": {
+    "taxa": 3e-05,
+    "epoca": 2,
+    "f1_macro_dev": 0.914255108203347
+  },
+  "metricas": {
+    "original": {
+      "acurácia": 0.7468531356441592,
+      "F1-macro": 0.656726346758228,
+      "precisão positive": 0.98,
+      "precisão neutral": 0.2866666666666664,
+      "precisão negative": 0.7466666666666663,
+      "revocação positive": 0.7474445975559668,
+      "revocação neutral": 0.8188045889835829,
+      "revocação negative": 0.6543235675178664,
+      "F1 positive": 0.8480685361964155,
+      "F1 neutral": 0.42465868013406927,
+      "F1 negative": 0.6974518239441994,
+      "positivos previstos": 0.6117010619114405,
+      "negativos previstos": 0.07842115808455205
+    },
+    "regra": {
+      "acurácia": 0.8687383957790693,
+      "F1-macro": 0.7453967481310318,
+      "precisão positive": 0.9833229970753792,
+      "precisão neutral": 0.47252747252747246,
+      "precisão negative": 0.7466666666666663,
+      "revocação positive": 0.8994170548027111,
+      "revocação neutral": 0.8188045889835829,
+      "revocação negative": 0.6543235675178664,
+      "F1 positive": 0.9395003554177106,
+      "F1 neutral": 0.5992380650311856,
+      "F1 negative": 0.6974518239441994,
+      "positivos previstos": 0.7335863220463505,
+      "negativos previstos": 0.07842115808455205
+    },
+    "ajuste fino": {
+      "acurácia": 0.9390281172777671,
+      "F1-macro": 0.8510951801796242,
+      "precisão positive": 0.9732066747004883,
+      "precisão neutral": 0.8633908843025716,
+      "precisão negative": 0.7383825550340958,
+      "revocação positive": 0.9780935050625065,
+      "revocação neutral": 0.7235676663309554,
+      "revocação negative": 0.8501215005164514,
+      "F1 positive": 0.975643970599791,
+      "F1 neutral": 0.7873195264448938,
+      "F1 negative": 0.7903220434941879,
+      "positivos previstos": 0.8060492887196962,
+      "negativos previstos": 0.10303078875308866
+    }
+  },
+  "ic95": {
+    "original": {
+      "acurácia": [
+        0.7197166499699454,
+        0.7738442062378946
+      ],
+      "F1-macro": [
+        0.6124001638241918,
+        0.7014140347527608
+      ],
+      "F1 negative": [
+        0.6215216223463557,
+        0.7775897360800909
+      ]
+    },
+    "regra": {
+      "acurácia": [
+        0.8398447138182064,
+        0.8944137781339748
+      ],
+      "F1-macro": [
+        0.6960211326996762,
+        0.7941100748890124
+      ],
+      "F1 negative": [
+        0.6215216223463557,
+        0.7775897360800909
+      ]
+    },
+    "ajuste fino": {
+      "acurácia": [
+        0.9170399986642628,
+        0.9595255459827695
+      ],
+      "F1-macro": [
+        0.8021394750469671,
+        0.8960539858800305
+      ],
+      "F1 negative": [
+        0.7090761792069733,
+        0.8635672241760176
+      ]
+    }
+  },
+  "diferencas": [
+    {
+      "comparação": "regra − original",
+      "métrica": "F1-macro",
+      "diferença": 0.0886704013728038,
+      "IC 95% inf": 0.0696247980718162,
+      "IC 95% sup": 0.10818162809591782,
+      "distinguível de zero": true
+    },
+    {
+      "comparação": "ajuste fino − original",
+      "métrica": "F1-macro",
+      "diferença": 0.1943688334213961,
+      "IC 95% inf": 0.1352019681345828,
+      "IC 95% sup": 0.2521779500836997,
+      "distinguível de zero": true
+    },
+    {
+      "comparação": "ajuste fino − regra",
+      "métrica": "F1-macro",
+      "diferença": 0.1056984320485923,
+      "IC 95% inf": 0.04585278231866773,
+      "IC 95% sup": 0.16780287630623164,
+      "distinguível de zero": true
+    },
+    {
+      "comparação": "regra − original",
+      "métrica": "acurácia",
+      "diferença": 0.12188526013491008,
+      "IC 95% inf": 0.09709503773458938,
+      "IC 95% sup": 0.14667548253523077,
+      "distinguível de zero": true
+    },
+    {
+      "comparação": "ajuste fino − original",
+      "métrica": "acurácia",
+      "diferença": 0.1921749816336079,
+      "IC 95% inf": 0.1592528551392512,
+      "IC 95% sup": 0.22410168970814193,
+      "distinguível de zero": true
+    },
+    {
+      "comparação": "ajuste fino − regra",
+      "métrica": "acurácia",
+      "diferença": 0.07028972149869783,
+      "IC 95% inf": 0.0408733052828425,
+      "IC 95% sup": 0.10177556267948987,
+      "distinguível de zero": true
+    },
+    {
+      "comparação": "regra − original",
+      "métrica": "F1 negative",
+      "diferença": 0.0,
+      "IC 95% inf": 0.0,
+      "IC 95% sup": 0.0,
+      "distinguível de zero": false
+    },
+    {
+      "comparação": "ajuste fino − original",
+      "métrica": "F1 negative",
+      "diferença": 0.09287021954998853,
+      "IC 95% inf": -0.002858164532917062,
+      "IC 95% sup": 0.18922499027756043,
+      "distinguível de zero": false
+    },
+    {
+      "comparação": "ajuste fino − regra",
+      "métrica": "F1 negative",
+      "diferença": 0.09287021954998853,
+      "IC 95% inf": -0.002858164532917062,
+      "IC 95% sup": 0.18922499027756043,
+      "distinguível de zero": false
+    },
+    {
+      "comparação": "regra − original",
+      "métrica": "F1 positive",
+      "diferença": 0.09143181922129506,
+      "IC 95% inf": 0.07435204224527585,
+      "IC 95% sup": 0.10797462840438014,
+      "distinguível de zero": true
+    },
+    {
+      "comparação": "ajuste fino − original",
+      "métrica": "F1 positive",
+      "diferença": 0.1275754344033755,
+      "IC 95% inf": 0.10725005783627989,
+      "IC 95% sup": 0.14727667374179387,
+      "distinguível de zero": true
+    },
+    {
+      "comparação": "ajuste fino − regra",
+      "métrica": "F1 positive",
+      "diferença": 0.036143615182080424,
+      "IC 95% inf": 0.019582089476051313,
+      "IC 95% sup": 0.054255044894125116,
+      "distinguível de zero": true
+    },
+    {
+      "comparação": "regra − original",
+      "métrica": "F1 neutral",
+      "diferença": 0.17457938489711633,
+      "IC 95% inf": 0.130905599505171,
+      "IC 95% sup": 0.21917023425193205,
+      "distinguível de zero": true
+    },
+    {
+      "comparação": "ajuste fino − original",
+      "métrica": "F1 neutral",
+      "diferença": 0.3626608463108245,
+      "IC 95% inf": 0.25872479116457514,
+      "IC 95% sup": 0.4691120160994908,
+      "distinguível de zero": true
+    },
+    {
+      "comparação": "ajuste fino − regra",
+      "métrica": "F1 neutral",
+      "diferença": 0.18808146141370818,
+      "IC 95% inf": 0.08068470762047253,
+      "IC 95% sup": 0.3014410482420119,
+      "distinguível de zero": true
+    }
+  ],
+  "proporcoes_pela_anotacao": {
+    "positive": 0.8020220396714086,
+    "neutral": 0.10848941427903559,
+    "negative": 0.08948854604955572
+  },
+  "escolhido": "ajuste fino"
+}
