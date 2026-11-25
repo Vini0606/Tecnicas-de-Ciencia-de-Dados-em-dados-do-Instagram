@@ -18,9 +18,12 @@ modelagem).
 
 Fórmula (fixa pela ADR 0020, não reaberta aqui):
 
-    NSM = (comentários positivos / comentários totais) x alcance médio
+    NSM = (comentários positivos / comentários classificados) x alcance médio
 
-- **comentários positivos / comentários totais**: só comentários (`fonte ==
+- **comentários positivos / comentários classificados**: o denominador são os
+  comentários com rótulo de sentimento; os sem rótulo (texto vazio) ficam fora,
+  e `n_comentarios_classificados / n_comentarios_totais` é a cobertura da
+  classificação (revisão final do TCC, 2026-11). Só comentários (`fonte ==
   "comentario"` quando a coluna existe -- `governor_sentiment` também
   acumula linha de legenda/transcrição, que não deve contar aqui; mesmo
   filtro de escopo do Score ICE, ver `TopicPriorityScorer`), agregado por
@@ -94,6 +97,7 @@ _RESULT_COLUMNS = [
     "username",
     "n_comentarios_positivos",
     "n_comentarios_totais",
+    "n_comentarios_classificados",
     "proporcao_positivos",
     "total_engajamento",
     "count_posts",
@@ -101,7 +105,12 @@ _RESULT_COLUMNS = [
     "nsm",
 ]
 
-_POSITIVIDADE_COLUMNS = ["inputUrl", "n_comentarios_positivos", "n_comentarios_totais"]
+_POSITIVIDADE_COLUMNS = [
+    "inputUrl",
+    "n_comentarios_positivos",
+    "n_comentarios_totais",
+    "n_comentarios_classificados",
+]
 
 
 class NsmScorer:
@@ -139,12 +148,17 @@ class NsmScorer:
             df_positividade = pd.DataFrame(columns=_POSITIVIDADE_COLUMNS)
         else:
             positivo = df_sent["sentiment_label"].astype(str).str.lower() == "positive"
+            # Comentário sem rótulo (texto vazio, que o classificador não avalia) fica fora do
+            # denominador: não é "não positivo", é não observado. O total coletado segue gravado
+            # e `n_comentarios_classificados / n_comentarios_totais` é a cobertura da classificação.
+            classificado = df_sent["sentiment_label"].notna()
             df_positividade = (
-                df_sent.assign(_positivo=positivo)
+                df_sent.assign(_positivo=positivo & classificado, _classificado=classificado)
                 .groupby("inputUrl", dropna=False)
                 .agg(
                     n_comentarios_positivos=("_positivo", "sum"),
                     n_comentarios_totais=("_positivo", "size"),
+                    n_comentarios_classificados=("_classificado", "sum"),
                 )
                 .reset_index()
             )
@@ -163,7 +177,7 @@ class NsmScorer:
         if "username" not in combined.columns:
             combined["username"] = pd.NA
 
-        for coluna in ("n_comentarios_positivos", "n_comentarios_totais"):
+        for coluna in ("n_comentarios_positivos", "n_comentarios_totais", "n_comentarios_classificados"):
             combined[coluna] = (
                 pd.to_numeric(combined[coluna], errors="coerce").fillna(0).astype("int64")
             )
@@ -176,9 +190,11 @@ class NsmScorer:
         # ZeroDivisionError/inf; o `.fillna(0.0)` seguinte resolve os dois
         # casos de "não calculável" documentados na docstring do módulo
         # (0 comentários / 0 posts) para um valor sempre definido.
-        n_totais = combined["n_comentarios_totais"]
+        n_classificados = combined["n_comentarios_classificados"]
         combined["proporcao_positivos"] = (
-            combined["n_comentarios_positivos"].div(n_totais.where(n_totais > 0)).fillna(0.0)
+            combined["n_comentarios_positivos"]
+            .div(n_classificados.where(n_classificados > 0))
+            .fillna(0.0)
         )
         n_posts = combined["count_posts"]
         combined["alcance_medio"] = (

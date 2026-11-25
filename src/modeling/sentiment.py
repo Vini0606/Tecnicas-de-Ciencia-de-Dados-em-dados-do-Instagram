@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from pathlib import Path
 
 import pandas as pd
 from transformers import pipeline
@@ -11,6 +12,12 @@ from src.modeling.config import SentimentConfig
 
 
 def _build_pipeline(model_name: str) -> Callable:
+    # Um caminho local inexistente cairia numa busca no Hub com erro obscuro.
+    if Path(model_name).is_absolute() and not Path(model_name).is_dir():
+        raise FileNotFoundError(
+            f"Modelo de sentimento não encontrado em {model_name}. Gere-o com "
+            "notebooks/modelagens/validacao_sentimento/ajuste_fino.py (ADR 0049)."
+        )
     return pipeline("sentiment-analysis", model=model_name)
 
 
@@ -32,7 +39,7 @@ def analyze_sentiment(
     def _analisar(texto):
         if pd.notna(texto) and str(texto).strip() != "":
             try:
-                resultado = analisador(texto, truncation=True, max_length=512)[0]
+                resultado = analisador(texto, truncation=True, max_length=config.max_length)[0]
                 return pd.Series([resultado["label"], resultado["score"]])
             except Exception:  # noqa: BLE001 -- qualquer falha do pipeline de inferência cai no fallback abaixo
                 return pd.Series([None, None])

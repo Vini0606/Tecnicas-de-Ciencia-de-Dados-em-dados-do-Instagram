@@ -28,6 +28,7 @@
 % Pacotes fundamentais 
 % ---------------------------------------------------------------------------
 
+\usepackage[T1]{fontenc}		% Codificação da fonte: acentos copiáveis do PDF e < > corretos em modo texto
 \usepackage[utf8]{inputenc}		% Codificação do documento (conversão automática dos acentos)
 \usepackage{lmodern}			% Fontes Latin Modern escaláveis (evita erro do microtype com negrito+monoespaçado)
 \usepackage{indentfirst}		% Indenta o primeiro parágrafo de cada seção.
@@ -57,6 +58,7 @@
 \usepackage{pgfgantt}     %pacote do gráfico de gantt
 \usepackage{hyperref}     %pacote para adicionar links internos
 \usepackage{xurl}         % permite quebrar URLs longas em qualquer ponto (lista de referências)
+\AtBeginDocument{\def\UrlBreaks{\do\/\do\.\do\-\do\_\do\?\do\&\do\=\do\#\do\%}\def\UrlBigBreaks{}\def\UrlNoBreaks{\do\:}\Urlmuskip=0mu}  % URLs quebram só em separadores (nunca no meio de uma palavra nem logo após "https:")
 \hyphenation{COBRAs COBRA}  % a sigla não deve ser hifenizada
 
 % ----------------------------------------------------------

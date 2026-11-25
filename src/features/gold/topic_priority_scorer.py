@@ -120,19 +120,29 @@ class TopicPriorityScorer:
         replies = pd.to_numeric(df["repliesCount"], errors="coerce").fillna(0.0)
         alcance_comentario = likes + replies
         positivo = df["sentiment_label"].astype(str).str.lower() == "positive"
+        # NaN quando sem rótulo (texto vazio): `mean` ignora, e o denominador da
+        # proporção são os comentários classificados, mesma base da NSM.
+        positivo_cls = positivo.astype(float).where(df["sentiment_label"].notna())
 
         grouped = (
-            df.assign(_alcance_comentario=alcance_comentario, _positivo=positivo)
+            df.assign(
+                _alcance_comentario=alcance_comentario,
+                _positivo=positivo,
+                _positivo_cls=positivo_cls,
+            )
             .groupby(["Topic", "Name"], dropna=False)
             .agg(
                 n_comentarios=("_positivo", "size"),
                 alcance_topico=("_alcance_comentario", "sum"),
-                proporcao_sentimento_positivo=("_positivo", "mean"),
+                proporcao_sentimento_positivo=("_positivo_cls", "mean"),
                 confianca=("sentiment_score", "mean"),
             )
             .reset_index()
         )
 
+        grouped["proporcao_sentimento_positivo"] = grouped[
+            "proporcao_sentimento_positivo"
+        ].fillna(0.0)
         grouped["Topic"] = grouped["Topic"].astype("int64")
         grouped["n_comentarios"] = grouped["n_comentarios"].astype("int64")
         grouped["alcance_topico"] = grouped["alcance_topico"].astype("int64")

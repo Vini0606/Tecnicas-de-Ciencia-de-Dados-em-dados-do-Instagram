@@ -79,6 +79,16 @@ class SentimentConfig:
 
     text_column: str = "text"
     model_name: str = "cardiffnlp/twitter-xlm-roberta-base-sentiment"
+    max_length: int = 512
+
+
+def _comment_sentiment_config() -> SentimentConfig:
+    """ADR 0049: os comentários usam o classificador ajustado ao domínio
+    (ajuste fino do `model_name` acima em comentários anotados da Coleta do
+    TCC), com o mesmo corte de 64 tokens do treino e da avaliação. Legenda e
+    transcrição seguem no modelo pré-treinado: não fizeram parte do treino
+    nem do teste."""
+    return SentimentConfig(model_name=str(settings.SENTIMENT_FINETUNED_DIR), max_length=64)
 
 
 @dataclass
@@ -191,6 +201,7 @@ class ModelingConfig:
     pca_feed: FeedPCAConfig = field(default_factory=FeedPCAConfig)
     cluster: ClusterConfig = field(default_factory=ClusterConfig)
     sentiment: SentimentConfig = field(default_factory=SentimentConfig)
+    comment_sentiment: SentimentConfig = field(default_factory=_comment_sentiment_config)
     preprocessing: PreprocessingConfig = field(default_factory=PreprocessingConfig)
     topics: TopicModelConfig = field(default_factory=TopicModelConfig)
     post_topics: PostTopicModelConfig = field(default_factory=PostTopicModelConfig)

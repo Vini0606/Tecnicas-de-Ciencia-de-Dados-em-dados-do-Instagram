@@ -179,3 +179,18 @@ def test_write_grava_schema_e_metadados(tmp_path):
     out = DeltaTable(str(path)).to_pandas()
     assert (out["_run_id"] == "run_x").all()
     assert set(GOLD_CONTENT_TOPIC_PRIORITY_SCORE_SCHEMA.names) == set(out.columns)
+
+
+def test_comentario_sem_rotulo_fica_fora_da_proporcao_de_positivos():
+    out = _score(
+        [_comment(label="positive"), _comment(label="negative"), _comment(label=None, score=None)],
+        [_discourse()],
+    )
+    assert out.iloc[0]["n_comentarios"] == 3
+    assert out.iloc[0]["proporcao_sentimento_positivo"] == 0.5
+
+
+def test_pauta_so_com_comentarios_sem_rotulo_tem_proporcao_zero():
+    out = _score([_comment(label=None, score=None)], [_discourse()])
+    assert out.iloc[0]["proporcao_sentimento_positivo"] == 0.0
+    assert out.iloc[0]["score"] == 0.0

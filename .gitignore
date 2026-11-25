@@ -73,3 +73,11 @@ data/logs/
 data_backup_*/
 # Manifesto da Coleta em uso (artefato local)
 data/manifesto.json
+
+# Anotacao: textos reais de comentarios e legendas, nunca versionar
+notebooks/modelagens/validacao_*/*_para_rotular.csv
+notebooks/modelagens/validacao_*/amostra_regra.csv
+notebooks/modelagens/validacao_*/*planilha_conferencia*.xlsx
+notebooks/modelagens/validacao_*/conferencia_topicos.xlsx
+notebooks/modelagens/validacao_*/lote_*.json
+notebooks/modelagens/validacao_*/*.parquet

@@ -266,7 +266,7 @@ Ordem dos estágios e tabelas gravadas:
 | 1 | PCA + `AutoClusterHPO` sobre reels | `reels_clean` | `governor_clusters_reels` (`content_type="reel"`) | não |
 | 2 | PCA + `AutoClusterHPO` sobre posts do feed | `posts_clean` | `governor_clusters_posts` (`content_type="feed"`) | não |
 | 3 | `combine_comment_sources`: une comentários de reels e de posts, **dedup por `id_comment` preferindo a linha de reel**, marca `origem_comentario` | `comments_clean`, `post_comments_clean` | — | — |
-| 4 | Sentimento (`cardiffnlp/twitter-xlm-roberta-base-sentiment`) → pré-processamento → BERTopic | saída de 3 | `governor_sentiment` (`overwrite`, `fonte="comentario"`) e `governor_sentiment_history` (`append`) | não |
+| 4 | Sentimento (comentários: classificador ajustado ao domínio, ADR 0049; legendas: `cardiffnlp/twitter-xlm-roberta-base-sentiment`) → pré-processamento → BERTopic | saída de 3 | `governor_sentiment` (`overwrite`, `fonte="comentario"`) e `governor_sentiment_history` (`append`) | não |
 | 5 | Score ICE de tópicos de comentário | saída de 4 | `topic_priority_score` | não |
 | 6 | NSM = (comentários positivos / totais) × (`TOTAL ENGAJAMENTO` / `count`) | saída de 4 + `governor_engagement` | `governor_nsm` | não |
 | 7 | Sentimento de **legenda** (`posts.caption`) e **transcrição** (`reels.transcript`) | `posts_clean`, `reels_clean` | `governor_sentiment` e `_history` (`append`, `fonte="legenda"`/`"transcricao"`) | não |

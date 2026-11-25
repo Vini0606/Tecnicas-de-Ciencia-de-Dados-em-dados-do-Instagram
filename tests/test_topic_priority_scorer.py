@@ -260,3 +260,23 @@ class TestWrite:
         df_scored["_generated_at"] = datetime.now(timezone.utc)
         table = conform_to_schema(df_scored, GOLD_TOPIC_PRIORITY_SCORE_SCHEMA)
         assert table.num_rows == 2
+
+
+def test_comentario_sem_rotulo_fica_fora_da_proporcao_de_positivos():
+    df = pd.DataFrame(
+        [
+            _comentario(sentiment_label="positive"),
+            _comentario(sentiment_label="negative"),
+            _comentario(sentiment_label=None, sentiment_score=None),
+        ]
+    )
+    out = TopicPriorityScorer().score(df)
+    assert out.iloc[0]["n_comentarios"] == 3
+    assert out.iloc[0]["proporcao_sentimento_positivo"] == 0.5
+
+
+def test_topico_so_com_comentarios_sem_rotulo_tem_proporcao_zero():
+    df = pd.DataFrame([_comentario(sentiment_label=None, sentiment_score=None)])
+    out = TopicPriorityScorer().score(df)
+    assert out.iloc[0]["proporcao_sentimento_positivo"] == 0.0
+    assert out.iloc[0]["score"] == 0.0

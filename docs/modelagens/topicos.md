@@ -49,7 +49,10 @@ Três usos do BERTopic, com corpora diferentes (`src/modeling/config.py`, `src/m
    pode legitimamente gerar menos de 50 tópicos (docstring de `DiscourseTopicModelConfig`; ADR 0020, Ficha 4).
 2. **Refinamento manual dos rótulos via Gemini** (`refine_topics_with_gemini`, `scripts/refine_topics.py`): chamada separada,
    com `topic_model.update_topics(..., representation_model=GeminiDocsRefiner(...))`, sem refazer embeddings nem
-   clusterização. Para o discurso, o prompt pede um rótulo de no máximo 6 palavras (`DISCOURSE_PROMPT_TEMPLATE`); tópico sem
+   clusterização. Efeito colateral: chamado sem `vectorizer_model`, o `update_topics` do BERTopic troca o vetorizador do
+   ajuste (`EMOJI_TOKEN_PATTERN`) por um `CountVectorizer()` padrão e recalcula o c-TF-IDF, sem o `KeyBERTInspired`: as
+   palavras-chave do modelo refinado (as do checkpoint e das tabelas do TCC) são c-TF-IDF puro; a atribuição dos documentos
+   não muda (verificado no checkpoint `20261118_151001_8f41855c`, 2026-11-22). Para o discurso, o prompt pede um rótulo de no máximo 6 palavras (`DISCOURSE_PROMPT_TEMPLATE`); tópico sem
    palavra alguma recebe o rótulo fixo "sem assunto definido" (`DEGENERATE_TOPIC_LABEL`, issue #186). O refino continua
    manual e fora do `pipeline.py` (ADR 0034, Decisão 5).
 3. **Checkpoint:** `run_deterministic_modeling` persiste o modelo ajustado em `data/model_checkpoints/<run_id>/` para o refino
@@ -101,6 +104,8 @@ O que está registrado:
 ## Limitações
 
 - Sem métrica de qualidade registrada (coerência, estabilidade entre execuções, comparação com outro método).
+- UMAP sem `random_state` (o `model_topics` usa o UMAP padrão do BERTopic): o ajuste não é reproduzível bit a bit; a
+  reprodutibilidade dos tópicos publicados vem do checkpoint persistido, não da semente.
 - Os tópicos de comentário são dominados por emoji; o nome legível é um ajuste de apresentação, e o texto original do
   comentário permanece como ponto sensível de privacidade (ADR 0038, ADR 0037).
 - O refino por Gemini é manual, depende de API paga e de revisão humana, e produz texto citável no TCC (ADR 0001). Sem o

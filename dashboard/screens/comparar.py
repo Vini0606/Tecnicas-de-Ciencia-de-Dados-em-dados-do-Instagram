@@ -92,6 +92,7 @@ from dashboard.core.periodo import (
     marcacao_fixados_indisponivel,
 )
 from dashboard.core.seletor_periodo import MENSAGEM_SEM_PUBLICACOES, seletor_periodo
+from dashboard.core.sentimento import proporcao_rotulo
 from dashboard.screens.comparar_clusters import render_clusters
 
 _PLACEHOLDER_SEM_GOVERNADOR = "—"
@@ -301,7 +302,7 @@ def _montar_metricas_por_governador(
         sent["_match_key"] = _normalize_url(sent["inputUrl"])
         pct_positivo = (
             sent.groupby("_match_key")["sentiment_label"]
-            .apply(lambda s: (s == "positive").mean())
+            .apply(lambda s: proporcao_rotulo(s, "positive"))
             .rename("pct_positivo")
             .reset_index()
         )

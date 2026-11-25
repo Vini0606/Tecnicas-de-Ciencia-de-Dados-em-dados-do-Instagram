@@ -1,0 +1,9978 @@
+[
+ {
+  "modelo": "comentarios",
+  "n_topicos": 49,
+  "k": 10,
+  "unicos": {
+   "n_docs": 38581,
+   "vocab": 20369,
+   "npmi_media": -0.23231798031148035,
+   "npmi_mediana": -0.22110558990018864,
+   "npmi_min": -1.0,
+   "npmi_max": 0.9021101127649322,
+   "npmi_positivos": 16,
+   "pares_sem_coocorrencia_pct": 41.224489795918366,
+   "npmi_aleatorio_media": -0.9433787361229616,
+   "topicos": [
+    {
+     "topico": 0,
+     "npmi": 0.00869682910327403,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "mãos_aplaudindo",
+      "rosto_sorridente_com_olhos_de_coração",
+      "rosto_chorando_de_rir",
+      "mãos_para_cima",
+      "mãos_aplaudindo_pele_clara",
+      "coração_vermelho",
+      "mãos_juntas",
+      "foguete",
+      "mãos_aplaudindo_pele_morena_clara",
+      "mão_em_v_de_vitória"
+     ]
+    },
+    {
+     "topico": 1,
+     "npmi": 0.14467076648995963,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "foguete",
+      "tecla_5",
+      "tecla_4",
+      "tecla_1",
+      "marca_de_seleção_branca",
+      "coração_azul",
+      "tecla_0",
+      "tecla_3",
+      "tecla_2",
+      "coração_roxo"
+     ]
+    },
+    {
+     "topico": 2,
+     "npmi": 0.051531462546021915,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 4,
+     "pares": 45,
+     "palavras": [
+      "água",
+      "vai",
+      "hospital",
+      "pra",
+      "nada",
+      "agora",
+      "concurso",
+      "povo",
+      "zero",
+      "fazer"
+     ]
+    },
+    {
+     "topico": 3,
+     "npmi": -0.15829508469142353,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 9,
+     "pares": 45,
+     "palavras": [
+      "coração_vermelho",
+      "13",
+      "onda",
+      "coração_azul",
+      "mãos_para_cima",
+      "coração_amarelo",
+      "lula",
+      "pará",
+      "coração_verde",
+      "azul"
+     ]
+    },
+    {
+     "topico": 4,
+     "npmi": 0.10838546512332964,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 2,
+     "pares": 45,
+     "palavras": [
+      "governador",
+      "parabéns",
+      "governadora",
+      "paraná",
+      "melhor",
+      "raquel",
+      "deus",
+      "abençoe",
+      "sempre",
+      "estado"
+     ]
+    },
+    {
+     "topico": 5,
+     "npmi": -0.0629761035533251,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 8,
+     "pares": 45,
+     "palavras": [
+      "naipe_de_copas",
+      "bandeira_brasil",
+      "tecla_2",
+      "22",
+      "pessoa_fazendo_gesto_de_",
+      "não",
+      "brasil",
+      "lula",
+      "elmano",
+      "tecla_3"
+     ]
+    },
+    {
+     "topico": 6,
+     "npmi": -0.21221636115890974,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 19,
+     "pares": 45,
+     "palavras": [
+      "senador",
+      "mauro",
+      "mendes",
+      "joão",
+      "grosso",
+      "mato",
+      "amapá",
+      "paraíba",
+      "azevedo",
+      "melhor"
+     ]
+    },
+    {
+     "topico": 7,
+     "npmi": -0.050581438511765935,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 10,
+     "pares": 45,
+     "palavras": [
+      "coração_roxo",
+      "tecla_5",
+      "foguete",
+      "raquel",
+      "mainha",
+      "55",
+      "coração_rosa",
+      "lira",
+      "pernambuco",
+      "respingo"
+     ]
+    },
+    {
+     "topico": 8,
+     "npmi": 0.034679421017520966,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 3,
+     "pares": 45,
+     "palavras": [
+      "13",
+      "lula",
+      "rafael",
+      "presidente",
+      "neles",
+      "bora",
+      "13lula",
+      "vote",
+      "brasil",
+      "mãos_para_cima"
+     ]
+    },
+    {
+     "topico": 9,
+     "npmi": -0.2471289224630793,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 18,
+     "pares": 45,
+     "palavras": [
+      "klyciarodrigues",
+      "cara",
+      "vc",
+      "vergonha",
+      "[usuario]",
+      "lucassouzag_",
+      "antoniodenariumrr",
+      "respeito",
+      "fonteles",
+      "aí"
+     ]
+    },
+    {
+     "topico": 10,
+     "npmi": -0.22110558990018864,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 16,
+     "pares": 45,
+     "palavras": [
+      "presidente",
+      "2030",
+      "lula",
+      "hojetemlivedoexercito",
+      "rafael",
+      "brasil",
+      "abreosigiloflavio",
+      "2026",
+      "futuro",
+      "fonteles"
+     ]
+    },
+    {
+     "topico": 11,
+     "npmi": 0.1280748721099361,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 1,
+     "pares": 45,
+     "palavras": [
+      "bora",
+      "juntos",
+      "vamos",
+      "cima",
+      "junto",
+      "tamos",
+      "tamo",
+      "pra",
+      "vitória",
+      "time"
+     ]
+    },
+    {
+     "topico": 12,
+     "npmi": 0.06836890533215051,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 5,
+     "pares": 45,
+     "palavras": [
+      "voto",
+      "votar",
+      "votei",
+      "turno",
+      "vota",
+      "primeiro",
+      "vc",
+      "nele",
+      "segundo",
+      "urnas"
+     ]
+    },
+    {
+     "topico": 13,
+     "npmi": 0.1671767809834692,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 5,
+     "pares": 45,
+     "palavras": [
+      "amém",
+      "deus",
+      "jesus",
+      "nome",
+      "abençoe",
+      "ém",
+      "amem",
+      "vitória",
+      "senhor",
+      "sempre"
+     ]
+    },
+    {
+     "topico": 14,
+     "npmi": 0.07144811947269045,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 4,
+     "pares": 45,
+     "palavras": [
+      "111",
+      "11",
+      "coração_azul",
+      "coração_amarelo",
+      "vou",
+      "senador",
+      "100",
+      "coração",
+      "gladsoncameli",
+      "400"
+     ]
+    },
+    {
+     "topico": 15,
+     "npmi": 0.07689764252787747,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 10,
+     "pares": 45,
+     "palavras": [
+      "pagamento",
+      "salário",
+      "aposentados",
+      "dinheiro",
+      "cadê",
+      "pagar",
+      "mês",
+      "pague",
+      "servidores",
+      "aposentado"
+     ]
+    },
+    {
+     "topico": 16,
+     "npmi": 0.08773698740329337,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 6,
+     "pares": 45,
+     "palavras": [
+      "elmano",
+      "ceará",
+      "piauí",
+      "cid",
+      "13",
+      "lula",
+      "reeleito",
+      "governador",
+      "ama",
+      "luizianne"
+     ]
+    },
+    {
+     "topico": 17,
+     "npmi": -0.3011879407625671,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 17,
+     "pares": 45,
+     "palavras": [
+      "lindo",
+      "linda",
+      "bom",
+      "demais",
+      "beleza",
+      "melhor",
+      "amo",
+      "coisa",
+      "amei",
+      "legal"
+     ]
+    },
+    {
+     "topico": 18,
+     "npmi": -0.36039343244639205,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 20,
+     "pares": 45,
+     "palavras": [
+      "44",
+      "444",
+      "400",
+      "joão",
+      "clécio",
+      "anos",
+      "cima",
+      "quadrilha",
+      "senador",
+      "4444"
+     ]
+    },
+    {
+     "topico": 19,
+     "npmi": -0.27469353680020636,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 14,
+     "pares": 45,
+     "palavras": [
+      "coração_vermelho",
+      "rosto_chorando_de_rir",
+      "polegar_para_cima",
+      "coração_verde",
+      "tecla_3",
+      "tecla_1",
+      "círculo_azul",
+      "quadrado_verde",
+      "rosto_sorridente_com_olhos_de_coração",
+      "coração_amarelo"
+     ]
+    },
+    {
+     "topico": 20,
+     "npmi": -0.006186300480127824,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 9,
+     "pares": 45,
+     "palavras": [
+      "15",
+      "ricardo",
+      "ferraço",
+      "es",
+      "virar",
+      "bora",
+      "governador",
+      "cachoeiro",
+      "vamos",
+      "brandão"
+     ]
+    },
+    {
+     "topico": 21,
+     "npmi": 0.7478508962325674,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "55",
+      "fabiana",
+      "márcia",
+      "vieira",
+      "5575",
+      "dra",
+      "55701",
+      "alex",
+      "sandro",
+      "100"
+     ]
+    },
+    {
+     "topico": 22,
+     "npmi": -0.04376726772635833,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 13,
+     "pares": 45,
+     "palavras": [
+      "braga",
+      "marco",
+      "casa",
+      "mulher",
+      "presente",
+      "lindo",
+      "mainha",
+      "amor",
+      "casal",
+      "gosto"
+     ]
+    },
+    {
+     "topico": 23,
+     "npmi": -0.753448803793116,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 37,
+     "pares": 45,
+     "palavras": [
+      "mentira",
+      "verdade",
+      "mente",
+      "mentir",
+      "mentiras",
+      "enganar",
+      "pesquisa",
+      "fake",
+      "pura",
+      "engana"
+     ]
+    },
+    {
+     "topico": 24,
+     "npmi": -0.152741476453643,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 14,
+     "pares": 45,
+     "palavras": [
+      "sergipe",
+      "bahia",
+      "fábio",
+      "nordeste",
+      "mitidieri",
+      "povo",
+      "escolha",
+      "aracaju",
+      "acredito",
+      "todos"
+     ]
+    },
+    {
+     "topico": 25,
+     "npmi": -1.0,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 45,
+     "pares": 45,
+     "palavras": [
+      "massa",
+      "131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313",
+      "2222222²",
+      "131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313",
+      "cuugguguguuguguuguguguguguguugugguuuguuguguvuuvgugguguguvuuvuvuvuugvuugucufugguuvuuugugguguugufufufugufugufugcuugugugugufuuguguguggugu",
+      "ert6⁶",
+      "jos",
+      "francisca",
+      "aga",
+      "bor"
+     ]
+    },
+    {
+     "topico": 26,
+     "npmi": 0.15636858809135526,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 11,
+     "pares": 45,
+     "palavras": [
+      "22",
+      "22bolsonaro",
+      "222",
+      "flavio",
+      "presidente",
+      "bolsonaro",
+      "helio",
+      "nicoleti",
+      "lopes",
+      "flávio"
+     ]
+    },
+    {
+     "topico": 27,
+     "npmi": -0.2976943188406645,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 23,
+     "pares": 45,
+     "palavras": [
+      "sentimentos",
+      "saudades",
+      "triste",
+      "sentir",
+      "conforte",
+      "familiares",
+      "família",
+      "pêsames",
+      "falta",
+      "amigos"
+     ]
+    },
+    {
+     "topico": 28,
+     "npmi": -0.8295815040229971,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 40,
+     "pares": 45,
+     "palavras": [
+      "kaiowá",
+      "guarani",
+      "sapo",
+      "pato",
+      "piqui",
+      "tejuçuoca",
+      "jacaré",
+      "homi",
+      "papagaio",
+      "rato"
+     ]
+    },
+    {
+     "topico": 29,
+     "npmi": -0.4031513993502616,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 23,
+     "pares": 45,
+     "palavras": [
+      "perdeu",
+      "faltou",
+      "perder",
+      "errado",
+      "nada",
+      "fez",
+      "kkkkk",
+      "kkkk",
+      "goleada",
+      "kkkkkkk"
+     ]
+    },
+    {
+     "topico": 30,
+     "npmi": 0.5197366278743086,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 4,
+     "pares": 45,
+     "palavras": [
+      "guarani",
+      "kaiowá",
+      "povos",
+      "indígenas",
+      "protejamnossospovosindígenas",
+      "proteger",
+      "originários",
+      "sul",
+      "grossenses",
+      "proteção"
+     ]
+    },
+    {
+     "topico": 31,
+     "npmi": -0.8301311027655528,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 39,
+     "pares": 45,
+     "palavras": [
+      "kkkkkkkkkk",
+      "kkkk",
+      "kkkkkkkk",
+      "kkkkkkkkkkkkkkk",
+      "kkkkkkkkk",
+      "kkkkkkkkkkk",
+      "kkkkkkk",
+      "kkkkk",
+      "kkkkkkkkkkkkkkkkkkkkkkkkkk",
+      "kkkkkkkkkkkkkkkkkkk"
+     ]
+    },
+    {
+     "topico": 32,
+     "npmi": -0.2522462036228871,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 22,
+     "pares": 45,
+     "palavras": [
+      "minas",
+      "icms",
+      "mg",
+      "gerais",
+      "combustíveis",
+      "aumentar",
+      "imposto",
+      "impostos",
+      "aumentou",
+      "sobre"
+     ]
+    },
+    {
+     "topico": 33,
+     "npmi": -0.6914693302067219,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 34,
+     "pares": 45,
+     "palavras": [
+      "lula",
+      "boralula",
+      "bora",
+      "lulaadandoshow",
+      "lulatetra",
+      "boralula13",
+      "cadu",
+      "fazem",
+      "lulacadusamandarafael",
+      "nadaaa"
+     ]
+    },
+    {
+     "topico": 34,
+     "npmi": -0.824868373321073,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 40,
+     "pares": 45,
+     "palavras": [
+      "fome",
+      "cartão",
+      "churrasco",
+      "comer",
+      "comida",
+      "prato",
+      "come",
+      "cm",
+      "batata",
+      "suco"
+     ]
+    },
+    {
+     "topico": 35,
+     "npmi": -0.5667147769098088,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 30,
+     "pares": 45,
+     "palavras": [
+      "quero",
+      "conhecer",
+      "voltei",
+      "dormi",
+      "queria",
+      "sonha",
+      "hoje",
+      "tanto",
+      "volto",
+      "boi"
+     ]
+    },
+    {
+     "topico": 36,
+     "npmi": -0.3911279453564457,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 25,
+     "pares": 45,
+     "palavras": [
+      "10",
+      "nota",
+      "tarcísio",
+      "1000",
+      "tarcisio",
+      "prêmio",
+      "mil",
+      "correios",
+      "haddad",
+      "paulo"
+     ]
+    },
+    {
+     "topico": 37,
+     "npmi": -0.4530195002392531,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 26,
+     "pares": 45,
+     "palavras": [
+      "zema",
+      "30",
+      "presidente",
+      "intocáveis",
+      "zema30",
+      "chega",
+      "acabar",
+      "venha",
+      "jaguariúna",
+      "zementel"
+     ]
+    },
+    {
+     "topico": 38,
+     "npmi": -0.15797363606214193,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 14,
+     "pares": 45,
+     "palavras": [
+      "gratidão",
+      "boa",
+      "noite",
+      "obrigado",
+      "tarde",
+      "dia",
+      "recebemos",
+      "bom",
+      "valeu",
+      "amigo"
+     ]
+    },
+    {
+     "topico": 39,
+     "npmi": -0.2621188290150152,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 21,
+     "pares": 45,
+     "palavras": [
+      "bolsonaro",
+      "flávio",
+      "22",
+      "bolsonarismo",
+      "esquerda",
+      "direita",
+      "contra",
+      "unidos",
+      "flaviobolsonaropresidente",
+      "losango_azul_pequeno"
+     ]
+    },
+    {
+     "topico": 40,
+     "npmi": -0.8219935302532551,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 40,
+     "pares": 45,
+     "palavras": [
+      "concordo",
+      "certo",
+      "plenamente",
+      "certinho",
+      "exatamente",
+      "dito",
+      "ahahahah",
+      "constatação",
+      "certíssima",
+      "gênero"
+     ]
+    },
+    {
+     "topico": 41,
+     "npmi": 0.1908848775153305,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 14,
+     "pares": 45,
+     "palavras": [
+      "https",
+      "com",
+      "www",
+      "instagram",
+      "reel",
+      "whatsapp",
+      "stkn",
+      "utm_source",
+      "share",
+      "youtube"
+     ]
+    },
+    {
+     "topico": 42,
+     "npmi": -1.0,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 45,
+     "pares": 45,
+     "palavras": [
+      "pt",
+      "quelllll",
+      "llal",
+      "llllllllll",
+      "sall",
+      "pjp",
+      "llllllllllllllllll",
+      "p8n",
+      "lll",
+      "lp"
+     ]
+    },
+    {
+     "topico": 43,
+     "npmi": 0.9021101127649322,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "londres",
+      "halal",
+      "promover",
+      "ancer",
+      "estrela_e_lua_crescente",
+      "turismo",
+      "parem",
+      "cristinagraeml",
+      "loucos",
+      "quanto"
+     ]
+    },
+    {
+     "topico": 44,
+     "npmi": -0.6292809819523562,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 34,
+     "pares": 45,
+     "palavras": [
+      "pizza",
+      "98",
+      "telefone",
+      "82",
+      "66",
+      "moro",
+      "whatsapp",
+      "número",
+      "nele",
+      "777"
+     ]
+    },
+    {
+     "topico": 45,
+     "npmi": -0.5254610895664631,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 29,
+     "pares": 45,
+     "palavras": [
+      "pt",
+      "petista",
+      "perdeu",
+      "nunca",
+      "inutil",
+      "nocivo",
+      "ganha",
+      "partido",
+      "enfraqueceu",
+      "carteirinha"
+     ]
+    },
+    {
+     "topico": 46,
+     "npmi": -0.3297498977646616,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 23,
+     "pares": 45,
+     "palavras": [
+      "bairro",
+      "loteamento",
+      "parque",
+      "onde",
+      "cidade",
+      "centro",
+      "lá",
+      "rua",
+      "favela",
+      "diego"
+     ]
+    },
+    {
+     "topico": 47,
+     "npmi": -0.9367952695919649,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 43,
+     "pares": 45,
+     "palavras": [
+      "tmj",
+      "tmjunto",
+      "tmjj",
+      "tmjgv",
+      "julin",
+      "tmjjj",
+      "sm",
+      "tmjs",
+      "tv",
+      "primo"
+     ]
+    },
+    {
+     "topico": 48,
+     "npmi": -0.8000994422679276,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 40,
+     "pares": 45,
+     "palavras": [
+      "mulher_decepcionada_pele_clara",
+      "homem_decepcionado_pele_clara",
+      "pessoa_decepcionada",
+      "mulher_decepcionada_pele_morena",
+      "homem_decepcionado",
+      "kkk",
+      "bobeira",
+      "jogaram",
+      "esculachado",
+      "reformada"
+     ]
+    }
+   ]
+  },
+  "todos": {
+   "n_docs": 75634,
+   "vocab": 20369,
+   "npmi_media": -0.2193577491815486,
+   "npmi_mediana": -0.196632560958189,
+   "npmi_min": -1.0,
+   "npmi_max": 0.9207908333976715,
+   "npmi_positivos": 16,
+   "pares_sem_coocorrencia_pct": 41.224489795918366,
+   "npmi_aleatorio_media": -0.9491850492245085,
+   "topicos": [
+    {
+     "topico": 0,
+     "npmi": -0.027115002028825205,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "mãos_aplaudindo",
+      "rosto_sorridente_com_olhos_de_coração",
+      "rosto_chorando_de_rir",
+      "mãos_para_cima",
+      "mãos_aplaudindo_pele_clara",
+      "coração_vermelho",
+      "mãos_juntas",
+      "foguete",
+      "mãos_aplaudindo_pele_morena_clara",
+      "mão_em_v_de_vitória"
+     ]
+    },
+    {
+     "topico": 1,
+     "npmi": 0.13263772581361935,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "foguete",
+      "tecla_5",
+      "tecla_4",
+      "tecla_1",
+      "marca_de_seleção_branca",
+      "coração_azul",
+      "tecla_0",
+      "tecla_3",
+      "tecla_2",
+      "coração_roxo"
+     ]
+    },
+    {
+     "topico": 2,
+     "npmi": 0.09815277439967326,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 4,
+     "pares": 45,
+     "palavras": [
+      "água",
+      "vai",
+      "hospital",
+      "pra",
+      "nada",
+      "agora",
+      "concurso",
+      "povo",
+      "zero",
+      "fazer"
+     ]
+    },
+    {
+     "topico": 3,
+     "npmi": -0.15156125440149737,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 9,
+     "pares": 45,
+     "palavras": [
+      "coração_vermelho",
+      "13",
+      "onda",
+      "coração_azul",
+      "mãos_para_cima",
+      "coração_amarelo",
+      "lula",
+      "pará",
+      "coração_verde",
+      "azul"
+     ]
+    },
+    {
+     "topico": 4,
+     "npmi": 0.1560250828220809,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 2,
+     "pares": 45,
+     "palavras": [
+      "governador",
+      "parabéns",
+      "governadora",
+      "paraná",
+      "melhor",
+      "raquel",
+      "deus",
+      "abençoe",
+      "sempre",
+      "estado"
+     ]
+    },
+    {
+     "topico": 5,
+     "npmi": -0.03252630336557338,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 8,
+     "pares": 45,
+     "palavras": [
+      "naipe_de_copas",
+      "bandeira_brasil",
+      "tecla_2",
+      "22",
+      "pessoa_fazendo_gesto_de_",
+      "não",
+      "brasil",
+      "lula",
+      "elmano",
+      "tecla_3"
+     ]
+    },
+    {
+     "topico": 6,
+     "npmi": -0.1884310401122089,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 19,
+     "pares": 45,
+     "palavras": [
+      "senador",
+      "mauro",
+      "mendes",
+      "joão",
+      "grosso",
+      "mato",
+      "amapá",
+      "paraíba",
+      "azevedo",
+      "melhor"
+     ]
+    },
+    {
+     "topico": 7,
+     "npmi": -0.055193425609708295,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 10,
+     "pares": 45,
+     "palavras": [
+      "coração_roxo",
+      "tecla_5",
+      "foguete",
+      "raquel",
+      "mainha",
+      "55",
+      "coração_rosa",
+      "lira",
+      "pernambuco",
+      "respingo"
+     ]
+    },
+    {
+     "topico": 8,
+     "npmi": 0.06372765728929825,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 3,
+     "pares": 45,
+     "palavras": [
+      "13",
+      "lula",
+      "rafael",
+      "presidente",
+      "neles",
+      "bora",
+      "13lula",
+      "vote",
+      "brasil",
+      "mãos_para_cima"
+     ]
+    },
+    {
+     "topico": 9,
+     "npmi": -0.22150896785506816,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 18,
+     "pares": 45,
+     "palavras": [
+      "klyciarodrigues",
+      "cara",
+      "vc",
+      "vergonha",
+      "[usuario]",
+      "lucassouzag_",
+      "antoniodenariumrr",
+      "respeito",
+      "fonteles",
+      "aí"
+     ]
+    },
+    {
+     "topico": 10,
+     "npmi": -0.196632560958189,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 16,
+     "pares": 45,
+     "palavras": [
+      "presidente",
+      "2030",
+      "lula",
+      "hojetemlivedoexercito",
+      "rafael",
+      "brasil",
+      "abreosigiloflavio",
+      "2026",
+      "futuro",
+      "fonteles"
+     ]
+    },
+    {
+     "topico": 11,
+     "npmi": 0.17763879148217265,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 1,
+     "pares": 45,
+     "palavras": [
+      "bora",
+      "juntos",
+      "vamos",
+      "cima",
+      "junto",
+      "tamos",
+      "tamo",
+      "pra",
+      "vitória",
+      "time"
+     ]
+    },
+    {
+     "topico": 12,
+     "npmi": 0.09889460377468169,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 5,
+     "pares": 45,
+     "palavras": [
+      "voto",
+      "votar",
+      "votei",
+      "turno",
+      "vota",
+      "primeiro",
+      "vc",
+      "nele",
+      "segundo",
+      "urnas"
+     ]
+    },
+    {
+     "topico": 13,
+     "npmi": 0.20498635465786666,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 5,
+     "pares": 45,
+     "palavras": [
+      "amém",
+      "deus",
+      "jesus",
+      "nome",
+      "abençoe",
+      "ém",
+      "amem",
+      "vitória",
+      "senhor",
+      "sempre"
+     ]
+    },
+    {
+     "topico": 14,
+     "npmi": 0.080532479573081,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 4,
+     "pares": 45,
+     "palavras": [
+      "111",
+      "11",
+      "coração_azul",
+      "coração_amarelo",
+      "vou",
+      "senador",
+      "100",
+      "coração",
+      "gladsoncameli",
+      "400"
+     ]
+    },
+    {
+     "topico": 15,
+     "npmi": 0.09439803339079628,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 10,
+     "pares": 45,
+     "palavras": [
+      "pagamento",
+      "salário",
+      "aposentados",
+      "dinheiro",
+      "cadê",
+      "pagar",
+      "mês",
+      "pague",
+      "servidores",
+      "aposentado"
+     ]
+    },
+    {
+     "topico": 16,
+     "npmi": 0.1193293932380599,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 6,
+     "pares": 45,
+     "palavras": [
+      "elmano",
+      "ceará",
+      "piauí",
+      "cid",
+      "13",
+      "lula",
+      "reeleito",
+      "governador",
+      "ama",
+      "luizianne"
+     ]
+    },
+    {
+     "topico": 17,
+     "npmi": -0.27537694618184927,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 17,
+     "pares": 45,
+     "palavras": [
+      "lindo",
+      "linda",
+      "bom",
+      "demais",
+      "beleza",
+      "melhor",
+      "amo",
+      "coisa",
+      "amei",
+      "legal"
+     ]
+    },
+    {
+     "topico": 18,
+     "npmi": -0.34863258127081903,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 20,
+     "pares": 45,
+     "palavras": [
+      "44",
+      "444",
+      "400",
+      "joão",
+      "clécio",
+      "anos",
+      "cima",
+      "quadrilha",
+      "senador",
+      "4444"
+     ]
+    },
+    {
+     "topico": 19,
+     "npmi": -0.276023660938769,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 14,
+     "pares": 45,
+     "palavras": [
+      "coração_vermelho",
+      "rosto_chorando_de_rir",
+      "polegar_para_cima",
+      "coração_verde",
+      "tecla_3",
+      "tecla_1",
+      "círculo_azul",
+      "quadrado_verde",
+      "rosto_sorridente_com_olhos_de_coração",
+      "coração_amarelo"
+     ]
+    },
+    {
+     "topico": 20,
+     "npmi": 0.017669234532981457,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 9,
+     "pares": 45,
+     "palavras": [
+      "15",
+      "ricardo",
+      "ferraço",
+      "es",
+      "virar",
+      "bora",
+      "governador",
+      "cachoeiro",
+      "vamos",
+      "brandão"
+     ]
+    },
+    {
+     "topico": 21,
+     "npmi": 0.8014517831711203,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "55",
+      "fabiana",
+      "márcia",
+      "vieira",
+      "5575",
+      "dra",
+      "55701",
+      "alex",
+      "sandro",
+      "100"
+     ]
+    },
+    {
+     "topico": 22,
+     "npmi": -0.01850164749598107,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 13,
+     "pares": 45,
+     "palavras": [
+      "braga",
+      "marco",
+      "casa",
+      "mulher",
+      "presente",
+      "lindo",
+      "mainha",
+      "amor",
+      "casal",
+      "gosto"
+     ]
+    },
+    {
+     "topico": 23,
+     "npmi": -0.748242604939053,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 37,
+     "pares": 45,
+     "palavras": [
+      "mentira",
+      "verdade",
+      "mente",
+      "mentir",
+      "mentiras",
+      "enganar",
+      "pesquisa",
+      "fake",
+      "pura",
+      "engana"
+     ]
+    },
+    {
+     "topico": 24,
+     "npmi": -0.1320645084420913,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 14,
+     "pares": 45,
+     "palavras": [
+      "sergipe",
+      "bahia",
+      "fábio",
+      "nordeste",
+      "mitidieri",
+      "povo",
+      "escolha",
+      "aracaju",
+      "acredito",
+      "todos"
+     ]
+    },
+    {
+     "topico": 25,
+     "npmi": -1.0,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 45,
+     "pares": 45,
+     "palavras": [
+      "massa",
+      "131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313",
+      "2222222²",
+      "131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313",
+      "cuugguguguuguguuguguguguguguugugguuuguuguguvuuvgugguguguvuuvuvuvuugvuugucufugguuvuuugugguguugufufufugufugufugcuugugugugufuuguguguggugu",
+      "ert6⁶",
+      "jos",
+      "francisca",
+      "aga",
+      "bor"
+     ]
+    },
+    {
+     "topico": 26,
+     "npmi": 0.18313014071044767,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 11,
+     "pares": 45,
+     "palavras": [
+      "22",
+      "22bolsonaro",
+      "222",
+      "flavio",
+      "presidente",
+      "bolsonaro",
+      "helio",
+      "nicoleti",
+      "lopes",
+      "flávio"
+     ]
+    },
+    {
+     "topico": 27,
+     "npmi": -0.29365158418115006,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 23,
+     "pares": 45,
+     "palavras": [
+      "sentimentos",
+      "saudades",
+      "triste",
+      "sentir",
+      "conforte",
+      "familiares",
+      "família",
+      "pêsames",
+      "falta",
+      "amigos"
+     ]
+    },
+    {
+     "topico": 28,
+     "npmi": -0.827732718267561,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 40,
+     "pares": 45,
+     "palavras": [
+      "kaiowá",
+      "guarani",
+      "sapo",
+      "pato",
+      "piqui",
+      "tejuçuoca",
+      "jacaré",
+      "homi",
+      "papagaio",
+      "rato"
+     ]
+    },
+    {
+     "topico": 29,
+     "npmi": -0.3862517952748493,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 23,
+     "pares": 45,
+     "palavras": [
+      "perdeu",
+      "faltou",
+      "perder",
+      "errado",
+      "nada",
+      "fez",
+      "kkkkk",
+      "kkkk",
+      "goleada",
+      "kkkkkkk"
+     ]
+    },
+    {
+     "topico": 30,
+     "npmi": 0.4268219561273999,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 4,
+     "pares": 45,
+     "palavras": [
+      "guarani",
+      "kaiowá",
+      "povos",
+      "indígenas",
+      "protejamnossospovosindígenas",
+      "proteger",
+      "originários",
+      "sul",
+      "grossenses",
+      "proteção"
+     ]
+    },
+    {
+     "topico": 31,
+     "npmi": -0.8285357676147118,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 39,
+     "pares": 45,
+     "palavras": [
+      "kkkkkkkkkk",
+      "kkkk",
+      "kkkkkkkk",
+      "kkkkkkkkkkkkkkk",
+      "kkkkkkkkk",
+      "kkkkkkkkkkk",
+      "kkkkkkk",
+      "kkkkk",
+      "kkkkkkkkkkkkkkkkkkkkkkkkkk",
+      "kkkkkkkkkkkkkkkkkkk"
+     ]
+    },
+    {
+     "topico": 32,
+     "npmi": -0.24953096349923698,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 22,
+     "pares": 45,
+     "palavras": [
+      "minas",
+      "icms",
+      "mg",
+      "gerais",
+      "combustíveis",
+      "aumentar",
+      "imposto",
+      "impostos",
+      "aumentou",
+      "sobre"
+     ]
+    },
+    {
+     "topico": 33,
+     "npmi": -0.6860626620158142,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 34,
+     "pares": 45,
+     "palavras": [
+      "lula",
+      "boralula",
+      "bora",
+      "lulaadandoshow",
+      "lulatetra",
+      "boralula13",
+      "cadu",
+      "fazem",
+      "lulacadusamandarafael",
+      "nadaaa"
+     ]
+    },
+    {
+     "topico": 34,
+     "npmi": -0.8221637648222633,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 40,
+     "pares": 45,
+     "palavras": [
+      "fome",
+      "cartão",
+      "churrasco",
+      "comer",
+      "comida",
+      "prato",
+      "come",
+      "cm",
+      "batata",
+      "suco"
+     ]
+    },
+    {
+     "topico": 35,
+     "npmi": -0.5552356125991375,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 30,
+     "pares": 45,
+     "palavras": [
+      "quero",
+      "conhecer",
+      "voltei",
+      "dormi",
+      "queria",
+      "sonha",
+      "hoje",
+      "tanto",
+      "volto",
+      "boi"
+     ]
+    },
+    {
+     "topico": 36,
+     "npmi": -0.38296096333476487,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 25,
+     "pares": 45,
+     "palavras": [
+      "10",
+      "nota",
+      "tarcísio",
+      "1000",
+      "tarcisio",
+      "prêmio",
+      "mil",
+      "correios",
+      "haddad",
+      "paulo"
+     ]
+    },
+    {
+     "topico": 37,
+     "npmi": -0.44030003067438384,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 26,
+     "pares": 45,
+     "palavras": [
+      "zema",
+      "30",
+      "presidente",
+      "intocáveis",
+      "zema30",
+      "chega",
+      "acabar",
+      "venha",
+      "jaguariúna",
+      "zementel"
+     ]
+    },
+    {
+     "topico": 38,
+     "npmi": -0.11880299615312574,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 14,
+     "pares": 45,
+     "palavras": [
+      "gratidão",
+      "boa",
+      "noite",
+      "obrigado",
+      "tarde",
+      "dia",
+      "recebemos",
+      "bom",
+      "valeu",
+      "amigo"
+     ]
+    },
+    {
+     "topico": 39,
+     "npmi": -0.2554042598427048,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 21,
+     "pares": 45,
+     "palavras": [
+      "bolsonaro",
+      "flávio",
+      "22",
+      "bolsonarismo",
+      "esquerda",
+      "direita",
+      "contra",
+      "unidos",
+      "flaviobolsonaropresidente",
+      "losango_azul_pequeno"
+     ]
+    },
+    {
+     "topico": 40,
+     "npmi": -0.821594059600658,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 40,
+     "pares": 45,
+     "palavras": [
+      "concordo",
+      "certo",
+      "plenamente",
+      "certinho",
+      "exatamente",
+      "dito",
+      "ahahahah",
+      "constatação",
+      "certíssima",
+      "gênero"
+     ]
+    },
+    {
+     "topico": 41,
+     "npmi": 0.20681728394141452,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 14,
+     "pares": 45,
+     "palavras": [
+      "https",
+      "com",
+      "www",
+      "instagram",
+      "reel",
+      "whatsapp",
+      "stkn",
+      "utm_source",
+      "share",
+      "youtube"
+     ]
+    },
+    {
+     "topico": 42,
+     "npmi": -1.0,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 45,
+     "pares": 45,
+     "palavras": [
+      "pt",
+      "quelllll",
+      "llal",
+      "llllllllll",
+      "sall",
+      "pjp",
+      "llllllllllllllllll",
+      "p8n",
+      "lll",
+      "lp"
+     ]
+    },
+    {
+     "topico": 43,
+     "npmi": 0.9207908333976715,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "londres",
+      "halal",
+      "promover",
+      "ancer",
+      "estrela_e_lua_crescente",
+      "turismo",
+      "parem",
+      "cristinagraeml",
+      "loucos",
+      "quanto"
+     ]
+    },
+    {
+     "topico": 44,
+     "npmi": -0.6255794118292088,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 34,
+     "pares": 45,
+     "palavras": [
+      "pizza",
+      "98",
+      "telefone",
+      "82",
+      "66",
+      "moro",
+      "whatsapp",
+      "número",
+      "nele",
+      "777"
+     ]
+    },
+    {
+     "topico": 45,
+     "npmi": -0.5110109453194198,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 29,
+     "pares": 45,
+     "palavras": [
+      "pt",
+      "petista",
+      "perdeu",
+      "nunca",
+      "inutil",
+      "nocivo",
+      "ganha",
+      "partido",
+      "enfraqueceu",
+      "carteirinha"
+     ]
+    },
+    {
+     "topico": 46,
+     "npmi": -0.32034054766240866,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 23,
+     "pares": 45,
+     "palavras": [
+      "bairro",
+      "loteamento",
+      "parque",
+      "onde",
+      "cidade",
+      "centro",
+      "lá",
+      "rua",
+      "favela",
+      "diego"
+     ]
+    },
+    {
+     "topico": 47,
+     "npmi": -0.9356354269737612,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 43,
+     "pares": 45,
+     "palavras": [
+      "tmj",
+      "tmjunto",
+      "tmjj",
+      "tmjgv",
+      "julin",
+      "tmjjj",
+      "sm",
+      "tmjs",
+      "tv",
+      "primo"
+     ]
+    },
+    {
+     "topico": 48,
+     "npmi": -0.7989298249534545,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 40,
+     "pares": 45,
+     "palavras": [
+      "mulher_decepcionada_pele_clara",
+      "homem_decepcionado_pele_clara",
+      "pessoa_decepcionada",
+      "mulher_decepcionada_pele_morena",
+      "homem_decepcionado",
+      "kkk",
+      "bobeira",
+      "jogaram",
+      "esculachado",
+      "reformada"
+     ]
+    }
+   ]
+  },
+  "diversidade": 0.8489795918367347,
+  "n_palavras_total": 490,
+  "n_palavras_unicas": 416,
+  "diversidade_top25": 0.7665016501650165,
+  "palavras_por_topico_disponiveis": [
+   17,
+   30
+  ],
+  "palavras_mais_repetidas": {
+   "lula": 6,
+   "bora": 4,
+   "presidente": 4,
+   "governador": 3,
+   "tecla_3": 3,
+   "senador": 3,
+   "melhor": 3,
+   "22": 3,
+   "brasil": 3,
+   "13": 3,
+   "coração_amarelo": 3,
+   "coração_azul": 3,
+   "mãos_para_cima": 3,
+   "coração_vermelho": 3,
+   "foguete": 3
+  },
+  "ruido_docs_unicos": 12099,
+  "docs_no_ajuste": 38581
+ },
+ {
+  "modelo": "legendas",
+  "n_topicos": 198,
+  "k": 10,
+  "unicos": {
+   "n_docs": 8372,
+   "vocab": 16371,
+   "npmi_media": 0.1321115987906228,
+   "npmi_mediana": 0.16866829910737685,
+   "npmi_min": -0.7816737498820547,
+   "npmi_max": 0.9422901524299376,
+   "npmi_positivos": 131,
+   "pares_sem_coocorrencia_pct": 20.3751836365691,
+   "npmi_aleatorio_media": -0.8217135990908445,
+   "topicos": [
+    {
+     "topico": 0,
+     "npmi": 0.868901083761385,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "psol",
+      "ceará",
+      "rede",
+      "elmano",
+      "federação",
+      "forte",
+      "mobiliza",
+      "492",
+      "prd",
+      "solidária"
+     ]
+    },
+    {
+     "topico": 1,
+     "npmi": 0.570745238537329,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "sergipe",
+      "sergipecrescecomvoce",
+      "fabioquefaz",
+      "fabioquefez",
+      "timedelula",
+      "fábio",
+      "55",
+      "crescer",
+      "sergipano",
+      "sergipanos"
+     ]
+    },
+    {
+     "topico": 2,
+     "npmi": 0.5240265183782901,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "amapá",
+      "aforçadonovotempo",
+      "clécioluís",
+      "clécio44",
+      "telesjunior",
+      "portodooamapá",
+      "tempo",
+      "novo",
+      "44",
+      "força"
+     ]
+    },
+    {
+     "topico": 3,
+     "npmi": 0.7104800599159311,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "599",
+      "317",
+      "democrático",
+      "caiado55",
+      "partido",
+      "20",
+      "social",
+      "propaganda",
+      "psd",
+      "eleitoral"
+     ]
+    },
+    {
+     "topico": 4,
+     "npmi": 0.4890997160934922,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "400",
+      "joãopratodaobra",
+      "paraíba",
+      "senador",
+      "senado",
+      "joão",
+      "lucasribeiropb",
+      "paraibanos",
+      "daqui",
+      "naborwanderley"
+     ]
+    },
+    {
+     "topico": 5,
+     "npmi": 0.3972169501139122,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "ricardo",
+      "15",
+      "espírito",
+      "santo",
+      "governador",
+      "onda",
+      "capixabas",
+      "es",
+      "rumo",
+      "outubro"
+     ]
+    },
+    {
+     "topico": 6,
+     "npmi": 0.5890911929993106,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "pc",
+      "piauí",
+      "fe",
+      "republicanos",
+      "pv",
+      "força",
+      "pt",
+      "esperança",
+      "mdb",
+      "pdt"
+     ]
+    },
+    {
+     "topico": 7,
+     "npmi": 0.17465685038414533,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "pernambuco",
+      "gente",
+      "cima",
+      "pra",
+      "mainha",
+      "hospital",
+      "minha",
+      "carinho",
+      "tem",
+      "vocês"
+     ]
+    },
+    {
+     "topico": 8,
+     "npmi": 0.8313494663337576,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "pernambuco",
+      "coração",
+      "pe",
+      "proferida",
+      "reclamação",
+      "662",
+      "constitucional",
+      "psdb",
+      "597",
+      "403"
+     ]
+    },
+    {
+     "topico": 9,
+     "npmi": 0.6189013580944637,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "paraná",
+      "sandroalex",
+      "curi",
+      "alexandre",
+      "rafaelgrecaoficial",
+      "cristinagraeml",
+      "sandro",
+      "alex",
+      "greca",
+      "retroceder"
+     ]
+    },
+    {
+     "topico": 10,
+     "npmi": 0.9026463141970368,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "bahia",
+      "373",
+      "jero13",
+      "38",
+      "345",
+      "wagner130",
+      "rui133",
+      "lula13",
+      "avante",
+      "fe"
+     ]
+    },
+    {
+     "topico": 11,
+     "npmi": 0.9422901524299376,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "acre",
+      "823",
+      "democrata",
+      "526",
+      "504",
+      "97",
+      "gratuita",
+      "pl",
+      "avança",
+      "lei"
+     ]
+    },
+    {
+     "topico": 12,
+     "npmi": 0.9291695901945287,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "helena",
+      "asatur",
+      "roraima",
+      "senadora",
+      "545",
+      "suplentes",
+      "progressistas",
+      "originariamente",
+      "teixeira",
+      "tânia"
+     ]
+    },
+    {
+     "topico": 13,
+     "npmi": 0.43248357049521974,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "hana",
+      "chicão",
+      "helder",
+      "151",
+      "444",
+      "pará",
+      "15",
+      "tá",
+      "junto",
+      "azul"
+     ]
+    },
+    {
+     "topico": 14,
+     "npmi": 0.40150140834070647,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "r11",
+      "tôcomriedel",
+      "sul",
+      "mato",
+      "grosso",
+      "ms",
+      "vida",
+      "desenvolvimento",
+      "crescimento",
+      "grossense"
+     ]
+    },
+    {
+     "topico": 15,
+     "npmi": 0.31037109055507556,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 1,
+     "pares": 45,
+     "palavras": [
+      "moraes",
+      "intocáveis",
+      "farra",
+      "stf",
+      "se",
+      "compartilhe",
+      "preso",
+      "julgamento",
+      "intocável",
+      "não"
+     ]
+    },
+    {
+     "topico": 16,
+     "npmi": 0.25187811864166576,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 1,
+     "pares": 45,
+     "palavras": [
+      "maranhão",
+      "orleansbrandaoma",
+      "orleans",
+      "brandão",
+      "luís",
+      "15",
+      "avanços",
+      "continuidade",
+      "municípios",
+      "vitória"
+     ]
+    },
+    {
+     "topico": 17,
+     "npmi": 0.3087211687276827,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "mato",
+      "grosso",
+      "coragem",
+      "resultado",
+      "problemas",
+      "quero",
+      "fizemos",
+      "mesma",
+      "dava",
+      "brasília"
+     ]
+    },
+    {
+     "topico": 18,
+     "npmi": 0.24810781283196412,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 1,
+     "pares": 45,
+     "palavras": [
+      "te",
+      "feliz",
+      "amo",
+      "crianças",
+      "aniversário",
+      "deus",
+      "amor",
+      "você",
+      "meu",
+      "sempre"
+     ]
+    },
+    {
+     "topico": 19,
+     "npmi": 0.025244799319377856,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 4,
+     "pares": 45,
+     "palavras": [
+      "piauí",
+      "nos",
+      "nosso",
+      "votos",
+      "nossa",
+      "vez",
+      "independência",
+      "longe",
+      "cada",
+      "rafael"
+     ]
+    },
+    {
+     "topico": 20,
+     "npmi": 0.16733700721563144,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 4,
+     "pares": 45,
+     "palavras": [
+      "pará",
+      "azul",
+      "onda",
+      "junto",
+      "tá",
+      "santarém",
+      "hana",
+      "guamá",
+      "tomou",
+      "gente"
+     ]
+    },
+    {
+     "topico": 21,
+     "npmi": 0.20139466495578665,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "wilson",
+      "lima",
+      "senador",
+      "amazonas",
+      "povo",
+      "conto",
+      "444",
+      "10",
+      "04",
+      "dia"
+     ]
+    },
+    {
+     "topico": 22,
+     "npmi": 0.18396874042447303,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 3,
+     "pares": 45,
+     "palavras": [
+      "escola",
+      "integral",
+      "nova",
+      "entregamos",
+      "escolas",
+      "educação",
+      "estrutura",
+      "reforma",
+      "tempo",
+      "km"
+     ]
+    },
+    {
+     "topico": 23,
+     "npmi": 0.20953815229450917,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 7,
+     "pares": 45,
+     "palavras": [
+      "22",
+      "flávio",
+      "bolsonaro",
+      "flaviobolsonaro",
+      "vote22",
+      "roraima",
+      "presidente",
+      "arthur",
+      "cívico",
+      "votamos"
+     ]
+    },
+    {
+     "topico": 24,
+     "npmi": 0.33929230324966075,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "sigamos",
+      "norte",
+      "rn",
+      "cadu",
+      "rio",
+      "presidente",
+      "grande",
+      "lula",
+      "querido",
+      "caduxavier"
+     ]
+    },
+    {
+     "topico": 25,
+     "npmi": 0.8507338209577647,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "tarcisiogdf",
+      "smarinho",
+      "rogerio",
+      "alfredogaspar",
+      "flaviobolsonaro",
+      "bolsonarosp",
+      "carlosbolsonaro",
+      "michellebolsonaro",
+      "22",
+      "mudabrasil"
+     ]
+    },
+    {
+     "topico": 26,
+     "npmi": 0.2869505114776459,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 1,
+     "pares": 45,
+     "palavras": [
+      "mulher",
+      "mulheres",
+      "violência",
+      "proteção",
+      "ser",
+      "agressores",
+      "as",
+      "segura",
+      "contra",
+      "feminicídio"
+     ]
+    },
+    {
+     "topico": 27,
+     "npmi": 0.24581808232113944,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "democracia",
+      "exercer",
+      "direito",
+      "voto",
+      "votar",
+      "futuro",
+      "domingo",
+      "urnas",
+      "consciência",
+      "cidadania"
+     ]
+    },
+    {
+     "topico": 28,
+     "npmi": 0.2799802095270089,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 2,
+     "pares": 45,
+     "palavras": [
+      "444",
+      "mendes",
+      "mauro",
+      "duvido",
+      "amigos",
+      "número",
+      "você",
+      "ah",
+      "aí",
+      "decorou"
+     ]
+    },
+    {
+     "topico": 29,
+     "npmi": 0.3204050530516772,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 6,
+     "pares": 45,
+     "palavras": [
+      "roraima",
+      "arthur",
+      "henrique",
+      "vila",
+      "uiramutã",
+      "mucajaí",
+      "indígenas",
+      "amigo",
+      "asatur",
+      "helena"
+     ]
+    },
+    {
+     "topico": 30,
+     "npmi": 0.5358141627512987,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "475",
+      "818",
+      "02",
+      "pronto",
+      "lulaoficial",
+      "repost",
+      "psol",
+      "rede",
+      "fé",
+      "pcdob"
+     ]
+    },
+    {
+     "topico": 31,
+     "npmi": 0.27756471659364373,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 2,
+     "pares": 45,
+     "palavras": [
+      "amazonas",
+      "interior",
+      "manaus",
+      "quero",
+      "brasília",
+      "auxílio",
+      "levar",
+      "senado",
+      "recursos",
+      "am"
+     ]
+    },
+    {
+     "topico": 32,
+     "npmi": 0.4225279220167357,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "conforte",
+      "familiares",
+      "aos",
+      "tristeza",
+      "sua",
+      "amigos",
+      "notícia",
+      "deus",
+      "profunda",
+      "dor"
+     ]
+    },
+    {
+     "topico": 33,
+     "npmi": 0.1699995909991223,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 12,
+     "pares": 45,
+     "palavras": [
+      "plano",
+      "piauí",
+      "tvmeionorte",
+      "eleicoes2026",
+      "debatemeionorte",
+      "governodopiaui",
+      "rafaelfontelespi",
+      "governodoestado",
+      "eleicoes",
+      "debatecidadeverde"
+     ]
+    },
+    {
+     "topico": 34,
+     "npmi": -0.13571126584637944,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 16,
+     "pares": 45,
+     "palavras": [
+      "deus",
+      "pastores",
+      "abençoe",
+      "adoração",
+      "igreja",
+      "arquidiocesecuritiba",
+      "fé",
+      "alagoas",
+      "pastor",
+      "oração"
+     ]
+    },
+    {
+     "topico": 35,
+     "npmi": -0.06162748981107189,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 12,
+     "pares": 45,
+     "palavras": [
+      "paraná",
+      "empregos",
+      "fábrica",
+      "produtor",
+      "produção",
+      "crédito",
+      "produzindo",
+      "crescer",
+      "verão",
+      "emprego"
+     ]
+    },
+    {
+     "topico": 36,
+     "npmi": 0.4382148152697039,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 1,
+     "pares": 45,
+     "palavras": [
+      "chuvas",
+      "equipes",
+      "defesa",
+      "civil",
+      "acompanhando",
+      "bombeiros",
+      "situação",
+      "incêndio",
+      "necessário",
+      "corpo"
+     ]
+    },
+    {
+     "topico": 37,
+     "npmi": -0.2088557829260577,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 19,
+     "pares": 45,
+     "palavras": [
+      "paraná",
+      "iguaçu",
+      "foz",
+      "educação",
+      "modelo",
+      "referência",
+      "louça",
+      "paranazão",
+      "diretores",
+      "latina"
+     ]
+    },
+    {
+     "topico": 38,
+     "npmi": 0.40133815691735086,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "mulheres",
+      "elas",
+      "sergipe",
+      "sergipanas",
+      "fabioquefez",
+      "fábio",
+      "fabioquefaz",
+      "sergipecrescecomvoce",
+      "mulher",
+      "assistência"
+     ]
+    },
+    {
+     "topico": 39,
+     "npmi": 0.10927517282365458,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 4,
+     "pares": 45,
+     "palavras": [
+      "25",
+      "lula",
+      "virada",
+      "13",
+      "mangabeira",
+      "domingo",
+      "nordeste",
+      "petrolina",
+      "juazeiro",
+      "ruas"
+     ]
+    },
+    {
+     "topico": 40,
+     "npmi": -0.06287192793252874,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 11,
+     "pares": 45,
+     "palavras": [
+      "minas",
+      "interior",
+      "eu",
+      "araxá",
+      "deu",
+      "sotaque",
+      "fiz",
+      "romeuzemaoficial",
+      "certo",
+      "dívidas"
+     ]
+    },
+    {
+     "topico": 41,
+     "npmi": 0.2208012758864866,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 2,
+     "pares": 45,
+     "palavras": [
+      "timedopovo",
+      "13",
+      "rafael",
+      "time",
+      "teresina",
+      "outubro",
+      "deputado",
+      "lula",
+      "marcelo",
+      "kalume"
+     ]
+    },
+    {
+     "topico": 42,
+     "npmi": 0.11799108161089719,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 4,
+     "pares": 45,
+     "palavras": [
+      "nordeste",
+      "nordestino",
+      "lula",
+      "presidente",
+      "inácio",
+      "nunca",
+      "lulaoficial",
+      "viva",
+      "luta",
+      "luiz"
+     ]
+    },
+    {
+     "topico": 43,
+     "npmi": 0.1121294438962398,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 10,
+     "pares": 45,
+     "palavras": [
+      "polícia",
+      "concurso",
+      "vagas",
+      "militar",
+      "provas",
+      "civil",
+      "soldados",
+      "delegados",
+      "edital",
+      "segurança"
+     ]
+    },
+    {
+     "topico": 44,
+     "npmi": 0.14625890583335024,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 7,
+     "pares": 45,
+     "palavras": [
+      "casa",
+      "famílias",
+      "morar",
+      "lar",
+      "moradia",
+      "mil",
+      "dignidade",
+      "moinho",
+      "moradias",
+      "programa"
+     ]
+    },
+    {
+     "topico": 45,
+     "npmi": 0.5022402519330885,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "6x1",
+      "escala",
+      "fim",
+      "conquista",
+      "descansar",
+      "trabalhadores",
+      "descanso",
+      "tempo",
+      "trabalhadoras",
+      "trabalhador"
+     ]
+    },
+    {
+     "topico": 46,
+     "npmi": 0.132867607513559,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 7,
+     "pares": 45,
+     "palavras": [
+      "comida",
+      "mesa",
+      "sergipanos",
+      "dignidade",
+      "fome",
+      "alimentos",
+      "cmais",
+      "sergipe",
+      "públicas",
+      "refeições"
+     ]
+    },
+    {
+     "topico": 47,
+     "npmi": 0.04586908829577662,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 10,
+     "pares": 45,
+     "palavras": [
+      "pergunta",
+      "verdade",
+      "aquela",
+      "dúvida",
+      "fake",
+      "news",
+      "vídeo",
+      "dna",
+      "transparente",
+      "oposição"
+     ]
+    },
+    {
+     "topico": 48,
+     "npmi": 0.11736830015067547,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 6,
+     "pares": 45,
+     "palavras": [
+      "sigamos",
+      "rn",
+      "cultura",
+      "mossoró",
+      "desenvolvimento",
+      "sonho",
+      "norte",
+      "milhões",
+      "304",
+      "currais"
+     ]
+    },
+    {
+     "topico": 49,
+     "npmi": 0.44134235626968954,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 1,
+     "pares": 45,
+     "palavras": [
+      "professores",
+      "educação",
+      "professor",
+      "professoras",
+      "magistério",
+      "valorizar",
+      "nossos",
+      "dedicam",
+      "ensinar",
+      "valorização"
+     ]
+    },
+    {
+     "topico": 50,
+     "npmi": 0.4921844233696352,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 1,
+     "pares": 45,
+     "palavras": [
+      "transporte",
+      "ida",
+      "gratuito",
+      "votação",
+      "gratuidade",
+      "metropolitano",
+      "votar",
+      "direito",
+      "ônibus",
+      "intermunicipal"
+     ]
+    },
+    {
+     "topico": 51,
+     "npmi": 0.19150089939208897,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 5,
+     "pares": 45,
+     "palavras": [
+      "tarcísio",
+      "aperta",
+      "10",
+      "vote",
+      "paulo",
+      "confirma",
+      "paulistas",
+      "são",
+      "destino",
+      "retribuir"
+     ]
+    },
+    {
+     "topico": 52,
+     "npmi": 0.24531595754386665,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 6,
+     "pares": 45,
+     "palavras": [
+      "alagoas",
+      "renanfilho",
+      "renancalheiros",
+      "renan",
+      "escolheu",
+      "mostrou",
+      "calheiros",
+      "alagoanos",
+      "dr_wanderley",
+      "confirma"
+     ]
+    },
+    {
+     "topico": 53,
+     "npmi": -0.0930934640190725,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 16,
+     "pares": 45,
+     "palavras": [
+      "mulheres",
+      "mailza",
+      "jessicasalesdeputada",
+      "acre",
+      "elas",
+      "protagonismo",
+      "reunidas",
+      "mulher",
+      "ajudam",
+      "produtoras"
+     ]
+    },
+    {
+     "topico": 54,
+     "npmi": -0.14620720075919824,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 16,
+     "pares": 45,
+     "palavras": [
+      "bolsonaro",
+      "bolsa",
+      "flávio",
+      "tesouraço",
+      "aposentadoria",
+      "dignidade",
+      "jogo",
+      "brasileiros",
+      "noticias",
+      "bolsonarista"
+     ]
+    },
+    {
+     "topico": 55,
+     "npmi": 0.17124703053065532,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 1,
+     "pares": 45,
+     "palavras": [
+      "vote",
+      "votar",
+      "votou",
+      "25",
+      "democracia",
+      "13",
+      "vota",
+      "lula",
+      "deixe",
+      "voto"
+     ]
+    },
+    {
+     "topico": 56,
+     "npmi": 0.361433861893249,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 2,
+     "pares": 45,
+     "palavras": [
+      "osenadordetodos111",
+      "acre",
+      "gladsoncameli",
+      "amigo",
+      "chão",
+      "minorukinpara",
+      "111",
+      "deputado",
+      "nicolaujunioroficial",
+      "pé"
+     ]
+    },
+    {
+     "topico": 57,
+     "npmi": -0.01995741617102658,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 11,
+     "pares": 45,
+     "palavras": [
+      "paranaguá",
+      "litoral",
+      "avenida",
+      "turismo",
+      "cruzeiros",
+      "obras",
+      "ganhar",
+      "vai",
+      "pontal",
+      "orla"
+     ]
+    },
+    {
+     "topico": 58,
+     "npmi": -0.08765678604915875,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 10,
+     "pares": 45,
+     "palavras": [
+      "bahia",
+      "democracia",
+      "garantirmos",
+      "presidente",
+      "missão",
+      "eleitos",
+      "defesa",
+      "salvador",
+      "toda",
+      "acreditou"
+     ]
+    },
+    {
+     "topico": 59,
+     "npmi": 0.22858412612759388,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 7,
+     "pares": 45,
+     "palavras": [
+      "lulaoficial",
+      "maceió",
+      "arruda",
+      "vera",
+      "corredor",
+      "apertar",
+      "domingo",
+      "maranhão",
+      "jatiúca",
+      "alagoas"
+     ]
+    },
+    {
+     "topico": 60,
+     "npmi": 0.21199807503218904,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "piauí",
+      "lula",
+      "participação",
+      "presidente",
+      "sociais",
+      "teresina",
+      "turno",
+      "segundo",
+      "lideranças",
+      "redes"
+     ]
+    },
+    {
+     "topico": 61,
+     "npmi": 0.3205586778636511,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 5,
+     "pares": 45,
+     "palavras": [
+      "samu",
+      "sus",
+      "ambulâncias",
+      "sigamos",
+      "saúde",
+      "carreta",
+      "atendimento",
+      "exames",
+      "cobertura",
+      "potengi"
+     ]
+    },
+    {
+     "topico": 62,
+     "npmi": 0.29784702855614514,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 1,
+     "pares": 45,
+     "palavras": [
+      "alagoas",
+      "renanfilho",
+      "história",
+      "novo",
+      "fazer",
+      "renancalheiros",
+      "renan",
+      "salto",
+      "compromisso",
+      "dr_wanderley"
+     ]
+    },
+    {
+     "topico": 63,
+     "npmi": 0.1014126028062556,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 9,
+     "pares": 45,
+     "palavras": [
+      "né",
+      "mainha",
+      "comida",
+      "miúdo",
+      "fome",
+      "parada",
+      "raiz",
+      "almoço",
+      "aquele",
+      "sanduíche"
+     ]
+    },
+    {
+     "topico": 64,
+     "npmi": 0.24365727836450377,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 2,
+     "pares": 45,
+     "palavras": [
+      "tôcomriedel",
+      "r11",
+      "conversa",
+      "sul",
+      "mato",
+      "grosso",
+      "bom",
+      "encontrando",
+      "perto",
+      "maracaju"
+     ]
+    },
+    {
+     "topico": 65,
+     "npmi": 0.05611157138297476,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 14,
+     "pares": 45,
+     "palavras": [
+      "intocáveis",
+      "chega",
+      "podres",
+      "frutas",
+      "ri",
+      "cairão",
+      "ventos",
+      "farra",
+      "vergonha",
+      "comente"
+     ]
+    },
+    {
+     "topico": 66,
+     "npmi": -0.37704706502503077,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 26,
+     "pares": 45,
+     "palavras": [
+      "romeuzemaoficial",
+      "intocáveis",
+      "gambá",
+      "stf",
+      "intocável",
+      "compartilhe",
+      "ido",
+      "pano",
+      "temem",
+      "135"
+     ]
+    },
+    {
+     "topico": 67,
+     "npmi": -0.2889591279576921,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 20,
+     "pares": 45,
+     "palavras": [
+      "vermelho",
+      "13",
+      "lula",
+      "tapete",
+      "amanhã",
+      "janeiro",
+      "cariocas",
+      "copacabana",
+      "verdeamarelo",
+      "paulista"
+     ]
+    },
+    {
+     "topico": 68,
+     "npmi": 0.33740421141517773,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "tôcomriedel",
+      "r11",
+      "riedel",
+      "11",
+      "sul",
+      "mato",
+      "aperta",
+      "grosso",
+      "vote",
+      "acontecer"
+     ]
+    },
+    {
+     "topico": 69,
+     "npmi": -0.4448793982645853,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 26,
+     "pares": 45,
+     "palavras": [
+      "qual",
+      "rame",
+      "sósia",
+      "oscar",
+      "aí",
+      "podia",
+      "arrasta",
+      "comentários",
+      "eu",
+      "escalar"
+     ]
+    },
+    {
+     "topico": 70,
+     "npmi": 0.3077104046933621,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 2,
+     "pares": 45,
+     "palavras": [
+      "sandroalex",
+      "rafaelgrecaoficial",
+      "jamais",
+      "retroceder",
+      "valeu",
+      "prefeito",
+      "tmj",
+      "apoio",
+      "claudiocovre_",
+      "pelo"
+     ]
+    },
+    {
+     "topico": 71,
+     "npmi": -0.04460379671600582,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 13,
+     "pares": 45,
+     "palavras": [
+      "sul",
+      "mauriciotonetto",
+      "rio",
+      "expointer",
+      "viva",
+      "farroupilha",
+      "gaúcha",
+      "governadores",
+      "gaúchos",
+      "grande"
+     ]
+    },
+    {
+     "topico": 72,
+     "npmi": 0.3048578274714815,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 1,
+     "pares": 45,
+     "palavras": [
+      "vencer",
+      "lula",
+      "virada",
+      "turno",
+      "abstenção",
+      "pesquisa",
+      "pesquisas",
+      "trackings",
+      "segundo",
+      "histórica"
+     ]
+    },
+    {
+     "topico": 73,
+     "npmi": 0.4776918141559401,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "servidores",
+      "feriado",
+      "feriadão",
+      "antecipado",
+      "servidor",
+      "pagamento",
+      "feira",
+      "salário",
+      "sexta",
+      "conta"
+     ]
+    },
+    {
+     "topico": 74,
+     "npmi": 0.09630999658059064,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 2,
+     "pares": 45,
+     "palavras": [
+      "25",
+      "lula",
+      "dia",
+      "hora",
+      "virada",
+      "pró",
+      "vitória",
+      "paraíba",
+      "13",
+      "rua"
+     ]
+    },
+    {
+     "topico": 75,
+     "npmi": 0.3619246287191541,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "vivo",
+      "tv",
+      "estaremos",
+      "partir",
+      "acompanhe",
+      "piauí",
+      "sobre",
+      "propostas",
+      "conversar",
+      "sabatina"
+     ]
+    },
+    {
+     "topico": 76,
+     "npmi": 0.006341288480366043,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 14,
+     "pares": 45,
+     "palavras": [
+      "impostos",
+      "bets",
+      "caro",
+      "dívida",
+      "altos",
+      "juros",
+      "empresas",
+      "famílias",
+      "produz",
+      "carrinho"
+     ]
+    },
+    {
+     "topico": 77,
+     "npmi": -0.19820674645307287,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 18,
+     "pares": 45,
+     "palavras": [
+      "centro",
+      "sp",
+      "itaquera",
+      "paulo",
+      "região",
+      "tarcísio",
+      "paulista",
+      "duplicação",
+      "itaim",
+      "paulistana"
+     ]
+    },
+    {
+     "topico": 78,
+     "npmi": 0.3096011975222806,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "redução",
+      "segurança",
+      "pública",
+      "roubos",
+      "resultados",
+      "mostram",
+      "seguro",
+      "investimento",
+      "inteligência",
+      "combate"
+     ]
+    },
+    {
+     "topico": 79,
+     "npmi": 0.2646429152795811,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 7,
+     "pares": 45,
+     "palavras": [
+      "negócio",
+      "hotel",
+      "primavera",
+      "anderson",
+      "mei",
+      "empreende",
+      "badespi",
+      "próprio",
+      "empreendedorismo",
+      "conheci"
+     ]
+    },
+    {
+     "topico": 80,
+     "npmi": -0.1000165945363452,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 16,
+     "pares": 45,
+     "palavras": [
+      "agro",
+      "campo",
+      "seridó",
+      "agricultura",
+      "produz",
+      "crédito",
+      "rural",
+      "planta",
+      "evento",
+      "globo"
+     ]
+    },
+    {
+     "topico": 81,
+     "npmi": 0.2856592210399738,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "nunca",
+      "dinheiro",
+      "política",
+      "minas",
+      "cheguei",
+      "eu",
+      "brasileiro",
+      "intocáveis",
+      "estou",
+      "político"
+     ]
+    },
+    {
+     "topico": 82,
+     "npmi": 0.1163147341583592,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 8,
+     "pares": 45,
+     "palavras": [
+      "condomínio",
+      "idoso",
+      "idosos",
+      "casa",
+      "paraná",
+      "idosa",
+      "envelhecer",
+      "própria",
+      "moradias",
+      "chamar"
+     ]
+    },
+    {
+     "topico": 83,
+     "npmi": 0.22732937438364648,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 3,
+     "pares": 45,
+     "palavras": [
+      "timedopovo",
+      "teresina",
+      "carreata",
+      "zona",
+      "feliz",
+      "jingles",
+      "norte",
+      "rafinha",
+      "domingo",
+      "demonstrando"
+     ]
+    },
+    {
+     "topico": 84,
+     "npmi": -0.020911813924000378,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 8,
+     "pares": 45,
+     "palavras": [
+      "democracia",
+      "lula",
+      "paulista",
+      "avenida",
+      "presidente",
+      "ato",
+      "ruas",
+      "milhares",
+      "bandeira",
+      "praça"
+     ]
+    },
+    {
+     "topico": 85,
+     "npmi": 0.2336297837520616,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 4,
+     "pares": 45,
+     "palavras": [
+      "jovens",
+      "caminhos",
+      "sonhos",
+      "sonhar",
+      "juventude",
+      "beem",
+      "ensino",
+      "provão",
+      "estudar",
+      "oportunidades"
+     ]
+    },
+    {
+     "topico": 86,
+     "npmi": 0.38734930759770664,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 2,
+     "pares": 45,
+     "palavras": [
+      "km",
+      "alagoas",
+      "al",
+      "praia",
+      "mobilidade",
+      "102",
+      "quase",
+      "asfalto",
+      "entregue",
+      "sereia"
+     ]
+    },
+    {
+     "topico": 87,
+     "npmi": 0.5746039042874228,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 1,
+     "pares": 45,
+     "palavras": [
+      "leis",
+      "duras",
+      "impunidade",
+      "brigar",
+      "prende",
+      "comenta",
+      "frouxas",
+      "enfrentar",
+      "concorda",
+      "criminoso"
+     ]
+    },
+    {
+     "topico": 88,
+     "npmi": 0.5662637686150471,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "derrite",
+      "prado",
+      "andré",
+      "guilherme",
+      "tarcísio",
+      "paulo",
+      "flávio",
+      "222",
+      "vote",
+      "bolsonaro"
+     ]
+    },
+    {
+     "topico": 89,
+     "npmi": 0.04093752076039593,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 4,
+     "pares": 45,
+     "palavras": [
+      "educação",
+      "estudantes",
+      "piauí",
+      "presidente",
+      "nossos",
+      "lula",
+      "poder",
+      "piripiri",
+      "transformação",
+      "construção"
+     ]
+    },
+    {
+     "topico": 90,
+     "npmi": 0.15236303477699836,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 3,
+     "pares": 45,
+     "palavras": [
+      "mato",
+      "grosso",
+      "grossenses",
+      "até",
+      "pesquisa",
+      "meus",
+      "444",
+      "rodamos",
+      "amigos",
+      "olho"
+     ]
+    },
+    {
+     "topico": 91,
+     "npmi": -0.46294331111258297,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 25,
+     "pares": 45,
+     "palavras": [
+      "pará",
+      "eirunepé",
+      "parazão",
+      "junto",
+      "vocês",
+      "lutando",
+      "eu",
+      "eliseu",
+      "dedico",
+      "faustojram"
+     ]
+    },
+    {
+     "topico": 92,
+     "npmi": 0.35170990909510963,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 2,
+     "pares": 45,
+     "palavras": [
+      "senhora",
+      "aparecida",
+      "padroeira",
+      "abençoando",
+      "nossa",
+      "continue",
+      "devoção",
+      "proteja",
+      "fé",
+      "guiando"
+     ]
+    },
+    {
+     "topico": 93,
+     "npmi": 0.18878577162293864,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 5,
+     "pares": 45,
+     "palavras": [
+      "sus",
+      "saúde",
+      "atendimento",
+      "hospital",
+      "cuidar",
+      "alagoanos",
+      "alagoano",
+      "humanizado",
+      "qualidade",
+      "acesso"
+     ]
+    },
+    {
+     "topico": 94,
+     "npmi": -0.0004995667486857894,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 9,
+     "pares": 45,
+     "palavras": [
+      "uern",
+      "viva",
+      "anos",
+      "mossoró",
+      "universidade",
+      "204",
+      "celebrar",
+      "58",
+      "professora",
+      "pública"
+     ]
+    },
+    {
+     "topico": 95,
+     "npmi": 0.016365100925146463,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 13,
+     "pares": 45,
+     "palavras": [
+      "vivo",
+      "21h",
+      "debate",
+      "compartilhem",
+      "globo",
+      "acompanhem",
+      "currículo",
+      "às",
+      "horário",
+      "jornal"
+     ]
+    },
+    {
+     "topico": 96,
+     "npmi": -0.0728742714095491,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 16,
+     "pares": 45,
+     "palavras": [
+      "violência",
+      "mulher",
+      "determinei",
+      "pm",
+      "raquel",
+      "contra",
+      "raquellyraoficial",
+      "flagrado",
+      "agredindo",
+      "ataca"
+     ]
+    },
+    {
+     "topico": 97,
+     "npmi": -0.44305492939711966,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 28,
+     "pares": 45,
+     "palavras": [
+      "max",
+      "cantar",
+      "cof",
+      "maurinho",
+      "roxinha",
+      "música",
+      "som",
+      "acorda",
+      "mainha",
+      "yedo_leonel"
+     ]
+    },
+    {
+     "topico": 98,
+     "npmi": 0.01615553698099174,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 14,
+     "pares": 45,
+     "palavras": [
+      "parque",
+      "espaço",
+      "aproveitar",
+      "criançada",
+      "areninha",
+      "jogar",
+      "lazer",
+      "bola",
+      "brincar",
+      "subúrbio"
+     ]
+    },
+    {
+     "topico": 99,
+     "npmi": 0.39717627045351794,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 2,
+     "pares": 45,
+     "palavras": [
+      "maioridade",
+      "penal",
+      "castração",
+      "química",
+      "menor",
+      "crime",
+      "defendo",
+      "redução",
+      "leis",
+      "defender"
+     ]
+    },
+    {
+     "topico": 100,
+     "npmi": 0.4432059671026591,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "7h30",
+      "teresina",
+      "zona",
+      "av",
+      "domingo",
+      "concentração",
+      "partir",
+      "venha",
+      "carreata",
+      "luna"
+     ]
+    },
+    {
+     "topico": 101,
+     "npmi": -0.062181402005987825,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 12,
+     "pares": 45,
+     "palavras": [
+      "cadu",
+      "rn",
+      "cuuuuida",
+      "13",
+      "retroceder",
+      "vão",
+      "cuida",
+      "ferros",
+      "norte",
+      "pau"
+     ]
+    },
+    {
+     "topico": 102,
+     "npmi": 0.026771533428340724,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 9,
+     "pares": 45,
+     "palavras": [
+      "medo",
+      "ensinou",
+      "coragem",
+      "nunca",
+      "aprendi",
+      "romeuzemaoficial",
+      "propósito",
+      "desistir",
+      "tenta",
+      "pés"
+     ]
+    },
+    {
+     "topico": 103,
+     "npmi": 0.27826122599894954,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 11,
+     "pares": 45,
+     "palavras": [
+      "churrasquinho",
+      "boavista",
+      "deixem",
+      "bvrr",
+      "bão",
+      "reuniões",
+      "indicação",
+      "comentários",
+      "rr",
+      "amoca"
+     ]
+    },
+    {
+     "topico": 104,
+     "npmi": 0.3315554393892021,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "operação",
+      "forças",
+      "polícia",
+      "prisão",
+      "sistema",
+      "foram",
+      "segurança",
+      "ação",
+      "tráfico",
+      "envolvidos"
+     ]
+    },
+    {
+     "topico": 105,
+     "npmi": 0.655580141896128,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "pesquisa",
+      "percentuais",
+      "95",
+      "margem",
+      "eleitores",
+      "pontos",
+      "erro",
+      "es",
+      "2026",
+      "levantamento"
+     ]
+    },
+    {
+     "topico": 106,
+     "npmi": -0.05912556734406047,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 13,
+     "pares": 45,
+     "palavras": [
+      "piauí",
+      "timedopovo",
+      "lideranças",
+      "apertar",
+      "semanas",
+      "decisivo",
+      "intensificar",
+      "prefeitos",
+      "224",
+      "uruçuí"
+     ]
+    },
+    {
+     "topico": 107,
+     "npmi": 0.22366166798501186,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 7,
+     "pares": 45,
+     "palavras": [
+      "stf",
+      "acima",
+      "comprovado",
+      "devidamente",
+      "responder",
+      "gilmar",
+      "autoridade",
+      "ninguém",
+      "for",
+      "concorda"
+     ]
+    },
+    {
+     "topico": 108,
+     "npmi": -0.7816737498820547,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 39,
+     "pares": 45,
+     "palavras": [
+      "reunido",
+      "vontade",
+      "participam",
+      "otimismo",
+      "vamoooooooo",
+      "vamoooooo",
+      "versátil",
+      "ocupam",
+      "traga",
+      "argumentos"
+     ]
+    },
+    {
+     "topico": 109,
+     "npmi": -0.18571097331978154,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 18,
+     "pares": 45,
+     "palavras": [
+      "porto",
+      "parnaíba",
+      "turismo",
+      "piauí",
+      "ii",
+      "pedro",
+      "usina",
+      "potencial",
+      "grãos",
+      "etanol"
+     ]
+    },
+    {
+     "topico": 110,
+     "npmi": -0.13950227333035364,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 16,
+     "pares": 45,
+     "palavras": [
+      "mainha",
+      "deixa",
+      "tabira",
+      "saindo",
+      "pernambuco",
+      "itapissuma",
+      "igarassu",
+      "acelerador",
+      "bota",
+      "comentários"
+     ]
+    },
+    {
+     "topico": 111,
+     "npmi": 0.32271535521921535,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 5,
+     "pares": 45,
+     "palavras": [
+      "círio",
+      "nazaré",
+      "nazinha",
+      "senhora",
+      "paraense",
+      "maniçoba",
+      "renovar",
+      "abençoando",
+      "siga",
+      "viva"
+     ]
+    },
+    {
+     "topico": 112,
+     "npmi": -0.01561843669090277,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 13,
+     "pares": 45,
+     "palavras": [
+      "cruz",
+      "francisco",
+      "santa",
+      "fé",
+      "assis",
+      "milagres",
+      "leve",
+      "devoção",
+      "cristo",
+      "houver"
+     ]
+    },
+    {
+     "topico": 113,
+     "npmi": 0.20140833351603887,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 1,
+     "pares": 45,
+     "palavras": [
+      "paraná",
+      "bandido",
+      "menores",
+      "polícia",
+      "índices",
+      "criminalidade",
+      "paranaenses",
+      "segurança",
+      "tecnologia",
+      "aqui"
+     ]
+    },
+    {
+     "topico": 114,
+     "npmi": -0.1442222664174642,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 17,
+     "pares": 45,
+     "palavras": [
+      "deputado",
+      "lançamento",
+      "timedopovo",
+      "evaldo",
+      "parnaíba",
+      "jadyel",
+      "estadual",
+      "félix",
+      "vinícius",
+      "prazer"
+     ]
+    },
+    {
+     "topico": 115,
+     "npmi": -0.03445768898214838,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 10,
+     "pares": 45,
+     "palavras": [
+      "criminalidade",
+      "segurança",
+      "combate",
+      "capixabas",
+      "planejamento",
+      "policial",
+      "espírito",
+      "santo",
+      "apostas",
+      "deixei"
+     ]
+    },
+    {
+     "topico": 116,
+     "npmi": -0.002959576668628964,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 10,
+     "pares": 45,
+     "palavras": [
+      "paulo",
+      "são",
+      "paulistas",
+      "financia",
+      "locomotiva",
+      "quatro",
+      "coragem",
+      "confiança",
+      "derrite",
+      "honrar"
+     ]
+    },
+    {
+     "topico": 117,
+     "npmi": 0.28480333600652996,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 5,
+     "pares": 45,
+     "palavras": [
+      "roubo",
+      "crime",
+      "celulares",
+      "paulo",
+      "inteligência",
+      "operação",
+      "gaeco",
+      "menores",
+      "drogas",
+      "índices"
+     ]
+    },
+    {
+     "topico": 118,
+     "npmi": -0.20682523010626425,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 25,
+     "pares": 45,
+     "palavras": [
+      "ferry",
+      "aquaviário",
+      "miguel",
+      "embarcação",
+      "baixada",
+      "cujupe",
+      "retroescavadeiras",
+      "tratores",
+      "88",
+      "agrícolas"
+     ]
+    },
+    {
+     "topico": 119,
+     "npmi": 0.3748460279005872,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 3,
+     "pares": 45,
+     "palavras": [
+      "setembro",
+      "desfile",
+      "armadas",
+      "forças",
+      "celebramos",
+      "204",
+      "cívico",
+      "beira",
+      "independência",
+      "avenida"
+     ]
+    },
+    {
+     "topico": 120,
+     "npmi": 0.33850890598534805,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 4,
+     "pares": 45,
+     "palavras": [
+      "111",
+      "osenadordetodos111",
+      "bujari",
+      "acre",
+      "gladsoncameli",
+      "buzina",
+      "sorriso",
+      "pé",
+      "chão",
+      "plácido"
+     ]
+    },
+    {
+     "topico": 121,
+     "npmi": -0.3901023591898379,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 25,
+     "pares": 45,
+     "palavras": [
+      "maringá",
+      "recebido",
+      "carinho",
+      "sindicatos",
+      "conferida",
+      "homenagens",
+      "mestres",
+      "obrigado",
+      "servidoras",
+      "homenagem"
+     ]
+    },
+    {
+     "topico": 122,
+     "npmi": 0.4680279413057424,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 2,
+     "pares": 45,
+     "palavras": [
+      "ipva",
+      "bolso",
+      "cilindradas",
+      "moto",
+      "motociclistas",
+      "dinheiro",
+      "180",
+      "imposto",
+      "trabalhador",
+      "motos"
+     ]
+    },
+    {
+     "topico": 123,
+     "npmi": 0.13300532689453057,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 7,
+     "pares": 45,
+     "palavras": [
+      "[perfil]",
+      "rafael",
+      "repost",
+      "espetacular",
+      "nsr",
+      "itaueira",
+      "batalha",
+      "porto",
+      "13",
+      "time"
+     ]
+    },
+    {
+     "topico": 124,
+     "npmi": 0.7789971193968921,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "asatur",
+      "helena",
+      "tânia",
+      "soares",
+      "senadora",
+      "buritis",
+      "suplente",
+      "555",
+      "queiroz",
+      "simone"
+     ]
+    },
+    {
+     "topico": 125,
+     "npmi": 0.1503618602993315,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 9,
+     "pares": 45,
+     "palavras": [
+      "polícia",
+      "batalhão",
+      "colombo",
+      "policiais",
+      "delegacia",
+      "reforço",
+      "bptur",
+      "sede",
+      "viaturas",
+      "estrutura"
+     ]
+    },
+    {
+     "topico": 126,
+     "npmi": -0.21014426002643946,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 23,
+     "pares": 45,
+     "palavras": [
+      "augustinopolis",
+      "luzimangues",
+      "natividade",
+      "dnit",
+      "axixá",
+      "palmas",
+      "araguatins",
+      "ficando",
+      "trecho",
+      "semana"
+     ]
+    },
+    {
+     "topico": 127,
+     "npmi": -0.6484320337466507,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 34,
+     "pares": 45,
+     "palavras": [
+      "macaparana",
+      "betofigueiroa",
+      "boa",
+      "esperar",
+      "cabe",
+      "boibreadburguer",
+      "arrepiei",
+      "montenegro",
+      "ligeira",
+      "hambúrgueres"
+     ]
+    },
+    {
+     "topico": 128,
+     "npmi": 0.3806326328633455,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "renda",
+      "emprego",
+      "economia",
+      "pacto",
+      "meta",
+      "eixos",
+      "oportunidades",
+      "fortalecer",
+      "empreende",
+      "crédito"
+     ]
+    },
+    {
+     "topico": 129,
+     "npmi": 0.13817547186595475,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 9,
+     "pares": 45,
+     "palavras": [
+      "16h",
+      "carhoo",
+      "arena",
+      "encontro",
+      "partir",
+      "estaiada",
+      "quarta",
+      "16h13",
+      "presidente",
+      "esperamos"
+     ]
+    },
+    {
+     "topico": 130,
+     "npmi": 0.23160861512469133,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 10,
+     "pares": 45,
+     "palavras": [
+      "tabapuã",
+      "fig",
+      "leilão",
+      "roraima",
+      "arthur",
+      "luiz",
+      "amigo",
+      "4º",
+      "henrique",
+      "lançamento"
+     ]
+    },
+    {
+     "topico": 131,
+     "npmi": -0.026475454344865215,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 15,
+     "pares": 45,
+     "palavras": [
+      "animal",
+      "amazonas",
+      "joanadarcam",
+      "tea",
+      "veterinário",
+      "gestão",
+      "deputada",
+      "delphina",
+      "aziz",
+      "inédita"
+     ]
+    },
+    {
+     "topico": 132,
+     "npmi": 0.13276627747710734,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 13,
+     "pares": 45,
+     "palavras": [
+      "água",
+      "torneira",
+      "investidos",
+      "poços",
+      "contenção",
+      "sertânia",
+      "limpinha",
+      "racionamento",
+      "bombeamento",
+      "rodízio"
+     ]
+    },
+    {
+     "topico": 133,
+     "npmi": -0.03753019608224436,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 12,
+     "pares": 45,
+     "palavras": [
+      "pará",
+      "luz",
+      "impedir",
+      "paraense",
+      "aumento",
+      "cop",
+      "lutar",
+      "conta",
+      "vão",
+      "briga"
+     ]
+    },
+    {
+     "topico": 134,
+     "npmi": 0.22727734175041736,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 6,
+     "pares": 45,
+     "palavras": [
+      "ganhando",
+      "inglaterra",
+      "alunos",
+      "mundo",
+      "piazada",
+      "intercâmbio",
+      "países",
+      "edição",
+      "estudantes",
+      "realizados"
+     ]
+    },
+    {
+     "topico": 135,
+     "npmi": -0.3052000261987332,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 27,
+     "pares": 45,
+     "palavras": [
+      "música",
+      "lembranças",
+      "bons",
+      "casamentos",
+      "contei",
+      "sanfona",
+      "tatão",
+      "tikim",
+      "parafraseando",
+      "partilho"
+     ]
+    },
+    {
+     "topico": 136,
+     "npmi": -0.20229974953092242,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 17,
+     "pares": 45,
+     "palavras": [
+      "me",
+      "ensinaram",
+      "solo",
+      "alguém",
+      "queria",
+      "vocês",
+      "sou",
+      "grato",
+      "mães",
+      "pepeu"
+     ]
+    },
+    {
+     "topico": 137,
+     "npmi": -0.28784903262723566,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 22,
+     "pares": 45,
+     "palavras": [
+      "amazonas",
+      "senadores",
+      "monte",
+      "junto",
+      "lute",
+      "pascoal",
+      "lírio",
+      "funcionou",
+      "direcionar",
+      "domingo"
+     ]
+    },
+    {
+     "topico": 138,
+     "npmi": 0.2763740250156336,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 3,
+     "pares": 45,
+     "palavras": [
+      "creche",
+      "mães",
+      "cuidado",
+      "mãe",
+      "refeições",
+      "tranquilidade",
+      "crianças",
+      "bem",
+      "criança",
+      "angústia"
+     ]
+    },
+    {
+     "topico": 139,
+     "npmi": -0.4116366430552885,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 27,
+     "pares": 45,
+     "palavras": [
+      "mil",
+      "aracati",
+      "empregos",
+      "expansão",
+      "uab",
+      "conexões",
+      "superior",
+      "graduação",
+      "postos",
+      "voo"
+     ]
+    },
+    {
+     "topico": 140,
+     "npmi": -0.5098168172357865,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 28,
+     "pares": 45,
+     "palavras": [
+      "vamo",
+      "atacam",
+      "eis",
+      "cima",
+      "preparado",
+      "tô",
+      "ataque",
+      "parece",
+      "motivo",
+      "wilson"
+     ]
+    },
+    {
+     "topico": 141,
+     "npmi": -0.14746198469774885,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 21,
+     "pares": 45,
+     "palavras": [
+      "acabar",
+      "bets",
+      "farra",
+      "acaba",
+      "viciado",
+      "taxar",
+      "praga",
+      "plano",
+      "lucra",
+      "traficante"
+     ]
+    },
+    {
+     "topico": 142,
+     "npmi": -0.4740593342271906,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 29,
+     "pares": 45,
+     "palavras": [
+      "intocáveis",
+      "intocável",
+      "cafézin",
+      "fantástico",
+      "queijo",
+      "abc",
+      "pão",
+      "chega",
+      "protege",
+      "caiu"
+     ]
+    },
+    {
+     "topico": 143,
+     "npmi": -0.19918219575192458,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 21,
+     "pares": 45,
+     "palavras": [
+      "flávio",
+      "debatenaglobo",
+      "lulanaglobo",
+      "respeite",
+      "presidência",
+      "corrupção",
+      "nordestino",
+      "população",
+      "gorjetas",
+      "governados"
+     ]
+    },
+    {
+     "topico": 144,
+     "npmi": 0.08451362973273706,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 9,
+     "pares": 45,
+     "palavras": [
+      "cortou",
+      "vota",
+      "ministérios",
+      "compara",
+      "tesouraço",
+      "lula",
+      "reeleger",
+      "vote",
+      "soberania",
+      "entende"
+     ]
+    },
+    {
+     "topico": 145,
+     "npmi": -0.5073514903444741,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 31,
+     "pares": 45,
+     "palavras": [
+      "oeiras",
+      "hídrica",
+      "semarh",
+      "cultural",
+      "águas",
+      "cajueiro",
+      "cinturão",
+      "preservação",
+      "lagoa",
+      "obras"
+     ]
+    },
+    {
+     "topico": 146,
+     "npmi": -0.3487369055909275,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 21,
+     "pares": 45,
+     "palavras": [
+      "pará",
+      "lutar",
+      "quero",
+      "estar",
+      "precisa",
+      "alinhadas",
+      "xinguara",
+      "trazer",
+      "brs",
+      "amazônica"
+     ]
+    },
+    {
+     "topico": 147,
+     "npmi": 0.5325893267439461,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 2,
+     "pares": 45,
+     "palavras": [
+      "hospital",
+      "einstein",
+      "central",
+      "ricos",
+      "padrão",
+      "albert",
+      "cuiabá",
+      "sus",
+      "famosos",
+      "34"
+     ]
+    },
+    {
+     "topico": 148,
+     "npmi": 0.008223479910513875,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 17,
+     "pares": 45,
+     "palavras": [
+      "caramelo",
+      "patente",
+      "laranjinhas",
+      "cachorro",
+      "cabo",
+      "tropa",
+      "turistas",
+      "voz",
+      "peso",
+      "breve"
+     ]
+    },
+    {
+     "topico": 149,
+     "npmi": 0.41641762517534137,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 2,
+     "pares": 45,
+     "palavras": [
+      "transporte",
+      "ônibus",
+      "usa",
+      "condicionado",
+      "câmeras",
+      "terminal",
+      "ar",
+      "araucária",
+      "fazenda",
+      "público"
+     ]
+    },
+    {
+     "topico": 150,
+     "npmi": 0.23241941419446224,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 4,
+     "pares": 45,
+     "palavras": [
+      "moderno",
+      "laboratório",
+      "itapipoca",
+      "diagnósticos",
+      "90",
+      "hospital",
+      "lula",
+      "atendimento",
+      "agilidade",
+      "samu"
+     ]
+    },
+    {
+     "topico": 151,
+     "npmi": 0.17438482890468013,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 3,
+     "pares": 45,
+     "palavras": [
+      "nordestino",
+      "sergipanidade",
+      "somos",
+      "orgulho",
+      "raízes",
+      "nossas",
+      "jeito",
+      "sergipe",
+      "ser",
+      "embalam"
+     ]
+    },
+    {
+     "topico": 152,
+     "npmi": -0.49486772824556274,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 31,
+     "pares": 45,
+     "palavras": [
+      "sandroalex",
+      "rafaelgrecaoficial",
+      "alessandrovonlinsingen",
+      "alexisfonteyne30",
+      "nenedozerelojoeiro",
+      "delegadomichel",
+      "rafaelgracaoficial",
+      "prefeitaninasinger",
+      "sol_favaro_",
+      "tania_basso_prefeita"
+     ]
+    },
+    {
+     "topico": 153,
+     "npmi": -0.4727801122058537,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 30,
+     "pares": 45,
+     "palavras": [
+      "catarina",
+      "catarinenses",
+      "santa",
+      "divido",
+      "falaram",
+      "catarinense",
+      "queriam",
+      "imenso",
+      "prêmio",
+      "responsáveis"
+     ]
+    },
+    {
+     "topico": 154,
+     "npmi": -0.09583132844796673,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 14,
+     "pares": 45,
+     "palavras": [
+      "democracia",
+      "liberdade",
+      "ruicostaoficial",
+      "quer",
+      "constituição",
+      "netos",
+      "via",
+      "filhos",
+      "país",
+      "promulgação"
+     ]
+    },
+    {
+     "topico": 155,
+     "npmi": -0.07826479024892576,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 18,
+     "pares": 45,
+     "palavras": [
+      "cop30",
+      "belém",
+      "pará",
+      "ter",
+      "amazônia",
+      "hana",
+      "indevidas",
+      "artesiano",
+      "reativação",
+      "proibidas"
+     ]
+    },
+    {
+     "topico": 156,
+     "npmi": 0.7465242278405508,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "agna",
+      "empreendedora",
+      "geleia",
+      "geleias",
+      "sabores",
+      "produtos",
+      "exportar",
+      "piauí",
+      "made",
+      "maracujá"
+     ]
+    },
+    {
+     "topico": 157,
+     "npmi": -0.14632871916930887,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 17,
+     "pares": 45,
+     "palavras": [
+      "miri",
+      "igarapé",
+      "amazônia",
+      "terra",
+      "juruti",
+      "jeito",
+      "azul",
+      "açaí",
+      "nasceu",
+      "único"
+     ]
+    },
+    {
+     "topico": 158,
+     "npmi": 0.25118124679807485,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 10,
+     "pares": 45,
+     "palavras": [
+      "bombeiros",
+      "salvamento",
+      "incêndios",
+      "robôs",
+      "combate",
+      "caminhonetes",
+      "4x4",
+      "9º",
+      "corpo",
+      "instalação"
+     ]
+    },
+    {
+     "topico": 159,
+     "npmi": 0.12312533855635883,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 9,
+     "pares": 45,
+     "palavras": [
+      "globonews",
+      "globo",
+      "eleições",
+      "debate",
+      "estúdios",
+      "divulgada",
+      "tv",
+      "presidencial",
+      "pesquisa",
+      "candidatos"
+     ]
+    },
+    {
+     "topico": 160,
+     "npmi": 0.1922414119084825,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 8,
+     "pares": 45,
+     "palavras": [
+      "produção",
+      "agro",
+      "r11",
+      "tôcomriedel",
+      "citricultura",
+      "diversificou",
+      "grosso",
+      "sul",
+      "mato",
+      "conectando"
+     ]
+    },
+    {
+     "topico": 161,
+     "npmi": 0.6926940437520676,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "cinza",
+      "formatura",
+      "militar",
+      "políciamilitar",
+      "t4",
+      "segurançapública",
+      "polícia",
+      "soldados",
+      "curso",
+      "recebimento"
+     ]
+    },
+    {
+     "topico": 162,
+     "npmi": -0.10961698678733679,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 13,
+     "pares": 45,
+     "palavras": [
+      "eleita",
+      "pernambuquismo",
+      "eu",
+      "pernambuco",
+      "fui",
+      "pernambuquista",
+      "disseram",
+      "melhores",
+      "sei",
+      "trabalhar"
+     ]
+    },
+    {
+     "topico": 163,
+     "npmi": 0.09325385927812212,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 12,
+     "pares": 45,
+     "palavras": [
+      "linha",
+      "metrô",
+      "paulo",
+      "trem",
+      "valinhos",
+      "intercidades",
+      "guarulhos",
+      "campinas",
+      "são",
+      "laranja"
+     ]
+    },
+    {
+     "topico": 164,
+     "npmi": 0.3272029946127,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 3,
+     "pares": 45,
+     "palavras": [
+      "vila",
+      "criança",
+      "novembro",
+      "diversão",
+      "aberta",
+      "1º",
+      "espaço",
+      "atalaia",
+      "programação",
+      "orla"
+     ]
+    },
+    {
+     "topico": 165,
+     "npmi": 0.23229127960611515,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 9,
+     "pares": 45,
+     "palavras": [
+      "111",
+      "gladsoncameli",
+      "é111",
+      "osenadordetodos111",
+      "amarela",
+      "espalha",
+      "acre",
+      "osenadordetodos",
+      "vamosde111",
+      "bixim"
+     ]
+    },
+    {
+     "topico": 166,
+     "npmi": 0.6005385756485914,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "etapa",
+      "viário",
+      "complexo",
+      "carmo",
+      "alça",
+      "346",
+      "viária",
+      "tancredo",
+      "maria",
+      "mobilidade"
+     ]
+    },
+    {
+     "topico": 167,
+     "npmi": 0.03786648573126124,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 9,
+     "pares": 45,
+     "palavras": [
+      "livre",
+      "independência",
+      "setembro",
+      "viva",
+      "verdadeiramente",
+      "pátria",
+      "país",
+      "liberdade",
+      "espírito",
+      "soberano"
+     ]
+    },
+    {
+     "topico": 168,
+     "npmi": -0.04547878945502714,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 16,
+     "pares": 45,
+     "palavras": [
+      "80",
+      "trend",
+      "época",
+      "década",
+      "anos",
+      "seria",
+      "imagem",
+      "dt",
+      "envolvida",
+      "longos"
+     ]
+    },
+    {
+     "topico": 169,
+     "npmi": 0.03223670870592892,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 11,
+     "pares": 45,
+     "palavras": [
+      "mariana",
+      "esporte",
+      "mitidieri",
+      "delegadakatarina",
+      "sergipe",
+      "lançamento",
+      "candidatura",
+      "nacionais",
+      "internacionais",
+      "fala"
+     ]
+    },
+    {
+     "topico": 170,
+     "npmi": 0.3750116352946686,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "crianças",
+      "infância",
+      "creches",
+      "nossas",
+      "pequenos",
+      "cuidar",
+      "trabalhamos",
+      "cresçam",
+      "criança",
+      "idade"
+     ]
+    },
+    {
+     "topico": 171,
+     "npmi": 0.19742658613302505,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 12,
+     "pares": 45,
+     "palavras": [
+      "tradição",
+      "festa",
+      "orquídeas",
+      "maripá",
+      "porco",
+      "rolete",
+      "26ª",
+      "toledo",
+      "peixe",
+      "pensa"
+     ]
+    },
+    {
+     "topico": 172,
+     "npmi": 0.2746034565921078,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "oratinho",
+      "amanhã",
+      "conto",
+      "rafaelgrecaoficial",
+      "sandroalex",
+      "atenção",
+      "carreata",
+      "vocês",
+      "vitória",
+      "beltrão"
+     ]
+    },
+    {
+     "topico": 173,
+     "npmi": -0.3877996836280881,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 28,
+     "pares": 45,
+     "palavras": [
+      "justiça",
+      "nilzir",
+      "instituição",
+      "trf5",
+      "penitenciária",
+      "corregedor",
+      "biênio",
+      "reitor",
+      "geral",
+      "ivan"
+     ]
+    },
+    {
+     "topico": 174,
+     "npmi": -0.37154009439564634,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 20,
+     "pares": 45,
+     "palavras": [
+      "vejo",
+      "bahia",
+      "mobilizar",
+      "metropole",
+      "ele",
+      "filho",
+      "hora",
+      "vivas",
+      "mão",
+      "reconhecimento"
+     ]
+    },
+    {
+     "topico": 175,
+     "npmi": -0.3895260180675898,
+     "n_palavras": 8,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 15,
+     "pares": 28,
+     "palavras": [
+      "repost",
+      "boraaaaaaaaaaaa",
+      "guganoblat",
+      "anaelisast",
+      "ptbrasil",
+      "lulaoficial",
+      "bora",
+      "brasil"
+     ]
+    },
+    {
+     "topico": 176,
+     "npmi": 0.09895524944513741,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 13,
+     "pares": 45,
+     "palavras": [
+      "rompimento",
+      "medidas",
+      "providências",
+      "socorro",
+      "cabíveis",
+      "restabelecer",
+      "abastecimento",
+      "necessárias",
+      "manutenção",
+      "adutora"
+     ]
+    },
+    {
+     "topico": 177,
+     "npmi": 0.2766778947415026,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 5,
+     "pares": 45,
+     "palavras": [
+      "alagoas",
+      "inovação",
+      "1º",
+      "ranking",
+      "ciência",
+      "conhecimento",
+      "3º",
+      "mestrado",
+      "embrapa",
+      "somos"
+     ]
+    },
+    {
+     "topico": 178,
+     "npmi": 0.530336276696254,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 3,
+     "pares": 45,
+     "palavras": [
+      "tietê",
+      "poluição",
+      "esgoto",
+      "orgânica",
+      "mancha",
+      "recuperação",
+      "hectares",
+      "focos",
+      "bilhões",
+      "integra"
+     ]
+    },
+    {
+     "topico": 179,
+     "npmi": -0.16007562107559697,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 18,
+     "pares": 45,
+     "palavras": [
+      "400",
+      "acelerarmos",
+      "joãopratodaobra",
+      "compasso",
+      "paris",
+      "colorir",
+      "senador",
+      "parou",
+      "amarela",
+      "acelerando"
+     ]
+    },
+    {
+     "topico": 180,
+     "npmi": 0.4197089217508454,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "adutoras",
+      "curimataú",
+      "água",
+      "hídrica",
+      "maiores",
+      "paraíba",
+      "preparou",
+      "cariri",
+      "nordeste",
+      "nessas"
+     ]
+    },
+    {
+     "topico": 181,
+     "npmi": 0.33427612802602774,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 8,
+     "pares": 45,
+     "palavras": [
+      "expoema",
+      "imperdíveis",
+      "chapéu",
+      "shows",
+      "exposições",
+      "diversão",
+      "tempos",
+      "av",
+      "show",
+      "bota"
+     ]
+    },
+    {
+     "topico": 182,
+     "npmi": -0.01444550376825796,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 10,
+     "pares": 45,
+     "palavras": [
+      "aracaju",
+      "colina",
+      "mini",
+      "carreata",
+      "fala",
+      "9h",
+      "ruas",
+      "começou",
+      "antônio",
+      "alô"
+     ]
+    },
+    {
+     "topico": 183,
+     "npmi": 0.1601001954717383,
+     "n_palavras": 2,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 1,
+     "palavras": [
+      "bom",
+      "dia"
+     ]
+    },
+    {
+     "topico": 184,
+     "npmi": -0.07889177037353073,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 14,
+     "pares": 45,
+     "palavras": [
+      "ocupando",
+      "avoanti",
+      "lgbtqia",
+      "diverso",
+      "fortaleza",
+      "plural",
+      "granja",
+      "13",
+      "rua",
+      "ruas"
+     ]
+    },
+    {
+     "topico": 185,
+     "npmi": -0.4826019585401191,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 28,
+     "pares": 45,
+     "palavras": [
+      "ótima",
+      "ótimo",
+      "semana",
+      "abençoado",
+      "abençoada",
+      "sabadão",
+      "autoridade",
+      "roraimenses",
+      "máxima",
+      "feira"
+     ]
+    },
+    {
+     "topico": 186,
+     "npmi": 0.3664685573293387,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "fazenda",
+      "greca",
+      "sandro",
+      "55",
+      "obrigado",
+      "buzinou",
+      "começo",
+      "rio",
+      "alex",
+      "acenou"
+     ]
+    },
+    {
+     "topico": 187,
+     "npmi": 0.388852442386496,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "atípica",
+      "mãe",
+      "tea",
+      "cuidar",
+      "filhos",
+      "dessas",
+      "mães",
+      "vezes",
+      "sozinha",
+      "dedicação"
+     ]
+    },
+    {
+     "topico": 188,
+     "npmi": -0.1794179444195435,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 19,
+     "pares": 45,
+     "palavras": [
+      "rio",
+      "ernani",
+      "aventuras",
+      "dificuldade",
+      "retrocessos",
+      "juros",
+      "gaúcho",
+      "gabriel",
+      "sem",
+      "grande"
+     ]
+    },
+    {
+     "topico": 189,
+     "npmi": -0.16747909689262608,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 21,
+     "pares": 45,
+     "palavras": [
+      "soberania",
+      "soberano",
+      "deixaremos",
+      "negociada",
+      "democracia",
+      "defesa",
+      "grito",
+      "patriota",
+      "privatizar",
+      "quintal"
+     ]
+    },
+    {
+     "topico": 190,
+     "npmi": -0.3042394261902628,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 24,
+     "pares": 45,
+     "palavras": [
+      "acharam",
+      "obra",
+      "pensando",
+      "atrás",
+      "simbora",
+      "borapracima",
+      "acolá",
+      "quietinha",
+      "aba",
+      "desconfie"
+     ]
+    },
+    {
+     "topico": 191,
+     "npmi": -0.3492112097225751,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 26,
+     "pares": 45,
+     "palavras": [
+      "mistério",
+      "ivetesangalo",
+      "mainha",
+      "rotina",
+      "24",
+      "cafezinhos",
+      "oitavo",
+      "postado",
+      "xícara",
+      "shape"
+     ]
+    },
+    {
+     "topico": 192,
+     "npmi": -0.5440923764562811,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 29,
+     "pares": 45,
+     "palavras": [
+      "fiel",
+      "aposentar",
+      "dó",
+      "morais",
+      "aposentados",
+      "prosperar",
+      "basta",
+      "pt",
+      "16",
+      "aquele"
+     ]
+    },
+    {
+     "topico": 193,
+     "npmi": 0.15671398381818416,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 4,
+     "pares": 45,
+     "palavras": [
+      "centro",
+      "paulo",
+      "cena",
+      "são",
+      "funcionando",
+      "ocupando",
+      "comércio",
+      "mudando",
+      "públicos",
+      "explorando"
+     ]
+    },
+    {
+     "topico": 194,
+     "npmi": -0.27330034378637563,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 18,
+     "pares": 45,
+     "palavras": [
+      "vencer",
+      "vença",
+      "torcendo",
+      "independente",
+      "vence",
+      "desejo",
+      "brasileiro",
+      "sempre",
+      "será",
+      "certeza"
+     ]
+    },
+    {
+     "topico": 195,
+     "npmi": -0.15806824451554927,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 17,
+     "pares": 45,
+     "palavras": [
+      "paraná",
+      "iguaçu",
+      "estiveram",
+      "bakri",
+      "hussein",
+      "luisa_canziani",
+      "cambé",
+      "frente",
+      "recepção",
+      "ceasa"
+     ]
+    },
+    {
+     "topico": 196,
+     "npmi": -0.02830762233940526,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 12,
+     "pares": 45,
+     "palavras": [
+      "teatro",
+      "patrimônio",
+      "espaço",
+      "cultura",
+      "palco",
+      "instituto",
+      "pedro",
+      "educação",
+      "sendo",
+      "espetáculos"
+     ]
+    },
+    {
+     "topico": 197,
+     "npmi": -0.40346772968693606,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 30,
+     "pares": 45,
+     "palavras": [
+      "camaragibe",
+      "sinal",
+      "roxinho",
+      "roxa",
+      "simboooora",
+      "genteee",
+      "fervendo",
+      "figueiroa",
+      "beto",
+      "diegorcabral"
+     ]
+    }
+   ]
+  },
+  "todos": {
+   "n_docs": 8416,
+   "vocab": 16371,
+   "npmi_media": 0.13200477667020052,
+   "npmi_mediana": 0.16853479180643133,
+   "npmi_min": -0.7816754266040044,
+   "npmi_max": 0.9425535774542572,
+   "npmi_positivos": 131,
+   "pares_sem_coocorrencia_pct": 20.3751836365691,
+   "npmi_aleatorio_media": -0.8380196132972254,
+   "topicos": [
+    {
+     "topico": 0,
+     "npmi": 0.8696066642701036,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "psol",
+      "ceará",
+      "rede",
+      "elmano",
+      "federação",
+      "forte",
+      "mobiliza",
+      "492",
+      "prd",
+      "solidária"
+     ]
+    },
+    {
+     "topico": 1,
+     "npmi": 0.5709438464631785,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "sergipe",
+      "sergipecrescecomvoce",
+      "fabioquefaz",
+      "fabioquefez",
+      "timedelula",
+      "fábio",
+      "55",
+      "crescer",
+      "sergipano",
+      "sergipanos"
+     ]
+    },
+    {
+     "topico": 2,
+     "npmi": 0.5240626080223894,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "amapá",
+      "aforçadonovotempo",
+      "clécioluís",
+      "clécio44",
+      "telesjunior",
+      "portodooamapá",
+      "tempo",
+      "novo",
+      "44",
+      "força"
+     ]
+    },
+    {
+     "topico": 3,
+     "npmi": 0.7108662531447233,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "599",
+      "317",
+      "democrático",
+      "caiado55",
+      "partido",
+      "20",
+      "social",
+      "propaganda",
+      "psd",
+      "eleitoral"
+     ]
+    },
+    {
+     "topico": 4,
+     "npmi": 0.4891291243953194,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "400",
+      "joãopratodaobra",
+      "paraíba",
+      "senador",
+      "senado",
+      "joão",
+      "lucasribeiropb",
+      "paraibanos",
+      "daqui",
+      "naborwanderley"
+     ]
+    },
+    {
+     "topico": 5,
+     "npmi": 0.3969863359056379,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "ricardo",
+      "15",
+      "espírito",
+      "santo",
+      "governador",
+      "onda",
+      "capixabas",
+      "es",
+      "rumo",
+      "outubro"
+     ]
+    },
+    {
+     "topico": 6,
+     "npmi": 0.5884101476575821,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "pc",
+      "piauí",
+      "fe",
+      "republicanos",
+      "pv",
+      "força",
+      "pt",
+      "esperança",
+      "mdb",
+      "pdt"
+     ]
+    },
+    {
+     "topico": 7,
+     "npmi": 0.176305031166902,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "pernambuco",
+      "gente",
+      "cima",
+      "pra",
+      "mainha",
+      "hospital",
+      "minha",
+      "carinho",
+      "tem",
+      "vocês"
+     ]
+    },
+    {
+     "topico": 8,
+     "npmi": 0.8312649445286471,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "pernambuco",
+      "coração",
+      "pe",
+      "proferida",
+      "reclamação",
+      "662",
+      "constitucional",
+      "psdb",
+      "597",
+      "403"
+     ]
+    },
+    {
+     "topico": 9,
+     "npmi": 0.6191501164468934,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "paraná",
+      "sandroalex",
+      "curi",
+      "alexandre",
+      "rafaelgrecaoficial",
+      "cristinagraeml",
+      "sandro",
+      "alex",
+      "greca",
+      "retroceder"
+     ]
+    },
+    {
+     "topico": 10,
+     "npmi": 0.9029648558716266,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "bahia",
+      "373",
+      "jero13",
+      "38",
+      "345",
+      "wagner130",
+      "rui133",
+      "lula13",
+      "avante",
+      "fe"
+     ]
+    },
+    {
+     "topico": 11,
+     "npmi": 0.9425535774542572,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "acre",
+      "823",
+      "democrata",
+      "526",
+      "504",
+      "97",
+      "gratuita",
+      "pl",
+      "avança",
+      "lei"
+     ]
+    },
+    {
+     "topico": 12,
+     "npmi": 0.9292551836552599,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "helena",
+      "asatur",
+      "roraima",
+      "senadora",
+      "545",
+      "suplentes",
+      "progressistas",
+      "originariamente",
+      "teixeira",
+      "tânia"
+     ]
+    },
+    {
+     "topico": 13,
+     "npmi": 0.4318296285299271,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "hana",
+      "chicão",
+      "helder",
+      "151",
+      "444",
+      "pará",
+      "15",
+      "tá",
+      "junto",
+      "azul"
+     ]
+    },
+    {
+     "topico": 14,
+     "npmi": 0.4015727640001736,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "r11",
+      "tôcomriedel",
+      "sul",
+      "mato",
+      "grosso",
+      "ms",
+      "vida",
+      "desenvolvimento",
+      "crescimento",
+      "grossense"
+     ]
+    },
+    {
+     "topico": 15,
+     "npmi": 0.30871530512601464,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 1,
+     "pares": 45,
+     "palavras": [
+      "moraes",
+      "intocáveis",
+      "farra",
+      "stf",
+      "se",
+      "compartilhe",
+      "preso",
+      "julgamento",
+      "intocável",
+      "não"
+     ]
+    },
+    {
+     "topico": 16,
+     "npmi": 0.25164927538359305,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 1,
+     "pares": 45,
+     "palavras": [
+      "maranhão",
+      "orleansbrandaoma",
+      "orleans",
+      "brandão",
+      "luís",
+      "15",
+      "avanços",
+      "continuidade",
+      "municípios",
+      "vitória"
+     ]
+    },
+    {
+     "topico": 17,
+     "npmi": 0.30859357399353365,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "mato",
+      "grosso",
+      "coragem",
+      "resultado",
+      "problemas",
+      "quero",
+      "fizemos",
+      "mesma",
+      "dava",
+      "brasília"
+     ]
+    },
+    {
+     "topico": 18,
+     "npmi": 0.2484142540798245,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 1,
+     "pares": 45,
+     "palavras": [
+      "te",
+      "feliz",
+      "amo",
+      "crianças",
+      "aniversário",
+      "deus",
+      "amor",
+      "você",
+      "meu",
+      "sempre"
+     ]
+    },
+    {
+     "topico": 19,
+     "npmi": 0.025105265438131096,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 4,
+     "pares": 45,
+     "palavras": [
+      "piauí",
+      "nos",
+      "nosso",
+      "votos",
+      "nossa",
+      "vez",
+      "independência",
+      "longe",
+      "cada",
+      "rafael"
+     ]
+    },
+    {
+     "topico": 20,
+     "npmi": 0.16706508193842226,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 4,
+     "pares": 45,
+     "palavras": [
+      "pará",
+      "azul",
+      "onda",
+      "junto",
+      "tá",
+      "santarém",
+      "hana",
+      "guamá",
+      "tomou",
+      "gente"
+     ]
+    },
+    {
+     "topico": 21,
+     "npmi": 0.20116638728256947,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "wilson",
+      "lima",
+      "senador",
+      "amazonas",
+      "povo",
+      "conto",
+      "444",
+      "10",
+      "04",
+      "dia"
+     ]
+    },
+    {
+     "topico": 22,
+     "npmi": 0.1844373183112816,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 3,
+     "pares": 45,
+     "palavras": [
+      "escola",
+      "integral",
+      "nova",
+      "entregamos",
+      "escolas",
+      "educação",
+      "estrutura",
+      "reforma",
+      "tempo",
+      "km"
+     ]
+    },
+    {
+     "topico": 23,
+     "npmi": 0.20917679915957332,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 7,
+     "pares": 45,
+     "palavras": [
+      "22",
+      "flávio",
+      "bolsonaro",
+      "flaviobolsonaro",
+      "vote22",
+      "roraima",
+      "presidente",
+      "arthur",
+      "cívico",
+      "votamos"
+     ]
+    },
+    {
+     "topico": 24,
+     "npmi": 0.33865533206499426,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "sigamos",
+      "norte",
+      "rn",
+      "cadu",
+      "rio",
+      "presidente",
+      "grande",
+      "lula",
+      "querido",
+      "caduxavier"
+     ]
+    },
+    {
+     "topico": 25,
+     "npmi": 0.8508634355593285,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "tarcisiogdf",
+      "smarinho",
+      "rogerio",
+      "alfredogaspar",
+      "flaviobolsonaro",
+      "bolsonarosp",
+      "carlosbolsonaro",
+      "michellebolsonaro",
+      "22",
+      "mudabrasil"
+     ]
+    },
+    {
+     "topico": 26,
+     "npmi": 0.28625649537027603,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 1,
+     "pares": 45,
+     "palavras": [
+      "mulher",
+      "mulheres",
+      "violência",
+      "proteção",
+      "ser",
+      "agressores",
+      "as",
+      "segura",
+      "contra",
+      "feminicídio"
+     ]
+    },
+    {
+     "topico": 27,
+     "npmi": 0.24499375368206697,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "democracia",
+      "exercer",
+      "direito",
+      "voto",
+      "votar",
+      "futuro",
+      "domingo",
+      "urnas",
+      "consciência",
+      "cidadania"
+     ]
+    },
+    {
+     "topico": 28,
+     "npmi": 0.2801373720063661,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 2,
+     "pares": 45,
+     "palavras": [
+      "444",
+      "mendes",
+      "mauro",
+      "duvido",
+      "amigos",
+      "número",
+      "você",
+      "ah",
+      "aí",
+      "decorou"
+     ]
+    },
+    {
+     "topico": 29,
+     "npmi": 0.3207202891448815,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 6,
+     "pares": 45,
+     "palavras": [
+      "roraima",
+      "arthur",
+      "henrique",
+      "vila",
+      "uiramutã",
+      "mucajaí",
+      "indígenas",
+      "amigo",
+      "asatur",
+      "helena"
+     ]
+    },
+    {
+     "topico": 30,
+     "npmi": 0.5340789377232822,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "475",
+      "818",
+      "02",
+      "pronto",
+      "lulaoficial",
+      "repost",
+      "psol",
+      "rede",
+      "fé",
+      "pcdob"
+     ]
+    },
+    {
+     "topico": 31,
+     "npmi": 0.27798304076036123,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 2,
+     "pares": 45,
+     "palavras": [
+      "amazonas",
+      "interior",
+      "manaus",
+      "quero",
+      "brasília",
+      "auxílio",
+      "levar",
+      "senado",
+      "recursos",
+      "am"
+     ]
+    },
+    {
+     "topico": 32,
+     "npmi": 0.42242968434315276,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "conforte",
+      "familiares",
+      "aos",
+      "tristeza",
+      "sua",
+      "amigos",
+      "notícia",
+      "deus",
+      "profunda",
+      "dor"
+     ]
+    },
+    {
+     "topico": 33,
+     "npmi": 0.17000450167444037,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 12,
+     "pares": 45,
+     "palavras": [
+      "plano",
+      "piauí",
+      "tvmeionorte",
+      "eleicoes2026",
+      "debatemeionorte",
+      "governodopiaui",
+      "rafaelfontelespi",
+      "governodoestado",
+      "eleicoes",
+      "debatecidadeverde"
+     ]
+    },
+    {
+     "topico": 34,
+     "npmi": -0.1358756448900307,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 16,
+     "pares": 45,
+     "palavras": [
+      "deus",
+      "pastores",
+      "abençoe",
+      "adoração",
+      "igreja",
+      "arquidiocesecuritiba",
+      "fé",
+      "alagoas",
+      "pastor",
+      "oração"
+     ]
+    },
+    {
+     "topico": 35,
+     "npmi": -0.061492069887547,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 12,
+     "pares": 45,
+     "palavras": [
+      "paraná",
+      "empregos",
+      "fábrica",
+      "produtor",
+      "produção",
+      "crédito",
+      "produzindo",
+      "crescer",
+      "verão",
+      "emprego"
+     ]
+    },
+    {
+     "topico": 36,
+     "npmi": 0.43791984205810147,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 1,
+     "pares": 45,
+     "palavras": [
+      "chuvas",
+      "equipes",
+      "defesa",
+      "civil",
+      "acompanhando",
+      "bombeiros",
+      "situação",
+      "incêndio",
+      "necessário",
+      "corpo"
+     ]
+    },
+    {
+     "topico": 37,
+     "npmi": -0.20868211672781986,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 19,
+     "pares": 45,
+     "palavras": [
+      "paraná",
+      "iguaçu",
+      "foz",
+      "educação",
+      "modelo",
+      "referência",
+      "louça",
+      "paranazão",
+      "diretores",
+      "latina"
+     ]
+    },
+    {
+     "topico": 38,
+     "npmi": 0.40022860665282517,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "mulheres",
+      "elas",
+      "sergipe",
+      "sergipanas",
+      "fabioquefez",
+      "fábio",
+      "fabioquefaz",
+      "sergipecrescecomvoce",
+      "mulher",
+      "assistência"
+     ]
+    },
+    {
+     "topico": 39,
+     "npmi": 0.10912134164769663,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 4,
+     "pares": 45,
+     "palavras": [
+      "25",
+      "lula",
+      "virada",
+      "13",
+      "mangabeira",
+      "domingo",
+      "nordeste",
+      "petrolina",
+      "juazeiro",
+      "ruas"
+     ]
+    },
+    {
+     "topico": 40,
+     "npmi": -0.0629248228876544,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 11,
+     "pares": 45,
+     "palavras": [
+      "minas",
+      "interior",
+      "eu",
+      "araxá",
+      "deu",
+      "sotaque",
+      "fiz",
+      "romeuzemaoficial",
+      "certo",
+      "dívidas"
+     ]
+    },
+    {
+     "topico": 41,
+     "npmi": 0.22810243688676834,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 2,
+     "pares": 45,
+     "palavras": [
+      "timedopovo",
+      "13",
+      "rafael",
+      "time",
+      "teresina",
+      "outubro",
+      "deputado",
+      "lula",
+      "marcelo",
+      "kalume"
+     ]
+    },
+    {
+     "topico": 42,
+     "npmi": 0.1199839983566056,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 4,
+     "pares": 45,
+     "palavras": [
+      "nordeste",
+      "nordestino",
+      "lula",
+      "presidente",
+      "inácio",
+      "nunca",
+      "lulaoficial",
+      "viva",
+      "luta",
+      "luiz"
+     ]
+    },
+    {
+     "topico": 43,
+     "npmi": 0.11229011755632828,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 10,
+     "pares": 45,
+     "palavras": [
+      "polícia",
+      "concurso",
+      "vagas",
+      "militar",
+      "provas",
+      "civil",
+      "soldados",
+      "delegados",
+      "edital",
+      "segurança"
+     ]
+    },
+    {
+     "topico": 44,
+     "npmi": 0.1463975171836924,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 7,
+     "pares": 45,
+     "palavras": [
+      "casa",
+      "famílias",
+      "morar",
+      "lar",
+      "moradia",
+      "mil",
+      "dignidade",
+      "moinho",
+      "moradias",
+      "programa"
+     ]
+    },
+    {
+     "topico": 45,
+     "npmi": 0.5023380220480343,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "6x1",
+      "escala",
+      "fim",
+      "conquista",
+      "descansar",
+      "trabalhadores",
+      "descanso",
+      "tempo",
+      "trabalhadoras",
+      "trabalhador"
+     ]
+    },
+    {
+     "topico": 46,
+     "npmi": 0.13286657092616633,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 7,
+     "pares": 45,
+     "palavras": [
+      "comida",
+      "mesa",
+      "sergipanos",
+      "dignidade",
+      "fome",
+      "alimentos",
+      "cmais",
+      "sergipe",
+      "públicas",
+      "refeições"
+     ]
+    },
+    {
+     "topico": 47,
+     "npmi": 0.04585407331903251,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 10,
+     "pares": 45,
+     "palavras": [
+      "pergunta",
+      "verdade",
+      "aquela",
+      "dúvida",
+      "fake",
+      "news",
+      "vídeo",
+      "dna",
+      "transparente",
+      "oposição"
+     ]
+    },
+    {
+     "topico": 48,
+     "npmi": 0.11717471146039363,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 6,
+     "pares": 45,
+     "palavras": [
+      "sigamos",
+      "rn",
+      "cultura",
+      "mossoró",
+      "desenvolvimento",
+      "sonho",
+      "norte",
+      "milhões",
+      "304",
+      "currais"
+     ]
+    },
+    {
+     "topico": 49,
+     "npmi": 0.44054518468293,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 1,
+     "pares": 45,
+     "palavras": [
+      "professores",
+      "educação",
+      "professor",
+      "professoras",
+      "magistério",
+      "valorizar",
+      "nossos",
+      "dedicam",
+      "ensinar",
+      "valorização"
+     ]
+    },
+    {
+     "topico": 50,
+     "npmi": 0.49105814311440193,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 1,
+     "pares": 45,
+     "palavras": [
+      "transporte",
+      "ida",
+      "gratuito",
+      "votação",
+      "gratuidade",
+      "metropolitano",
+      "votar",
+      "direito",
+      "ônibus",
+      "intermunicipal"
+     ]
+    },
+    {
+     "topico": 51,
+     "npmi": 0.19139736231471977,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 5,
+     "pares": 45,
+     "palavras": [
+      "tarcísio",
+      "aperta",
+      "10",
+      "vote",
+      "paulo",
+      "confirma",
+      "paulistas",
+      "são",
+      "destino",
+      "retribuir"
+     ]
+    },
+    {
+     "topico": 52,
+     "npmi": 0.24452628564138293,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 6,
+     "pares": 45,
+     "palavras": [
+      "alagoas",
+      "renanfilho",
+      "renancalheiros",
+      "renan",
+      "escolheu",
+      "mostrou",
+      "calheiros",
+      "alagoanos",
+      "dr_wanderley",
+      "confirma"
+     ]
+    },
+    {
+     "topico": 53,
+     "npmi": -0.09334849049681036,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 16,
+     "pares": 45,
+     "palavras": [
+      "mulheres",
+      "mailza",
+      "jessicasalesdeputada",
+      "acre",
+      "elas",
+      "protagonismo",
+      "reunidas",
+      "mulher",
+      "ajudam",
+      "produtoras"
+     ]
+    },
+    {
+     "topico": 54,
+     "npmi": -0.14635467522392556,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 16,
+     "pares": 45,
+     "palavras": [
+      "bolsonaro",
+      "bolsa",
+      "flávio",
+      "tesouraço",
+      "aposentadoria",
+      "dignidade",
+      "jogo",
+      "brasileiros",
+      "noticias",
+      "bolsonarista"
+     ]
+    },
+    {
+     "topico": 55,
+     "npmi": 0.1707949512709262,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 1,
+     "pares": 45,
+     "palavras": [
+      "vote",
+      "votar",
+      "votou",
+      "25",
+      "democracia",
+      "13",
+      "vota",
+      "lula",
+      "deixe",
+      "voto"
+     ]
+    },
+    {
+     "topico": 56,
+     "npmi": 0.3614132790457052,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 2,
+     "pares": 45,
+     "palavras": [
+      "osenadordetodos111",
+      "acre",
+      "gladsoncameli",
+      "amigo",
+      "chão",
+      "minorukinpara",
+      "111",
+      "deputado",
+      "nicolaujunioroficial",
+      "pé"
+     ]
+    },
+    {
+     "topico": 57,
+     "npmi": -0.019902677832821476,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 11,
+     "pares": 45,
+     "palavras": [
+      "paranaguá",
+      "litoral",
+      "avenida",
+      "turismo",
+      "cruzeiros",
+      "obras",
+      "ganhar",
+      "vai",
+      "pontal",
+      "orla"
+     ]
+    },
+    {
+     "topico": 58,
+     "npmi": -0.08930554192583916,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 10,
+     "pares": 45,
+     "palavras": [
+      "bahia",
+      "democracia",
+      "garantirmos",
+      "presidente",
+      "missão",
+      "eleitos",
+      "defesa",
+      "salvador",
+      "toda",
+      "acreditou"
+     ]
+    },
+    {
+     "topico": 59,
+     "npmi": 0.22778597273250803,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 7,
+     "pares": 45,
+     "palavras": [
+      "lulaoficial",
+      "maceió",
+      "arruda",
+      "vera",
+      "corredor",
+      "apertar",
+      "domingo",
+      "maranhão",
+      "jatiúca",
+      "alagoas"
+     ]
+    },
+    {
+     "topico": 60,
+     "npmi": 0.2126045947776659,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "piauí",
+      "lula",
+      "participação",
+      "presidente",
+      "sociais",
+      "teresina",
+      "turno",
+      "segundo",
+      "lideranças",
+      "redes"
+     ]
+    },
+    {
+     "topico": 61,
+     "npmi": 0.32071996153918353,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 5,
+     "pares": 45,
+     "palavras": [
+      "samu",
+      "sus",
+      "ambulâncias",
+      "sigamos",
+      "saúde",
+      "carreta",
+      "atendimento",
+      "exames",
+      "cobertura",
+      "potengi"
+     ]
+    },
+    {
+     "topico": 62,
+     "npmi": 0.299131191296862,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 1,
+     "pares": 45,
+     "palavras": [
+      "alagoas",
+      "renanfilho",
+      "história",
+      "novo",
+      "fazer",
+      "renancalheiros",
+      "renan",
+      "salto",
+      "compromisso",
+      "dr_wanderley"
+     ]
+    },
+    {
+     "topico": 63,
+     "npmi": 0.10114303586482841,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 9,
+     "pares": 45,
+     "palavras": [
+      "né",
+      "mainha",
+      "comida",
+      "miúdo",
+      "fome",
+      "parada",
+      "raiz",
+      "almoço",
+      "aquele",
+      "sanduíche"
+     ]
+    },
+    {
+     "topico": 64,
+     "npmi": 0.24388001700913836,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 2,
+     "pares": 45,
+     "palavras": [
+      "tôcomriedel",
+      "r11",
+      "conversa",
+      "sul",
+      "mato",
+      "grosso",
+      "bom",
+      "encontrando",
+      "perto",
+      "maracaju"
+     ]
+    },
+    {
+     "topico": 65,
+     "npmi": 0.05512610329096711,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 14,
+     "pares": 45,
+     "palavras": [
+      "intocáveis",
+      "chega",
+      "podres",
+      "frutas",
+      "ri",
+      "cairão",
+      "ventos",
+      "farra",
+      "vergonha",
+      "comente"
+     ]
+    },
+    {
+     "topico": 66,
+     "npmi": -0.37798661690798696,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 26,
+     "pares": 45,
+     "palavras": [
+      "romeuzemaoficial",
+      "intocáveis",
+      "gambá",
+      "stf",
+      "intocável",
+      "compartilhe",
+      "ido",
+      "pano",
+      "temem",
+      "135"
+     ]
+    },
+    {
+     "topico": 67,
+     "npmi": -0.28901004024461086,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 20,
+     "pares": 45,
+     "palavras": [
+      "vermelho",
+      "13",
+      "lula",
+      "tapete",
+      "amanhã",
+      "janeiro",
+      "cariocas",
+      "copacabana",
+      "verdeamarelo",
+      "paulista"
+     ]
+    },
+    {
+     "topico": 68,
+     "npmi": 0.33654177193941653,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "tôcomriedel",
+      "r11",
+      "riedel",
+      "11",
+      "sul",
+      "mato",
+      "aperta",
+      "grosso",
+      "vote",
+      "acontecer"
+     ]
+    },
+    {
+     "topico": 69,
+     "npmi": -0.44560886534359734,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 26,
+     "pares": 45,
+     "palavras": [
+      "qual",
+      "rame",
+      "sósia",
+      "oscar",
+      "aí",
+      "podia",
+      "arrasta",
+      "comentários",
+      "eu",
+      "escalar"
+     ]
+    },
+    {
+     "topico": 70,
+     "npmi": 0.3076330907691827,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 2,
+     "pares": 45,
+     "palavras": [
+      "sandroalex",
+      "rafaelgrecaoficial",
+      "jamais",
+      "retroceder",
+      "valeu",
+      "prefeito",
+      "tmj",
+      "apoio",
+      "claudiocovre_",
+      "pelo"
+     ]
+    },
+    {
+     "topico": 71,
+     "npmi": -0.04437701193364655,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 13,
+     "pares": 45,
+     "palavras": [
+      "sul",
+      "mauriciotonetto",
+      "rio",
+      "expointer",
+      "viva",
+      "farroupilha",
+      "gaúcha",
+      "governadores",
+      "gaúchos",
+      "grande"
+     ]
+    },
+    {
+     "topico": 72,
+     "npmi": 0.3049300664479313,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 1,
+     "pares": 45,
+     "palavras": [
+      "vencer",
+      "lula",
+      "virada",
+      "turno",
+      "abstenção",
+      "pesquisa",
+      "pesquisas",
+      "trackings",
+      "segundo",
+      "histórica"
+     ]
+    },
+    {
+     "topico": 73,
+     "npmi": 0.47782269660828197,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "servidores",
+      "feriado",
+      "feriadão",
+      "antecipado",
+      "servidor",
+      "pagamento",
+      "feira",
+      "salário",
+      "sexta",
+      "conta"
+     ]
+    },
+    {
+     "topico": 74,
+     "npmi": 0.0970713228767226,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 2,
+     "pares": 45,
+     "palavras": [
+      "25",
+      "lula",
+      "dia",
+      "hora",
+      "virada",
+      "pró",
+      "vitória",
+      "paraíba",
+      "13",
+      "rua"
+     ]
+    },
+    {
+     "topico": 75,
+     "npmi": 0.36192648001353284,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "vivo",
+      "tv",
+      "estaremos",
+      "partir",
+      "acompanhe",
+      "piauí",
+      "sobre",
+      "propostas",
+      "conversar",
+      "sabatina"
+     ]
+    },
+    {
+     "topico": 76,
+     "npmi": 0.006527009804015035,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 14,
+     "pares": 45,
+     "palavras": [
+      "impostos",
+      "bets",
+      "caro",
+      "dívida",
+      "altos",
+      "juros",
+      "empresas",
+      "famílias",
+      "produz",
+      "carrinho"
+     ]
+    },
+    {
+     "topico": 77,
+     "npmi": -0.198171119766378,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 18,
+     "pares": 45,
+     "palavras": [
+      "centro",
+      "sp",
+      "itaquera",
+      "paulo",
+      "região",
+      "tarcísio",
+      "paulista",
+      "duplicação",
+      "itaim",
+      "paulistana"
+     ]
+    },
+    {
+     "topico": 78,
+     "npmi": 0.30935111730238657,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "redução",
+      "segurança",
+      "pública",
+      "roubos",
+      "resultados",
+      "mostram",
+      "seguro",
+      "investimento",
+      "inteligência",
+      "combate"
+     ]
+    },
+    {
+     "topico": 79,
+     "npmi": 0.2649080190150004,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 7,
+     "pares": 45,
+     "palavras": [
+      "negócio",
+      "hotel",
+      "primavera",
+      "anderson",
+      "mei",
+      "empreende",
+      "badespi",
+      "próprio",
+      "empreendedorismo",
+      "conheci"
+     ]
+    },
+    {
+     "topico": 80,
+     "npmi": -0.10041152346950856,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 16,
+     "pares": 45,
+     "palavras": [
+      "agro",
+      "campo",
+      "seridó",
+      "agricultura",
+      "produz",
+      "crédito",
+      "rural",
+      "planta",
+      "evento",
+      "globo"
+     ]
+    },
+    {
+     "topico": 81,
+     "npmi": 0.2844727217183495,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "nunca",
+      "dinheiro",
+      "política",
+      "minas",
+      "cheguei",
+      "eu",
+      "brasileiro",
+      "intocáveis",
+      "estou",
+      "político"
+     ]
+    },
+    {
+     "topico": 82,
+     "npmi": 0.11658655455396245,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 8,
+     "pares": 45,
+     "palavras": [
+      "condomínio",
+      "idoso",
+      "idosos",
+      "casa",
+      "paraná",
+      "idosa",
+      "envelhecer",
+      "própria",
+      "moradias",
+      "chamar"
+     ]
+    },
+    {
+     "topico": 83,
+     "npmi": 0.22680061071665117,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 3,
+     "pares": 45,
+     "palavras": [
+      "timedopovo",
+      "teresina",
+      "carreata",
+      "zona",
+      "feliz",
+      "jingles",
+      "norte",
+      "rafinha",
+      "domingo",
+      "demonstrando"
+     ]
+    },
+    {
+     "topico": 84,
+     "npmi": -0.0210139575142839,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 8,
+     "pares": 45,
+     "palavras": [
+      "democracia",
+      "lula",
+      "paulista",
+      "avenida",
+      "presidente",
+      "ato",
+      "ruas",
+      "milhares",
+      "bandeira",
+      "praça"
+     ]
+    },
+    {
+     "topico": 85,
+     "npmi": 0.23382705549788282,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 4,
+     "pares": 45,
+     "palavras": [
+      "jovens",
+      "caminhos",
+      "sonhos",
+      "sonhar",
+      "juventude",
+      "beem",
+      "ensino",
+      "provão",
+      "estudar",
+      "oportunidades"
+     ]
+    },
+    {
+     "topico": 86,
+     "npmi": 0.3872141243360199,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 2,
+     "pares": 45,
+     "palavras": [
+      "km",
+      "alagoas",
+      "al",
+      "praia",
+      "mobilidade",
+      "102",
+      "quase",
+      "asfalto",
+      "entregue",
+      "sereia"
+     ]
+    },
+    {
+     "topico": 87,
+     "npmi": 0.5745743595099997,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 1,
+     "pares": 45,
+     "palavras": [
+      "leis",
+      "duras",
+      "impunidade",
+      "brigar",
+      "prende",
+      "comenta",
+      "frouxas",
+      "enfrentar",
+      "concorda",
+      "criminoso"
+     ]
+    },
+    {
+     "topico": 88,
+     "npmi": 0.5645954231652396,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "derrite",
+      "prado",
+      "andré",
+      "guilherme",
+      "tarcísio",
+      "paulo",
+      "flávio",
+      "222",
+      "vote",
+      "bolsonaro"
+     ]
+    },
+    {
+     "topico": 89,
+     "npmi": 0.041319988433933245,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 4,
+     "pares": 45,
+     "palavras": [
+      "educação",
+      "estudantes",
+      "piauí",
+      "presidente",
+      "nossos",
+      "lula",
+      "poder",
+      "piripiri",
+      "transformação",
+      "construção"
+     ]
+    },
+    {
+     "topico": 90,
+     "npmi": 0.15213583295379604,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 3,
+     "pares": 45,
+     "palavras": [
+      "mato",
+      "grosso",
+      "grossenses",
+      "até",
+      "pesquisa",
+      "meus",
+      "444",
+      "rodamos",
+      "amigos",
+      "olho"
+     ]
+    },
+    {
+     "topico": 91,
+     "npmi": -0.4628378150194568,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 25,
+     "pares": 45,
+     "palavras": [
+      "pará",
+      "eirunepé",
+      "parazão",
+      "junto",
+      "vocês",
+      "lutando",
+      "eu",
+      "eliseu",
+      "dedico",
+      "faustojram"
+     ]
+    },
+    {
+     "topico": 92,
+     "npmi": 0.3514652253190595,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 2,
+     "pares": 45,
+     "palavras": [
+      "senhora",
+      "aparecida",
+      "padroeira",
+      "abençoando",
+      "nossa",
+      "continue",
+      "devoção",
+      "proteja",
+      "fé",
+      "guiando"
+     ]
+    },
+    {
+     "topico": 93,
+     "npmi": 0.1890598938535155,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 5,
+     "pares": 45,
+     "palavras": [
+      "sus",
+      "saúde",
+      "atendimento",
+      "hospital",
+      "cuidar",
+      "alagoanos",
+      "alagoano",
+      "humanizado",
+      "qualidade",
+      "acesso"
+     ]
+    },
+    {
+     "topico": 94,
+     "npmi": -0.00026444711566394485,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 9,
+     "pares": 45,
+     "palavras": [
+      "uern",
+      "viva",
+      "anos",
+      "mossoró",
+      "universidade",
+      "204",
+      "celebrar",
+      "58",
+      "professora",
+      "pública"
+     ]
+    },
+    {
+     "topico": 95,
+     "npmi": 0.016640232728831805,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 13,
+     "pares": 45,
+     "palavras": [
+      "vivo",
+      "21h",
+      "debate",
+      "compartilhem",
+      "globo",
+      "acompanhem",
+      "currículo",
+      "às",
+      "horário",
+      "jornal"
+     ]
+    },
+    {
+     "topico": 96,
+     "npmi": -0.07364345996462172,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 16,
+     "pares": 45,
+     "palavras": [
+      "violência",
+      "mulher",
+      "determinei",
+      "pm",
+      "raquel",
+      "contra",
+      "raquellyraoficial",
+      "flagrado",
+      "agredindo",
+      "ataca"
+     ]
+    },
+    {
+     "topico": 97,
+     "npmi": -0.4429346566955757,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 28,
+     "pares": 45,
+     "palavras": [
+      "max",
+      "cantar",
+      "cof",
+      "maurinho",
+      "roxinha",
+      "música",
+      "som",
+      "acorda",
+      "mainha",
+      "yedo_leonel"
+     ]
+    },
+    {
+     "topico": 98,
+     "npmi": 0.016173720022348487,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 14,
+     "pares": 45,
+     "palavras": [
+      "parque",
+      "espaço",
+      "aproveitar",
+      "criançada",
+      "areninha",
+      "jogar",
+      "lazer",
+      "bola",
+      "brincar",
+      "subúrbio"
+     ]
+    },
+    {
+     "topico": 99,
+     "npmi": 0.39751592213800624,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 2,
+     "pares": 45,
+     "palavras": [
+      "maioridade",
+      "penal",
+      "castração",
+      "química",
+      "menor",
+      "crime",
+      "defendo",
+      "redução",
+      "leis",
+      "defender"
+     ]
+    },
+    {
+     "topico": 100,
+     "npmi": 0.4455112203296712,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "7h30",
+      "teresina",
+      "zona",
+      "av",
+      "domingo",
+      "concentração",
+      "partir",
+      "venha",
+      "carreata",
+      "luna"
+     ]
+    },
+    {
+     "topico": 101,
+     "npmi": -0.062430071873074824,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 12,
+     "pares": 45,
+     "palavras": [
+      "cadu",
+      "rn",
+      "cuuuuida",
+      "13",
+      "retroceder",
+      "vão",
+      "cuida",
+      "ferros",
+      "norte",
+      "pau"
+     ]
+    },
+    {
+     "topico": 102,
+     "npmi": 0.026594739950193614,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 9,
+     "pares": 45,
+     "palavras": [
+      "medo",
+      "ensinou",
+      "coragem",
+      "nunca",
+      "aprendi",
+      "romeuzemaoficial",
+      "propósito",
+      "desistir",
+      "tenta",
+      "pés"
+     ]
+    },
+    {
+     "topico": 103,
+     "npmi": 0.2784087742564444,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 11,
+     "pares": 45,
+     "palavras": [
+      "churrasquinho",
+      "boavista",
+      "deixem",
+      "bvrr",
+      "bão",
+      "reuniões",
+      "indicação",
+      "comentários",
+      "rr",
+      "amoca"
+     ]
+    },
+    {
+     "topico": 104,
+     "npmi": 0.3313768973768702,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "operação",
+      "forças",
+      "polícia",
+      "prisão",
+      "sistema",
+      "foram",
+      "segurança",
+      "ação",
+      "tráfico",
+      "envolvidos"
+     ]
+    },
+    {
+     "topico": 105,
+     "npmi": 0.6558552197867521,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "pesquisa",
+      "percentuais",
+      "95",
+      "margem",
+      "eleitores",
+      "pontos",
+      "erro",
+      "es",
+      "2026",
+      "levantamento"
+     ]
+    },
+    {
+     "topico": 106,
+     "npmi": -0.05956481253119077,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 13,
+     "pares": 45,
+     "palavras": [
+      "piauí",
+      "timedopovo",
+      "lideranças",
+      "apertar",
+      "semanas",
+      "decisivo",
+      "intensificar",
+      "prefeitos",
+      "224",
+      "uruçuí"
+     ]
+    },
+    {
+     "topico": 107,
+     "npmi": 0.22313526897804228,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 7,
+     "pares": 45,
+     "palavras": [
+      "stf",
+      "acima",
+      "comprovado",
+      "devidamente",
+      "responder",
+      "gilmar",
+      "autoridade",
+      "ninguém",
+      "for",
+      "concorda"
+     ]
+    },
+    {
+     "topico": 108,
+     "npmi": -0.7816754266040044,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 39,
+     "pares": 45,
+     "palavras": [
+      "reunido",
+      "vontade",
+      "participam",
+      "otimismo",
+      "vamoooooooo",
+      "vamoooooo",
+      "versátil",
+      "ocupam",
+      "traga",
+      "argumentos"
+     ]
+    },
+    {
+     "topico": 109,
+     "npmi": -0.1860539847566161,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 18,
+     "pares": 45,
+     "palavras": [
+      "porto",
+      "parnaíba",
+      "turismo",
+      "piauí",
+      "ii",
+      "pedro",
+      "usina",
+      "potencial",
+      "grãos",
+      "etanol"
+     ]
+    },
+    {
+     "topico": 110,
+     "npmi": -0.13932321286528154,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 16,
+     "pares": 45,
+     "palavras": [
+      "mainha",
+      "deixa",
+      "tabira",
+      "saindo",
+      "pernambuco",
+      "itapissuma",
+      "igarassu",
+      "acelerador",
+      "bota",
+      "comentários"
+     ]
+    },
+    {
+     "topico": 111,
+     "npmi": 0.32262451217464655,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 5,
+     "pares": 45,
+     "palavras": [
+      "círio",
+      "nazaré",
+      "nazinha",
+      "senhora",
+      "paraense",
+      "maniçoba",
+      "renovar",
+      "abençoando",
+      "siga",
+      "viva"
+     ]
+    },
+    {
+     "topico": 112,
+     "npmi": -0.015874257206159658,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 13,
+     "pares": 45,
+     "palavras": [
+      "cruz",
+      "francisco",
+      "santa",
+      "fé",
+      "assis",
+      "milagres",
+      "leve",
+      "devoção",
+      "cristo",
+      "houver"
+     ]
+    },
+    {
+     "topico": 113,
+     "npmi": 0.20132913501438135,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 1,
+     "pares": 45,
+     "palavras": [
+      "paraná",
+      "bandido",
+      "menores",
+      "polícia",
+      "índices",
+      "criminalidade",
+      "paranaenses",
+      "segurança",
+      "tecnologia",
+      "aqui"
+     ]
+    },
+    {
+     "topico": 114,
+     "npmi": -0.14431349289297685,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 17,
+     "pares": 45,
+     "palavras": [
+      "deputado",
+      "lançamento",
+      "timedopovo",
+      "evaldo",
+      "parnaíba",
+      "jadyel",
+      "estadual",
+      "félix",
+      "vinícius",
+      "prazer"
+     ]
+    },
+    {
+     "topico": 115,
+     "npmi": -0.03500263221229475,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 10,
+     "pares": 45,
+     "palavras": [
+      "criminalidade",
+      "segurança",
+      "combate",
+      "capixabas",
+      "planejamento",
+      "policial",
+      "espírito",
+      "santo",
+      "apostas",
+      "deixei"
+     ]
+    },
+    {
+     "topico": 116,
+     "npmi": -0.003234984260303005,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 10,
+     "pares": 45,
+     "palavras": [
+      "paulo",
+      "são",
+      "paulistas",
+      "financia",
+      "locomotiva",
+      "quatro",
+      "coragem",
+      "confiança",
+      "derrite",
+      "honrar"
+     ]
+    },
+    {
+     "topico": 117,
+     "npmi": 0.2846962630308419,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 5,
+     "pares": 45,
+     "palavras": [
+      "roubo",
+      "crime",
+      "celulares",
+      "paulo",
+      "inteligência",
+      "operação",
+      "gaeco",
+      "menores",
+      "drogas",
+      "índices"
+     ]
+    },
+    {
+     "topico": 118,
+     "npmi": -0.20676506389989463,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 25,
+     "pares": 45,
+     "palavras": [
+      "ferry",
+      "aquaviário",
+      "miguel",
+      "embarcação",
+      "baixada",
+      "cujupe",
+      "retroescavadeiras",
+      "tratores",
+      "88",
+      "agrícolas"
+     ]
+    },
+    {
+     "topico": 119,
+     "npmi": 0.37480865138936925,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 3,
+     "pares": 45,
+     "palavras": [
+      "setembro",
+      "desfile",
+      "armadas",
+      "forças",
+      "celebramos",
+      "204",
+      "cívico",
+      "beira",
+      "independência",
+      "avenida"
+     ]
+    },
+    {
+     "topico": 120,
+     "npmi": 0.3385627470509818,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 4,
+     "pares": 45,
+     "palavras": [
+      "111",
+      "osenadordetodos111",
+      "bujari",
+      "acre",
+      "gladsoncameli",
+      "buzina",
+      "sorriso",
+      "pé",
+      "chão",
+      "plácido"
+     ]
+    },
+    {
+     "topico": 121,
+     "npmi": -0.39001672912054647,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 25,
+     "pares": 45,
+     "palavras": [
+      "maringá",
+      "recebido",
+      "carinho",
+      "sindicatos",
+      "conferida",
+      "homenagens",
+      "mestres",
+      "obrigado",
+      "servidoras",
+      "homenagem"
+     ]
+    },
+    {
+     "topico": 122,
+     "npmi": 0.4638133722307924,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 2,
+     "pares": 45,
+     "palavras": [
+      "ipva",
+      "bolso",
+      "cilindradas",
+      "moto",
+      "motociclistas",
+      "dinheiro",
+      "180",
+      "imposto",
+      "trabalhador",
+      "motos"
+     ]
+    },
+    {
+     "topico": 123,
+     "npmi": 0.13257910932092967,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 7,
+     "pares": 45,
+     "palavras": [
+      "[perfil]",
+      "rafael",
+      "repost",
+      "espetacular",
+      "nsr",
+      "itaueira",
+      "batalha",
+      "porto",
+      "13",
+      "time"
+     ]
+    },
+    {
+     "topico": 124,
+     "npmi": 0.778888088677002,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "asatur",
+      "helena",
+      "tânia",
+      "soares",
+      "senadora",
+      "buritis",
+      "suplente",
+      "555",
+      "queiroz",
+      "simone"
+     ]
+    },
+    {
+     "topico": 125,
+     "npmi": 0.1506557527135263,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 9,
+     "pares": 45,
+     "palavras": [
+      "polícia",
+      "batalhão",
+      "colombo",
+      "policiais",
+      "delegacia",
+      "reforço",
+      "bptur",
+      "sede",
+      "viaturas",
+      "estrutura"
+     ]
+    },
+    {
+     "topico": 126,
+     "npmi": -0.21013984553948772,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 23,
+     "pares": 45,
+     "palavras": [
+      "augustinopolis",
+      "luzimangues",
+      "natividade",
+      "dnit",
+      "axixá",
+      "palmas",
+      "araguatins",
+      "ficando",
+      "trecho",
+      "semana"
+     ]
+    },
+    {
+     "topico": 127,
+     "npmi": -0.6483478437352396,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 34,
+     "pares": 45,
+     "palavras": [
+      "macaparana",
+      "betofigueiroa",
+      "boa",
+      "esperar",
+      "cabe",
+      "boibreadburguer",
+      "arrepiei",
+      "montenegro",
+      "ligeira",
+      "hambúrgueres"
+     ]
+    },
+    {
+     "topico": 128,
+     "npmi": 0.3800405499159422,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "renda",
+      "emprego",
+      "economia",
+      "pacto",
+      "meta",
+      "eixos",
+      "oportunidades",
+      "fortalecer",
+      "empreende",
+      "crédito"
+     ]
+    },
+    {
+     "topico": 129,
+     "npmi": 0.13793865141647932,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 9,
+     "pares": 45,
+     "palavras": [
+      "16h",
+      "carhoo",
+      "arena",
+      "encontro",
+      "partir",
+      "estaiada",
+      "quarta",
+      "16h13",
+      "presidente",
+      "esperamos"
+     ]
+    },
+    {
+     "topico": 130,
+     "npmi": 0.23183806324463635,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 10,
+     "pares": 45,
+     "palavras": [
+      "tabapuã",
+      "fig",
+      "leilão",
+      "roraima",
+      "arthur",
+      "luiz",
+      "amigo",
+      "4º",
+      "henrique",
+      "lançamento"
+     ]
+    },
+    {
+     "topico": 131,
+     "npmi": -0.026385638767604223,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 15,
+     "pares": 45,
+     "palavras": [
+      "animal",
+      "amazonas",
+      "joanadarcam",
+      "tea",
+      "veterinário",
+      "gestão",
+      "deputada",
+      "delphina",
+      "aziz",
+      "inédita"
+     ]
+    },
+    {
+     "topico": 132,
+     "npmi": 0.1327556511242237,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 13,
+     "pares": 45,
+     "palavras": [
+      "água",
+      "torneira",
+      "investidos",
+      "poços",
+      "contenção",
+      "sertânia",
+      "limpinha",
+      "racionamento",
+      "bombeamento",
+      "rodízio"
+     ]
+    },
+    {
+     "topico": 133,
+     "npmi": -0.03739744448205649,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 12,
+     "pares": 45,
+     "palavras": [
+      "pará",
+      "luz",
+      "impedir",
+      "paraense",
+      "aumento",
+      "cop",
+      "lutar",
+      "conta",
+      "vão",
+      "briga"
+     ]
+    },
+    {
+     "topico": 134,
+     "npmi": 0.2274503378166172,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 6,
+     "pares": 45,
+     "palavras": [
+      "ganhando",
+      "inglaterra",
+      "alunos",
+      "mundo",
+      "piazada",
+      "intercâmbio",
+      "países",
+      "edição",
+      "estudantes",
+      "realizados"
+     ]
+    },
+    {
+     "topico": 135,
+     "npmi": -0.30513841790865326,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 27,
+     "pares": 45,
+     "palavras": [
+      "música",
+      "lembranças",
+      "bons",
+      "casamentos",
+      "contei",
+      "sanfona",
+      "tatão",
+      "tikim",
+      "parafraseando",
+      "partilho"
+     ]
+    },
+    {
+     "topico": 136,
+     "npmi": -0.20247916683053166,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 17,
+     "pares": 45,
+     "palavras": [
+      "me",
+      "ensinaram",
+      "solo",
+      "alguém",
+      "queria",
+      "vocês",
+      "sou",
+      "grato",
+      "mães",
+      "pepeu"
+     ]
+    },
+    {
+     "topico": 137,
+     "npmi": -0.28809895404844177,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 22,
+     "pares": 45,
+     "palavras": [
+      "amazonas",
+      "senadores",
+      "monte",
+      "junto",
+      "lute",
+      "pascoal",
+      "lírio",
+      "funcionou",
+      "direcionar",
+      "domingo"
+     ]
+    },
+    {
+     "topico": 138,
+     "npmi": 0.27671134347020954,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 3,
+     "pares": 45,
+     "palavras": [
+      "creche",
+      "mães",
+      "cuidado",
+      "mãe",
+      "refeições",
+      "tranquilidade",
+      "crianças",
+      "bem",
+      "criança",
+      "angústia"
+     ]
+    },
+    {
+     "topico": 139,
+     "npmi": -0.41159026515921227,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 27,
+     "pares": 45,
+     "palavras": [
+      "mil",
+      "aracati",
+      "empregos",
+      "expansão",
+      "uab",
+      "conexões",
+      "superior",
+      "graduação",
+      "postos",
+      "voo"
+     ]
+    },
+    {
+     "topico": 140,
+     "npmi": -0.5098025729303567,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 28,
+     "pares": 45,
+     "palavras": [
+      "vamo",
+      "atacam",
+      "eis",
+      "cima",
+      "preparado",
+      "tô",
+      "ataque",
+      "parece",
+      "motivo",
+      "wilson"
+     ]
+    },
+    {
+     "topico": 141,
+     "npmi": -0.1481279954709055,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 21,
+     "pares": 45,
+     "palavras": [
+      "acabar",
+      "bets",
+      "farra",
+      "acaba",
+      "viciado",
+      "taxar",
+      "praga",
+      "plano",
+      "lucra",
+      "traficante"
+     ]
+    },
+    {
+     "topico": 142,
+     "npmi": -0.47424902908163513,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 29,
+     "pares": 45,
+     "palavras": [
+      "intocáveis",
+      "intocável",
+      "cafézin",
+      "fantástico",
+      "queijo",
+      "abc",
+      "pão",
+      "chega",
+      "protege",
+      "caiu"
+     ]
+    },
+    {
+     "topico": 143,
+     "npmi": -0.20025424808285994,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 21,
+     "pares": 45,
+     "palavras": [
+      "flávio",
+      "debatenaglobo",
+      "lulanaglobo",
+      "respeite",
+      "presidência",
+      "corrupção",
+      "nordestino",
+      "população",
+      "gorjetas",
+      "governados"
+     ]
+    },
+    {
+     "topico": 144,
+     "npmi": 0.0831937510389272,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 9,
+     "pares": 45,
+     "palavras": [
+      "cortou",
+      "vota",
+      "ministérios",
+      "compara",
+      "tesouraço",
+      "lula",
+      "reeleger",
+      "vote",
+      "soberania",
+      "entende"
+     ]
+    },
+    {
+     "topico": 145,
+     "npmi": -0.5073540357694684,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 31,
+     "pares": 45,
+     "palavras": [
+      "oeiras",
+      "hídrica",
+      "semarh",
+      "cultural",
+      "águas",
+      "cajueiro",
+      "cinturão",
+      "preservação",
+      "lagoa",
+      "obras"
+     ]
+    },
+    {
+     "topico": 146,
+     "npmi": -0.34873122123464156,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 21,
+     "pares": 45,
+     "palavras": [
+      "pará",
+      "lutar",
+      "quero",
+      "estar",
+      "precisa",
+      "alinhadas",
+      "xinguara",
+      "trazer",
+      "brs",
+      "amazônica"
+     ]
+    },
+    {
+     "topico": 147,
+     "npmi": 0.5328388965652258,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 2,
+     "pares": 45,
+     "palavras": [
+      "hospital",
+      "einstein",
+      "central",
+      "ricos",
+      "padrão",
+      "albert",
+      "cuiabá",
+      "sus",
+      "famosos",
+      "34"
+     ]
+    },
+    {
+     "topico": 148,
+     "npmi": 0.008364830343960744,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 17,
+     "pares": 45,
+     "palavras": [
+      "caramelo",
+      "patente",
+      "laranjinhas",
+      "cachorro",
+      "cabo",
+      "tropa",
+      "turistas",
+      "voz",
+      "peso",
+      "breve"
+     ]
+    },
+    {
+     "topico": 149,
+     "npmi": 0.4165503617360932,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 2,
+     "pares": 45,
+     "palavras": [
+      "transporte",
+      "ônibus",
+      "usa",
+      "condicionado",
+      "câmeras",
+      "terminal",
+      "ar",
+      "araucária",
+      "fazenda",
+      "público"
+     ]
+    },
+    {
+     "topico": 150,
+     "npmi": 0.23256321521186807,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 4,
+     "pares": 45,
+     "palavras": [
+      "moderno",
+      "laboratório",
+      "itapipoca",
+      "diagnósticos",
+      "90",
+      "hospital",
+      "lula",
+      "atendimento",
+      "agilidade",
+      "samu"
+     ]
+    },
+    {
+     "topico": 151,
+     "npmi": 0.17322669391490797,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 3,
+     "pares": 45,
+     "palavras": [
+      "nordestino",
+      "sergipanidade",
+      "somos",
+      "orgulho",
+      "raízes",
+      "nossas",
+      "jeito",
+      "sergipe",
+      "ser",
+      "embalam"
+     ]
+    },
+    {
+     "topico": 152,
+     "npmi": -0.49479881207917725,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 31,
+     "pares": 45,
+     "palavras": [
+      "sandroalex",
+      "rafaelgrecaoficial",
+      "alessandrovonlinsingen",
+      "alexisfonteyne30",
+      "nenedozerelojoeiro",
+      "delegadomichel",
+      "rafaelgracaoficial",
+      "prefeitaninasinger",
+      "sol_favaro_",
+      "tania_basso_prefeita"
+     ]
+    },
+    {
+     "topico": 153,
+     "npmi": -0.4726976800535403,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 30,
+     "pares": 45,
+     "palavras": [
+      "catarina",
+      "catarinenses",
+      "santa",
+      "divido",
+      "falaram",
+      "catarinense",
+      "queriam",
+      "imenso",
+      "prêmio",
+      "responsáveis"
+     ]
+    },
+    {
+     "topico": 154,
+     "npmi": -0.09561950846509602,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 14,
+     "pares": 45,
+     "palavras": [
+      "democracia",
+      "liberdade",
+      "ruicostaoficial",
+      "quer",
+      "constituição",
+      "netos",
+      "via",
+      "filhos",
+      "país",
+      "promulgação"
+     ]
+    },
+    {
+     "topico": 155,
+     "npmi": -0.078089401831381,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 18,
+     "pares": 45,
+     "palavras": [
+      "cop30",
+      "belém",
+      "pará",
+      "ter",
+      "amazônia",
+      "hana",
+      "indevidas",
+      "artesiano",
+      "reativação",
+      "proibidas"
+     ]
+    },
+    {
+     "topico": 156,
+     "npmi": 0.746521934191348,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "agna",
+      "empreendedora",
+      "geleia",
+      "geleias",
+      "sabores",
+      "produtos",
+      "exportar",
+      "piauí",
+      "made",
+      "maracujá"
+     ]
+    },
+    {
+     "topico": 157,
+     "npmi": -0.1465788115438375,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 17,
+     "pares": 45,
+     "palavras": [
+      "miri",
+      "igarapé",
+      "amazônia",
+      "terra",
+      "juruti",
+      "jeito",
+      "azul",
+      "açaí",
+      "nasceu",
+      "único"
+     ]
+    },
+    {
+     "topico": 158,
+     "npmi": 0.25137128023267025,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 10,
+     "pares": 45,
+     "palavras": [
+      "bombeiros",
+      "salvamento",
+      "incêndios",
+      "robôs",
+      "combate",
+      "caminhonetes",
+      "4x4",
+      "9º",
+      "corpo",
+      "instalação"
+     ]
+    },
+    {
+     "topico": 159,
+     "npmi": 0.1234357730724879,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 9,
+     "pares": 45,
+     "palavras": [
+      "globonews",
+      "globo",
+      "eleições",
+      "debate",
+      "estúdios",
+      "divulgada",
+      "tv",
+      "presidencial",
+      "pesquisa",
+      "candidatos"
+     ]
+    },
+    {
+     "topico": 160,
+     "npmi": 0.19230664489421265,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 8,
+     "pares": 45,
+     "palavras": [
+      "produção",
+      "agro",
+      "r11",
+      "tôcomriedel",
+      "citricultura",
+      "diversificou",
+      "grosso",
+      "sul",
+      "mato",
+      "conectando"
+     ]
+    },
+    {
+     "topico": 161,
+     "npmi": 0.6928915638884724,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "cinza",
+      "formatura",
+      "militar",
+      "políciamilitar",
+      "t4",
+      "segurançapública",
+      "polícia",
+      "soldados",
+      "curso",
+      "recebimento"
+     ]
+    },
+    {
+     "topico": 162,
+     "npmi": -0.10993885864121565,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 13,
+     "pares": 45,
+     "palavras": [
+      "eleita",
+      "pernambuquismo",
+      "eu",
+      "pernambuco",
+      "fui",
+      "pernambuquista",
+      "disseram",
+      "melhores",
+      "sei",
+      "trabalhar"
+     ]
+    },
+    {
+     "topico": 163,
+     "npmi": 0.0925237024291166,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 12,
+     "pares": 45,
+     "palavras": [
+      "linha",
+      "metrô",
+      "paulo",
+      "trem",
+      "valinhos",
+      "intercidades",
+      "guarulhos",
+      "campinas",
+      "são",
+      "laranja"
+     ]
+    },
+    {
+     "topico": 164,
+     "npmi": 0.3273483994112094,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 3,
+     "pares": 45,
+     "palavras": [
+      "vila",
+      "criança",
+      "novembro",
+      "diversão",
+      "aberta",
+      "1º",
+      "espaço",
+      "atalaia",
+      "programação",
+      "orla"
+     ]
+    },
+    {
+     "topico": 165,
+     "npmi": 0.23222384825843298,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 9,
+     "pares": 45,
+     "palavras": [
+      "111",
+      "gladsoncameli",
+      "é111",
+      "osenadordetodos111",
+      "amarela",
+      "espalha",
+      "acre",
+      "osenadordetodos",
+      "vamosde111",
+      "bixim"
+     ]
+    },
+    {
+     "topico": 166,
+     "npmi": 0.6008138603098784,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "etapa",
+      "viário",
+      "complexo",
+      "carmo",
+      "alça",
+      "346",
+      "viária",
+      "tancredo",
+      "maria",
+      "mobilidade"
+     ]
+    },
+    {
+     "topico": 167,
+     "npmi": 0.03813551566010321,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 9,
+     "pares": 45,
+     "palavras": [
+      "livre",
+      "independência",
+      "setembro",
+      "viva",
+      "verdadeiramente",
+      "pátria",
+      "país",
+      "liberdade",
+      "espírito",
+      "soberano"
+     ]
+    },
+    {
+     "topico": 168,
+     "npmi": -0.045399058022830396,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 16,
+     "pares": 45,
+     "palavras": [
+      "80",
+      "trend",
+      "época",
+      "década",
+      "anos",
+      "seria",
+      "imagem",
+      "dt",
+      "envolvida",
+      "longos"
+     ]
+    },
+    {
+     "topico": 169,
+     "npmi": 0.03200260806986461,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 11,
+     "pares": 45,
+     "palavras": [
+      "mariana",
+      "esporte",
+      "mitidieri",
+      "delegadakatarina",
+      "sergipe",
+      "lançamento",
+      "candidatura",
+      "nacionais",
+      "internacionais",
+      "fala"
+     ]
+    },
+    {
+     "topico": 170,
+     "npmi": 0.3743507232591339,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "crianças",
+      "infância",
+      "creches",
+      "nossas",
+      "pequenos",
+      "cuidar",
+      "trabalhamos",
+      "cresçam",
+      "criança",
+      "idade"
+     ]
+    },
+    {
+     "topico": 171,
+     "npmi": 0.19573707656367742,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 12,
+     "pares": 45,
+     "palavras": [
+      "tradição",
+      "festa",
+      "orquídeas",
+      "maripá",
+      "porco",
+      "rolete",
+      "26ª",
+      "toledo",
+      "peixe",
+      "pensa"
+     ]
+    },
+    {
+     "topico": 172,
+     "npmi": 0.2742162997415734,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "oratinho",
+      "amanhã",
+      "conto",
+      "rafaelgrecaoficial",
+      "sandroalex",
+      "atenção",
+      "carreata",
+      "vocês",
+      "vitória",
+      "beltrão"
+     ]
+    },
+    {
+     "topico": 173,
+     "npmi": -0.3883165430250433,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 28,
+     "pares": 45,
+     "palavras": [
+      "justiça",
+      "nilzir",
+      "instituição",
+      "trf5",
+      "penitenciária",
+      "corregedor",
+      "biênio",
+      "reitor",
+      "geral",
+      "ivan"
+     ]
+    },
+    {
+     "topico": 174,
+     "npmi": -0.37151148183468,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 20,
+     "pares": 45,
+     "palavras": [
+      "vejo",
+      "bahia",
+      "mobilizar",
+      "metropole",
+      "ele",
+      "filho",
+      "hora",
+      "vivas",
+      "mão",
+      "reconhecimento"
+     ]
+    },
+    {
+     "topico": 175,
+     "npmi": -0.39006064782687766,
+     "n_palavras": 8,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 15,
+     "pares": 28,
+     "palavras": [
+      "repost",
+      "boraaaaaaaaaaaa",
+      "guganoblat",
+      "anaelisast",
+      "ptbrasil",
+      "lulaoficial",
+      "bora",
+      "brasil"
+     ]
+    },
+    {
+     "topico": 176,
+     "npmi": 0.09854567813283109,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 13,
+     "pares": 45,
+     "palavras": [
+      "rompimento",
+      "medidas",
+      "providências",
+      "socorro",
+      "cabíveis",
+      "restabelecer",
+      "abastecimento",
+      "necessárias",
+      "manutenção",
+      "adutora"
+     ]
+    },
+    {
+     "topico": 177,
+     "npmi": 0.2758399798763492,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 5,
+     "pares": 45,
+     "palavras": [
+      "alagoas",
+      "inovação",
+      "1º",
+      "ranking",
+      "ciência",
+      "conhecimento",
+      "3º",
+      "mestrado",
+      "embrapa",
+      "somos"
+     ]
+    },
+    {
+     "topico": 178,
+     "npmi": 0.5305393625978716,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 3,
+     "pares": 45,
+     "palavras": [
+      "tietê",
+      "poluição",
+      "esgoto",
+      "orgânica",
+      "mancha",
+      "recuperação",
+      "hectares",
+      "focos",
+      "bilhões",
+      "integra"
+     ]
+    },
+    {
+     "topico": 179,
+     "npmi": -0.16012942753168827,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 18,
+     "pares": 45,
+     "palavras": [
+      "400",
+      "acelerarmos",
+      "joãopratodaobra",
+      "compasso",
+      "paris",
+      "colorir",
+      "senador",
+      "parou",
+      "amarela",
+      "acelerando"
+     ]
+    },
+    {
+     "topico": 180,
+     "npmi": 0.41985177609884233,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "adutoras",
+      "curimataú",
+      "água",
+      "hídrica",
+      "maiores",
+      "paraíba",
+      "preparou",
+      "cariri",
+      "nordeste",
+      "nessas"
+     ]
+    },
+    {
+     "topico": 181,
+     "npmi": 0.3333257447931588,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 8,
+     "pares": 45,
+     "palavras": [
+      "expoema",
+      "imperdíveis",
+      "chapéu",
+      "shows",
+      "exposições",
+      "diversão",
+      "tempos",
+      "av",
+      "show",
+      "bota"
+     ]
+    },
+    {
+     "topico": 182,
+     "npmi": -0.014907023484963972,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 10,
+     "pares": 45,
+     "palavras": [
+      "aracaju",
+      "colina",
+      "mini",
+      "carreata",
+      "fala",
+      "9h",
+      "ruas",
+      "começou",
+      "antônio",
+      "alô"
+     ]
+    },
+    {
+     "topico": 183,
+     "npmi": 0.15977682139640897,
+     "n_palavras": 2,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 1,
+     "palavras": [
+      "bom",
+      "dia"
+     ]
+    },
+    {
+     "topico": 184,
+     "npmi": -0.0792265368494013,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 14,
+     "pares": 45,
+     "palavras": [
+      "ocupando",
+      "avoanti",
+      "lgbtqia",
+      "diverso",
+      "fortaleza",
+      "plural",
+      "granja",
+      "13",
+      "rua",
+      "ruas"
+     ]
+    },
+    {
+     "topico": 185,
+     "npmi": -0.4825937954690207,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 28,
+     "pares": 45,
+     "palavras": [
+      "ótima",
+      "ótimo",
+      "semana",
+      "abençoado",
+      "abençoada",
+      "sabadão",
+      "autoridade",
+      "roraimenses",
+      "máxima",
+      "feira"
+     ]
+    },
+    {
+     "topico": 186,
+     "npmi": 0.3666703979346876,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "fazenda",
+      "greca",
+      "sandro",
+      "55",
+      "obrigado",
+      "buzinou",
+      "começo",
+      "rio",
+      "alex",
+      "acenou"
+     ]
+    },
+    {
+     "topico": 187,
+     "npmi": 0.38739741107470255,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 0,
+     "pares": 45,
+     "palavras": [
+      "atípica",
+      "mãe",
+      "tea",
+      "cuidar",
+      "filhos",
+      "dessas",
+      "mães",
+      "vezes",
+      "sozinha",
+      "dedicação"
+     ]
+    },
+    {
+     "topico": 188,
+     "npmi": -0.1795445190764754,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 19,
+     "pares": 45,
+     "palavras": [
+      "rio",
+      "ernani",
+      "aventuras",
+      "dificuldade",
+      "retrocessos",
+      "juros",
+      "gaúcho",
+      "gabriel",
+      "sem",
+      "grande"
+     ]
+    },
+    {
+     "topico": 189,
+     "npmi": -0.1673337203931619,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 21,
+     "pares": 45,
+     "palavras": [
+      "soberania",
+      "soberano",
+      "deixaremos",
+      "negociada",
+      "democracia",
+      "defesa",
+      "grito",
+      "patriota",
+      "privatizar",
+      "quintal"
+     ]
+    },
+    {
+     "topico": 190,
+     "npmi": -0.3040948372035692,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 24,
+     "pares": 45,
+     "palavras": [
+      "acharam",
+      "obra",
+      "pensando",
+      "atrás",
+      "simbora",
+      "borapracima",
+      "acolá",
+      "quietinha",
+      "aba",
+      "desconfie"
+     ]
+    },
+    {
+     "topico": 191,
+     "npmi": -0.3490976187424405,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 26,
+     "pares": 45,
+     "palavras": [
+      "mistério",
+      "ivetesangalo",
+      "mainha",
+      "rotina",
+      "24",
+      "cafezinhos",
+      "oitavo",
+      "postado",
+      "xícara",
+      "shape"
+     ]
+    },
+    {
+     "topico": 192,
+     "npmi": -0.5440897242691939,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 29,
+     "pares": 45,
+     "palavras": [
+      "fiel",
+      "aposentar",
+      "dó",
+      "morais",
+      "aposentados",
+      "prosperar",
+      "basta",
+      "pt",
+      "16",
+      "aquele"
+     ]
+    },
+    {
+     "topico": 193,
+     "npmi": 0.1551181313179547,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 4,
+     "pares": 45,
+     "palavras": [
+      "centro",
+      "paulo",
+      "cena",
+      "são",
+      "funcionando",
+      "ocupando",
+      "comércio",
+      "mudando",
+      "públicos",
+      "explorando"
+     ]
+    },
+    {
+     "topico": 194,
+     "npmi": -0.27298978495173826,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 18,
+     "pares": 45,
+     "palavras": [
+      "vencer",
+      "vença",
+      "torcendo",
+      "independente",
+      "vence",
+      "desejo",
+      "brasileiro",
+      "sempre",
+      "será",
+      "certeza"
+     ]
+    },
+    {
+     "topico": 195,
+     "npmi": -0.15802384783663745,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 17,
+     "pares": 45,
+     "palavras": [
+      "paraná",
+      "iguaçu",
+      "estiveram",
+      "bakri",
+      "hussein",
+      "luisa_canziani",
+      "cambé",
+      "frente",
+      "recepção",
+      "ceasa"
+     ]
+    },
+    {
+     "topico": 196,
+     "npmi": -0.028189002592156103,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 12,
+     "pares": 45,
+     "palavras": [
+      "teatro",
+      "patrimônio",
+      "espaço",
+      "cultura",
+      "palco",
+      "instituto",
+      "pedro",
+      "educação",
+      "sendo",
+      "espetáculos"
+     ]
+    },
+    {
+     "topico": 197,
+     "npmi": -0.4034270527051214,
+     "n_palavras": 10,
+     "fora_vocab": [],
+     "pares_sem_coocorrencia": 30,
+     "pares": 45,
+     "palavras": [
+      "camaragibe",
+      "sinal",
+      "roxinho",
+      "roxa",
+      "simboooora",
+      "genteee",
+      "fervendo",
+      "figueiroa",
+      "beto",
+      "diegorcabral"
+     ]
+    }
+   ]
+  },
+  "diversidade": 0.7543147208121828,
+  "n_palavras_total": 1970,
+  "n_palavras_unicas": 1486,
+  "diversidade_top25": 0.6481971888368303,
+  "palavras_por_topico_disponiveis": [
+   2,
+   30
+  ],
+  "palavras_mais_repetidas": {
+   "lula": 13,
+   "piauí": 9,
+   "presidente": 8,
+   "13": 8,
+   "paulo": 7,
+   "paraná": 6,
+   "mato": 6,
+   "democracia": 6,
+   "domingo": 6,
+   "grosso": 6,
+   "alagoas": 6,
+   "pará": 6,
+   "acre": 5,
+   "vote": 5,
+   "sergipe": 5
+  },
+  "ruido_docs_unicos": 1907,
+  "docs_no_ajuste": 8372
+ }
+]

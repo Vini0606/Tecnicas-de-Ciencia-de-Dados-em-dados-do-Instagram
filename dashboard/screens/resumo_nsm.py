@@ -19,6 +19,7 @@ import pandas as pd
 import streamlit as st
 
 from dashboard.core import data
+from dashboard.core.sentimento import indicador_rotulo
 from dashboard.screens.resumo_comum import (
     _PLACEHOLDER_SEM_GOVERNADOR,
     TODOS_OS_GOVERNADORES,
@@ -128,7 +129,9 @@ def montar_tabela_contraste(
             df_comentarios.columns
         ):
             chaves = _normalize_url(df_comentarios["inputUrl"])
-            frac = (df_comentarios["sentiment_label"] == label).groupby(chaves).mean()
+            frac = (
+                indicador_rotulo(df_comentarios["sentiment_label"], label).groupby(chaves).mean()
+            )
             tabela[coluna] = tabela["chave"].map(frac)
     tabela["n_comentarios"] = 0
     if not df_comentarios.empty and "inputUrl" in df_comentarios.columns:

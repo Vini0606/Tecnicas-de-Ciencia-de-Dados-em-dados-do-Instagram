@@ -413,7 +413,7 @@ def _maiores_grupos_de_comentarios(
     é `data.comments_only(data.load_sentiment())` (todos os perfis).
 
     Colunas: `Topic`, `Grupo` (rótulo de exibição), `n` (comentários do
-    sentimento no grupo), `pct` (fração `n / total de comentários do
+    sentimento no grupo), `pct` (fração `n / comentários classificados do
     governador`, incluindo neutros e ruído, em 0-1). Ruído (`Topic == -1`) e
     `Topic` nulo ficam de fora; empate de `n` desempata por `Topic` crescente.
     Menos de `top_n` grupos -> menos linhas; `DataFrame` vazio se não houver
@@ -423,7 +423,7 @@ def _maiores_grupos_de_comentarios(
     df = _filtrar_por_governador(df_comentarios, governor_url)
     if df.empty or not colunas.issubset(df.columns):
         return vazio
-    total = len(df)
+    total = int(df["sentiment_label"].notna().sum())
     df = df[
         (df["sentiment_label"] == sentimento)
         & df["Topic"].notna()

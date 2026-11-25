@@ -1,0 +1,114 @@
+{
+  "modelo": "cardiffnlp/twitter-xlm-roberta-base-sentiment",
+  "populacao": 74865,
+  "amostra_principal": 300,
+  "suplemento_viral": 60,
+  "semente": 20261119,
+  "rotulos_conferidos": 0,
+  "rotulos_alterados_na_conferencia": 0,
+  "matriz_amostra_principal": {
+    "positive": {
+      "positive": 94,
+      "neutral": 5,
+      "negative": 1
+    },
+    "neutral": {
+      "positive": 73,
+      "neutral": 23,
+      "negative": 4
+    },
+    "negative": {
+      "positive": 10,
+      "neutral": 14,
+      "negative": 76
+    }
+  },
+  "acuracia": {
+    "valor": 0.7058709677419355,
+    "ic95": [
+      0.6652467842115809,
+      0.7446011721097975
+    ]
+  },
+  "f1_macro": {
+    "valor": 0.6360465875790798,
+    "ic95": [
+      0.5820380888041702,
+      0.6890126704893391
+    ]
+  },
+  "por_classe": {
+    "positive": {
+      "precisao": 0.9400000000000001,
+      "precisao_ic95": [
+        0.8752318455410406,
+        0.9722138760368118
+      ],
+      "revocacao": 0.7107071905790473,
+      "f1": 0.8094285442713263,
+      "proporcao_modelo": 0.6117010619114406,
+      "proporcao_estimada_anotacao": 0.8090518934081345
+    },
+    "neutral": {
+      "precisao": 0.23,
+      "precisao_ic95": [
+        0.15843265880303448,
+        0.3215438302287378
+      ],
+      "revocacao": 0.6316419373397448,
+      "f1": 0.3372111762263457,
+      "proporcao_modelo": 0.30987778000400723,
+      "proporcao_estimada_anotacao": 0.11283590462833099
+    },
+    "negative": {
+      "precisao": 0.76,
+      "precisao_ic95": [
+        0.6676766365018553,
+        0.8330867444305122
+      ],
+      "revocacao": 0.7630060175756301,
+      "f1": 0.7615000422395675,
+      "proporcao_modelo": 0.07842115808455219,
+      "proporcao_estimada_anotacao": 0.07811220196353436
+    }
+  },
+  "regra_codigo_de_campanha": {
+    "comentarios_promovidos": 8209,
+    "precisao_segunda_amostra": {
+      "acertos": 99,
+      "n": 100,
+      "ic95": [
+        0.9455138038212946,
+        0.9982325679358593
+      ]
+    },
+    "acuracia_com_a_regra": {
+      "valor": 0.8515135243438189,
+      "ic95": [
+        0.8099398517331197,
+        0.8900463133640553
+      ]
+    },
+    "f1_macro_com_a_regra": {
+      "valor": 0.7320312042185906,
+      "ic95": [
+        0.6677730715101211,
+        0.7939955764971874
+      ]
+    },
+    "proporcao_com_a_regra": {
+      "positive": 0.757343618513324,
+      "neutral": 0.16423522340212382,
+      "negative": 0.07842115808455219
+    }
+  },
+  "virais": {
+    "precisao": {
+      "positive": 0.9,
+      "neutral": 0.5,
+      "negative": 0.9
+    },
+    "negativos_modelo": 0.21266968325791855,
+    "negativos_estimados_anotacao": 0.31153846153846154
+  }
+}
