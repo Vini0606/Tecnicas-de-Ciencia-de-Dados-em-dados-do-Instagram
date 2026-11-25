@@ -466,6 +466,22 @@ class TestScorer:
         )
         assert out.loc["gov0", "qualidade"] == pytest.approx(1 / 4)
 
+    def test_comentario_sem_rotulo_fica_fora_do_denominador_da_qualidade(self):
+        perfis, reels, posts, sent = _cenario(3)
+        url = perfis.iloc[0]["inputUrl"]
+        vazios = pd.DataFrame([_coment(url, None)] * 50)
+        out = _score(perfis, reels, posts, pd.concat([sent, vazios])).set_index(
+            "username"
+        )
+        assert out.loc["gov0", "qualidade"] == pytest.approx(1 / 4)
+
+    def test_perfil_so_com_comentarios_sem_rotulo_tem_qualidade_nula(self):
+        perfis, reels, posts, sent = _cenario(3)
+        url = perfis.iloc[0]["inputUrl"]
+        sent = pd.concat([sent[sent["inputUrl"] != url], pd.DataFrame([_coment(url, None)])])
+        out = _score(perfis, reels, posts, sent).set_index("username")
+        assert math.isnan(out.loc["gov0", "qualidade"])
+
     def test_join_por_inputUrl_normalizado(self):
         assert normalize_input_url(
             "HTTPS://www.Instagram.com/Gov/ "

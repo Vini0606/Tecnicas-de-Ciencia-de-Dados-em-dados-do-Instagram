@@ -7,7 +7,8 @@ topico do proprio comentario), aqui os comentarios sao agrupados pela pauta do
 reel em que foram feitos: comentario -> `id_reel` -> pauta.
 
 Formula (ADR 0020, mesma do ICE de comentarios): Score = Impacto x Confianca x
-Facilidade, com Impacto = alcance_normalizado x proporcao de positivos;
+Facilidade, com Impacto = alcance_normalizado x proporcao de positivos (sobre
+os comentarios classificados; os sem rotulo, de texto vazio, ficam fora);
 Confianca = media de `sentiment_score`; Facilidade fixa em 1.0 (v1). O alcance
 da pauta e um proxy por engajamento (soma de curtidas + respostas dos
 comentarios), normalizado por `x / (x + 1)` -- estavel entre execucoes.
@@ -117,6 +118,8 @@ class ContentTopicPriorityScorer:
             _alcance=alcance,
             _positivo=label == "positive",
             _negativo=label == "negative",
+            # NaN quando sem rotulo: `mean` ignora, e o denominador sao os classificados.
+            _positivo_cls=(label == "positive").astype(float).where(df["sentiment_label"].notna()),
             _name=[clean_pauta_label(n, t) for n, t in zip(df["Name"], df["Topic"], strict=True)],
         )
 
@@ -128,7 +131,7 @@ class ContentTopicPriorityScorer:
                 n_comentarios=("_positivo", "size"),
                 n_comentarios_positivos=("_positivo", "sum"),
                 n_comentarios_negativos=("_negativo", "sum"),
-                proporcao_sentimento_positivo=("_positivo", "mean"),
+                proporcao_sentimento_positivo=("_positivo_cls", "mean"),
                 alcance_pauta=("_alcance", "sum"),
                 confianca=("sentiment_score", "mean"),
             )
@@ -146,6 +149,8 @@ class ContentTopicPriorityScorer:
         # score nulo em linhas isoladas e ignorado pela media; so uma pauta com
         # TODAS as linhas nulas cai em 0.0.
         grouped["confianca"] = pd.to_numeric(grouped["confianca"], errors="coerce").fillna(0.0)
+
+        grouped["proporcao_sentimento_positivo"] = grouped["proporcao_sentimento_positivo"].fillna(0.0)
 
         grouped["alcance_normalizado"] = grouped["alcance_pauta"] / (grouped["alcance_pauta"] + 1.0)
         grouped["impacto"] = grouped["alcance_normalizado"] * grouped["proporcao_sentimento_positivo"]

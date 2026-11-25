@@ -39,6 +39,40 @@ def _engagement(**overrides) -> dict:
     return row
 
 
+class TestDenominadorClassificados:
+    """O denominador da proporção são os comentários CLASSIFICADOS (com rótulo de sentimento): comentário sem
+    rótulo (texto vazio) não é tratado como não positivo. O total coletado continua gravado, e a razão entre os
+    dois é a cobertura da classificação."""
+
+    def test_comentario_sem_rotulo_fica_fora_do_denominador(self):
+        df_sentiment = pd.DataFrame(
+            [
+                _comentario(sentiment_label="positive"),
+                _comentario(sentiment_label="negative"),
+                _comentario(sentiment_label=None),
+                _comentario(sentiment_label=None),
+            ]
+        )
+        df_engagement = pd.DataFrame([_engagement(**{"TOTAL ENGAJAMENTO": 200, "count": 10})])
+
+        linha = NsmScorer().score(df_sentiment, df_engagement).iloc[0]
+
+        assert linha["n_comentarios_totais"] == 4
+        assert linha["n_comentarios_classificados"] == 2
+        assert linha["proporcao_positivos"] == pytest.approx(0.5)
+        assert linha["nsm"] == pytest.approx(0.5 * 20.0)
+
+    def test_perfil_so_com_comentarios_sem_rotulo_tem_proporcao_zero(self):
+        df_sentiment = pd.DataFrame([_comentario(sentiment_label=None)])
+        df_engagement = pd.DataFrame([_engagement()])
+
+        linha = NsmScorer().score(df_sentiment, df_engagement).iloc[0]
+
+        assert linha["n_comentarios_classificados"] == 0
+        assert linha["proporcao_positivos"] == 0.0
+        assert linha["nsm"] == 0.0
+
+
 class TestFormula:
     def test_nsm_e_proporcao_positivos_vezes_alcance_medio(self):
         df_sentiment = pd.DataFrame(

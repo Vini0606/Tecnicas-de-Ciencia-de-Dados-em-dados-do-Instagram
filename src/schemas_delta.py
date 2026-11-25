@@ -365,6 +365,11 @@ GOLD_SENTIMENT_SCHEMA = pa.schema(
         # origens, `id_reel` passa a significar "id da publicação comentada".
         pa.field("origem_comentario", pa.string(), nullable=True),
         pa.field("sentiment_label", pa.string(), nullable=True),
+        # ADR 0049: rótulo que o classificador pré-treinado deu ao comentário,
+        # guardado para auditoria quando `sentiment_label` foi regravado pelo
+        # modelo ajustado (`scripts/reclassify_comment_sentiment.py`). Nulo em
+        # legenda/transcrição e em execuções novas do pipeline.
+        pa.field("sentiment_label_modelo", pa.string(), nullable=True),
         pa.field("sentiment_score", pa.float64(), nullable=True),
         pa.field("Topic", pa.int64(), nullable=True),
         pa.field("Name", pa.string(), nullable=True),
@@ -552,6 +557,9 @@ GOLD_NSM_SCHEMA = pa.schema(
         pa.field("username", pa.string(), nullable=True),
         pa.field("n_comentarios_positivos", pa.int64(), nullable=False),
         pa.field("n_comentarios_totais", pa.int64(), nullable=False),
+        # Comentários com rótulo de sentimento: denominador de `proporcao_positivos`;
+        # a razão sobre `n_comentarios_totais` é a cobertura da classificação.
+        pa.field("n_comentarios_classificados", pa.int64(), nullable=False),
         pa.field("proporcao_positivos", pa.float64(), nullable=False),
         # Proxy de "alcance" -- ver comentário acima. `total_engajamento`/
         # `count_posts` são cópias das colunas-fonte de `governor_engagement`

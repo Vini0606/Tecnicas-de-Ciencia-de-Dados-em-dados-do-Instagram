@@ -88,6 +88,7 @@ from dashboard.core.deltas import (
 )
 from dashboard.core.rotulos import rotular_topico
 from dashboard.core.seletor_periodo import seletor_periodo
+from dashboard.core.sentimento import indicador_rotulo, proporcao_rotulo
 from dashboard.core.theme import COLORS
 
 _PLACEHOLDER_SEM_GOVERNADOR = "—"
@@ -198,7 +199,7 @@ def _tema_maior_alta_negatividade(df_sentiment_history: pd.DataFrame) -> dict | 
     df = _comentarios_com_topico_deduplicados(df_sentiment_history)
     if df is None:
         return None
-    df = df.assign(_is_negative=(df["sentiment_label"] == "negative").astype(float))
+    df = df.assign(_is_negative=indicador_rotulo(df["sentiment_label"], "negative"))
 
     resultado = compare_publication_window(
         df, value_col="_is_negative", key_col="Topic"
@@ -278,7 +279,7 @@ def _maior_alta_negatividade(
 
     agregado = (
         df.groupby(["Topic", "Name"])["sentiment_label"]
-        .apply(lambda s: (s == "negative").mean())
+        .apply(lambda s: proporcao_rotulo(s, "negative"))
         .rename("pct_negativo")
         .reset_index()
     )

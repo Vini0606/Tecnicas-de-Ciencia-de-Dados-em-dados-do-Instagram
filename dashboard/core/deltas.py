@@ -16,6 +16,8 @@ import os
 import pandas as pd
 from dotenv import load_dotenv
 
+from dashboard.core.sentimento import proporcao_rotulo
+
 # Primeira leitura de `.env` pelo pacote `dashboard/` (ADR 0025 / issue
 # #153) -- decisão explícita de manter a variável abaixo lida aqui, não em
 # `config/settings.py`, para preservar a autocontenção do pacote do
@@ -337,7 +339,7 @@ def aggregate_pct_negative_by_publication_day(
     run_col: str = "_run_id",
 ) -> pd.DataFrame:
     """1 linha por dia de publicação (não execução -- ADR 0023): `% negativo =
-    count(sentiment_label == 'negative') / count(*)`, já deduplicado por
+    negativos / comentários classificados (com rótulo)`, já deduplicado por
     `id_col`/menor `run_col` (ver `deduplicate_by_first_seen`) para não contar
     duas vezes um comentário recoletado em execuções sobrepostas.
 
@@ -359,7 +361,7 @@ def aggregate_pct_negative_by_publication_day(
 
     agregado = (
         df.groupby("data")[sentiment_col]
-        .apply(lambda s: (s == "negative").mean())
+        .apply(lambda s: proporcao_rotulo(s, "negative"))
         .rename("pct_negativo")
         .reset_index()
         .sort_values("data")

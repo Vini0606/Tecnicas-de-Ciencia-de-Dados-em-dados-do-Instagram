@@ -167,7 +167,10 @@ def run_deterministic_modeling(
     df_comments = combine_comment_sources(df_comments, df_post_comments)
 
     logger.info("[SENTIMENTO] Analisando sentimento dos comentários...")
-    df_comments_sentiment = analyze_sentiment(df_comments, config.sentiment)
+    # ADR 0049: comentários usam o classificador ajustado ao domínio
+    # (`config.comment_sentiment`); legenda e transcrição, mais abaixo, seguem
+    # no pré-treinado (`config.sentiment`).
+    df_comments_sentiment = analyze_sentiment(df_comments, config.comment_sentiment)
     df_comments_preprocessed = preprocess_comments(df_comments_sentiment, config.preprocessing)
 
     logger.info("[TÓPICOS] Ajustando BERTopic...")

@@ -120,6 +120,9 @@ GOLD_GOVERNOR_SCORECARD = GOLD_DIR / "governor_scorecard"
 # Checkpoints locais do estágio determinístico de modelagem (ver ADR 0003) —
 # não são Delta, ficam fora do git.
 MODEL_CHECKPOINTS_DIR = DATA_DIR / "model_checkpoints"
+# ADR 0049: classificador de sentimento dos comentarios, ajustado ao dominio
+# (`notebooks/modelagens/validacao_sentimento/ajuste_fino.py` gera esta pasta).
+SENTIMENT_FINETUNED_DIR = MODEL_CHECKPOINTS_DIR / "sentimento_ajuste_fino"
 
 # Logs estruturados por run_id (ver ADR 0015) -- separado de LANDING_DIR e
 # MODEL_CHECKPOINTS_DIR de propósito: log operacional não é dado de negócio.

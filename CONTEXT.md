@@ -139,6 +139,24 @@ contrastado com o ranking por engajamento bruto (total de curtidas e comentário
 engajamento bruto — deixou de levar o selo "em validação" no dashboard.
 _Avoid_: NSM (sigla técnica, nunca aparece sozinha na interface do usuário final; ok em código/ADR).
 
+**Código de campanha**:
+Forma de apoio própria dos comentários em período eleitoral: número de candidato e emojis de apoio, com pouco ou
+nenhum texto ("5️⃣5️⃣💙🚀", "4️⃣0️⃣0️⃣✅", "🚀🚀🚀"). Conta como comentário positivo na aprovação. O classificador de
+sentimento pré-treinado o lia como neutro; foi o que motivou ajustá-lo aos comentários (ADR 0048, ADR 0049). Número de
+candidato sem emoji de apoio ("22") não é Código de campanha: pode ser apoio ou provocação, e fica neutro.
+_Avoid_: Militância, spam de campanha (carregam juízo; o termo descreve só a forma do texto).
+
+**Classificador ajustado** / **Classificador pré-treinado**:
+Classificador pré-treinado é o modelo de sentimento como foi publicado, usado nas legendas. Classificador ajustado é
+esse mesmo modelo com o treino continuado em comentários anotados da Coleta do TCC; é dele o Rótulo de sentimento dos
+comentários (ADR 0049).
+_Avoid_: "O modelo" sem qualificar, quando a diferença entre os dois importa.
+
+**Rótulo de sentimento**:
+Positivo, neutro ou negativo, atribuído a um comentário ou a uma legenda; é o que as métricas de aprovação usam. Nos
+comentários da Coleta do TCC, o rótulo que o Classificador pré-treinado tinha dado fica guardado ao lado, só para
+auditoria.
+
 **Coleta**:
 Uma extração completa do Instagram feita segundo um Recorte (ex.: últimos 90 dias, até 250 itens por perfil),
 guardada e versionada no Hugging Face. Uma Coleta substitui a anterior como a vigente; as anteriores continuam

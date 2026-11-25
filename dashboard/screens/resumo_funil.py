@@ -143,6 +143,7 @@ import streamlit as st
 from dashboard.core import data
 from dashboard.core.components import footnote
 from dashboard.core.deltas import LIMIAR_NEGATIVIDADE_ALERTA, week_over_week
+from dashboard.core.sentimento import proporcao_rotulo
 from dashboard.core.theme import COLORS
 from dashboard.screens.resumo_comum import (
     TODOS_OS_GOVERNADORES,
@@ -619,10 +620,8 @@ def _proporcao_negativo(df_sentiment_governador: pd.DataFrame) -> float | None:
         or "sentiment_label" not in df_sentiment_governador.columns
     ):
         return None
-    total = len(df_sentiment_governador)
-    if total == 0:
-        return None
-    return (df_sentiment_governador["sentiment_label"] == "negative").sum() / total
+    proporcao = proporcao_rotulo(df_sentiment_governador["sentiment_label"], "negative")
+    return None if pd.isna(proporcao) else proporcao
 
 
 def _proporcao_negativo_media_por_governador(
@@ -635,7 +634,7 @@ def _proporcao_negativo_media_por_governador(
     ):
         return None
     por_gov = df_sentiment_todos.groupby("_chave")["sentiment_label"].apply(
-        lambda s: (s == "negative").mean()
+        lambda s: proporcao_rotulo(s, "negative")
     )
     return float(por_gov.mean()) if not por_gov.empty else None
 
@@ -655,7 +654,7 @@ def _agregar_pct_negativo_por_run(
             df_sentiment_history_governador.groupby(["_run_id", "_chave"])[
                 "sentiment_label"
             ]
-            .apply(lambda s: (s == "negative").mean())
+            .apply(lambda s: proporcao_rotulo(s, "negative"))
             .groupby("_run_id")
             .mean()
             .rename("pct_negativo")
@@ -664,7 +663,7 @@ def _agregar_pct_negativo_por_run(
     else:
         agregado = (
             df_sentiment_history_governador.groupby("_run_id")["sentiment_label"]
-            .apply(lambda s: (s == "negative").mean())
+            .apply(lambda s: proporcao_rotulo(s, "negative"))
             .rename("pct_negativo")
             .reset_index()
         )

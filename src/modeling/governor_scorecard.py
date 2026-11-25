@@ -15,7 +15,8 @@ Dimensoes por governador (chave de juncao: `inputUrl` normalizado, ver
    nao tem plays (Instagram nao expoe), por isso so reels entram. O nome
    correto e "reproducoes/plays" -- NUNCA "visualizacoes unicas".
 2. **Ativacao** = media de `likesCount` dos reels / `followersCount` do perfil.
-3. **Qualidade** = comentarios positivos / comentarios totais do perfil
+3. **Qualidade** = comentarios positivos / comentarios classificados do perfil,
+   mesma base da NSM: os sem rotulo (texto vazio) ficam fora do denominador
    (somente linhas `fonte == "comentario"` de `governor_sentiment`; legenda e
    transcricao nao contam).
 4. **Profundidade** = media de `commentsCount` / media de `videoPlayCount`,
@@ -383,7 +384,7 @@ class GovernorScorecardScorer:
         if "fonte" in sent.columns:
             sent = sent[sent["fonte"] == "comentario"]
         sent["_key"] = sent["inputUrl"].map(normalize_input_url)
-        sent = sent.dropna(subset=["_key"])
+        sent = sent.dropna(subset=["_key", "sentiment_label"])
         sent["_positivo"] = (
             sent["sentiment_label"].astype(str).str.lower() == "positive"
         )
