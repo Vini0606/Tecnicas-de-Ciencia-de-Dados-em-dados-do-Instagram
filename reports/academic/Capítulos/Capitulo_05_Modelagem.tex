@@ -285,7 +285,11 @@ A Figura~\ref{fig:sentimento_por_governador} ordena os 26 perfis pela proporçã
 
 \subsection{Sentimento por Grupo de Desempenho}\label{sec:sentimento-cluster}
 
-O cruzamento do sentimento com os grupos de desempenho é o achado que organiza o restante do trabalho (Tabela~\ref{tab:sentimento_cluster} e Figura~\ref{fig:sentimento_por_cluster_reels}). Nos \emph{Reels}, o corpo (grupo 0) tem 78,7\% de comentários positivos e 10,1\% de negativos; os 27 vídeos virais (grupo 2) têm 59,7\% de positivos e 28,1\% de negativos, quase o triplo da negatividade. No \emph{feed}, a proporção de negativos cresce com a faixa de desempenho: 9,0\% no corpo, 16,0\% nos três grupos acima da média e 21,2\% nos dez grupos excepcionais (933 comentários). A ordem vale para as faixas, e não para cada grupo: entre os excepcionais, os de poucas dezenas de comentários vão de 0\% a 65,2\%, e os extremos dependem de poucas publicações de um perfil (os 65,2\% vêm de 23 comentários em quatro publicações de Tarcísio de Freitas). A diferença também não se reduz à composição de perfis: dos 19 perfis com ao menos trinta comentários acima do corpo, 17 têm mais negativos nessas publicações do que no próprio corpo, com diferença mediana de 5,7 pontos percentuais. O achado não é produto do classificador: na amostra anotada da primeira validação, a proporção de negativos nos comentários de \emph{Reels} virais estimada pela anotação foi de 31,2\%, e a diferença entre virais e corpo aparece com o modelo pré-treinado, com o ajustado e com a anotação. Nos grupos de maior repercussão observada, a proporção de aprovação entre os comentários é menor; uma hipótese, não testável com esta Coleta, que não distingue seguidores de não seguidores, é que a circulação leve a peça para fora da base de apoiadores que comenta por hábito. O engajamento bruto, portanto, mede exposição, não adesão, e um instrumento de decisão que trate os dois como sinônimos recomendará exatamente o conteúdo que mais atrai crítica.
+O cruzamento do sentimento com os grupos de desempenho organiza o restante do trabalho (Tabela~\ref{tab:sentimento_cluster} e Figura~\ref{fig:sentimento_por_cluster_reels}). No \emph{feed}, o corpo tem 9,0\% de comentários negativos, os três grupos acima da média, 16,0\%, e os dez excepcionais, 21,2\% (933 comentários). A ordem vale para as faixas, e não para cada grupo: entre os excepcionais, os de poucas dezenas de comentários vão de 0\% a 65,2\%, e os extremos dependem de poucas publicações de um perfil (os 65,2\% vêm de 23 comentários em quatro publicações de Tarcísio de Freitas). Nos \emph{Reels}, o corpo (grupo 0) tem 78,7\% de positivos e 10,1\% de negativos, e os 27 vídeos virais (grupo 2), 59,7\% e 28,1\%.
+
+Como os grupos de maior desempenho são dominados por poucos perfis, a comparação foi repetida controlando a composição (Tabela~\ref{tab:robustez_perfil}). Nos \emph{Reels}, o resultado não se generaliza: 15 dos 27 vídeos virais e 110 dos seus 221 comentários são de Tarcísio de Freitas, e sem esse perfil a negatividade dos virais (10,8\%, em 111 comentários de doze vídeos) não se distingue da do corpo (9,9\%). A diferença agregada é, portanto, um resultado desse perfil, no qual os virais têm 45,5\% de negativos e o corpo, 15,2\%; os outros seis perfis têm vídeos virais de menos para uma afirmação em qualquer sentido. No \emph{feed}, a diferença entre o corpo e as publicações acima dele resiste: sem Tarcísio de Freitas, 9,0\% e 15,9\%; retirando um perfil por vez, a distância entre os grupos acima da média e o corpo nunca fica abaixo de 5,3 pontos percentuais; se só a mistura de perfis mudasse, os grupos acima da média teriam 10,1\% de negativos, e têm 16,0\%; e, dos 19 perfis com ao menos trinta comentários acima do corpo, 17 têm mais negativos nessas publicações do que no próprio corpo, com diferença mediana de 5,7 pontos. O degrau entre a faixa acima da média e a excepcional, porém, também depende desse perfil: sem ele, as duas têm 15,9\% e 15,7\%. O que se sustenta é a diferença entre o corpo e o que está acima dele, e não uma escada de três degraus.
+
+A diferença do agregado dos \emph{Reels} não é produto do classificador: na amostra anotada da primeira validação, que tem a mesma concentração de perfis, a proporção de negativos nos virais estimada pela anotação foi de 31,2\%. Para o \emph{feed}, uma hipótese, não testável com esta Coleta, que não distingue seguidores de não seguidores, é que a circulação leve a peça para fora da base de apoiadores que comenta por hábito. O engajamento bruto, portanto, mede o tamanho da reação, e não a sua direção, e um instrumento de decisão que trate os dois como sinônimos tende a recomendar, no \emph{feed}, publicações com mais comentários negativos que o corpo.
 
 \begin{table}[htb]
 \centering
@@ -319,6 +323,27 @@ O cruzamento do sentimento com os grupos de desempenho é o achado que organiza 
 \bottomrule
 \end{tabular}
 \fonte{Elaboração própria (2026), a partir das tabelas Gold \texttt{governor\_sentiment}, \texttt{governor\_clusters\_reels} e \texttt{governor\_clusters\_posts} da Coleta do TCC. ``Coment.'' é o número de comentários classificados do grupo, base das proporções; os comentários sem rótulo (texto vazio após a limpeza) ficam de fora. Os comentários disponíveis por publicação são os 10 a 12 mais recentes, o que explica o número baixo de comentários dos grupos pequenos. O grupo 1 dos \emph{Reels} reúne duas transmissões longas, e suas proporções, sobre 13 comentários, constam apenas para registro. Em negrito, o total de cada faixa do \emph{feed}; todos os grupos estão listados, e os de poucas dezenas de comentários, vários deles de um único perfil, não sustentam leitura isolada.}
+\end{table}
+
+\begin{table}[htb]
+\centering
+\caption{Comentários negativos por grupo de desempenho, com e sem o perfil de Tarcísio de Freitas (\%)}
+\label{tab:robustez_perfil}
+\scriptsize\setlength{\tabcolsep}{3pt}
+\begin{tabular}{llrrrr}
+\toprule
+\textbf{Conjunto} & \textbf{Grupo} & \textbf{\shortstack[r]{Todos\\(IC 95\%)}} & \textbf{\shortstack[r]{Só\\Tarcísio}} & \textbf{\shortstack[r]{Sem Tarcísio\\(IC 95\%)}} & \textbf{\shortstack[r]{Mesma\\mistura}} \\
+\midrule
+\emph{Reels} & corpo & 10,1 (9,6 a 10,5) & 15,2 & 9,9 (9,5 a 10,4) & --- \\
+ & virais & 28,1 (18,8 a 38,3) & 45,5 & 10,8 (2,7 a 21,1) & 12,0 \\
+\midrule
+\emph{Feed} & corpo & 9,0 (8,6 a 9,3) & 9,5 & 9,0 (8,6 a 9,3) & --- \\
+ & acima da média & 16,0 (14,8 a 17,3) & 17,0 & 15,9 (14,5 a 17,3) & 10,1 \\
+ & excepcionais & 21,2 (17,5 a 25,1) & 28,0 & 15,7 (11,5 a 20,6) & 9,3 \\
+ & acima do corpo (as duas faixas) & 16,6 (15,4 a 17,8) & 20,8 & 15,9 (14,6 a 17,3) & 10,0 \\
+\bottomrule
+\end{tabular}
+\fonte{Elaboração própria (2026), a partir das tabelas Gold \texttt{governor\_sentiment}, \texttt{governor\_clusters\_reels} e \texttt{governor\_clusters\_posts} da Coleta do TCC; cálculo em \texttt{robustez\_\allowbreak{}por\_\allowbreak{}perfil.py}. Proporções sobre os comentários classificados; intervalos por \emph{bootstrap} de publicações. ``Mesma mistura'' é a proporção que o corpo teria com a composição de perfis do grupo. A maior parte das publicações do \emph{feed} são os próprios \emph{Reels} vistos pela grade, agrupados por curtidas e comentários.}
 \end{table}
 
 \begin{figure}[htb]

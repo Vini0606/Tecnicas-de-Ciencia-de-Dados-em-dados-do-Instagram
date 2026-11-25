@@ -6,4 +6,4 @@ Versionados: critério de anotação, identificadores, rótulos, previsões, mé
 
 Os textos se recuperam de quem tem acesso ao dataset privado da Coleta, pelo `id_comment` dos gabaritos e, no caso da amostra
 principal e do teste, pelo sorteio com semente fixa. Os notebooks `sentimento_01_*` e `sentimento_02_*` precisam desses arquivos para
-reexecutar; três saídas que mostravam textos foram omitidas.
+reexecutar; `robustez_por_perfil.py` (Seção 5.4.3) não precisa, lê só a Gold. Três saídas que mostravam textos foram omitidas.

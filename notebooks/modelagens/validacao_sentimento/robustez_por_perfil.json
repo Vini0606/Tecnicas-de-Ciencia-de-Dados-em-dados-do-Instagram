@@ -1,0 +1,242 @@
+{
+ "reels": {
+  "corpo": {
+   "n": 51848,
+   "publicacoes": 5853,
+   "perfis": 26,
+   "neg": 10.1,
+   "ic95": [
+    9.6,
+    10.5
+   ]
+  },
+  "corpo_sem_tarcisio": {
+   "n": 50477,
+   "publicacoes": 5662,
+   "perfis": 25,
+   "neg": 9.9,
+   "ic95": [
+    9.5,
+    10.4
+   ]
+  },
+  "corpo_so_tarcisio": {
+   "n": 1371,
+   "publicacoes": 191,
+   "perfis": 1,
+   "neg": 15.2,
+   "ic95": [
+    12.7,
+    17.9
+   ]
+  },
+  "virais": {
+   "todos": {
+    "n": 221,
+    "publicacoes": 27,
+    "perfis": 7,
+    "neg": 28.1,
+    "ic95": [
+     18.8,
+     38.3
+    ]
+   },
+   "sem_tarcisio": {
+    "n": 111,
+    "publicacoes": 12,
+    "perfis": 6,
+    "neg": 10.8,
+    "ic95": [
+     2.7,
+     21.1
+    ]
+   },
+   "so_tarcisio": {
+    "n": 110,
+    "publicacoes": 15,
+    "perfis": 1,
+    "neg": 45.5,
+    "ic95": [
+     33.9,
+     56.8
+    ]
+   },
+   "corpo_mesma_mistura": 12.0,
+   "retirando_um_perfil": {
+    "neg_min": 10.8,
+    "neg_max": 32.3,
+    "menor_diferenca_pp": 0.9,
+    "perfil_da_menor_diferenca": "tarcisiogdf"
+   },
+   "dentro_dos_perfis": {
+    "perfis": 2,
+    "mais_negativos": 1,
+    "mediana_pp": 14.6
+   }
+  }
+ },
+ "feed": {
+  "corpo": {
+   "n": 65885,
+   "publicacoes": 7394,
+   "perfis": 26,
+   "neg": 9.0,
+   "ic95": [
+    8.6,
+    9.3
+   ]
+  },
+  "corpo_sem_tarcisio": {
+   "n": 65421,
+   "publicacoes": 7326,
+   "perfis": 25,
+   "neg": 9.0,
+   "ic95": [
+    8.6,
+    9.3
+   ]
+  },
+  "corpo_so_tarcisio": {
+   "n": 464,
+   "publicacoes": 68,
+   "perfis": 1,
+   "neg": 9.5,
+   "ic95": [
+    5.3,
+    14.6
+   ]
+  },
+  "acima": {
+   "todos": {
+    "n": 7735,
+    "publicacoes": 921,
+    "perfis": 23,
+    "neg": 16.0,
+    "ic95": [
+     14.8,
+     17.3
+    ]
+   },
+   "sem_tarcisio": {
+    "n": 6929,
+    "publicacoes": 814,
+    "perfis": 22,
+    "neg": 15.9,
+    "ic95": [
+     14.5,
+     17.3
+    ]
+   },
+   "so_tarcisio": {
+    "n": 806,
+    "publicacoes": 107,
+    "perfis": 1,
+    "neg": 17.0,
+    "ic95": [
+     13.5,
+     20.6
+    ]
+   },
+   "corpo_mesma_mistura": 10.1,
+   "retirando_um_perfil": {
+    "neg_min": 13.8,
+    "neg_max": 18.3,
+    "menor_diferenca_pp": 5.3,
+    "perfil_da_menor_diferenca": "romeuzemaoficial"
+   },
+   "dentro_dos_perfis": {
+    "perfis": 19,
+    "mais_negativos": 16,
+    "mediana_pp": 6.6
+   }
+  },
+  "excepcional": {
+   "todos": {
+    "n": 933,
+    "publicacoes": 116,
+    "perfis": 10,
+    "neg": 21.2,
+    "ic95": [
+     17.5,
+     25.1
+    ]
+   },
+   "sem_tarcisio": {
+    "n": 515,
+    "publicacoes": 59,
+    "perfis": 9,
+    "neg": 15.7,
+    "ic95": [
+     11.5,
+     20.6
+    ]
+   },
+   "so_tarcisio": {
+    "n": 418,
+    "publicacoes": 57,
+    "perfis": 1,
+    "neg": 28.0,
+    "ic95": [
+     22.4,
+     33.8
+    ]
+   },
+   "corpo_mesma_mistura": 9.3,
+   "retirando_um_perfil": {
+    "neg_min": 15.7,
+    "neg_max": 23.6,
+    "menor_diferenca_pp": 6.8,
+    "perfil_da_menor_diferenca": "tarcisiogdf"
+   },
+   "dentro_dos_perfis": {
+    "perfis": 7,
+    "mais_negativos": 6,
+    "mediana_pp": 5.6
+   }
+  },
+  "acima_do_corpo": {
+   "todos": {
+    "n": 8668,
+    "publicacoes": 1037,
+    "perfis": 23,
+    "neg": 16.6,
+    "ic95": [
+     15.4,
+     17.8
+    ]
+   },
+   "sem_tarcisio": {
+    "n": 7444,
+    "publicacoes": 873,
+    "perfis": 22,
+    "neg": 15.9,
+    "ic95": [
+     14.6,
+     17.3
+    ]
+   },
+   "so_tarcisio": {
+    "n": 1224,
+    "publicacoes": 164,
+    "perfis": 1,
+    "neg": 20.8,
+    "ic95": [
+     17.7,
+     24.0
+    ]
+   },
+   "corpo_mesma_mistura": 10.0,
+   "retirando_um_perfil": {
+    "neg_min": 14.6,
+    "neg_max": 18.7,
+    "menor_diferenca_pp": 6.1,
+    "perfil_da_menor_diferenca": "romeuzemaoficial"
+   },
+   "dentro_dos_perfis": {
+    "perfis": 19,
+    "mais_negativos": 17,
+    "mediana_pp": 5.7
+   }
+  }
+ }
+}
